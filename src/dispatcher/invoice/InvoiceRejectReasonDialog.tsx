@@ -4,15 +4,14 @@ import {
   type InvoiceRejectReasonId,
 } from "./invoiceRejectReasons";
 
-const NAVY = "#0a3161";
 const RED = "#bf0a30";
-const MUTED = "#6b7280";
-const CELL_TEXT = "#333";
+const MUTED = "var(--admin-text-muted)";
+const CELL_TEXT = "var(--admin-text)";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 const HEADER_BTN = {
-  backgroundColor: "#fff",
-  color: NAVY,
+  backgroundColor: "var(--admin-surface)",
+  color: "var(--admin-accent-soft)",
   border: "1px solid #cbd5e1",
   borderRadius: 6,
   padding: "8px 14px",
@@ -69,7 +68,7 @@ export function InvoiceRejectReasonDialog({
       <div
         data-testid="invoice-reject-reason-panel"
         style={{
-          backgroundColor: "#fff",
+          backgroundColor: "var(--admin-surface)",
           borderRadius: 10,
           padding: 24,
           width: "100%",
@@ -79,7 +78,7 @@ export function InvoiceRejectReasonDialog({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ margin: "0 0 8px", color: NAVY, fontSize: 18 }}>{title}</h3>
+        <h3 style={{ margin: "0 0 8px", color: "var(--admin-accent-soft)", fontSize: 18 }}>{title}</h3>
         <p
           data-testid="invoice-reject-reason-help"
           style={{ margin: "0 0 14px", fontSize: 13, color: MUTED, lineHeight: 1.45 }}
@@ -92,7 +91,7 @@ export function InvoiceRejectReasonDialog({
             display: "block",
             fontSize: 12,
             fontWeight: 700,
-            color: NAVY,
+            color: "var(--admin-accent-soft)",
             marginBottom: 6,
           }}
         >
@@ -113,7 +112,7 @@ export function InvoiceRejectReasonDialog({
             fontSize: 13,
             fontWeight: 500,
             color: CELL_TEXT,
-            backgroundColor: "#fff",
+            backgroundColor: "var(--admin-surface)",
             border: "1px solid #cbd5e1",
             borderRadius: 8,
             padding: "10px 12px",
@@ -134,7 +133,7 @@ export function InvoiceRejectReasonDialog({
             display: "block",
             fontSize: 12,
             fontWeight: 700,
-            color: NAVY,
+            color: "var(--admin-accent-soft)",
             marginBottom: 6,
           }}
         >
@@ -157,7 +156,7 @@ export function InvoiceRejectReasonDialog({
             fontWeight: 500,
             lineHeight: 1.45,
             color: CELL_TEXT,
-            backgroundColor: "#fff",
+            backgroundColor: "var(--admin-surface)",
             border: "1px solid #cbd5e1",
             borderRadius: 8,
             padding: "12px 14px",
@@ -190,7 +189,7 @@ export function InvoiceRejectReasonDialog({
             onClick={onConfirm}
             style={{
               backgroundColor: RED,
-              color: "#fff",
+              color: "var(--admin-text)",
               border: "none",
               borderRadius: 6,
               padding: "8px 14px",

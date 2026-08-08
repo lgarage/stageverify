@@ -28,8 +28,8 @@ function domainFromEmail(email: string): string | undefined {
 }
 
 const cardStyle = {
-  backgroundColor: "#fff",
-  border: "1px solid #dde1e7",
+  backgroundColor: "var(--admin-surface)",
+  border: "1px solid var(--admin-border)",
   borderRadius: 8,
   boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
 };
@@ -169,17 +169,17 @@ export function VendorsManagementPanel({
             <div
               style={{
                 padding: "15px 20px",
-                borderBottom: "1px solid #eaecf0",
+                borderBottom: "1px solid var(--admin-border)",
               }}
             >
-              <span style={{ fontWeight: 700, fontSize: 15, color: NAVY }}>
+              <span style={{ fontWeight: 700, fontSize: 15, color: "var(--admin-accent-soft)" }}>
                 Vendors
               </span>
               <span
                 style={{
                   marginLeft: 8,
                   fontSize: 12,
-                  color: "#9ca3af",
+                  color: "var(--admin-text-muted)",
                   fontWeight: 500,
                 }}
               >
@@ -198,7 +198,7 @@ export function VendorsManagementPanel({
                 }}
               >
                 <thead>
-                  <tr style={{ backgroundColor: NAVY }}>
+                  <tr style={{ backgroundColor: NAVY }} data-testid="vendors-table-header">
                     {["Name", "PIN", "Active", "Multi-site", "Contact Name", "Contact Phone", "Email", "Email Domain", "Address", "Supplies", "Notes", ""].map(
                       (col, i) => (
                         <th
@@ -207,7 +207,7 @@ export function VendorsManagementPanel({
                             padding: "12px",
                             fontWeight: 700,
                             fontSize: 14,
-                            color: "#ffffff",
+                            color: "var(--admin-on-navy)",
                             textAlign: "left",
                             whiteSpace: "nowrap",
                           }}
@@ -221,28 +221,32 @@ export function VendorsManagementPanel({
                 <tbody>
                   {vendors.map((vendor, idx) => {
                     const isEditing = editingId === vendor.id;
-                    const rowBg = idx % 2 === 0 ? "#fff" : "#fafbfc";
+                    const rowBg = idx % 2 === 0 ? "var(--admin-row-even)" : "var(--admin-row-odd)";
                     const tdBase: CSSProperties = {
                       padding: "10px 12px",
-                      borderBottom: "1px solid #eaecf0",
+                      borderBottom: "1px solid var(--admin-border)",
                       verticalAlign: "middle",
                     };
                     const inlineInput: CSSProperties = {
                       padding: "4px 8px",
-                      border: "1.5px solid #ccd0d7",
+                      border: "1.5px solid var(--admin-border)",
                       borderRadius: 4,
                       fontSize: 13,
-                      color: "#333",
+                      color: "var(--admin-text)",
                       fontFamily: FONT,
                       outline: "none",
                       width: "100%",
                       boxSizing: "border-box",
-                      backgroundColor: "#fff",
+                      backgroundColor: "var(--admin-surface)",
                     };
 
                     return (
-                      <tr key={vendor.id} style={{ backgroundColor: rowBg }}>
-                        <td style={{ ...tdBase, fontWeight: 600, color: "#111" }}>
+                      <tr
+                        key={vendor.id}
+                        style={{ backgroundColor: rowBg }}
+                        {...(idx === 0 ? { "data-testid": "vendors-table-row" } : {})}
+                      >
+                        <td style={{ ...tdBase, fontWeight: 600, color: "var(--admin-text)" }}>
                           {isEditing ? (
                             <input
                               style={inlineInput}
@@ -256,7 +260,7 @@ export function VendorsManagementPanel({
                             vendor.name
                           )}
                         </td>
-                        <td style={{ ...tdBase, color: "#333", fontFamily: "monospace" }}>
+                        <td style={{ ...tdBase, color: "var(--admin-text)", fontFamily: "monospace" }}>
                           {isEditing ? (
                             <input
                               style={inlineInput}
@@ -277,7 +281,7 @@ export function VendorsManagementPanel({
                             "—"
                           )}
                         </td>
-                        <td style={{ ...tdBase, color: "#333" }}>
+                        <td style={{ ...tdBase, color: "var(--admin-text)" }}>
                           {isEditing ? (
                             <input
                               type="checkbox"
@@ -292,7 +296,7 @@ export function VendorsManagementPanel({
                             "Active"
                           )}
                         </td>
-                        <td style={{ ...tdBase, color: "#333" }}>
+                        <td style={{ ...tdBase, color: "var(--admin-text)" }}>
                           {isEditing ? (
                             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
                               <input
@@ -314,7 +318,7 @@ export function VendorsManagementPanel({
                             "Off"
                           )}
                         </td>
-                        <td style={{ ...tdBase, color: "#333" }}>
+                        <td style={{ ...tdBase, color: "var(--admin-text)" }}>
                           {isEditing ? (
                             <input
                               style={inlineInput}
@@ -327,7 +331,7 @@ export function VendorsManagementPanel({
                             vendor.contactName ?? "—"
                           )}
                         </td>
-                        <td style={{ ...tdBase, color: "#333" }}>
+                        <td style={{ ...tdBase, color: "var(--admin-text)" }}>
                           {isEditing ? (
                             <input
                               style={inlineInput}
@@ -344,7 +348,7 @@ export function VendorsManagementPanel({
                             vendor.contactPhone ?? "—"
                           )}
                         </td>
-                        <td style={{ ...tdBase, color: "#333" }}>
+                        <td style={{ ...tdBase, color: "var(--admin-text)" }}>
                           {isEditing ? (
                             <input
                               style={inlineInput}
@@ -357,7 +361,7 @@ export function VendorsManagementPanel({
                             vendor.email ?? "—"
                           )}
                         </td>
-                        <td style={{ ...tdBase, color: "#333" }}>
+                        <td style={{ ...tdBase, color: "var(--admin-text)" }}>
                           {isEditing ? (
                             <input
                               style={inlineInput}
@@ -375,7 +379,7 @@ export function VendorsManagementPanel({
                             vendor.emailDomain ?? domainFromEmail(vendor.email ?? "") ?? "—"
                           )}
                         </td>
-                        <td style={{ ...tdBase, color: "#333" }}>
+                        <td style={{ ...tdBase, color: "var(--admin-text)" }}>
                           {isEditing ? (
                             <input
                               style={inlineInput}
@@ -389,7 +393,7 @@ export function VendorsManagementPanel({
                             vendor.address ?? "—"
                           )}
                         </td>
-                        <td style={{ ...tdBase, color: "#333" }}>
+                        <td style={{ ...tdBase, color: "var(--admin-text)" }}>
                           {isEditing ? (
                             <input
                               style={inlineInput}
@@ -402,7 +406,7 @@ export function VendorsManagementPanel({
                             vendor.supplies ?? "—"
                           )}
                         </td>
-                        <td style={{ ...tdBase, color: "#333" }}>
+                        <td style={{ ...tdBase, color: "var(--admin-text)" }}>
                           {isEditing ? (
                             <textarea
                               style={{ ...inlineInput, resize: "none" }}
@@ -424,14 +428,17 @@ export function VendorsManagementPanel({
                           {isEditing ? (
                             <div style={{ display: "flex", gap: 6 }}>
                               <button
+                                data-testid="vendor-row-save"
                                 onClick={() => saveEdit(vendor)}
                                 disabled={!editDraft.name.trim()}
                                 style={{
                                   padding: "3px 10px",
                                   borderRadius: 4,
                                   border: "none",
-                                  backgroundColor: !editDraft.name.trim() ? "#e5e7eb" : NAVY,
-                                  color: !editDraft.name.trim() ? "#9ca3af" : "#fff",
+                                  backgroundColor: !editDraft.name.trim() ? "var(--admin-border)" : NAVY,
+                                  color: !editDraft.name.trim()
+                                    ? "var(--admin-text-muted)"
+                                    : "var(--admin-on-navy)",
                                   fontSize: 12,
                                   fontWeight: 600,
                                   cursor: !editDraft.name.trim() ? "not-allowed" : "pointer",
@@ -445,9 +452,9 @@ export function VendorsManagementPanel({
                                 style={{
                                   padding: "3px 10px",
                                   borderRadius: 4,
-                                  border: "1.5px solid #ccd0d7",
-                                  backgroundColor: "#fff",
-                                  color: "#6b7280",
+                                  border: "1.5px solid var(--admin-border)",
+                                  backgroundColor: "var(--admin-surface)",
+                                  color: "var(--admin-text-muted)",
                                   fontSize: 12,
                                   fontWeight: 600,
                                   cursor: "pointer",
@@ -459,13 +466,14 @@ export function VendorsManagementPanel({
                             </div>
                           ) : (
                             <button
+                              data-testid="vendor-row-edit"
                               onClick={() => startEdit(vendor)}
                               style={{
                                 padding: "3px 10px",
                                 borderRadius: 4,
-                                border: "1.5px solid #0a3161",
-                                backgroundColor: "#fff",
-                                color: "#0a3161",
+                                border: "1.5px solid var(--admin-accent-soft)",
+                                backgroundColor: "var(--admin-surface)",
+                                color: "var(--admin-accent-soft)",
                                 fontSize: 12,
                                 fontWeight: 600,
                                 cursor: "pointer",
@@ -491,7 +499,7 @@ export function VendorsManagementPanel({
                 margin: "0 0 16px",
                 fontSize: 15,
                 fontWeight: 700,
-                color: NAVY,
+                color: "var(--admin-accent-soft)",
               }}
             >
               Add Vendor
@@ -511,7 +519,7 @@ export function VendorsManagementPanel({
                       display: "block",
                       fontSize: 13,
                       fontWeight: 700,
-                      color: "#6b7280",
+                      color: "var(--admin-text-muted)",
                       marginBottom: 6,
                     }}
                   >
@@ -525,12 +533,12 @@ export function VendorsManagementPanel({
                     style={{
                       width: "100%",
                       padding: "10px 12px",
-                      border: "1.5px solid #ccd0d7",
+                      border: "1.5px solid var(--admin-border)",
                       borderRadius: 6,
                       fontSize: 14,
-                      color: "#333",
+                      color: "var(--admin-text)",
                       outline: "none",
-                      backgroundColor: "#fff",
+                      backgroundColor: "var(--admin-surface)",
                       fontFamily: FONT,
                       boxSizing: "border-box",
                     }}
@@ -542,7 +550,7 @@ export function VendorsManagementPanel({
                       display: "block",
                       fontSize: 13,
                       fontWeight: 700,
-                      color: "#6b7280",
+                      color: "var(--admin-text-muted)",
                       marginBottom: 6,
                     }}
                   >
@@ -560,12 +568,12 @@ export function VendorsManagementPanel({
                     style={{
                       width: "100%",
                       padding: "10px 12px",
-                      border: "1.5px solid #ccd0d7",
+                      border: "1.5px solid var(--admin-border)",
                       borderRadius: 6,
                       fontSize: 14,
-                      color: "#333",
+                      color: "var(--admin-text)",
                       outline: "none",
-                      backgroundColor: "#fff",
+                      backgroundColor: "var(--admin-surface)",
                       fontFamily: FONT,
                       boxSizing: "border-box",
                     }}
@@ -577,7 +585,7 @@ export function VendorsManagementPanel({
                       display: "block",
                       fontSize: 13,
                       fontWeight: 700,
-                      color: "#6b7280",
+                      color: "var(--admin-text-muted)",
                       marginBottom: 6,
                     }}
                   >
@@ -596,7 +604,7 @@ export function VendorsManagementPanel({
                       display: "block",
                       fontSize: 13,
                       fontWeight: 700,
-                      color: "#6b7280",
+                      color: "var(--admin-text-muted)",
                       marginBottom: 6,
                     }}
                   >
@@ -618,7 +626,7 @@ export function VendorsManagementPanel({
                       display: "block",
                       fontSize: 13,
                       fontWeight: 700,
-                      color: "#6b7280",
+                      color: "var(--admin-text-muted)",
                       marginBottom: 6,
                     }}
                   >
@@ -631,12 +639,12 @@ export function VendorsManagementPanel({
                     style={{
                       width: "100%",
                       padding: "10px 12px",
-                      border: "1.5px solid #ccd0d7",
+                      border: "1.5px solid var(--admin-border)",
                       borderRadius: 6,
                       fontSize: 14,
-                      color: "#333",
+                      color: "var(--admin-text)",
                       outline: "none",
-                      backgroundColor: "#fff",
+                      backgroundColor: "var(--admin-surface)",
                       fontFamily: FONT,
                       boxSizing: "border-box",
                     }}
@@ -648,7 +656,7 @@ export function VendorsManagementPanel({
                       display: "block",
                       fontSize: 13,
                       fontWeight: 700,
-                      color: "#6b7280",
+                      color: "var(--admin-text-muted)",
                       marginBottom: 6,
                     }}
                   >
@@ -662,12 +670,12 @@ export function VendorsManagementPanel({
                     style={{
                       width: "100%",
                       padding: "10px 12px",
-                      border: "1.5px solid #ccd0d7",
+                      border: "1.5px solid var(--admin-border)",
                       borderRadius: 6,
                       fontSize: 14,
-                      color: "#333",
+                      color: "var(--admin-text)",
                       outline: "none",
-                      backgroundColor: "#fff",
+                      backgroundColor: "var(--admin-surface)",
                       fontFamily: FONT,
                       boxSizing: "border-box",
                     }}
@@ -679,7 +687,7 @@ export function VendorsManagementPanel({
                       display: "block",
                       fontSize: 13,
                       fontWeight: 700,
-                      color: "#6b7280",
+                      color: "var(--admin-text-muted)",
                       marginBottom: 6,
                     }}
                   >
@@ -692,12 +700,12 @@ export function VendorsManagementPanel({
                     style={{
                       width: "100%",
                       padding: "10px 12px",
-                      border: "1.5px solid #ccd0d7",
+                      border: "1.5px solid var(--admin-border)",
                       borderRadius: 6,
                       fontSize: 14,
-                      color: "#333",
+                      color: "var(--admin-text)",
                       outline: "none",
-                      backgroundColor: "#fff",
+                      backgroundColor: "var(--admin-surface)",
                       fontFamily: FONT,
                       boxSizing: "border-box",
                     }}
@@ -709,7 +717,7 @@ export function VendorsManagementPanel({
                       display: "block",
                       fontSize: 13,
                       fontWeight: 700,
-                      color: "#6b7280",
+                      color: "var(--admin-text-muted)",
                       marginBottom: 6,
                     }}
                   >
@@ -724,19 +732,19 @@ export function VendorsManagementPanel({
                     style={{
                       width: "100%",
                       padding: "10px 12px",
-                      border: "1.5px solid #ccd0d7",
+                      border: "1.5px solid var(--admin-border)",
                       borderRadius: 6,
                       fontSize: 14,
-                      color: "#333",
+                      color: "var(--admin-text)",
                       outline: "none",
-                      backgroundColor: "#fff",
+                      backgroundColor: "var(--admin-surface)",
                       fontFamily: FONT,
                       boxSizing: "border-box",
                     }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#6b7280", marginBottom: 6 }}>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "var(--admin-text-muted)", marginBottom: 6 }}>
                     Address
                   </label>
                   <input
@@ -747,12 +755,12 @@ export function VendorsManagementPanel({
                     style={{
                       width: "100%",
                       padding: "10px 12px",
-                      border: "1.5px solid #ccd0d7",
+                      border: "1.5px solid var(--admin-border)",
                       borderRadius: 6,
                       fontSize: 14,
-                      color: "#333",
+                      color: "var(--admin-text)",
                       outline: "none",
-                      backgroundColor: "#fff",
+                      backgroundColor: "var(--admin-surface)",
                       fontFamily: FONT,
                       boxSizing: "border-box",
                     }}
@@ -764,7 +772,7 @@ export function VendorsManagementPanel({
                       display: "block",
                       fontSize: 13,
                       fontWeight: 700,
-                      color: "#6b7280",
+                      color: "var(--admin-text-muted)",
                       marginBottom: 6,
                     }}
                   >
@@ -778,12 +786,12 @@ export function VendorsManagementPanel({
                     style={{
                       width: "100%",
                       padding: "10px 12px",
-                      border: "1.5px solid #ccd0d7",
+                      border: "1.5px solid var(--admin-border)",
                       borderRadius: 6,
                       fontSize: 14,
-                      color: "#333",
+                      color: "var(--admin-text)",
                       outline: "none",
-                      backgroundColor: "#fff",
+                      backgroundColor: "var(--admin-surface)",
                       fontFamily: FONT,
                       boxSizing: "border-box",
                     }}
@@ -795,7 +803,7 @@ export function VendorsManagementPanel({
                       display: "block",
                       fontSize: 13,
                       fontWeight: 700,
-                      color: "#6b7280",
+                      color: "var(--admin-text-muted)",
                       marginBottom: 6,
                     }}
                   >
@@ -809,12 +817,12 @@ export function VendorsManagementPanel({
                     style={{
                       width: "100%",
                       padding: "10px 12px",
-                      border: "1.5px solid #ccd0d7",
+                      border: "1.5px solid var(--admin-border)",
                       borderRadius: 6,
                       fontSize: 14,
-                      color: "#333",
+                      color: "var(--admin-text)",
                       outline: "none",
-                      backgroundColor: "#fff",
+                      backgroundColor: "var(--admin-surface)",
                       fontFamily: FONT,
                       boxSizing: "border-box",
                       resize: "none",
@@ -824,13 +832,14 @@ export function VendorsManagementPanel({
               </div>
               <button
                 type="submit"
+                data-testid="add-vendor-submit"
                 disabled={!name.trim()}
                 style={{
                   padding: "8px 18px",
                   borderRadius: 4,
                   border: "none",
-                  backgroundColor: !name.trim() ? "#f3f4f6" : RED,
-                  color: !name.trim() ? "#9ca3af" : "#fff",
+                  backgroundColor: !name.trim() ? "var(--admin-surface-2)" : RED,
+                  color: !name.trim() ? "var(--admin-text-muted)" : "var(--admin-on-navy)",
                   fontWeight: 700,
                   fontSize: 13,
                   cursor: !name.trim() ? "not-allowed" : "pointer",

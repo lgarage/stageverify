@@ -12,7 +12,7 @@ export function StagingLocationBanner({
       style={{
         borderRadius: 8,
         border: "2px solid #ea580c",
-        backgroundColor: "#fff7ed",
+        backgroundColor: "var(--admin-warning-bg)",
         padding: "14px 16px",
         fontFamily: font,
       }}
@@ -60,7 +60,7 @@ export function StagingLocationBanner({
             padding: "7px 12px",
             borderRadius: 6,
             border: "1.5px solid #ea580c",
-            backgroundColor: "#fff",
+            backgroundColor: "var(--admin-surface)",
             color: "#9a3412",
             fontSize: 12,
             fontWeight: 700,

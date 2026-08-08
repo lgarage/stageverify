@@ -96,7 +96,7 @@ export function CatchAllDeliveryTopBarEntry() {
           style={{
             fontSize: 12,
             fontWeight: 600,
-            color: message.includes("sent") ? "#166534" : "#b91c1c",
+            color: message.includes("sent") ? "var(--admin-success-text)" : "var(--admin-danger-text)",
             maxWidth: 280,
           }}
         >
@@ -121,8 +121,8 @@ export function CatchAllDeliveryTopBarEntry() {
             padding: "4px 22px 4px 10px",
             borderRadius: 4,
             border: `1.5px solid ${NAVY}`,
-            backgroundColor: disabled ? "#f3f4f6" : "#fff",
-            color: disabled ? "#9ca3af" : NAVY,
+            backgroundColor: disabled ? "var(--admin-surface-2)" : "var(--admin-surface)",
+            color: disabled ? "var(--admin-text-muted)" : "var(--admin-link)",
             fontWeight: 700,
             fontSize: 12,
             cursor: disabled ? "not-allowed" : "pointer",
@@ -145,7 +145,7 @@ export function CatchAllDeliveryTopBarEntry() {
             padding: "0 4px",
             borderRadius: 999,
             backgroundColor: NAVY,
-            color: "#fff",
+            color: "var(--admin-on-navy)",
             fontSize: 11,
             fontWeight: 800,
             lineHeight: "18px",

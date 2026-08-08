@@ -2,13 +2,12 @@ import { PortalSidebar } from "./PortalSidebar";
 import { VendorsManagementPanel } from "./VendorsManagementPanel";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
 import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
+import { PortalShell } from "./PortalShell";
 import {
-  PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
   PORTAL_SCROLL_CLASS,
 } from "./dispatcherPortalLayout";
 
-const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 export function VendorsPage() {
@@ -22,12 +21,12 @@ export function VendorsPage() {
   } = useDispatcherPortal();
 
   return (
-    <div style={{ fontFamily: FONT }} className={PORTAL_SHELL_CLASS}>
+    <PortalShell style={{ fontFamily: FONT }}>
       <PortalSidebar />
 
       <div
         className={PORTAL_MAIN_CLASS}
-        style={{ backgroundColor: "#f0f2f5" }}
+        style={{ backgroundColor: "var(--admin-bg)" }}
       >
         <DispatcherPortalTopBar
           title="Vendors"
@@ -40,7 +39,7 @@ export function VendorsPage() {
 
         <div
           className={PORTAL_SCROLL_CLASS}
-          style={{ backgroundColor: "#f0f2f5" }}
+          style={{ backgroundColor: "var(--admin-bg)" }}
         >
           <div
             style={{
@@ -58,14 +57,14 @@ export function VendorsPage() {
                 style={{
                   fontSize: 24,
                   fontWeight: 700,
-                  color: NAVY,
+                  color: "var(--admin-accent-soft)",
                   margin: 0,
                   lineHeight: "1.2",
                 }}
               >
                 Vendors
               </h1>
-              <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+              <p style={{ fontSize: 13, color: "var(--admin-text-muted)", marginTop: 4 }}>
                 Add and edit vendor contacts used on deliveries and check-in.
               </p>
             </div>
@@ -77,6 +76,6 @@ export function VendorsPage() {
           </div>
         </div>
       </div>
-    </div>
+    </PortalShell>
   );
 }

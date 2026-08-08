@@ -17,16 +17,16 @@ import {
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-const TEXT = "#333";
-const MUTED = "#6b7280";
+const TEXT = "var(--admin-text)";
+const MUTED = "var(--admin-text-muted)";
 
 const inputStyle: CSSProperties = {
   padding: "8px 10px",
   borderRadius: 6,
-  border: "1px solid #ccd0d7",
+  border: "1px solid var(--admin-border)",
   fontSize: 14,
   color: TEXT,
-  backgroundColor: "#fff",
+  backgroundColor: "var(--admin-surface)",
   fontFamily: FONT,
   width: "100%",
 };
@@ -212,7 +212,7 @@ export function JobReleaseToTechnicianPanel({
             ...actionBase,
             border: `2px solid ${NAVY}`,
             backgroundColor: NAVY,
-            color: "#fff",
+            color: "var(--admin-on-navy)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -228,7 +228,7 @@ export function JobReleaseToTechnicianPanel({
               fontWeight: 800,
               letterSpacing: "0.03em",
               textTransform: "uppercase",
-              color: "#fff",
+              color: "var(--admin-text)",
             }}
           >
             Release to technician
@@ -290,7 +290,7 @@ export function JobReleaseToTechnicianPanel({
                 borderRadius: 6,
                 border: "1px solid rgba(255,255,255,0.55)",
                 backgroundColor: "rgba(255,255,255,0.14)",
-                color: "#fff",
+                color: "var(--admin-text)",
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: "pointer",
@@ -314,7 +314,7 @@ export function JobReleaseToTechnicianPanel({
                 margin: 0,
                 fontSize: 13,
                 fontWeight: 700,
-                color: NAVY,
+                color: "var(--admin-accent-soft)",
                 letterSpacing: "0.02em",
               }}
             >
@@ -355,8 +355,8 @@ export function JobReleaseToTechnicianPanel({
               style={{
                 ...actionBase,
                 border: `2px solid ${NAVY}`,
-                backgroundColor: releaseDisabled ? "#e5e7eb" : NAVY,
-                color: releaseDisabled ? "#9ca3af" : "#fff",
+                backgroundColor: releaseDisabled ? "var(--admin-border)" : NAVY,
+                color: releaseDisabled ? "var(--admin-text-muted)" : "var(--admin-text)",
                 cursor: releaseDisabled ? "not-allowed" : "pointer",
                 boxShadow: releaseDisabled
                   ? "none"
@@ -382,8 +382,8 @@ export function JobReleaseToTechnicianPanel({
                     ...actionBase,
                     padding: "10px 14px",
                     border: "1px solid #bf0a30",
-                    backgroundColor: releasing ? "#e5e7eb" : "#fff",
-                    color: releasing ? "#9ca3af" : "#bf0a30",
+                    backgroundColor: releasing ? "var(--admin-border)" : "var(--admin-surface)",
+                    color: releasing ? "var(--admin-text-muted)" : "#bf0a30",
                     fontWeight: 700,
                     fontSize: 14,
                     cursor: releasing ? "not-allowed" : "pointer",
@@ -400,8 +400,8 @@ export function JobReleaseToTechnicianPanel({
                   style={{
                     ...actionBase,
                     padding: "10px 14px",
-                    border: "1px solid #ccd0d7",
-                    backgroundColor: "#fff",
+                    border: "1px solid var(--admin-border)",
+                    backgroundColor: "var(--admin-surface)",
                     color: TEXT,
                     fontWeight: 600,
                     fontSize: 14,
@@ -420,7 +420,7 @@ export function JobReleaseToTechnicianPanel({
       {message ? (
         <p
           data-testid="job-release-success"
-          style={{ margin: 0, fontSize: 13, color: "#166534", fontWeight: 600 }}
+          style={{ margin: 0, fontSize: 13, color: "var(--admin-success-text)", fontWeight: 600 }}
         >
           {message}
         </p>

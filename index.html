@@ -5,6 +5,19 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>stageverify</title>
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("stageverify-theme");
+          document.documentElement.setAttribute(
+            "data-sv-admin-theme",
+            t === "dark" || t === "light" ? t : "light",
+          );
+        } catch (e) {
+          document.documentElement.setAttribute("data-sv-admin-theme", "light");
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

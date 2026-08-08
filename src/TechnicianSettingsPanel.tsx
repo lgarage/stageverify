@@ -22,16 +22,16 @@ import {
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-const TEXT = "#333";
-const MUTED = "#6b7280";
+const TEXT = "var(--admin-text)";
+const MUTED = "var(--admin-text-muted)";
 
 const inputStyle: CSSProperties = {
   padding: "8px 10px",
   borderRadius: 6,
-  border: "1px solid #ccd0d7",
+  border: "1px solid var(--admin-border)",
   fontSize: 14,
   color: TEXT,
-  backgroundColor: "#fff",
+  backgroundColor: "var(--admin-surface)",
   fontFamily: FONT,
 };
 
@@ -251,9 +251,9 @@ export function TechnicianSettingsPanel() {
     <div
       data-testid="technician-settings-panel"
       style={{
-        border: "1.5px solid #ccd0d7",
+        border: "1.5px solid var(--admin-border)",
         borderRadius: 8,
-        backgroundColor: "#fff",
+        backgroundColor: "var(--admin-surface)",
         marginBottom: 24,
         color: TEXT,
       }}
@@ -261,10 +261,10 @@ export function TechnicianSettingsPanel() {
       <div
         style={{
           padding: "16px 20px",
-          borderBottom: "1px solid #e5e7eb",
+          borderBottom: "1px solid var(--admin-border)",
           fontWeight: 700,
           fontSize: 16,
-          color: NAVY,
+          color: "var(--admin-accent-soft)",
           fontFamily: FONT,
         }}
       >
@@ -336,7 +336,7 @@ export function TechnicianSettingsPanel() {
                         onClick={() => void toggleTechnicianActive(tech)}
                         style={{
                           fontSize: 12,
-                          color: NAVY,
+                          color: "var(--admin-accent-soft)",
                           background: "none",
                           border: "none",
                           cursor: "pointer",
@@ -487,7 +487,7 @@ export function TechnicianSettingsPanel() {
                           borderRadius: 6,
                           border: "none",
                           backgroundColor: NAVY,
-                          color: "#fff",
+                          color: "var(--admin-on-navy)",
                           fontSize: 12,
                           fontWeight: 600,
                           cursor: "pointer",
@@ -555,7 +555,7 @@ export function TechnicianSettingsPanel() {
                   borderRadius: 6,
                   border: "none",
                   backgroundColor: NAVY,
-                  color: "#fff",
+                  color: "var(--admin-on-navy)",
                   fontWeight: 600,
                   cursor: "pointer",
                 }}
@@ -572,7 +572,7 @@ export function TechnicianSettingsPanel() {
                 fontSize: 15,
                 fontWeight: 700,
                 margin: "24px 0 8px",
-                color: NAVY,
+                color: "var(--admin-accent-soft)",
               }}
             >
               Release jobs for today
@@ -604,7 +604,7 @@ export function TechnicianSettingsPanel() {
               style={{
                 maxHeight: 180,
                 overflowY: "auto",
-                border: "1px solid #e5e7eb",
+                border: "1px solid var(--admin-border)",
                 borderRadius: 6,
                 padding: 8,
                 marginBottom: 12,
@@ -641,7 +641,7 @@ export function TechnicianSettingsPanel() {
                 borderRadius: 6,
                 border: "none",
                 backgroundColor: NAVY,
-                color: "#fff",
+                color: "var(--admin-on-navy)",
                 fontWeight: 600,
                 cursor: "pointer",
               }}
@@ -649,7 +649,7 @@ export function TechnicianSettingsPanel() {
               {releasing ? "Saving…" : "Save today's release list"}
             </button>
             {releaseMessage && (
-              <p style={{ fontSize: 13, marginTop: 8, color: "#374151" }}>
+              <p style={{ fontSize: 13, marginTop: 8, color: "var(--admin-text)" }}>
                 {releaseMessage}
               </p>
             )}

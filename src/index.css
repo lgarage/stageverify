@@ -54,10 +54,86 @@ body {
  * layout survives stylesheet cache misses or Tailwind load failures.
  */
 .portal-shell {
+  --admin-bg: #f6f8fa;
+  --admin-bg-deep: #ffffff;
+  --admin-surface: #ffffff;
+  --admin-surface-2: #f3f4f6;
+  --admin-surface-hover: #eaeef2;
+  --admin-border: #d0d7de;
+  --admin-border-strong: #8c959f;
+  --admin-text: #24292f;
+  --admin-text-muted: #57606a;
+  --admin-text-disabled: #8c959f;
+  --admin-accent: #0969da;
+  --admin-accent-soft: #0969da;
+  --admin-link: #0969da;
+  --admin-on-navy: #ffffff;
+  --admin-row-even: #ffffff;
+  --admin-row-odd: var(--admin-surface-2);
+  --admin-row-selected: #eef4ff;
+  --admin-row-hover: #f5f8ff;
+  --admin-warning-bg: #fff8c5;
+  --admin-warning-text: #7d4e00;
+  --admin-warning-border: #d4a72c;
+  --admin-danger-bg: #ffebe9;
+  --admin-danger-text: #cf222e;
+  --admin-danger-border: #ff8182;
+  --admin-success-bg: #dafbe1;
+  --admin-success-text: #116329;
+  --admin-success-border: #4ac26b;
+  --admin-info-bg: #ddf4ff;
+  --admin-info-text: #0550ae;
+  --admin-info-border: #54aeff;
+  --admin-purple-bg: #fbefff;
+  --admin-purple-text: #6639ba;
+  --admin-purple-border: #bf87ff;
+  --admin-overlay: rgba(27, 31, 36, 0.35);
   height: 100dvh;
   max-height: 100dvh;
   display: flex;
   overflow: hidden;
+  background-color: var(--admin-bg-deep);
+  color: var(--admin-text);
+  color-scheme: light;
+}
+
+html[data-sv-admin-theme="dark"] .portal-shell,
+.portal-shell[data-admin-appearance="dark"] {
+  --admin-bg: #0d1117;
+  --admin-bg-deep: #0a0b0d;
+  --admin-surface: #161b22;
+  --admin-surface-2: #21262d;
+  --admin-surface-hover: #282e36;
+  --admin-border: #30363d;
+  --admin-border-strong: #46566a;
+  --admin-text: #f0f6fc;
+  --admin-text-muted: #8b949e;
+  --admin-text-disabled: #7d8590;
+  --admin-accent: #3b82f6;
+  --admin-accent-soft: #93c5fd;
+  --admin-link: #67e8f9;
+  --admin-on-navy: #ffffff;
+  --admin-row-even: var(--admin-surface);
+  --admin-row-odd: var(--admin-surface-2);
+  --admin-row-selected: var(--admin-info-bg);
+  --admin-row-hover: var(--admin-surface-hover);
+  --admin-warning-bg: #3b2f16;
+  --admin-warning-text: #f6c76f;
+  --admin-warning-border: #8a6d1f;
+  --admin-danger-bg: #3a1d24;
+  --admin-danger-text: #fda4af;
+  --admin-danger-border: #8f3444;
+  --admin-success-bg: #183829;
+  --admin-success-text: #7ee2a8;
+  --admin-success-border: #2f6f4e;
+  --admin-info-bg: #172b4d;
+  --admin-info-text: #93c5fd;
+  --admin-info-border: #315d91;
+  --admin-purple-bg: #302044;
+  --admin-purple-text: #d8b4fe;
+  --admin-purple-border: #704792;
+  --admin-overlay: rgba(1, 4, 9, 0.78);
+  color-scheme: dark;
 }
 
 .portal-sidebar {
@@ -69,7 +145,8 @@ body {
   min-height: 0;
   z-index: 20;
   background-color: #0a3161;
-  box-shadow: rgba(0, 0, 0, 0.15) 2px 0px 10px 0px;
+  border-right: 1px solid var(--admin-border);
+  box-shadow: rgba(0, 0, 0, 0.4) 2px 0px 14px 0px;
 }
 
 @media (min-width: 768px) {
@@ -85,17 +162,43 @@ body {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  background-color: var(--admin-bg);
+  color: var(--admin-text);
 }
 
 .portal-topbar {
   flex-shrink: 0;
   z-index: 10;
+  background-color: var(--admin-surface);
+  color: var(--admin-text);
 }
 
 .portal-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  background-color: var(--admin-bg);
+  color: var(--admin-text);
+}
+
+.portal-shell input,
+.portal-shell select,
+.portal-shell textarea {
+  color-scheme: light;
+}
+
+html[data-sv-admin-theme="dark"] .portal-shell input,
+html[data-sv-admin-theme="dark"] .portal-shell select,
+html[data-sv-admin-theme="dark"] .portal-shell textarea,
+.portal-shell[data-admin-appearance="dark"] input,
+.portal-shell[data-admin-appearance="dark"] select,
+.portal-shell[data-admin-appearance="dark"] textarea {
+  color-scheme: dark;
+}
+
+.portal-shell :focus-visible {
+  outline: 2px solid var(--admin-accent) !important;
+  outline-offset: 2px;
 }
 
 ::-webkit-scrollbar {

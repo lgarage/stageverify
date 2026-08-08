@@ -44,8 +44,8 @@ import {
 import type { ShopMapLayoutExtras } from "./dispatcher/shopMapLayout";
 import type { EmailProviderConnection } from "./dispatcher/models";
 import { STAGEVERIFY_BOT_INBOX } from "./dispatcher/email/stageverifyBotInbox";
+import { PortalShell } from "./PortalShell";
 import {
-  PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
   PORTAL_SCROLL_CLASS,
 } from "./dispatcherPortalLayout";
@@ -392,16 +392,16 @@ export function SettingsPage() {
         : "Disconnected";
   const gmailStatusColor =
     gmailStatus === "connected"
-      ? "#166534"
+      ? "var(--admin-success-text)"
       : gmailStatus === "token_expired"
-        ? "#b45309"
-        : "#6b7280";
+        ? "var(--admin-warning-text)"
+        : "var(--admin-text-muted)";
   const gmailStatusBg =
     gmailStatus === "connected"
       ? "#dcfce7"
       : gmailStatus === "token_expired"
-        ? "#fef3c7"
-        : "#f3f4f6";
+        ? "var(--admin-warning-bg)"
+        : "var(--admin-surface-2)";
 
   const saveEmailSettings = async () => {
     if (savingEmail) return;
@@ -489,15 +489,15 @@ export function SettingsPage() {
   const ignoreRuleStatusColor = (status: VendorIgnoreRuleStatus) => {
     switch (status) {
       case "proposed":
-        return "#b45309";
+        return "var(--admin-warning-text)";
       case "active":
-        return "#15803d";
+        return "var(--admin-success-text)";
       case "disabled":
-        return "#6b7280";
+        return "var(--admin-text-muted)";
       case "archived":
-        return "#9ca3af";
+        return "var(--admin-text-muted)";
       default:
-        return "#6b7280";
+        return "var(--admin-text-muted)";
     }
   };
 
@@ -797,8 +797,8 @@ export function SettingsPage() {
   };
 
   const cardStyle = {
-    backgroundColor: "#fff",
-    border: "1px solid #dde1e7",
+    backgroundColor: "var(--admin-surface)",
+    border: "1px solid var(--admin-border)",
     borderRadius: 8,
     boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
   };
@@ -880,12 +880,12 @@ export function SettingsPage() {
   const inputStyle: CSSProperties = {
     width: "100%",
     padding: "10px 12px",
-    border: "1.5px solid #ccd0d7",
+    border: "1.5px solid var(--admin-border)",
     borderRadius: 6,
     fontSize: 14,
-    color: "#333",
+    color: "var(--admin-text)",
     outline: "none",
-    backgroundColor: "#fff",
+    backgroundColor: "var(--admin-surface)",
     fontFamily: FONT,
     boxSizing: "border-box",
   };
@@ -894,7 +894,7 @@ export function SettingsPage() {
     display: "block",
     fontSize: 13,
     fontWeight: 700,
-    color: "#6b7280",
+    color: "var(--admin-text-muted)",
     marginBottom: 6,
   };
 
@@ -903,12 +903,12 @@ export function SettingsPage() {
   }
 
   return (
-    <div style={{ fontFamily: FONT }} className={PORTAL_SHELL_CLASS}>
+    <PortalShell style={{ fontFamily: FONT }}>
       <PortalSidebar />
       {/* Main content */}
       <div
         className={PORTAL_MAIN_CLASS}
-        style={{ backgroundColor: "#f0f2f5" }}
+        style={{ backgroundColor: "var(--admin-bg)" }}
       >
         <DispatcherPortalTopBar
           title="Settings"
@@ -921,7 +921,7 @@ export function SettingsPage() {
 
         <div
           className={PORTAL_SCROLL_CLASS}
-          style={{ backgroundColor: "#f0f2f5" }}
+          style={{ backgroundColor: "var(--admin-bg)" }}
         >
         <div
           style={{
@@ -939,14 +939,14 @@ export function SettingsPage() {
               style={{
                 fontSize: 24,
                 fontWeight: 700,
-                color: NAVY,
+                color: "var(--admin-accent-soft)",
                 margin: 0,
                 lineHeight: "1.2",
               }}
             >
               Settings
             </h1>
-            <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+            <p style={{ fontSize: 13, color: "var(--admin-text-muted)", marginTop: 4 }}>
               Manage staging spots and workflow configuration.
             </p>
           </div>
@@ -956,10 +956,10 @@ export function SettingsPage() {
             <div
               style={{
                 padding: "15px 20px",
-                borderBottom: "1px solid #eaecf0",
+                borderBottom: "1px solid var(--admin-border)",
               }}
             >
-              <span style={{ fontWeight: 700, fontSize: 15, color: NAVY }}>
+              <span style={{ fontWeight: 700, fontSize: 15, color: "var(--admin-accent-soft)" }}>
                 Workflow
               </span>
             </div>
@@ -977,7 +977,7 @@ export function SettingsPage() {
                 style={{
                   fontSize: 13,
                   fontWeight: 700,
-                  color: "#6b7280",
+                  color: "var(--admin-text-muted)",
                   whiteSpace: "nowrap",
                 }}
               >
@@ -995,19 +995,19 @@ export function SettingsPage() {
                 onBlur={() => void saveRevertWindow()}
                 style={{
                   padding: "10px 12px",
-                  border: "1.5px solid #ccd0d7",
+                  border: "1.5px solid var(--admin-border)",
                   borderRadius: 6,
                   fontSize: 14,
-                  color: "#333",
+                  color: "var(--admin-text)",
                   outline: "none",
-                  backgroundColor: "#fff",
+                  backgroundColor: "var(--admin-surface)",
                   fontFamily: FONT,
                   boxSizing: "border-box",
                 }}
               />
               <span
                 data-testid="settings-stageverify-start-date-hint"
-                style={{ fontSize: 12, color: "#6b7280", maxWidth: 360 }}
+                style={{ fontSize: 12, color: "var(--admin-text-muted)", maxWidth: 360 }}
               >
                 Reporting baseline (“Since StageVerify started”). Does not change
                 past events. Clear and save to remove.
@@ -1015,7 +1015,7 @@ export function SettingsPage() {
               {stageVerifyStartDateError && (
                 <span
                   role="alert"
-                  style={{ fontSize: 12, color: "#b91c1c", width: "100%" }}
+                  style={{ fontSize: 12, color: "var(--admin-danger-text)", width: "100%" }}
                 >
                   {stageVerifyStartDateError}
                 </span>
@@ -1034,7 +1034,7 @@ export function SettingsPage() {
                 style={{
                   fontSize: 13,
                   fontWeight: 700,
-                  color: "#6b7280",
+                  color: "var(--admin-text-muted)",
                   whiteSpace: "nowrap",
                 }}
               >
@@ -1051,22 +1051,22 @@ export function SettingsPage() {
                 style={{
                   width: 80,
                   padding: "10px 12px",
-                  border: "1.5px solid #ccd0d7",
+                  border: "1.5px solid var(--admin-border)",
                   borderRadius: 6,
                   fontSize: 14,
-                  color: "#333",
+                  color: "var(--admin-text)",
                   outline: "none",
-                  backgroundColor: "#fff",
+                  backgroundColor: "var(--admin-surface)",
                   fontFamily: FONT,
                   boxSizing: "border-box",
                 }}
               />
-              <span style={{ fontSize: 13, color: "#6b7280" }}>minutes</span>
+              <span style={{ fontSize: 13, color: "var(--admin-text-muted)" }}>minutes</span>
               <label
                 style={{
                   fontSize: 13,
                   fontWeight: 700,
-                  color: "#6b7280",
+                  color: "var(--admin-text-muted)",
                   whiteSpace: "nowrap",
                   marginLeft: 8,
                 }}
@@ -1085,24 +1085,24 @@ export function SettingsPage() {
                 style={{
                   width: 80,
                   padding: "10px 12px",
-                  border: "1.5px solid #ccd0d7",
+                  border: "1.5px solid var(--admin-border)",
                   borderRadius: 6,
                   fontSize: 14,
-                  color: "#333",
+                  color: "var(--admin-text)",
                   outline: "none",
-                  backgroundColor: "#fff",
+                  backgroundColor: "var(--admin-surface)",
                   fontFamily: FONT,
                   boxSizing: "border-box",
                 }}
               />
-              <span style={{ fontSize: 13, color: "#6b7280" }}>
+              <span style={{ fontSize: 13, color: "var(--admin-text-muted)" }}>
                 min (absolute TTL)
               </span>
               <label
                 style={{
                   fontSize: 13,
                   fontWeight: 700,
-                  color: "#6b7280",
+                  color: "var(--admin-text-muted)",
                   whiteSpace: "nowrap",
                   marginLeft: 8,
                 }}
@@ -1121,24 +1121,24 @@ export function SettingsPage() {
                 style={{
                   width: 80,
                   padding: "10px 12px",
-                  border: "1.5px solid #ccd0d7",
+                  border: "1.5px solid var(--admin-border)",
                   borderRadius: 6,
                   fontSize: 14,
-                  color: "#333",
+                  color: "var(--admin-text)",
                   outline: "none",
-                  backgroundColor: "#fff",
+                  backgroundColor: "var(--admin-surface)",
                   fontFamily: FONT,
                   boxSizing: "border-box",
                 }}
               />
-              <span style={{ fontSize: 13, color: "#6b7280" }}>
+              <span style={{ fontSize: 13, color: "var(--admin-text-muted)" }}>
                 min (absolute TTL)
               </span>
               <label
                 style={{
                   fontSize: 13,
                   fontWeight: 700,
-                  color: "#6b7280",
+                  color: "var(--admin-text-muted)",
                   whiteSpace: "nowrap",
                   marginLeft: 8,
                 }}
@@ -1155,11 +1155,11 @@ export function SettingsPage() {
                 onBlur={() => void saveRevertWindow()}
                 style={{
                   padding: "10px 12px",
-                  border: "1.5px solid #ccd0d7",
+                  border: "1.5px solid var(--admin-border)",
                   borderRadius: 6,
                   fontSize: 14,
-                  color: "#333",
-                  backgroundColor: "#fff",
+                  color: "var(--admin-text)",
+                  backgroundColor: "var(--admin-surface)",
                   fontFamily: FONT,
                 }}
               >
@@ -1168,14 +1168,15 @@ export function SettingsPage() {
               </select>
               <button
                 type="button"
+                data-testid="settings-workflow-save"
                 onClick={() => void saveRevertWindow()}
                 disabled={savingRevert}
                 style={{
                   padding: "8px 18px",
                   borderRadius: 4,
                   border: "none",
-                  backgroundColor: savingRevert ? "#f3f4f6" : NAVY,
-                  color: savingRevert ? "#9ca3af" : "#fff",
+                  backgroundColor: savingRevert ? "var(--admin-surface-2)" : NAVY,
+                  color: savingRevert ? "var(--admin-text-muted)" : "var(--admin-on-navy)",
                   fontWeight: 700,
                   fontSize: 13,
                   cursor: savingRevert ? "not-allowed" : "pointer",
@@ -1190,7 +1191,7 @@ export function SettingsPage() {
                   style={{
                     fontSize: 13,
                     fontWeight: 600,
-                    color: "#2e7d32",
+                    color: "var(--admin-success-text)",
                   }}
                 >
                   Saved ✓
@@ -1210,13 +1211,13 @@ export function SettingsPage() {
                 style={{
                   fontSize: 13,
                   fontWeight: 700,
-                  color: "#6b7280",
+                  color: "var(--admin-text-muted)",
                   width: "100%",
                 }}
               >
                 Shop geofence (vendor receive warn)
               </span>
-              <label style={{ fontSize: 13, color: "#6b7280" }}>Lat</label>
+              <label style={{ fontSize: 13, color: "var(--admin-text-muted)" }}>Lat</label>
               <input
                 type="text"
                 value={shopLatitude}
@@ -1226,13 +1227,13 @@ export function SettingsPage() {
                 style={{
                   width: 100,
                   padding: "8px 10px",
-                  border: "1.5px solid #ccd0d7",
+                  border: "1.5px solid var(--admin-border)",
                   borderRadius: 6,
                   fontSize: 14,
                   fontFamily: FONT,
                 }}
               />
-              <label style={{ fontSize: 13, color: "#6b7280" }}>Lng</label>
+              <label style={{ fontSize: 13, color: "var(--admin-text-muted)" }}>Lng</label>
               <input
                 type="text"
                 value={shopLongitude}
@@ -1242,13 +1243,13 @@ export function SettingsPage() {
                 style={{
                   width: 100,
                   padding: "8px 10px",
-                  border: "1.5px solid #ccd0d7",
+                  border: "1.5px solid var(--admin-border)",
                   borderRadius: 6,
                   fontSize: 14,
                   fontFamily: FONT,
                 }}
               />
-              <label style={{ fontSize: 13, color: "#6b7280" }}>Radius (m)</label>
+              <label style={{ fontSize: 13, color: "var(--admin-text-muted)" }}>Radius (m)</label>
               <input
                 type="number"
                 min={50}
@@ -1259,7 +1260,7 @@ export function SettingsPage() {
                 style={{
                   width: 80,
                   padding: "8px 10px",
-                  border: "1.5px solid #ccd0d7",
+                  border: "1.5px solid var(--admin-border)",
                   borderRadius: 6,
                   fontSize: 14,
                   fontFamily: FONT,
@@ -1271,7 +1272,7 @@ export function SettingsPage() {
                   alignItems: "center",
                   gap: 6,
                   fontSize: 13,
-                  color: "#6b7280",
+                  color: "var(--admin-text-muted)",
                   cursor: "pointer",
                 }}
               >
@@ -1293,10 +1294,10 @@ export function SettingsPage() {
             <div
               style={{
                 padding: "15px 20px",
-                borderBottom: "1px solid #eaecf0",
+                borderBottom: "1px solid var(--admin-border)",
               }}
             >
-              <span style={{ fontWeight: 700, fontSize: 15, color: NAVY }}>
+              <span style={{ fontWeight: 700, fontSize: 15, color: "var(--admin-accent-soft)" }}>
                 Email Monitoring
               </span>
             </div>
@@ -1307,8 +1308,8 @@ export function SettingsPage() {
                     style={{
                       padding: "14px 16px",
                       borderRadius: 8,
-                      border: "1px solid #e5e7eb",
-                      backgroundColor: "#fafafa",
+                      border: "1px solid var(--admin-border)",
+                      backgroundColor: "var(--admin-surface-2)",
                       maxWidth: 560,
                       marginBottom: 16,
                     }}
@@ -1317,7 +1318,7 @@ export function SettingsPage() {
                       style={{
                         fontSize: 11,
                         fontWeight: 700,
-                        color: NAVY,
+                        color: "var(--admin-accent-soft)",
                         marginBottom: 12,
                         letterSpacing: "0.02em",
                       }}
@@ -1331,7 +1332,7 @@ export function SettingsPage() {
                         style={{
                           fontSize: 14,
                           fontWeight: 600,
-                          color: "#374151",
+                          color: "var(--admin-text)",
                         }}
                       >
                         {linkedMailboxEmail}
@@ -1351,7 +1352,7 @@ export function SettingsPage() {
                           style={{
                             fontSize: 11,
                             fontWeight: 700,
-                            color: "#6b7280",
+                            color: "var(--admin-text-muted)",
                             marginBottom: 4,
                           }}
                         >
@@ -1378,7 +1379,7 @@ export function SettingsPage() {
                           style={{
                             fontSize: 11,
                             fontWeight: 700,
-                            color: "#6b7280",
+                            color: "var(--admin-text-muted)",
                             marginBottom: 4,
                           }}
                         >
@@ -1389,7 +1390,7 @@ export function SettingsPage() {
                           style={{
                             fontSize: 13,
                             fontWeight: 600,
-                            color: emailMonitoringEnabled ? "#166534" : "#6b7280",
+                            color: emailMonitoringEnabled ? "var(--admin-success-text)" : "var(--admin-text-muted)",
                           }}
                         >
                           {emailMonitoringEnabled ? "Enabled" : "Disabled"}
@@ -1400,7 +1401,7 @@ export function SettingsPage() {
                       style={{
                         margin: "0 0 14px",
                         fontSize: 12,
-                        color: "#6b7280",
+                        color: "var(--admin-text-muted)",
                         lineHeight: 1.45,
                       }}
                     >
@@ -1421,12 +1422,12 @@ export function SettingsPage() {
                             border: "none",
                             backgroundColor:
                               connectingGmail || loadingGmailConnection
-                                ? "#e5e7eb"
+                                ? "var(--admin-border)"
                                 : NAVY,
                             color:
                               connectingGmail || loadingGmailConnection
-                                ? "#9ca3af"
-                                : "#fff",
+                                ? "var(--admin-text-muted)"
+                                : "var(--admin-on-navy)",
                             fontWeight: 700,
                             fontSize: 13,
                             cursor:
@@ -1448,9 +1449,9 @@ export function SettingsPage() {
                           style={{
                             padding: "8px 16px",
                             borderRadius: 4,
-                            border: "1px solid #d1d5db",
-                            backgroundColor: disconnectingGmail ? "#f3f4f6" : "#fff",
-                            color: disconnectingGmail ? "#9ca3af" : "#374151",
+                            border: "1px solid var(--admin-border)",
+                            backgroundColor: disconnectingGmail ? "var(--admin-surface-2)" : "var(--admin-surface)",
+                            color: disconnectingGmail ? "var(--admin-text-muted)" : "var(--admin-text)",
                             fontWeight: 700,
                             fontSize: 13,
                             cursor: disconnectingGmail ? "not-allowed" : "pointer",
@@ -1469,8 +1470,8 @@ export function SettingsPage() {
                         margin: "0 0 14px",
                         fontSize: 12,
                         color: gmailOAuthMessage.includes("failed")
-                          ? "#b91c1c"
-                          : "#166534",
+                          ? "var(--admin-danger-text)"
+                          : "var(--admin-success-text)",
                         maxWidth: 560,
                       }}
                     >
@@ -1484,7 +1485,7 @@ export function SettingsPage() {
                       gap: 8,
                       fontSize: 13,
                       fontWeight: 600,
-                      color: "#374151",
+                      color: "var(--admin-text)",
                       cursor: "pointer",
                       maxWidth: 560,
                     }}
@@ -1503,7 +1504,7 @@ export function SettingsPage() {
                           display: "block",
                           fontSize: 11,
                           fontWeight: 500,
-                          color: "#9ca3af",
+                          color: "var(--admin-text-muted)",
                           marginTop: 4,
                           lineHeight: 1.45,
                         }}
@@ -1520,7 +1521,7 @@ export function SettingsPage() {
                       gap: 8,
                       fontSize: 13,
                       fontWeight: 600,
-                      color: "#374151",
+                      color: "var(--admin-text)",
                       cursor: "pointer",
                       maxWidth: 560,
                       marginTop: 12,
@@ -1540,7 +1541,7 @@ export function SettingsPage() {
                           display: "block",
                           fontSize: 11,
                           fontWeight: 500,
-                          color: "#6b7280",
+                          color: "var(--admin-text-muted)",
                           marginTop: 4,
                           lineHeight: 1.45,
                         }}
@@ -1556,9 +1557,9 @@ export function SettingsPage() {
                     style={{
                       marginTop: 20,
                       padding: "16px 16px 14px",
-                      border: "1px solid #d1d5db",
+                      border: "1px solid var(--admin-border)",
                       borderRadius: 8,
-                      backgroundColor: "#f8fafc",
+                      backgroundColor: "var(--admin-surface-2)",
                       maxWidth: 560,
                     }}
                   >
@@ -1566,7 +1567,7 @@ export function SettingsPage() {
                       style={{
                         fontSize: 14,
                         fontWeight: 700,
-                        color: NAVY,
+                        color: "var(--admin-accent-soft)",
                         marginBottom: 6,
                       }}
                     >
@@ -1591,7 +1592,7 @@ export function SettingsPage() {
                         display: "block",
                         fontSize: 12,
                         fontWeight: 600,
-                        color: "#374151",
+                        color: "var(--admin-text)",
                         marginBottom: 4,
                       }}
                     >
@@ -1612,7 +1613,7 @@ export function SettingsPage() {
                         borderRadius: 6,
                         fontSize: 13,
                         color: "#111827",
-                        backgroundColor: "#fff",
+                        backgroundColor: "var(--admin-surface)",
                         marginBottom: 10,
                         fontFamily: FONT,
                       }}
@@ -1622,7 +1623,7 @@ export function SettingsPage() {
                         display: "block",
                         fontSize: 12,
                         fontWeight: 600,
-                        color: "#374151",
+                        color: "var(--admin-text)",
                         marginBottom: 4,
                       }}
                     >
@@ -1653,7 +1654,7 @@ export function SettingsPage() {
                         borderRadius: 6,
                         fontSize: 13,
                         color: "#111827",
-                        backgroundColor: "#fff",
+                        backgroundColor: "var(--admin-surface)",
                         marginBottom: 10,
                         fontFamily: FONT,
                       }}
@@ -1662,8 +1663,8 @@ export function SettingsPage() {
                       style={{
                         fontSize: 11,
                         color: invoiceTrainingPasswordConfigured
-                          ? "#166534"
-                          : "#b45309",
+                          ? "var(--admin-success-text)"
+                          : "var(--admin-warning-text)",
                         marginBottom: 10,
                         fontWeight: 600,
                       }}
@@ -1706,14 +1707,14 @@ export function SettingsPage() {
                           savingTrainingAdmin ||
                           !invoiceTrainingAlertEmail.trim() ||
                           invoiceTrainingAdminPassword.length < 8
-                            ? "#f3f4f6"
+                            ? "var(--admin-surface-2)"
                             : NAVY,
                         color:
                           savingTrainingAdmin ||
                           !invoiceTrainingAlertEmail.trim() ||
                           invoiceTrainingAdminPassword.length < 8
-                            ? "#9ca3af"
-                            : "#fff",
+                            ? "var(--admin-text-muted)"
+                            : "var(--admin-on-navy)",
                         fontWeight: 700,
                         fontSize: 13,
                         cursor:
@@ -1736,14 +1737,14 @@ export function SettingsPage() {
                       style={{
                         marginTop: 18,
                         paddingTop: 14,
-                        borderTop: "1px solid #d1d5db",
+                        borderTop: "1px solid var(--admin-border)",
                       }}
                     >
                       <div
                         style={{
                           fontSize: 13,
                           fontWeight: 700,
-                          color: NAVY,
+                          color: "var(--admin-accent-soft)",
                           marginBottom: 6,
                         }}
                       >
@@ -1769,7 +1770,7 @@ export function SettingsPage() {
                           style={{
                             margin: "0 0 10px",
                             fontSize: 12,
-                            color: "#15803d",
+                            color: "var(--admin-success-text)",
                             fontWeight: 600,
                           }}
                         >
@@ -1782,7 +1783,7 @@ export function SettingsPage() {
                           style={{
                             margin: "0 0 10px",
                             fontSize: 12,
-                            color: "#6b7280",
+                            color: "var(--admin-text-muted)",
                             fontWeight: 500,
                           }}
                         >
@@ -1796,7 +1797,7 @@ export function SettingsPage() {
                           display: "block",
                           fontSize: 12,
                           fontWeight: 600,
-                          color: "#374151",
+                          color: "var(--admin-text)",
                           marginBottom: 4,
                         }}
                       >
@@ -1828,7 +1829,7 @@ export function SettingsPage() {
                             borderRadius: 6,
                             fontSize: 13,
                             color: "#111827",
-                            backgroundColor: "#fff",
+                            backgroundColor: "var(--admin-surface)",
                             fontFamily: FONT,
                           }}
                         />
@@ -1847,13 +1848,13 @@ export function SettingsPage() {
                             backgroundColor:
                               ignoreRulesLoading ||
                               ignoreRulesPassword.trim().length < 8
-                                ? "#f3f4f6"
+                                ? "var(--admin-surface-2)"
                                 : NAVY,
                             color:
                               ignoreRulesLoading ||
                               ignoreRulesPassword.trim().length < 8
-                                ? "#9ca3af"
-                                : "#fff",
+                                ? "var(--admin-text-muted)"
+                                : "var(--admin-on-navy)",
                             fontWeight: 700,
                             fontSize: 13,
                             cursor:
@@ -1875,7 +1876,7 @@ export function SettingsPage() {
                               gap: 6,
                               fontSize: 12,
                               fontWeight: 600,
-                              color: "#374151",
+                              color: "var(--admin-text)",
                               cursor: "pointer",
                             }}
                           >
@@ -1899,8 +1900,8 @@ export function SettingsPage() {
                               padding: "8px 12px",
                               borderRadius: 4,
                               border: `1px solid ${NAVY}`,
-                              backgroundColor: "#fff",
-                              color: NAVY,
+                              backgroundColor: "var(--admin-surface)",
+                              color: "var(--admin-accent-soft)",
                               fontWeight: 700,
                               fontSize: 12,
                               cursor: legacyMigrationBusy
@@ -1921,7 +1922,7 @@ export function SettingsPage() {
                           style={{
                             margin: "0 0 10px",
                             fontSize: 12,
-                            color: "#15803d",
+                            color: "var(--admin-success-text)",
                             fontWeight: 600,
                           }}
                         >
@@ -1947,7 +1948,7 @@ export function SettingsPage() {
                           style={{
                             margin: 0,
                             fontSize: 12,
-                            color: "#6b7280",
+                            color: "var(--admin-text-muted)",
                             fontWeight: 500,
                           }}
                         >
@@ -1966,7 +1967,7 @@ export function SettingsPage() {
                               style={{
                                 fontSize: 12,
                                 fontWeight: 700,
-                                color: "#b45309",
+                                color: "var(--admin-warning-text)",
                                 marginBottom: 6,
                               }}
                             >
@@ -2002,8 +2003,8 @@ export function SettingsPage() {
                               data-testid={`invoice-ignore-rule-${key}`}
                               style={{
                                 padding: "10px 12px",
-                                backgroundColor: "#fff",
-                                border: "1px solid #e5e7eb",
+                                backgroundColor: "var(--admin-surface)",
+                                border: "1px solid var(--admin-border)",
                                 borderRadius: 6,
                                 display: "flex",
                                 flexWrap: "wrap",
@@ -2044,7 +2045,7 @@ export function SettingsPage() {
                                 <div
                                   style={{
                                     fontSize: 11,
-                                    color: "#6b7280",
+                                    color: "var(--admin-text-muted)",
                                     fontWeight: 500,
                                     marginTop: 2,
                                   }}
@@ -2099,7 +2100,7 @@ export function SettingsPage() {
                                     data-testid={`ignore-rule-domain-grace-${key}`}
                                     style={{
                                       fontSize: 11,
-                                      color: "#b45309",
+                                      color: "var(--admin-warning-text)",
                                       fontWeight: 600,
                                       marginTop: 4,
                                     }}
@@ -2142,11 +2143,11 @@ export function SettingsPage() {
                                         style={{
                                           padding: "6px 8px",
                                           borderRadius: 4,
-                                          border: "1px solid #d1d5db",
+                                          border: "1px solid var(--admin-border)",
                                           fontSize: 12,
                                           minWidth: 120,
                                           color: "#111827",
-                                          backgroundColor: "#fff",
+                                          backgroundColor: "var(--admin-surface)",
                                           fontFamily: FONT,
                                         }}
                                       />
@@ -2160,8 +2161,8 @@ export function SettingsPage() {
                                       padding: "6px 10px",
                                       borderRadius: 4,
                                       border: "none",
-                                      backgroundColor: "#15803d",
-                                      color: "#fff",
+                                      backgroundColor: "var(--admin-success-text)",
+                                      color: "var(--admin-text)",
                                       fontWeight: 700,
                                       fontSize: 12,
                                       cursor:
@@ -2185,8 +2186,8 @@ export function SettingsPage() {
                                       padding: "6px 10px",
                                       borderRadius: 4,
                                       border: `1px solid ${NAVY}`,
-                                      backgroundColor: "#fff",
-                                      color: NAVY,
+                                      backgroundColor: "var(--admin-surface)",
+                                      color: "var(--admin-accent-soft)",
                                       fontWeight: 700,
                                       fontSize: 12,
                                       cursor:
@@ -2215,7 +2216,7 @@ export function SettingsPage() {
                                       padding: "6px 10px",
                                       borderRadius: 4,
                                       border: `1px solid ${RED}`,
-                                      backgroundColor: "#fff",
+                                      backgroundColor: "var(--admin-surface)",
                                       color: RED,
                                       fontWeight: 700,
                                       fontSize: 12,
@@ -2239,7 +2240,7 @@ export function SettingsPage() {
                                     data-testid={`toggle-ignore-rule-${key}`}
                                     style={{
                                       fontSize: 11,
-                                      color: "#6b7280",
+                                      color: "var(--admin-text-muted)",
                                       fontWeight: 600,
                                       padding: "6px 4px",
                                     }}
@@ -2258,9 +2259,9 @@ export function SettingsPage() {
                                   style={{
                                     padding: "6px 10px",
                                     borderRadius: 4,
-                                    border: "1px solid #d1d5db",
-                                    backgroundColor: "#fff",
-                                    color: "#374151",
+                                    border: "1px solid var(--admin-border)",
+                                    backgroundColor: "var(--admin-surface)",
+                                    color: "var(--admin-text)",
                                     fontWeight: 700,
                                     fontSize: 12,
                                     cursor:
@@ -2288,7 +2289,7 @@ export function SettingsPage() {
                                     padding: "6px 10px",
                                     borderRadius: 4,
                                     border: `1px solid ${RED}`,
-                                    backgroundColor: "#fff",
+                                    backgroundColor: "var(--admin-surface)",
                                     color: RED,
                                     fontWeight: 700,
                                     fontSize: 12,
@@ -2309,16 +2310,16 @@ export function SettingsPage() {
                                     width: "100%",
                                     marginTop: 8,
                                     padding: "8px 10px",
-                                    backgroundColor: "#f9fafb",
+                                    backgroundColor: "var(--admin-surface-2)",
                                     borderRadius: 6,
-                                    border: "1px solid #e5e7eb",
+                                    border: "1px solid var(--admin-border)",
                                   }}
                                 >
                                   {ignoreRuleAuditLoading ? (
                                     <span
                                       style={{
                                         fontSize: 12,
-                                        color: "#6b7280",
+                                        color: "var(--admin-text-muted)",
                                         fontWeight: 600,
                                       }}
                                     >
@@ -2329,7 +2330,7 @@ export function SettingsPage() {
                                     <span
                                       style={{
                                         fontSize: 12,
-                                        color: "#6b7280",
+                                        color: "var(--admin-text-muted)",
                                         fontWeight: 600,
                                       }}
                                     >
@@ -2353,7 +2354,7 @@ export function SettingsPage() {
                                             data-testid={`ignore-rule-audit-${ev.id}`}
                                             style={{
                                               fontSize: 11,
-                                              color: "#374151",
+                                              color: "var(--admin-text)",
                                               fontWeight: 500,
                                             }}
                                           >
@@ -2381,14 +2382,14 @@ export function SettingsPage() {
                       style={{
                         marginTop: 18,
                         paddingTop: 14,
-                        borderTop: "1px solid #d1d5db",
+                        borderTop: "1px solid var(--admin-border)",
                       }}
                     >
                       <div
                         style={{
                           fontSize: 13,
                           fontWeight: 700,
-                          color: NAVY,
+                          color: "var(--admin-accent-soft)",
                           marginBottom: 6,
                         }}
                       >
@@ -2419,9 +2420,9 @@ export function SettingsPage() {
                         style={{
                           padding: "6px 12px",
                           borderRadius: 4,
-                          border: "1px solid #d1d5db",
-                          backgroundColor: "#fff",
-                          color: "#374151",
+                          border: "1px solid var(--admin-border)",
+                          backgroundColor: "var(--admin-surface)",
+                          color: "var(--admin-text)",
                           fontWeight: 700,
                           fontSize: 12,
                           cursor:
@@ -2456,7 +2457,7 @@ export function SettingsPage() {
                           <p
                             style={{
                               fontSize: 12,
-                              color: "#6b7280",
+                              color: "var(--admin-text-muted)",
                               fontWeight: 600,
                             }}
                           >
@@ -2481,11 +2482,11 @@ export function SettingsPage() {
                                 data-testid={`training-note-audit-${entry.id}`}
                                 style={{
                                   padding: "8px 10px",
-                                  backgroundColor: "#fff",
-                                  border: "1px solid #e5e7eb",
+                                  backgroundColor: "var(--admin-surface)",
+                                  border: "1px solid var(--admin-border)",
                                   borderRadius: 6,
                                   fontSize: 11,
-                                  color: "#374151",
+                                  color: "var(--admin-text)",
                                 }}
                               >
                                 <div style={{ fontWeight: 700, marginBottom: 4 }}>
@@ -2503,7 +2504,7 @@ export function SettingsPage() {
                                     data-testid={`training-note-audit-raw-${entry.id}`}
                                     style={{
                                       marginTop: 4,
-                                      color: "#6b7280",
+                                      color: "var(--admin-text-muted)",
                                       fontStyle: "italic",
                                     }}
                                   >
@@ -2533,8 +2534,8 @@ export function SettingsPage() {
                         padding: "8px 18px",
                         borderRadius: 4,
                         border: "none",
-                        backgroundColor: savingEmail ? "#f3f4f6" : NAVY,
-                        color: savingEmail ? "#9ca3af" : "#fff",
+                        backgroundColor: savingEmail ? "var(--admin-surface-2)" : NAVY,
+                        color: savingEmail ? "var(--admin-text-muted)" : "var(--admin-on-navy)",
                         fontWeight: 700,
                         fontSize: 13,
                         cursor: savingEmail ? "not-allowed" : "pointer",
@@ -2550,7 +2551,7 @@ export function SettingsPage() {
                         style={{
                           fontSize: 13,
                           fontWeight: 600,
-                          color: "#2e7d32",
+                          color: "var(--admin-success-text)",
                         }}
                       >
                         Saved ✓
@@ -2564,7 +2565,7 @@ export function SettingsPage() {
                     style={{
                       margin: "0 0 16px",
                       fontSize: 12,
-                      color: "#6b7280",
+                      color: "var(--admin-text-muted)",
                       lineHeight: 1.45,
                       maxWidth: 560,
                     }}
@@ -2582,8 +2583,8 @@ export function SettingsPage() {
                       marginBottom: 16,
                       padding: "12px 14px",
                       borderRadius: 8,
-                      border: "1px solid #e5e7eb",
-                      backgroundColor: "#fafafa",
+                      border: "1px solid var(--admin-border)",
+                      backgroundColor: "var(--admin-surface-2)",
                       maxWidth: 560,
                     }}
                   >
@@ -2592,7 +2593,7 @@ export function SettingsPage() {
                         style={{
                           fontSize: 11,
                           fontWeight: 700,
-                          color: NAVY,
+                          color: "var(--admin-accent-soft)",
                           marginBottom: 6,
                           letterSpacing: "0.02em",
                         }}
@@ -2626,9 +2627,9 @@ export function SettingsPage() {
                           borderRadius: 4,
                           border: "none",
                           backgroundColor:
-                            connectingGmail || loadingGmailConnection ? "#e5e7eb" : NAVY,
+                            connectingGmail || loadingGmailConnection ? "var(--admin-border)" : NAVY,
                           color:
-                            connectingGmail || loadingGmailConnection ? "#9ca3af" : "#fff",
+                            connectingGmail || loadingGmailConnection ? "var(--admin-text-muted)" : "var(--admin-text)",
                           fontWeight: 700,
                           fontSize: 13,
                           cursor:
@@ -2648,7 +2649,7 @@ export function SettingsPage() {
                       style={{
                         margin: "0 0 14px",
                         fontSize: 12,
-                        color: gmailOAuthMessage.includes("failed") ? "#b91c1c" : "#166534",
+                        color: gmailOAuthMessage.includes("failed") ? "var(--admin-danger-text)" : "var(--admin-success-text)",
                         maxWidth: 560,
                       }}
                     >
@@ -2685,7 +2686,7 @@ export function SettingsPage() {
                         gap: 8,
                         fontSize: 13,
                         fontWeight: 600,
-                        color: "#374151",
+                        color: "var(--admin-text)",
                         cursor: "pointer",
                         paddingBottom: 10,
                         whiteSpace: "nowrap",
@@ -2717,8 +2718,8 @@ export function SettingsPage() {
                         padding: "8px 18px",
                         borderRadius: 4,
                         border: "none",
-                        backgroundColor: savingEmail ? "#f3f4f6" : NAVY,
-                        color: savingEmail ? "#9ca3af" : "#fff",
+                        backgroundColor: savingEmail ? "var(--admin-surface-2)" : NAVY,
+                        color: savingEmail ? "var(--admin-text-muted)" : "var(--admin-on-navy)",
                         fontWeight: 700,
                         fontSize: 13,
                         cursor: savingEmail ? "not-allowed" : "pointer",
@@ -2734,7 +2735,7 @@ export function SettingsPage() {
                         style={{
                           fontSize: 13,
                           fontWeight: 600,
-                          color: "#2e7d32",
+                          color: "var(--admin-success-text)",
                         }}
                       >
                         Saved ✓
@@ -2771,7 +2772,7 @@ export function SettingsPage() {
             <div
               style={{
                 padding: "15px 20px",
-                borderBottom: "1px solid #eaecf0",
+                borderBottom: "1px solid var(--admin-border)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -2780,7 +2781,7 @@ export function SettingsPage() {
               }}
             >
               <div>
-                <span style={{ fontWeight: 700, fontSize: 15, color: NAVY }}>
+                <span style={{ fontWeight: 700, fontSize: 15, color: "var(--admin-accent-soft)" }}>
                   Staging Spots
                 </span>
                 {!loadingSpots && (
@@ -2788,7 +2789,7 @@ export function SettingsPage() {
                     style={{
                       marginLeft: 8,
                       fontSize: 12,
-                      color: "#9ca3af",
+                      color: "var(--admin-text-muted)",
                       fontWeight: 500,
                     }}
                   >
@@ -2802,7 +2803,7 @@ export function SettingsPage() {
                 style={{
                   fontSize: 12,
                   fontWeight: 600,
-                  color: NAVY,
+                  color: "var(--admin-accent-soft)",
                   textDecoration: "none",
                   whiteSpace: "nowrap",
                 }}
@@ -2815,13 +2816,13 @@ export function SettingsPage() {
                 style={{
                   margin: "0 0 16px",
                   fontSize: 12,
-                  color: "#6b7280",
+                  color: "var(--admin-text-muted)",
                   lineHeight: 1.45,
                   maxWidth: 560,
                 }}
               >
                 Spots on the Staging Map appear here — add or remove spots on{" "}
-                <Link to="/zones" style={{ color: NAVY, fontWeight: 600 }}>
+                <Link to="/zones" style={{ color: "var(--admin-accent-soft)", fontWeight: 600 }}>
                   Staging Map
                 </Link>{" "}
                 (Edit Locations). Use <strong style={{ fontWeight: 700 }}>Edit</strong>{" "}
@@ -2833,7 +2834,7 @@ export function SettingsPage() {
                   margin: "0 0 10px",
                   fontSize: 12,
                   fontWeight: 700,
-                  color: "#374151",
+                  color: "var(--admin-text)",
                   textTransform: "uppercase",
                   letterSpacing: "0.06em",
                 }}
@@ -2842,23 +2843,23 @@ export function SettingsPage() {
               </p>
 
               {loadingSpots ? (
-                <p style={{ fontSize: 13, color: "#9ca3af", margin: "0 0 16px" }}>
+                <p style={{ fontSize: 13, color: "var(--admin-text-muted)", margin: "0 0 16px" }}>
                   Loading spots…
                 </p>
               ) : stagingSpots.length === 0 ? (
                 <p
                   style={{
                     fontSize: 13,
-                    color: "#9ca3af",
+                    color: "var(--admin-text-muted)",
                     margin: "0 0 16px",
                     padding: "12px 14px",
-                    backgroundColor: "#f8fafc",
-                    border: "1px solid #eaecf0",
+                    backgroundColor: "var(--admin-surface-2)",
+                    border: "1px solid var(--admin-border)",
                     borderRadius: 6,
                   }}
                 >
                   No staging spots on the map yet. Open{" "}
-                  <Link to="/zones" style={{ color: NAVY, fontWeight: 600 }}>
+                  <Link to="/zones" style={{ color: "var(--admin-accent-soft)", fontWeight: 600 }}>
                     Staging Map
                   </Link>{" "}
                   → Edit Locations to add ground or shelf spots.
@@ -2868,7 +2869,7 @@ export function SettingsPage() {
                   style={{
                     overflowX: "auto",
                     marginBottom: 12,
-                    border: "1px solid #eaecf0",
+                    border: "1px solid var(--admin-border)",
                     borderRadius: 6,
                   }}
                 >
@@ -2882,7 +2883,7 @@ export function SettingsPage() {
                     }}
                   >
                     <thead>
-                      <tr style={{ backgroundColor: NAVY }}>
+                      <tr style={{ backgroundColor: NAVY }} data-testid="settings-staging-table-header">
                         {["Code", "Label", "Type", "Status", "Sort", ""].map(
                           (col, i) => (
                             <th
@@ -2891,7 +2892,7 @@ export function SettingsPage() {
                                 padding: "12px",
                                 fontWeight: 700,
                                 fontSize: 14,
-                                color: "#ffffff",
+                                color: "var(--admin-on-navy)",
                                 textAlign: "left",
                                 whiteSpace: "nowrap",
                               }}
@@ -2909,23 +2910,23 @@ export function SettingsPage() {
                         const rowTestCode =
                           spot.mapLayoutSlot ?? row.layoutSlot ?? spot.code;
                         const isEditing = editingSpotId === spot.id;
-                        const rowBg = idx % 2 === 0 ? "#fff" : "#fafbfc";
+                        const rowBg = idx % 2 === 0 ? "var(--admin-row-even)" : "var(--admin-row-odd)";
                         const tdBase: CSSProperties = {
                           padding: "10px 12px",
-                          borderBottom: "1px solid #eaecf0",
+                          borderBottom: "1px solid var(--admin-border)",
                           verticalAlign: "middle",
                         };
                         const inlineInput: CSSProperties = {
                           padding: "4px 8px",
-                          border: "1.5px solid #ccd0d7",
+                          border: "1.5px solid var(--admin-border)",
                           borderRadius: 4,
                           fontSize: 13,
-                          color: "#333",
+                          color: "var(--admin-text)",
                           fontFamily: FONT,
                           outline: "none",
                           width: "100%",
                           boxSizing: "border-box",
-                          backgroundColor: "#fff",
+                          backgroundColor: "var(--admin-surface)",
                         };
                         const rowConflict =
                           isEditing &&
@@ -2948,7 +2949,7 @@ export function SettingsPage() {
                                 ...tdBase,
                                 fontWeight: 700,
                                 fontFamily: "monospace",
-                                color: NAVY,
+                                color: "var(--admin-accent-soft)",
                               }}
                             >
                               {isEditing && editForm ? (
@@ -2974,7 +2975,7 @@ export function SettingsPage() {
                             </td>
                             <td
                               data-testid={`spot-label-${spot.code}`}
-                              style={{ ...tdBase, color: "#333" }}
+                              style={{ ...tdBase, color: "var(--admin-text)" }}
                             >
                               {isEditing && editForm ? (
                                 <input
@@ -2992,7 +2993,7 @@ export function SettingsPage() {
                                 spot.label
                               )}
                             </td>
-                            <td style={{ ...tdBase, color: "#333" }}>
+                            <td style={{ ...tdBase, color: "var(--admin-text)" }}>
                               {isEditing && editForm ? (
                                 <select
                                   style={inlineInput}
@@ -3019,7 +3020,7 @@ export function SettingsPage() {
                                 STAGING_TYPE_LABELS[spot.type]
                               )}
                             </td>
-                            <td style={{ ...tdBase, color: "#333" }}>
+                            <td style={{ ...tdBase, color: "var(--admin-text)" }}>
                               {isEditing && editForm ? (
                                 <select
                                   style={inlineInput}
@@ -3047,8 +3048,8 @@ export function SettingsPage() {
                                   style={{
                                     color:
                                       spot.status === "Active"
-                                        ? "#2e7d32"
-                                        : "#6b7280",
+                                        ? "var(--admin-success-text)"
+                                        : "var(--admin-text-muted)",
                                     fontWeight: 600,
                                   }}
                                 >
@@ -3056,7 +3057,7 @@ export function SettingsPage() {
                                 </span>
                               )}
                             </td>
-                            <td style={{ ...tdBase, color: "#333" }}>
+                            <td style={{ ...tdBase, color: "var(--admin-text)" }}>
                               {isEditing && editForm ? (
                                 <input
                                   type="number"
@@ -3091,9 +3092,9 @@ export function SettingsPage() {
                                       borderRadius: 4,
                                       border: "none",
                                       backgroundColor: saveDisabled
-                                        ? "#e5e7eb"
+                                        ? "var(--admin-border)"
                                         : NAVY,
-                                      color: saveDisabled ? "#9ca3af" : "#fff",
+                                      color: saveDisabled ? "var(--admin-text-muted)" : "var(--admin-on-navy)",
                                       fontSize: 12,
                                       fontWeight: 600,
                                       cursor: saveDisabled
@@ -3111,9 +3112,9 @@ export function SettingsPage() {
                                     style={{
                                       padding: "3px 10px",
                                       borderRadius: 4,
-                                      border: "1.5px solid #ccd0d7",
-                                      backgroundColor: "#fff",
-                                      color: "#6b7280",
+                                      border: "1.5px solid var(--admin-border)",
+                                      backgroundColor: "var(--admin-surface)",
+                                      color: "var(--admin-text-muted)",
                                       fontSize: 12,
                                       fontWeight: 600,
                                       cursor: savingEdit
@@ -3134,7 +3135,7 @@ export function SettingsPage() {
                                     padding: "3px 10px",
                                     borderRadius: 4,
                                     border: "1.5px solid #0a3161",
-                                    backgroundColor: "#fff",
+                                    backgroundColor: "var(--admin-surface)",
                                     color: "#0a3161",
                                     fontSize: 12,
                                     fontWeight: 600,
@@ -3171,6 +3172,6 @@ export function SettingsPage() {
         </div>
         </div>
       </div>
-    </div>
+    </PortalShell>
   );
 }

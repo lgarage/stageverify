@@ -127,21 +127,21 @@ export function HandleArrivalModal({
           maxWidth: 560,
           maxHeight: "90vh",
           overflowY: "auto",
-          backgroundColor: "#fff",
+          backgroundColor: "var(--admin-surface)",
           borderRadius: 12,
           padding: "24px 28px",
           fontFamily: FONT,
-          color: "#333",
+          color: "var(--admin-text)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <h2
           data-testid="handle-arrival-modal-title"
-          style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 700, color: NAVY }}
+          style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 700, color: "var(--admin-accent-soft)" }}
         >
           Handle arrival
         </h2>
-        <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748b", lineHeight: 1.45 }}>
+        <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--admin-text-muted)", lineHeight: 1.45 }}>
           Confirm vendor reply and clear {lineCount} backordered line
           {lineCount === 1 ? "" : "s"} ({totalBoQty} unit
           {totalBoQty === 1 ? "" : "s"}). This cannot be undone.
@@ -152,7 +152,7 @@ export function HandleArrivalModal({
           style={{
             marginBottom: 16,
             padding: "10px 12px",
-            backgroundColor: "#f8fafc",
+            backgroundColor: "var(--admin-surface-2)",
             border: "1px solid #e2e8f0",
             borderRadius: 6,
             fontSize: 12,
@@ -168,7 +168,7 @@ export function HandleArrivalModal({
             style={{
               fontSize: 11,
               fontWeight: 700,
-              color: "#9ca3af",
+              color: "var(--admin-text-muted)",
               textTransform: "uppercase",
               letterSpacing: "0.08em",
               marginBottom: 8,
@@ -196,7 +196,7 @@ export function HandleArrivalModal({
             style={{
               fontSize: 11,
               fontWeight: 700,
-              color: "#9ca3af",
+              color: "var(--admin-text-muted)",
               textTransform: "uppercase",
               letterSpacing: "0.08em",
               marginBottom: 8,
@@ -255,7 +255,7 @@ export function HandleArrivalModal({
                 display: "block",
                 fontSize: 13,
                 fontWeight: 700,
-                color: "#6b7280",
+                color: "var(--admin-text-muted)",
                 marginBottom: 6,
               }}
             >
@@ -269,11 +269,11 @@ export function HandleArrivalModal({
               style={{
                 width: "100%",
                 padding: "10px 12px",
-                border: "1.5px solid #ccd0d7",
+                border: "1.5px solid var(--admin-border)",
                 borderRadius: 6,
                 fontSize: 14,
-                color: "#333",
-                backgroundColor: "#fff",
+                color: "var(--admin-text)",
+                backgroundColor: "var(--admin-surface)",
                 boxSizing: "border-box",
               }}
             >
@@ -299,7 +299,7 @@ export function HandleArrivalModal({
               display: "block",
               fontSize: 13,
               fontWeight: 700,
-              color: "#6b7280",
+              color: "var(--admin-text-muted)",
               marginBottom: 6,
             }}
           >
@@ -315,11 +315,11 @@ export function HandleArrivalModal({
             style={{
               width: "100%",
               padding: "10px 12px",
-              border: "1.5px solid #ccd0d7",
+              border: "1.5px solid var(--admin-border)",
               borderRadius: 6,
               fontSize: 14,
-              color: "#333",
-              backgroundColor: "#fff",
+              color: "var(--admin-text)",
+              backgroundColor: "var(--admin-surface)",
               boxSizing: "border-box",
               resize: "vertical",
             }}
@@ -333,9 +333,9 @@ export function HandleArrivalModal({
               margin: "0 0 12px",
               padding: "8px 10px",
               borderRadius: 4,
-              backgroundColor: "#fef2f2",
-              border: "1px solid #fecaca",
-              color: "#b91c1c",
+              backgroundColor: "var(--admin-danger-bg)",
+              border: "1px solid var(--admin-danger-border)",
+              color: "var(--admin-danger-text)",
               fontSize: 12,
             }}
           >
@@ -353,8 +353,8 @@ export function HandleArrivalModal({
               padding: "8px 16px",
               borderRadius: 6,
               border: `1px solid ${NAVY}`,
-              backgroundColor: "#fff",
-              color: NAVY,
+              backgroundColor: "var(--admin-surface)",
+              color: "var(--admin-accent-soft)",
               fontSize: 13,
               fontWeight: 700,
               cursor: submitting ? "wait" : "pointer",
@@ -371,8 +371,8 @@ export function HandleArrivalModal({
               padding: "8px 16px",
               borderRadius: 6,
               border: "none",
-              backgroundColor: canSubmit ? NAVY : "#94a3b8",
-              color: "#fff",
+              backgroundColor: canSubmit ? NAVY : "var(--admin-text-muted)",
+              color: "var(--admin-text)",
               fontSize: 13,
               fontWeight: 700,
               cursor: canSubmit ? "pointer" : "not-allowed",

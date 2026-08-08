@@ -17,17 +17,17 @@ import {
 import { sortStagingLocationsForList } from "./dispatcher/stagingMapSync";
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-const TEXT = "#333";
-const MUTED = "#6b7280";
+const TEXT = "var(--admin-text)";
+const MUTED = "var(--admin-text-muted)";
 const NAVY = "#0a3161";
 
 const inputStyle: CSSProperties = {
   padding: "8px 10px",
   borderRadius: 6,
-  border: "1px solid #ccd0d7",
+  border: "1px solid var(--admin-border)",
   fontSize: 14,
   color: TEXT,
-  backgroundColor: "#fff",
+  backgroundColor: "var(--admin-surface)",
   fontFamily: FONT,
 };
 
@@ -270,7 +270,7 @@ export function ManagementSettingsPanel() {
         </p>
       )}
       {message && (
-        <p style={{ fontSize: 13, color: "#166534", marginBottom: 12 }} role="status">
+        <p style={{ fontSize: 13, color: "var(--admin-success-text)", marginBottom: 12 }} role="status">
           {message}
         </p>
       )}
@@ -339,7 +339,7 @@ export function ManagementSettingsPanel() {
             borderRadius: 6,
             border: "none",
             backgroundColor: NAVY,
-            color: "#fff",
+            color: "var(--admin-on-navy)",
             fontSize: 13,
             fontWeight: 600,
             cursor: saving ? "wait" : "pointer",
@@ -352,7 +352,7 @@ export function ManagementSettingsPanel() {
 
       <div
         style={{
-          borderTop: "1px solid #e5e7eb",
+          borderTop: "1px solid var(--admin-border)",
           paddingTop: 16,
         }}
         data-testid="mgmt-pins-section"
@@ -361,7 +361,7 @@ export function ManagementSettingsPanel() {
           style={{
             fontSize: 15,
             fontWeight: 700,
-            color: NAVY,
+            color: "var(--admin-accent-soft)",
             margin: "0 0 8px",
             fontFamily: FONT,
           }}
@@ -387,10 +387,10 @@ export function ManagementSettingsPanel() {
                   key={row.id}
                   data-testid={`mgmt-pin-row-${row.id}`}
                   style={{
-                    border: "1px solid #e5e7eb",
+                    border: "1px solid var(--admin-border)",
                     borderRadius: 8,
                     padding: 14,
-                    backgroundColor: row.active ? "#fff" : "#f9fafb",
+                    backgroundColor: row.active ? "var(--admin-surface)" : "var(--admin-surface-2)",
                     opacity: row.active ? 1 : 0.75,
                   }}
                 >
@@ -438,7 +438,7 @@ export function ManagementSettingsPanel() {
                         borderRadius: 6,
                         border: "none",
                         backgroundColor: NAVY,
-                        color: "#fff",
+                        color: "var(--admin-on-navy)",
                         fontSize: 12,
                         fontWeight: 600,
                         cursor: busy ? "wait" : "pointer",
@@ -455,8 +455,8 @@ export function ManagementSettingsPanel() {
                         style={{
                           padding: "8px 12px",
                           borderRadius: 6,
-                          border: "1px solid #ccd0d7",
-                          backgroundColor: "#fff",
+                          border: "1px solid var(--admin-border)",
+                          backgroundColor: "var(--admin-surface)",
                           color: TEXT,
                           fontSize: 12,
                           fontWeight: 600,
@@ -510,10 +510,10 @@ export function ManagementSettingsPanel() {
         <div
           style={{
             marginTop: 16,
-            border: "1px dashed #ccd0d7",
+            border: "1px dashed var(--admin-border)",
             borderRadius: 8,
             padding: 14,
-            backgroundColor: "#fafbfc",
+            backgroundColor: "var(--admin-surface-2)",
           }}
           data-testid="mgmt-pin-create"
         >
@@ -558,7 +558,7 @@ export function ManagementSettingsPanel() {
                 borderRadius: 6,
                 border: "none",
                 backgroundColor: NAVY,
-                color: "#fff",
+                color: "var(--admin-on-navy)",
                 fontSize: 13,
                 fontWeight: 600,
                 cursor: pinBusyId === "__new__" ? "wait" : "pointer",

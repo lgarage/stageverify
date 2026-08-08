@@ -255,12 +255,12 @@ const editInputStyle: CSSProperties = {
   width: "100%",
   marginTop: 4,
   padding: "6px 8px",
-  border: "1px solid #d1d5db",
+  border: "1px solid var(--admin-border)",
   borderRadius: 4,
   fontFamily: FONT,
   fontSize: 13,
-  color: "#111",
-  backgroundColor: "#fff",
+  color: "var(--admin-text)",
+  backgroundColor: "var(--admin-surface)",
 };
 
 function spotStyle(
@@ -2758,7 +2758,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             height: 36,
             borderRadius: 8,
             backgroundColor: NAVY,
-            color: "#fff",
+            color: "var(--admin-on-navy)",
             fontWeight: 800,
             display: "flex",
             alignItems: "center",
@@ -2773,7 +2773,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             margin: 0,
             fontSize: 18,
             fontWeight: 800,
-            color: NAVY,
+            color: "var(--admin-accent-soft)",
             letterSpacing: 0.3,
           }}
         >
@@ -2786,8 +2786,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               marginLeft: "auto",
               fontSize: 12,
               fontWeight: 700,
-              color: "#1d4ed8",
-              backgroundColor: "#dbeafe",
+              color: "var(--admin-info-text)",
+              backgroundColor: "var(--admin-info-bg)",
               padding: "4px 10px",
               borderRadius: 6,
             }}
@@ -2811,7 +2811,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           {saveError && (
             <span
               data-testid="shop-map-add-error"
-              style={{ color: "#991b1b", fontSize: 12, fontWeight: 700 }}
+              style={{ color: "var(--admin-danger-text)", fontSize: 12, fontWeight: 700 }}
             >
               {saveError}
             </span>
@@ -2898,7 +2898,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           gap: 16,
           background:
             "repeating-linear-gradient(0deg, #f8fafc, #f8fafc 19px, #eef2f7 20px), repeating-linear-gradient(90deg, #f8fafc, #f8fafc 19px, #eef2f7 20px)",
-          border: "1px solid #dde1e7",
+          border: "1px solid var(--admin-border)",
           borderRadius: 10,
           padding: 20,
           minHeight: 420,
@@ -3234,7 +3234,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                 height: youAreHere.sizePx,
                 borderRadius: "50%",
                 backgroundColor: YOU_ARE_HERE_YELLOW,
-                color: "#111",
+                color: NAVY,
                 fontWeight: 900,
                 fontSize: Math.max(11, Math.round(youAreHere.sizePx * 0.135)),
                 lineHeight: 1.15,
@@ -3348,7 +3348,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                     data-map-label-rotation-deg={unitLabelRot}
                     style={{
                       fontWeight: 800,
-                      color: NAVY,
+                      color: "var(--admin-accent-soft)",
                       marginBottom: 6,
                       fontSize: 14,
                       textAlign: "center",
@@ -3394,7 +3394,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                         flexDirection: "column-reverse",
                         gap: 0,
                         border: SHELF_FRAME_STROKE,
-                        backgroundColor: "#fff",
+                        backgroundColor: "var(--admin-surface)",
                         boxSizing: "border-box",
                       }}
                     >
@@ -3406,7 +3406,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                             width: 52,
                             height: 52,
                             boxSizing: "border-box",
-                            backgroundColor: "#fff",
+                            backgroundColor: "var(--admin-surface)",
                             /*
                              * column-reverse: visual bottom→top is A…F. borderTop on A–E draws
                              * each seam (incl. A/G↔B/H). Skip F (last) so the top bay doesn't
@@ -3503,19 +3503,19 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             right: 16,
             top: 56,
             width: 300,
-            backgroundColor: "#fff",
+            backgroundColor: "var(--admin-surface)",
             border: "2px solid #2563eb",
             borderRadius: 8,
             boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
             padding: "14px 16px",
             zIndex: 6,
             fontSize: 13,
-            color: "#111",
+            color: "var(--admin-text)",
           }}
         >
           <div
             data-testid="shop-map-edit-panel-title"
-            style={{ fontWeight: 800, color: NAVY, marginBottom: 10 }}
+            style={{ fontWeight: 800, color: "var(--admin-accent-soft)", marginBottom: 10 }}
           >
             {selectedCatchAll
               ? "Edit Catch-all"
@@ -3528,7 +3528,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           {selectedSlots.length <= 1 && (selectedLayoutSlot || selectedCatchAll) && (
             <>
               <label style={{ display: "block", marginBottom: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--admin-text-muted)" }}>
                   Display name
                 </span>
                 <input
@@ -3558,7 +3558,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               {!isShelfUnitCode(selectedLayoutSlot ?? "") &&
                 (selectedCatchAll || selectedLayoutSlot) && (
                 <label style={{ display: "block", marginBottom: 10 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--admin-text-muted)" }}>
                     Spot code
                   </span>
                   <input
@@ -3581,7 +3581,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                   <span
                     style={{
                       fontSize: 10,
-                      color: "#b45309",
+                      color: "var(--admin-warning-text)",
                       marginTop: 4,
                       display: "block",
                     }}
@@ -3596,13 +3596,13 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           {selectedSlots.length > 1 && (
             <p
               data-testid="shop-map-multi-hint"
-              style={{ fontSize: 12, color: "#374151", marginTop: 0 }}
+              style={{ fontSize: 12, color: "var(--admin-text)", marginTop: 0 }}
             >
               Drag any selected spot to move all together, then Save.
             </p>
           )}
           <div style={{ marginBottom: 12 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--admin-text-muted)" }}>
               Position nudge
             </span>
             <div
@@ -3704,7 +3704,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               </button>
               <span />
             </div>
-            <span style={{ fontSize: 11, color: "#6b7280" }}>
+            <span style={{ fontSize: 11, color: "var(--admin-text-muted)" }}>
               Offset: {editOffsetX}px, {editOffsetY}px
               {selectedSlots.length > 1
                 ? " — drag selection"
@@ -3720,7 +3720,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             (isShelfUnitCode(selectedLayoutSlot) ||
               isGroundLayoutSlot(selectedLayoutSlot)) && (
               <div style={{ marginBottom: 12 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--admin-text-muted)" }}>
                   Rotation
                 </span>
                 <div
@@ -3745,7 +3745,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                     style={{
                       fontSize: 14,
                       fontWeight: 800,
-                      color: NAVY,
+                      color: "var(--admin-accent-soft)",
                       minWidth: 52,
                       textAlign: "center",
                       fontFamily: FONT,
@@ -3779,7 +3779,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             selectedLayoutSlot &&
             isShelfUnitCode(selectedLayoutSlot) && (
               <div style={{ marginBottom: 12 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--admin-text-muted)" }}>
                   Labels
                 </span>
                 <div
@@ -3804,7 +3804,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                     style={{
                       fontSize: 14,
                       fontWeight: 800,
-                      color: NAVY,
+                      color: "var(--admin-accent-soft)",
                       minWidth: 52,
                       textAlign: "center",
                       fontFamily: FONT,
@@ -3838,7 +3838,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             (selectedCatchAll ||
               (selectedLayoutSlot && !isShelfUnitCode(selectedLayoutSlot))) && (
               <div style={{ marginBottom: 12 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--admin-text-muted)" }}>
                   Size (px)
                 </span>
                 {(["width", "height"] as const).map((dim) => {
@@ -3863,7 +3863,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                         marginTop: 6,
                       }}
                     >
-                      <span style={{ fontSize: 11, color: "#6b7280", width: 14 }}>
+                      <span style={{ fontSize: 11, color: "var(--admin-text-muted)", width: 14 }}>
                         {isW ? "W" : "H"}
                       </span>
                       <button
@@ -3926,7 +3926,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                 <span
                   style={{
                     fontSize: 11,
-                    color: "#6b7280",
+                    color: "var(--admin-text-muted)",
                     display: "block",
                     marginTop: 4,
                   }}
@@ -3936,7 +3936,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               </div>
             )}
           {saveError && (
-            <div style={{ color: "#991b1b", fontSize: 12, marginBottom: 8 }}>
+            <div style={{ color: "var(--admin-danger-text)", fontSize: 12, marginBottom: 8 }}>
               {saveError}
             </div>
           )}
@@ -3961,7 +3961,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                 borderRadius: 4,
                 border: "none",
                 backgroundColor: NAVY,
-                color: "#fff",
+                color: "var(--admin-on-navy)",
                 fontWeight: 700,
                 cursor: saving ? "wait" : "pointer",
                 fontFamily: FONT,
@@ -3980,9 +3980,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               style={{
                 padding: "8px 12px",
                 borderRadius: 4,
-                border: "1px solid #d1d5db",
-                backgroundColor: "#fff",
-                color: "#111",
+                border: "1px solid var(--admin-border)",
+                backgroundColor: "var(--admin-surface)",
+                color: "var(--admin-text)",
                 fontWeight: 600,
                 cursor: "pointer",
                 fontFamily: FONT,
@@ -3998,9 +3998,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                   style={{
                     padding: "8px 12px",
                     borderRadius: 4,
-                    border: "1px solid #fecaca",
-                    backgroundColor: "#fef2f2",
-                    color: "#991b1b",
+                    border: "1px solid var(--admin-danger-border)",
+                    backgroundColor: "var(--admin-danger-bg)",
+                    color: "var(--admin-danger-text)",
                     fontWeight: 700,
                     cursor: "pointer",
                     fontFamily: FONT,
@@ -4021,8 +4021,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             right: 16,
             top: 56,
             width: 280,
-            backgroundColor: "#fff",
-            border: "1px solid #e5e7eb",
+            backgroundColor: "var(--admin-surface)",
+            border: "1px solid var(--admin-border)",
             borderRadius: 8,
             boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
             padding: "12px 14px",
@@ -4032,17 +4032,17 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         >
           {hover.kind === "free" && (
             <>
-              <div style={{ fontWeight: 800, color: NAVY }}>{hover.code}</div>
+              <div style={{ fontWeight: 800, color: "var(--admin-accent-soft)" }}>{hover.code}</div>
               {hover.label && hover.label !== hover.code && (
-                <div style={{ color: "#374151", marginTop: 2 }}>{hover.label}</div>
+                <div style={{ color: "var(--admin-text)", marginTop: 2 }}>{hover.label}</div>
               )}
-              <div style={{ color: "#16a34a", marginTop: 4 }}>Available</div>
+              <div style={{ color: "var(--admin-success-text)", marginTop: 4 }}>Available</div>
             </>
           )}
           {hover.kind === "shop" && (
             <>
-              <div style={{ fontWeight: 800, color: NAVY }}>{hover.code}</div>
-              <div style={{ color: "#6b7280", marginTop: 4 }}>Shop stock</div>
+              <div style={{ fontWeight: 800, color: "var(--admin-accent-soft)" }}>{hover.code}</div>
+              <div style={{ color: "var(--admin-text-muted)", marginTop: 4 }}>Shop stock</div>
               <div style={{ marginTop: 6 }}>{hover.label}</div>
             </>
           )}
@@ -4051,7 +4051,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
               <div
                 style={{
                   fontSize: 11,
-                  color: "#9ca3af",
+                  color: "var(--admin-text-muted)",
                   letterSpacing: 0.6,
                   fontWeight: 700,
                   marginBottom: 8,
@@ -4104,7 +4104,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                 italic={!hover.loading}
               />
               {hover.loading && (
-                <div style={{ color: "#9ca3af", marginTop: 6, fontSize: 12 }}>
+                <div style={{ color: "var(--admin-text-muted)", marginTop: 6, fontSize: 12 }}>
                   Loading…
                 </div>
               )}
@@ -4120,7 +4120,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           style={{
             marginTop: 12,
             padding: 10,
-            backgroundColor: "#fff7ed",
+            backgroundColor: "var(--admin-warning-bg)",
             border: "1px solid #fed7aa",
             borderRadius: 6,
             fontSize: 12,
@@ -4139,7 +4139,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           gap: 14,
           marginTop: 14,
           fontSize: 12,
-          color: "#374151",
+          color: "var(--admin-text)",
         }}
       >
         {(
@@ -4180,7 +4180,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           textAlign: "right",
           fontSize: 12,
           fontWeight: 700,
-          color: "#374151",
+          color: "var(--admin-text)",
         }}
       >
         Last edited: {lastEditedLabel}
@@ -4192,10 +4192,10 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
 
 const nudgeBtnStyle: CSSProperties = {
   padding: "4px 8px",
-  border: "1px solid #d1d5db",
+  border: "1px solid var(--admin-border)",
   borderRadius: 4,
-  backgroundColor: "#f9fafb",
-  color: "#111",
+  backgroundColor: "var(--admin-surface-2)",
+  color: "var(--admin-text)",
   cursor: "pointer",
   fontFamily: NUDGE_SYMBOL_FONT,
   fontWeight: 700,
@@ -4253,14 +4253,14 @@ const doorRotateGlyphStyle: CSSProperties = {
   fontSize: 16,
   fontWeight: 800,
   lineHeight: 1,
-  color: NAVY,
+  color: "var(--admin-accent-soft)",
 };
 
 const doorRotateStepStyle: CSSProperties = {
   fontSize: 8,
   fontWeight: 800,
   lineHeight: 1,
-  color: NAVY,
+  color: "var(--admin-accent-soft)",
   marginTop: 1,
   fontFamily: FONT,
 };
@@ -4269,8 +4269,8 @@ const addLayoutBtnStyle: CSSProperties = {
   ...nudgeBtnStyle,
   fontSize: 12,
   fontWeight: 700,
-  color: NAVY,
-  backgroundColor: "#eff6ff",
+  color: "var(--admin-accent-soft)",
+  backgroundColor: "var(--admin-info-bg)",
   border: "1px solid #bfdbfe",
 };
 
@@ -4294,12 +4294,12 @@ function HoverRow({
         marginBottom: 4,
       }}
     >
-      <span style={{ color: "#6b7280" }}>{label}</span>
+      <span style={{ color: "var(--admin-text-muted)" }}>{label}</span>
       <span
         style={{
           fontWeight: bold ? 700 : 500,
           fontStyle: italic ? "italic" : "normal",
-          color: italic ? "#9ca3af" : "#111827",
+          color: italic ? "var(--admin-text-muted)" : "#111827",
           textAlign: "right",
         }}
       >

@@ -7,18 +7,18 @@ import {
 } from "./phase2CallableClients";
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-const TEXT = "#333";
-const MUTED = "#6b7280";
+const TEXT = "var(--admin-text)";
+const MUTED = "var(--admin-text-muted)";
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
 
 const inputStyle: CSSProperties = {
   padding: "8px 10px",
   borderRadius: 6,
-  border: "1px solid #ccd0d7",
+  border: "1px solid var(--admin-border)",
   fontSize: 14,
   color: TEXT,
-  backgroundColor: "#fff",
+  backgroundColor: "var(--admin-surface)",
   fontFamily: FONT,
 };
 
@@ -107,10 +107,10 @@ export function DispatcherUsersSettingsPanel() {
       <div
         style={{
           padding: "15px 20px",
-          borderBottom: "1px solid #eaecf0",
+          borderBottom: "1px solid var(--admin-border)",
         }}
       >
-        <span style={{ fontWeight: 700, fontSize: 15, color: NAVY }}>
+        <span style={{ fontWeight: 700, fontSize: 15, color: "var(--admin-accent-soft)" }}>
           Dispatcher accounts
         </span>
         <p style={{ margin: "6px 0 0", fontSize: 13, color: MUTED }}>
@@ -134,7 +134,7 @@ export function DispatcherUsersSettingsPanel() {
         {message && (
           <p
             data-testid="dispatcher-users-message"
-            style={{ color: "#2e7d32", fontSize: 14, margin: "0 0 12px" }}
+            style={{ color: "var(--admin-success-text)", fontSize: 14, margin: "0 0 12px" }}
           >
             {message}
           </p>
@@ -145,7 +145,7 @@ export function DispatcherUsersSettingsPanel() {
             style={{
               fontSize: 13,
               color: TEXT,
-              background: "#f3f4f6",
+              background: "var(--admin-surface-2)",
               padding: "10px 12px",
               borderRadius: 6,
               margin: "0 0 12px",
@@ -179,7 +179,7 @@ export function DispatcherUsersSettingsPanel() {
                 <tr
                   key={row.uid}
                   data-testid={`dispatcher-user-row-${row.uid}`}
-                  style={{ borderTop: "1px solid #eaecf0" }}
+                  style={{ borderTop: "1px solid var(--admin-border)" }}
                 >
                   <td style={{ padding: "10px 6px", color: TEXT }}>
                     {row.email ?? row.uid}
@@ -221,11 +221,11 @@ export function DispatcherUsersSettingsPanel() {
         <div
           data-testid="dispatcher-users-provision-form"
           style={{
-            borderTop: dispatchers.length > 0 ? "1px solid #eaecf0" : undefined,
+            borderTop: dispatchers.length > 0 ? "1px solid var(--admin-border)" : undefined,
             paddingTop: dispatchers.length > 0 ? 16 : 0,
           }}
         >
-          <p style={{ margin: "0 0 10px", fontWeight: 600, color: NAVY }}>
+          <p style={{ margin: "0 0 10px", fontWeight: 600, color: "var(--admin-accent-soft)" }}>
             Add dispatcher
           </p>
           <div
@@ -288,7 +288,7 @@ export function DispatcherUsersSettingsPanel() {
                 borderRadius: 6,
                 border: "none",
                 background: NAVY,
-                color: "#fff",
+                color: "var(--admin-text)",
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: "pointer",

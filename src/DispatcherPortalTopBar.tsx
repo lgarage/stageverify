@@ -50,8 +50,8 @@ export function DispatcherPortalTopBar({
       data-testid="dispatcher-portal-topbar"
       className={PORTAL_TOPBAR_CLASS}
       style={{
-        backgroundColor: "#fff",
-        borderBottom: "1px solid #e0e3e8",
+        backgroundColor: "var(--admin-surface)",
+        borderBottom: "1px solid var(--admin-border)",
         height: 52,
         padding: "0 20px",
         boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
@@ -73,9 +73,9 @@ export function DispatcherPortalTopBar({
           whiteSpace: "nowrap",
         }}
       >
-        <span style={{ color: NAVY, fontWeight: 700, fontSize: 15 }}>{title}</span>
+        <span style={{ color: "var(--admin-link)", fontWeight: 700, fontSize: 15 }}>{title}</span>
         {subtitle ? (
-          <span style={{ color: "#6b7280", fontSize: 13 }}> / {subtitle}</span>
+          <span style={{ color: "var(--admin-text-muted)", fontSize: 13 }}> / {subtitle}</span>
         ) : null}
       </div>
       <div
@@ -113,7 +113,7 @@ export function DispatcherPortalTopBar({
               borderRadius: 4,
               border: "none",
               backgroundColor: RED,
-              color: "#fff",
+              color: "#ffffff",
               fontWeight: 700,
               fontSize: 12,
               cursor: "pointer",
@@ -134,8 +134,8 @@ export function DispatcherPortalTopBar({
               padding: "5px 12px",
               borderRadius: 4,
               border: `1.5px solid ${NAVY}`,
-              backgroundColor: refreshBusy || refreshDisabled ? "#f3f4f6" : "#fff",
-              color: refreshBusy || refreshDisabled ? "#374151" : NAVY,
+              backgroundColor: refreshBusy || refreshDisabled ? "var(--admin-surface-2)" : "var(--admin-surface)",
+              color: refreshBusy || refreshDisabled ? "var(--admin-text-muted)" : "var(--admin-link)",
               fontWeight: 700,
               fontSize: 12,
               cursor: refreshBusy || refreshDisabled ? "not-allowed" : "pointer",
@@ -151,7 +151,7 @@ export function DispatcherPortalTopBar({
             data-testid="gmail-sync-message"
             style={{
               fontSize: 12,
-              color: gmailSyncMessage.includes("failed") ? "#b91c1c" : "#166534",
+              color: gmailSyncMessage.includes("failed") ? "var(--admin-danger-text)" : "var(--admin-success-text)",
               fontWeight: 600,
               maxWidth: 360,
             }}
@@ -164,7 +164,7 @@ export function DispatcherPortalTopBar({
             data-testid="dispatcher-topbar-last-updated"
             style={{
               fontSize: 12,
-              color: "#6b7280",
+              color: "var(--admin-text-muted)",
               whiteSpace: "nowrap",
               flexShrink: 1,
               minWidth: 0,
@@ -174,7 +174,7 @@ export function DispatcherPortalTopBar({
             }}
           >
             Last updated:{" "}
-            <span style={{ fontWeight: 600, color: "#374151" }}>
+            <span style={{ fontWeight: 600, color: "var(--admin-text)" }}>
               {lastUpdated ?? "Loading…"}
             </span>
           </div>
@@ -187,8 +187,8 @@ export function DispatcherPortalTopBar({
             padding: "5px 12px",
             borderRadius: 4,
             border: `1.5px solid ${NAVY}`,
-            backgroundColor: "#fff",
-            color: NAVY,
+            backgroundColor: "var(--admin-surface)",
+            color: "var(--admin-link)",
             fontWeight: 600,
             fontSize: 12,
             cursor: "pointer",
@@ -204,7 +204,7 @@ export function DispatcherPortalTopBar({
             height: 30,
             borderRadius: "50%",
             backgroundColor: NAVY,
-            color: "#fff",
+            color: "var(--admin-on-navy)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

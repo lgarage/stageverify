@@ -10,7 +10,7 @@ import { useVendorInvoicePdfViewer } from "../invoice/useVendorInvoicePdfViewer"
 import { DeliverToSitePanel } from "./DeliverToSitePanel";
 
 const VIEW_PDF_BTN = {
-  backgroundColor: "#fff",
+  backgroundColor: "var(--admin-surface)",
   color: "#0a3161",
   border: "1px solid #0a3161",
   borderRadius: 6,
@@ -92,7 +92,7 @@ export function IssueSummaryPanel({
           margin: "0 0 10px",
           fontSize: 11,
           fontWeight: 700,
-          color: "#9ca3af",
+          color: "var(--admin-text-muted)",
           textTransform: "uppercase",
           letterSpacing: "0.10em",
           display: "flex",
@@ -169,8 +169,8 @@ export function IssueSummaryPanel({
 
       <div
         style={{
-          backgroundColor: "#f8fafc",
-          border: "1px solid #e0e3e8",
+          backgroundColor: "var(--admin-surface-2)",
+          border: "1px solid var(--admin-border)",
           borderRadius: 8,
           padding: "14px 16px",
         }}
@@ -214,7 +214,7 @@ export function IssueSummaryPanel({
             style={{
               margin: "0 0 12px",
               fontSize: 12,
-              color: "#b45309",
+              color: "var(--admin-warning-text)",
               lineHeight: 1.4,
             }}
           >
@@ -227,10 +227,10 @@ export function IssueSummaryPanel({
           <div
             data-testid="issue-summary-table"
             style={{
-              border: "1px solid #e0e3e8",
+              border: "1px solid var(--admin-border)",
               borderRadius: 6,
               overflow: "hidden",
-              backgroundColor: "#fff",
+              backgroundColor: "var(--admin-surface)",
               marginBottom: 12,
             }}
           >
@@ -241,10 +241,10 @@ export function IssueSummaryPanel({
                 gap: 8,
                 padding: "8px 12px",
                 backgroundColor: "#f1f5f9",
-                borderBottom: "1px solid #e0e3e8",
+                borderBottom: "1px solid var(--admin-border)",
                 fontSize: 11,
                 fontWeight: 700,
-                color: "#64748b",
+                color: "var(--admin-text-muted)",
                 textTransform: "uppercase",
                 letterSpacing: "0.04em",
               }}
@@ -283,7 +283,7 @@ export function IssueSummaryPanel({
                 width: "100%",
                 padding: "8px 0 0",
                 border: "none",
-                borderTop: summary.issueRows.length > 0 ? "1px solid #e0e3e8" : undefined,
+                borderTop: summary.issueRows.length > 0 ? "1px solid var(--admin-border)" : undefined,
                 background: "none",
                 cursor: "pointer",
                 fontFamily: font,
@@ -293,7 +293,7 @@ export function IssueSummaryPanel({
                 textAlign: "left",
               }}
             >
-              <span style={{ fontSize: 10, color: "#64748b" }}>
+              <span style={{ fontSize: 10, color: "var(--admin-text-muted)" }}>
                 {receivedExpanded ? "▼" : "▶"}
               </span>
               {summary.receivedItems.length} Item
@@ -316,7 +316,7 @@ export function IssueSummaryPanel({
                     key={item.itemId}
                     style={{
                       fontSize: 13,
-                      color: "#2e7d32",
+                      color: "var(--admin-success-text)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
@@ -342,10 +342,10 @@ export function IssueSummaryPanel({
                           fontWeight: 700,
                           fontFamily: font,
                           color: ITEM_ISSUE_STATUS_COLOR.Delivered,
-                          border: "1px solid #d1d5db",
+                          border: "1px solid var(--admin-border)",
                           borderRadius: 4,
                           padding: "2px 6px",
-                          backgroundColor: "#fff",
+                          backgroundColor: "var(--admin-surface)",
                           maxWidth: 130,
                         }}
                       >
@@ -417,10 +417,10 @@ function IssueTableRow({
             fontSize: 12,
             fontFamily: font,
             color,
-            border: "1px solid #d1d5db",
+            border: "1px solid var(--admin-border)",
             borderRadius: 4,
             padding: "2px 4px",
-            backgroundColor: "#fff",
+            backgroundColor: "var(--admin-surface)",
             width: "100%",
           }}
         >

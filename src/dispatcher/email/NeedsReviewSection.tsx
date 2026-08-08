@@ -3,7 +3,6 @@ import type { VendorInvoiceImportReview } from "../models";
 import { InvoiceReviewPanel } from "../invoice/InvoiceReviewPanel";
 import { NeedsReviewEmailStrip } from "./NeedsReviewEmailStrip";
 
-const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 /**
@@ -46,7 +45,7 @@ export function NeedsReviewSection({
             style={{
               fontSize: 18,
               fontWeight: 700,
-              color: NAVY,
+              color: "var(--admin-accent-soft)",
               margin: 0,
               lineHeight: "1.2",
             }}
@@ -56,7 +55,7 @@ export function NeedsReviewSection({
           <p
             style={{
               fontSize: 13,
-              color: "#6b7280",
+              color: "var(--admin-text-muted)",
               margin: "4px 0 0",
             }}
           >

@@ -29,14 +29,14 @@ export function DeliverToSitePanel({
         padding: "12px 14px",
         borderRadius: 8,
         border: `1px solid ${confirmed ? "#bbf7d0" : "#fecaca"}`,
-        backgroundColor: confirmed ? "#f0fdf4" : "#fff1f2",
+        backgroundColor: confirmed ? "var(--admin-success-bg)" : "var(--admin-danger-bg)",
       }}
     >
       <div
         style={{
           fontSize: 11,
           fontWeight: 700,
-          color: "#64748b",
+          color: "var(--admin-text-muted)",
           textTransform: "uppercase",
           letterSpacing: "0.08em",
           marginBottom: 6,
@@ -64,7 +64,7 @@ export function DeliverToSitePanel({
               margin: "0 0 8px",
               fontSize: 13,
               fontWeight: 700,
-              color: "#166534",
+              color: "var(--admin-success-text)",
               fontFamily: font,
             }}
           >
@@ -76,7 +76,7 @@ export function DeliverToSitePanel({
               style={{
                 margin: "0 0 10px",
                 fontSize: 12,
-                color: "#64748b",
+                color: "var(--admin-text-muted)",
                 fontFamily: font,
               }}
             >
@@ -97,7 +97,7 @@ export function DeliverToSitePanel({
               padding: 0,
               fontSize: 11,
               fontWeight: 500,
-              color: "#64748b",
+              color: "var(--admin-text-muted)",
               cursor: loading ? "not-allowed" : "pointer",
               fontFamily: font,
               textDecoration: "underline",
@@ -115,7 +115,7 @@ export function DeliverToSitePanel({
           onClick={() => void onSetConfirmed(true)}
           style={{
             backgroundColor: navy,
-            color: "#fff",
+            color: "var(--admin-text)",
             border: "none",
             borderRadius: 4,
             padding: "8px 14px",

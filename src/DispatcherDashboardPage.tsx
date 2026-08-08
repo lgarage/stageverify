@@ -17,12 +17,12 @@ import {
   type PagedResult,
   type SortDirection,
 } from "./dispatcher";
+import { PortalShell } from "./PortalShell";
+import { PortalSidebar } from "./PortalSidebar";
 import {
-  PORTAL_SHELL_CLASS,
   PORTAL_MAIN_CLASS,
   PORTAL_SCROLL_CLASS,
 } from "./dispatcherPortalLayout";
-import { PortalSidebar } from "./PortalSidebar";
 import { NeedsReviewSection } from "./dispatcher/email/NeedsReviewSection";
 import { portalNavFocus } from "./dispatcherPortalNav";
 import {
@@ -52,42 +52,42 @@ const STATUS_BADGE: Record<
   { bg: string; text: string; border: string; dot: string }
 > = {
   pending: {
-    bg: "#f8f9fa",
-    text: "#495057",
-    border: "#ced4da",
-    dot: "#adb5bd",
+    bg: "var(--admin-surface-2)",
+    text: "var(--admin-text)",
+    border: "var(--admin-border)",
+    dot: "var(--admin-text-muted)",
   },
   shipped: {
-    bg: "#e3f2fd",
-    text: "#0d47a1",
-    border: "#90caf9",
+    bg: "var(--admin-info-bg)",
+    text: "var(--admin-info-text)",
+    border: "var(--admin-info-border)",
     dot: "#1976d2",
   },
   arrived: {
-    bg: "#e8f4fd",
-    text: "#1565c0",
-    border: "#90caf9",
+    bg: "var(--admin-info-bg)",
+    text: "var(--admin-info-text)",
+    border: "var(--admin-info-border)",
     dot: "#42a5f5",
   },
   partial: {
-    bg: "#f3e5f5",
-    text: "#6a1b9a",
-    border: "#ce93d8",
+    bg: "var(--admin-purple-bg)",
+    text: "var(--admin-purple-text)",
+    border: "var(--admin-purple-border)",
     dot: "#ab47bc",
   },
   ready_for_pickup: {
-    bg: "#e8f5e9",
-    text: "#2e7d32",
-    border: "#a5d6a7",
+    bg: "var(--admin-success-bg)",
+    text: "var(--admin-success-text)",
+    border: "var(--admin-success-border)",
     dot: "#66bb6a",
   },
   complete: {
-    bg: "#e8f5e9",
-    text: "#2e7d32",
-    border: "#a5d6a7",
+    bg: "var(--admin-success-bg)",
+    text: "var(--admin-success-text)",
+    border: "var(--admin-success-border)",
     dot: "#66bb6a",
   },
-  issue: { bg: "#ffebee", text: "#c62828", border: "#ef9a9a", dot: "#ef5350" },
+  issue: { bg: "var(--admin-danger-bg)", text: "var(--admin-danger-text)", border: "var(--admin-danger-border)", dot: "#ef5350" },
 };
 
 /** Yellow badge — shop waiting for vendor delivery (0 received). */
@@ -354,13 +354,13 @@ export function DispatcherDashboardPage() {
 
   /* ── Render ── */
   return (
-    <div style={{ fontFamily: FONT }} className={PORTAL_SHELL_CLASS}>
+    <PortalShell style={{ fontFamily: FONT }}>
       <PortalSidebar />
 
       {/* ── Main Content ─────────────────────────────────────────── */}
       <div
         className={PORTAL_MAIN_CLASS}
-        style={{ backgroundColor: "#f0f2f5" }}
+        style={{ backgroundColor: "var(--admin-bg)" }}
       >
         <DispatcherPortalTopBar
           title="Dispatcher Dashboard"
@@ -376,7 +376,7 @@ export function DispatcherDashboardPage() {
         {/* Page content — scrolls independently of sidebar and top bar */}
         <div
           className={PORTAL_SCROLL_CLASS}
-          style={{ backgroundColor: "#f0f2f5" }}
+          style={{ backgroundColor: "var(--admin-bg)" }}
         >
         <div
           style={{
@@ -392,17 +392,18 @@ export function DispatcherDashboardPage() {
           {/* ── Page header ── */}
           <div>
             <h1
+              data-testid="dispatcher-page-heading"
               style={{
                 fontSize: 24,
                 fontWeight: 700,
-                color: NAVY,
+                color: "var(--admin-accent-soft)",
                 margin: 0,
                 lineHeight: "1.2",
               }}
             >
               Delivery Overview
             </h1>
-            <p style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+            <p style={{ fontSize: 13, color: "var(--admin-text-muted)", marginTop: 4 }}>
               Manage incoming deliveries, staging assignments, and verification
               status.
             </p>
@@ -419,8 +420,8 @@ export function DispatcherDashboardPage() {
           {/* ── Search / Filter card ── */}
           <div
             style={{
-              backgroundColor: "#fff",
-              border: "1px solid #dde1e7",
+              backgroundColor: "var(--admin-surface)",
+              border: "1px solid var(--admin-border)",
               borderRadius: 8,
               boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
               padding: "15px 20px",
@@ -434,7 +435,7 @@ export function DispatcherDashboardPage() {
                     display: "block",
                     fontSize: 13,
                     fontWeight: 700,
-                    color: "#6b7280",
+                    color: "var(--admin-text-muted)",
                     textTransform: "none",
                     letterSpacing: "normal",
                     marginBottom: 6,
@@ -447,7 +448,7 @@ export function DispatcherDashboardPage() {
                     width={18}
                     height={18}
                     fill="none"
-                    stroke="#9ca3af"
+                    stroke="var(--admin-text-muted)"
                     strokeWidth={2}
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -476,12 +477,12 @@ export function DispatcherDashboardPage() {
                     style={{
                       width: "100%",
                       padding: "12px 14px 12px 40px",
-                      border: "1.5px solid #ccd0d7",
+                      border: "1.5px solid var(--admin-border)",
                       borderRadius: 6,
                       fontSize: 16,
-                      color: "#333",
+                      color: "var(--admin-text)",
                       outline: "none",
-                      backgroundColor: "#fff",
+                      backgroundColor: "var(--admin-surface)",
                       fontFamily: FONT,
                       transition: "border-color 0.15s, box-shadow 0.15s",
                     }}
@@ -490,7 +491,7 @@ export function DispatcherDashboardPage() {
                       e.target.style.boxShadow = `0 0 0 2px ${NAVY}20`;
                     }}
                     onBlur={(e) => {
-                      e.target.style.borderColor = "#ccd0d7";
+                      e.target.style.borderColor = "var(--admin-border)";
                       e.target.style.boxShadow = "none";
                     }}
                   />
@@ -504,7 +505,7 @@ export function DispatcherDashboardPage() {
                     display: "block",
                     fontSize: 13,
                     fontWeight: 700,
-                    color: "#6b7280",
+                    color: "var(--admin-text-muted)",
                     textTransform: "none",
                     letterSpacing: "normal",
                     marginBottom: 6,
@@ -538,9 +539,9 @@ export function DispatcherDashboardPage() {
                           fontWeight: 700,
                           letterSpacing: "normal",
                           boxSizing: "border-box",
-                          border: `2px solid ${active ? b.border : "#ccd0d7"}`,
-                          backgroundColor: active ? b.bg : "#f9fafb",
-                          color: active ? b.text : "#6b7280",
+                          border: `2px solid ${active ? b.border : "var(--admin-border)"}`,
+                          backgroundColor: active ? b.bg : "var(--admin-surface-2)",
+                          color: active ? b.text : "var(--admin-text-muted)",
                           cursor: "pointer",
                           transition:
                             "background-color 0.12s, color 0.12s, border-color 0.12s",
@@ -556,7 +557,7 @@ export function DispatcherDashboardPage() {
                             width: 6,
                             height: 6,
                             borderRadius: "50%",
-                            backgroundColor: active ? b.dot : "#ccd0d7",
+                            backgroundColor: active ? b.dot : "var(--admin-border)",
                             flexShrink: 0,
                           }}
                         />
@@ -586,7 +587,7 @@ export function DispatcherDashboardPage() {
                                 padding: "0 4px",
                                 borderRadius: 999,
                                 backgroundColor: COMPLETE_FILTER_BADGE_RED,
-                                color: "#fff",
+                                color: "var(--admin-on-navy)",
                                 fontSize: 11,
                                 fontWeight: 800,
                                 lineHeight: "18px",
@@ -626,9 +627,9 @@ export function DispatcherDashboardPage() {
                       fontWeight: 700,
                       letterSpacing: "normal",
                       boxSizing: "border-box",
-                      border: "2px solid #ccd0d7",
-                      backgroundColor: "#fff",
-                      color: hasActiveFilters ? "#ef4444" : "#d1d5db",
+                      border: "2px solid var(--admin-border)",
+                      backgroundColor: "var(--admin-surface)",
+                      color: hasActiveFilters ? "#ef4444" : "var(--admin-border)",
                       cursor: hasActiveFilters ? "pointer" : "default",
                       outline: "none",
                       fontFamily: FONT,
@@ -646,8 +647,8 @@ export function DispatcherDashboardPage() {
           <div
             id="portal-deliveries"
             style={{
-              backgroundColor: "#fff",
-              border: "1px solid #dde1e7",
+              backgroundColor: "var(--admin-surface)",
+              border: "1px solid var(--admin-border)",
               borderRadius: 8,
               boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
               overflow: "hidden",
@@ -662,7 +663,7 @@ export function DispatcherDashboardPage() {
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "15px 20px",
-                borderBottom: "1px solid #eaecf0",
+                borderBottom: "1px solid var(--admin-border)",
               }}
             >
               <div
@@ -673,14 +674,14 @@ export function DispatcherDashboardPage() {
                   gap: 8,
                 }}
               >
-                <span style={{ fontWeight: 700, fontSize: 15, color: NAVY }}>
+                <span style={{ fontWeight: 700, fontSize: 15, color: "var(--admin-accent-soft)" }}>
                   Deliveries
                 </span>
                 {!listLoading && (
                   <span
                     style={{
                       fontSize: 12,
-                      color: "#9ca3af",
+                      color: "var(--admin-text-muted)",
                       fontWeight: 500,
                     }}
                   >
@@ -706,7 +707,7 @@ export function DispatcherDashboardPage() {
                         label: "Assigned / planned (yellow)",
                       },
                       { swatch: "#7c3aed", label: "Staged — Ready for pickup" },
-                      { swatch: "#6b7280", label: "Shop stock" },
+                      { swatch: "var(--admin-text-muted)", label: "Shop stock" },
                     ] as const
                   ).map(({ swatch, label }) => (
                     <span
@@ -739,7 +740,7 @@ export function DispatcherDashboardPage() {
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 {listLoading && (
-                  <span style={{ fontSize: 12, color: "#9ca3af" }}>
+                  <span style={{ fontSize: 12, color: "var(--admin-text-muted)" }}>
                     Loading…
                   </span>
                 )}
@@ -763,7 +764,7 @@ export function DispatcherDashboardPage() {
                 }}
               >
                 <thead>
-                  <tr style={{ backgroundColor: NAVY }}>
+                  <tr style={{ backgroundColor: NAVY }} data-testid="dispatcher-deliveries-table-header">
                     {SORT_COLUMNS.map((col) => {
                       const isSorted = col.key && query.sortBy === col.key;
                       return (
@@ -773,7 +774,7 @@ export function DispatcherDashboardPage() {
                             padding: "12px",
                             fontWeight: 700,
                             fontSize: 14,
-                            color: "#ffffff",
+                            color: "var(--admin-on-navy)",
                             textAlign: col.className?.includes("text-right")
                               ? "right"
                               : "left",
@@ -827,24 +828,24 @@ export function DispatcherDashboardPage() {
                   {paged.items.map((row, idx) => {
                     const selected = selectedDeliveryId === row.deliveryId;
                     const b = listStatusBadge(row);
-                    const defaultRowBg = idx % 2 === 0 ? "#fff" : "#fafbfc";
-                    const rowBg = selected ? "#eef4ff" : defaultRowBg;
-                    const cellMuted = "#666";
-                    const cellStrong = "#111";
-                    const cellBody = "#333";
+                    const defaultRowBg = idx % 2 === 0 ? "var(--admin-row-even)" : "var(--admin-row-odd)";
+                    const rowBg = selected ? "var(--admin-row-selected)" : defaultRowBg;
+                    const cellMuted = "var(--admin-text-muted)";
+                    const cellStrong = "var(--admin-text)";
+                    const cellBody = "var(--admin-text)";
                     const calmIssueSummary =
                       row.issueSummary === "Pickup Scheduled" ||
                       row.issueSummary === "Will-Call Pickup" ||
                       row.issueSummary.startsWith("Delivered to ");
                     const issueSummaryColor = calmIssueSummary
-                      ? NAVY
+                      ? "var(--admin-info-text)"
                       : row.issueSummary.startsWith("Confirm delivery") ||
                           row.issueSummary === "Confirm site delivery"
-                        ? "#c62828"
+                        ? "var(--admin-danger-text)"
                         : row.issueSummary
-                          ? "#c62828"
-                          : "#9ca3af";
-                    const cellBorder = "1px solid #eaecf0";
+                          ? "var(--admin-danger-text)"
+                          : "var(--admin-text-muted)";
+                    const cellBorder = "1px solid var(--admin-border)";
                     return (
                       <tr
                         key={row.deliveryId}
@@ -870,7 +871,7 @@ export function DispatcherDashboardPage() {
                           if (!selected) {
                             (
                               e.currentTarget as HTMLElement
-                            ).style.backgroundColor = "#f5f8ff";
+                            ).style.backgroundColor = "var(--admin-row-hover)";
                           }
                         }}
                         onMouseLeave={(e) => {
@@ -884,8 +885,8 @@ export function DispatcherDashboardPage() {
                           (
                             e.currentTarget as HTMLElement
                           ).style.backgroundColor = selected
-                            ? "#eef4ff"
-                            : "#f5f8ff";
+                            ? "var(--admin-row-selected)"
+                            : "var(--admin-row-hover)";
                         }}
                         onBlur={(e) => {
                           (
@@ -938,9 +939,9 @@ export function DispatcherDashboardPage() {
                                 borderRadius: 4,
                                 fontSize: 10,
                                 fontWeight: 700,
-                                color: "#991b1b",
-                                backgroundColor: "#fef2f2",
-                                border: "1px solid #fecaca",
+                                color: "var(--admin-danger-text)",
+                                backgroundColor: "var(--admin-danger-bg)",
+                                border: "1px solid var(--admin-danger-border)",
                                 whiteSpace: "nowrap",
                               }}
                             >
@@ -1045,7 +1046,7 @@ export function DispatcherDashboardPage() {
                                   display: "inline-block",
                                   padding: "2px 6px",
                                   borderRadius: 4,
-                                  backgroundColor: "#fff7ed",
+                                  backgroundColor: "var(--admin-warning-bg)",
                                   color: "#9a3412",
                                   fontSize: 10,
                                   fontWeight: 800,
@@ -1089,8 +1090,8 @@ export function DispatcherDashboardPage() {
                                     : 0,
                                 padding: "2px 8px",
                                 borderRadius: 999,
-                                backgroundColor: "#c62828",
-                                color: "#fff",
+                                backgroundColor: "var(--admin-danger-text)",
+                                color: "var(--admin-text)",
                                 fontSize: 11,
                                 fontWeight: 700,
                               }}
@@ -1106,8 +1107,8 @@ export function DispatcherDashboardPage() {
                                 marginBottom: row.issueSummary ? 6 : 0,
                                 padding: "2px 8px",
                                 borderRadius: 999,
-                                backgroundColor: "#ffebee",
-                                color: "#c62828",
+                                backgroundColor: "var(--admin-danger-bg)",
+                                color: "var(--admin-danger-text)",
                                 fontSize: 11,
                                 fontWeight: 700,
                               }}
@@ -1117,6 +1118,11 @@ export function DispatcherDashboardPage() {
                           )}
                           {row.issueSummary ? (
                             <span
+                              data-testid={
+                                calmIssueSummary
+                                  ? "dispatcher-issue-summary-calm"
+                                  : undefined
+                              }
                               style={{
                                 display: "flex",
                                 alignItems: "flex-start",
@@ -1146,7 +1152,7 @@ export function DispatcherDashboardPage() {
                               jobReleasedToEntries.get(row.jobId) ?? [];
                             if (entries.length === 0) {
                               return (
-                                <span style={{ color: "#9ca3af" }}>—</span>
+                                <span style={{ color: "var(--admin-text-muted)" }}>—</span>
                               );
                             }
                             return (
@@ -1211,9 +1217,9 @@ export function DispatcherDashboardPage() {
                                     height: 22,
                                     padding: 0,
                                     borderRadius: 999,
-                                    border: "1px solid #ccd0d7",
-                                    backgroundColor: "#fff",
-                                    color: "#6b7280",
+                                    border: "1px solid var(--admin-border)",
+                                    backgroundColor: "var(--admin-surface)",
+                                    color: "var(--admin-text-muted)",
                                     fontSize: 14,
                                     fontWeight: 700,
                                     lineHeight: 1,
@@ -1236,14 +1242,19 @@ export function DispatcherDashboardPage() {
                           }}
                         >
                           <button
+                            data-testid="dispatcher-delivery-view"
                             onClick={(e) => {
                               e.stopPropagation();
                               void selectDelivery(row.deliveryId);
                             }}
                             style={{
-                              backgroundColor: selected ? NAVY : "#fff",
-                              color: selected ? "#fff" : NAVY,
-                              border: `1.5px solid ${NAVY}`,
+                              backgroundColor: selected ? NAVY : "var(--admin-surface)",
+                              color: selected
+                                ? "var(--admin-on-navy)"
+                                : "var(--admin-accent-soft)",
+                              border: selected
+                                ? `1.5px solid ${NAVY}`
+                                : "1.5px solid var(--admin-accent-soft)",
                               borderRadius: 4,
                               padding: "4px 10px",
                               fontSize: 12,
@@ -1257,13 +1268,19 @@ export function DispatcherDashboardPage() {
                             onMouseEnter={(e) => {
                               const el = e.currentTarget as HTMLElement;
                               el.style.backgroundColor = NAVY;
-                              el.style.color = "#fff";
+                              el.style.color = "var(--admin-on-navy)";
+                              el.style.borderColor = NAVY;
                             }}
                             onMouseLeave={(e) => {
                               const el = e.currentTarget as HTMLElement;
                               if (!selected) {
-                                el.style.backgroundColor = "#fff";
-                                el.style.color = NAVY;
+                                el.style.backgroundColor = "var(--admin-surface)";
+                                el.style.color = "var(--admin-accent-soft)";
+                                el.style.borderColor = "var(--admin-accent-soft)";
+                              } else {
+                                el.style.backgroundColor = NAVY;
+                                el.style.color = "var(--admin-on-navy)";
+                                el.style.borderColor = NAVY;
                               }
                             }}
                           >
@@ -1283,7 +1300,7 @@ export function DispatcherDashboardPage() {
                       >
                         <div
                           style={{
-                            color: "#9ca3af",
+                            color: "var(--admin-text-muted)",
                             fontSize: 48,
                             marginBottom: 16,
                           }}
@@ -1294,7 +1311,7 @@ export function DispatcherDashboardPage() {
                           style={{
                             fontSize: 16,
                             fontWeight: 700,
-                            color: "#333",
+                            color: "var(--admin-text)",
                             margin: 0,
                           }}
                         >
@@ -1303,7 +1320,7 @@ export function DispatcherDashboardPage() {
                         <p
                           style={{
                             fontSize: 13,
-                            color: "#9ca3af",
+                            color: "var(--admin-text-muted)",
                             marginTop: 6,
                           }}
                         >
@@ -1324,8 +1341,8 @@ export function DispatcherDashboardPage() {
                               padding: "8px 18px",
                               borderRadius: 4,
                               border: `1.5px solid ${NAVY}`,
-                              backgroundColor: "#fff",
-                              color: NAVY,
+                              backgroundColor: "var(--admin-surface)",
+                              color: "var(--admin-accent-soft)",
                               fontWeight: 600,
                               fontSize: 13,
                               cursor: "pointer",
@@ -1351,14 +1368,14 @@ export function DispatcherDashboardPage() {
                 flexWrap: "wrap",
                 gap: 12,
                 padding: "12px 20px",
-                borderTop: "1px solid #eaecf0",
-                backgroundColor: "#fafbfc",
+                borderTop: "1px solid var(--admin-border)",
+                backgroundColor: "var(--admin-surface-2)",
               }}
             >
-              <span style={{ fontSize: 13, color: "#6b7280" }}>
+              <span style={{ fontSize: 13, color: "var(--admin-text-muted)" }}>
                 Showing{" "}
-                <strong style={{ color: "#333" }}>{paged.items.length}</strong>{" "}
-                of <strong style={{ color: "#333" }}>{paged.totalItems}</strong>{" "}
+                <strong style={{ color: "var(--admin-text)" }}>{paged.items.length}</strong>{" "}
+                of <strong style={{ color: "var(--admin-text)" }}>{paged.totalItems}</strong>{" "}
                 deliveries
               </span>
 
@@ -1416,7 +1433,7 @@ export function DispatcherDashboardPage() {
         onClose={() => setShowCreateModal(false)}
         onCreated={() => void fetchAllData()}
       />
-    </div>
+    </PortalShell>
   );
 }
 
@@ -1444,9 +1461,9 @@ function PagBtn({
       style={{
         padding: "5px 10px",
         borderRadius: 4,
-        border: active ? `2px solid ${navy}` : "1px solid #ccd0d7",
-        backgroundColor: active ? navy : "#fff",
-        color: active ? "#fff" : disabled ? "#9ca3af" : "#333",
+        border: active ? `2px solid ${navy}` : "1px solid var(--admin-border)",
+        backgroundColor: active ? navy : "var(--admin-surface)",
+        color: active ? "var(--admin-text)" : disabled ? "var(--admin-text-muted)" : "var(--admin-text)",
         fontWeight: active ? 700 : 500,
         fontSize: 13,
         cursor: disabled ? "not-allowed" : "pointer",

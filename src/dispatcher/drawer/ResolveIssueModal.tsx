@@ -115,7 +115,7 @@ export function ResolveIssueModal({
           maxWidth: 580,
           maxHeight: "90vh",
           overflowY: "auto",
-          backgroundColor: "#fff",
+          backgroundColor: "var(--admin-surface)",
           borderRadius: 12,
           padding: "24px 28px",
           boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
@@ -160,7 +160,7 @@ export function ResolveIssueModal({
             marginBottom: 16,
             padding: "10px 12px",
             borderRadius: 6,
-            border: "1px solid #d1d5db",
+            border: "1px solid var(--admin-border)",
             fontSize: 14,
             fontFamily: font,
             ...DRAWER_MODAL_INPUT_STYLE,
@@ -192,7 +192,7 @@ export function ResolveIssueModal({
               style={{
                 margin: "0 0 8px",
                 fontSize: 12,
-                color: "#64748b",
+                color: "var(--admin-text-muted)",
                 fontFamily: font,
               }}
             >
@@ -211,7 +211,7 @@ export function ResolveIssueModal({
                 marginBottom: 16,
                 padding: "12px 14px",
                 borderRadius: 6,
-                border: "1px solid #d1d5db",
+                border: "1px solid var(--admin-border)",
                 fontSize: 14,
                 lineHeight: 1.5,
                 fontFamily: font,
@@ -230,7 +230,7 @@ export function ResolveIssueModal({
               padding: "16px 18px",
               borderRadius: 8,
               border: "1px solid #e2e8f0",
-              backgroundColor: "#f8fafc",
+              backgroundColor: "var(--admin-surface-2)",
             }}
           >
             <h4
@@ -264,7 +264,7 @@ export function ResolveIssueModal({
                 <dt style={{ fontWeight: 700, marginBottom: 2 }}>Phone</dt>
                 <dd style={{ margin: 0 }} data-testid="resolve-vendor-phone">
                   {vendorPhone || (
-                    <span style={{ color: "#64748b" }}>No phone on file</span>
+                    <span style={{ color: "var(--admin-text-muted)" }}>No phone on file</span>
                   )}
                 </dd>
               </div>
@@ -272,7 +272,7 @@ export function ResolveIssueModal({
                 <dt style={{ fontWeight: 700, marginBottom: 2 }}>Email on file</dt>
                 <dd style={{ margin: 0 }} data-testid="resolve-vendor-email">
                   {vendorEmailOnFile || (
-                    <span style={{ color: "#64748b" }}>No email on file</span>
+                    <span style={{ color: "var(--admin-text-muted)" }}>No email on file</span>
                   )}
                 </dd>
               </div>
@@ -280,7 +280,7 @@ export function ResolveIssueModal({
                 <dt style={{ fontWeight: 700, marginBottom: 2 }}>Address</dt>
                 <dd style={{ margin: 0 }} data-testid="resolve-vendor-address">
                   {vendorAddress || (
-                    <span style={{ color: "#64748b" }}>No address on file</span>
+                    <span style={{ color: "var(--admin-text-muted)" }}>No address on file</span>
                   )}
                 </dd>
               </div>
@@ -321,7 +321,7 @@ export function ResolveIssueModal({
                 marginBottom: 12,
                 padding: "10px 12px",
                 borderRadius: 6,
-                border: "1px solid #d1d5db",
+                border: "1px solid var(--admin-border)",
                 fontSize: 14,
                 fontFamily: font,
                 ...DRAWER_MODAL_INPUT_STYLE,
@@ -351,7 +351,7 @@ export function ResolveIssueModal({
                 marginBottom: 6,
                 padding: "10px 12px",
                 borderRadius: 6,
-                border: "1px solid #d1d5db",
+                border: "1px solid var(--admin-border)",
                 fontSize: 14,
                 fontFamily: font,
                 ...DRAWER_MODAL_INPUT_STYLE,
@@ -362,7 +362,7 @@ export function ResolveIssueModal({
               style={{
                 margin: "0 0 12px",
                 fontSize: 11,
-                color: "#64748b",
+                color: "var(--admin-text-muted)",
                 fontFamily: font,
               }}
             >
@@ -374,7 +374,7 @@ export function ResolveIssueModal({
                 style={{
                   margin: "0 0 10px",
                   fontSize: 12,
-                  color: "#b45309",
+                  color: "var(--admin-warning-text)",
                   fontFamily: font,
                 }}
               >
@@ -426,7 +426,7 @@ export function ResolveIssueModal({
                 marginBottom: 12,
                 padding: "10px 12px",
                 borderRadius: 6,
-                border: "1px solid #d1d5db",
+                border: "1px solid var(--admin-border)",
                 fontSize: 14,
                 fontFamily: font,
                 ...DRAWER_MODAL_INPUT_STYLE,
@@ -456,7 +456,7 @@ export function ResolveIssueModal({
                 marginBottom: 14,
                 padding: "12px 14px",
                 borderRadius: 6,
-                border: "1px solid #d1d5db",
+                border: "1px solid var(--admin-border)",
                 fontSize: 14,
                 lineHeight: 1.5,
                 fontFamily: font,
@@ -482,8 +482,8 @@ export function ResolveIssueModal({
                   padding: "9px 16px",
                   borderRadius: 6,
                   border: "none",
-                  backgroundColor: canSendEmail ? navy : "#e5e7eb",
-                  color: canSendEmail ? "#fff" : "#9ca3af",
+                  backgroundColor: canSendEmail ? navy : "var(--admin-border)",
+                  color: canSendEmail ? "var(--admin-text)" : "var(--admin-text-muted)",
                   fontSize: 13,
                   fontWeight: 700,
                   cursor: canSendEmail ? "pointer" : "not-allowed",
@@ -499,7 +499,7 @@ export function ResolveIssueModal({
                   style={{
                     margin: 0,
                     fontSize: 12,
-                    color: "#64748b",
+                    color: "var(--admin-text-muted)",
                     fontFamily: font,
                   }}
                 >
@@ -512,7 +512,7 @@ export function ResolveIssueModal({
                   style={{
                     margin: 0,
                     fontSize: 12,
-                    color: "#b91c1c",
+                    color: "var(--admin-danger-text)",
                     fontFamily: font,
                   }}
                 >
@@ -525,7 +525,7 @@ export function ResolveIssueModal({
                   style={{
                     margin: 0,
                     fontSize: 12,
-                    color: "#15803d",
+                    color: "var(--admin-success-text)",
                     fontFamily: font,
                   }}
                 >
@@ -543,8 +543,8 @@ export function ResolveIssueModal({
             style={{
               padding: "9px 16px",
               borderRadius: 6,
-              border: "1px solid #d1d5db",
-              backgroundColor: "#fff",
+              border: "1px solid var(--admin-border)",
+              backgroundColor: "var(--admin-surface)",
               fontSize: 14,
               fontWeight: 600,
               cursor: "pointer",
@@ -562,8 +562,8 @@ export function ResolveIssueModal({
               padding: "9px 16px",
               borderRadius: 6,
               border: "none",
-              backgroundColor: canSaveResolution ? navy : "#e5e7eb",
-              color: canSaveResolution ? "#fff" : "#9ca3af",
+              backgroundColor: canSaveResolution ? navy : "var(--admin-border)",
+              color: canSaveResolution ? "var(--admin-text)" : "var(--admin-text-muted)",
               fontSize: 14,
               fontWeight: 700,
               cursor: canSaveResolution ? "pointer" : "not-allowed",

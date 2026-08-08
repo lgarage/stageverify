@@ -13,8 +13,8 @@ const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 const cardStyle: CSSProperties = {
-  backgroundColor: "#fff",
-  border: "1px solid #dde1e7",
+  backgroundColor: "var(--admin-surface)",
+  border: "1px solid var(--admin-border)",
   borderRadius: 8,
   boxShadow: "rgba(0,0,0,0.15) 0px 4px 12px 0px",
 };
@@ -24,7 +24,7 @@ const labelStyle: CSSProperties = {
   marginBottom: 6,
   fontSize: 12,
   fontWeight: 600,
-  color: "#374151",
+  color: "var(--admin-text)",
   fontFamily: FONT,
 };
 
@@ -32,11 +32,11 @@ const inputStyle: CSSProperties = {
   width: "100%",
   boxSizing: "border-box",
   padding: "8px 12px",
-  border: "1.5px solid #ccd0d7",
+  border: "1.5px solid var(--admin-border)",
   borderRadius: 6,
   fontSize: 13,
   fontFamily: FONT,
-  color: "#111",
+  color: "var(--admin-text)",
   outline: "none",
 };
 
@@ -203,7 +203,7 @@ export function ShopStockDirectoryPanel() {
       <div
         style={{
           padding: "15px 20px",
-          borderBottom: "1px solid #eaecf0",
+          borderBottom: "1px solid var(--admin-border)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -216,7 +216,7 @@ export function ShopStockDirectoryPanel() {
               margin: 0,
               fontSize: 16,
               fontWeight: 700,
-              color: NAVY,
+              color: "var(--admin-accent-soft)",
               fontFamily: FONT,
             }}
           >
@@ -226,7 +226,7 @@ export function ShopStockDirectoryPanel() {
             style={{
               margin: "4px 0 0",
               fontSize: 12,
-              color: "#6b7280",
+              color: "var(--admin-text-muted)",
               lineHeight: 1.45,
               fontFamily: FONT,
             }}
@@ -238,13 +238,14 @@ export function ShopStockDirectoryPanel() {
         {!showForm && (
           <button
             type="button"
+            data-testid="shop-stock-add-mapping"
             onClick={openCreate}
             style={{
               padding: "8px 16px",
               borderRadius: 6,
               border: "none",
               backgroundColor: NAVY,
-              color: "#fff",
+              color: "var(--admin-on-navy)",
               fontWeight: 700,
               fontSize: 13,
               cursor: "pointer",
@@ -263,9 +264,9 @@ export function ShopStockDirectoryPanel() {
             margin: "12px 20px 0",
             padding: "10px 12px",
             borderRadius: 6,
-            backgroundColor: "#fef2f2",
-            border: "1px solid #fecaca",
-            color: "#b91c1c",
+            backgroundColor: "var(--admin-danger-bg)",
+            border: "1px solid var(--admin-danger-border)",
+            color: "var(--admin-danger-text)",
             fontSize: 13,
             fontFamily: FONT,
           }}
@@ -279,8 +280,8 @@ export function ShopStockDirectoryPanel() {
           onSubmit={(e) => void handleSubmit(e)}
           style={{
             padding: 20,
-            borderBottom: "1px solid #eaecf0",
-            backgroundColor: "#f9fafb",
+            borderBottom: "1px solid var(--admin-border)",
+            backgroundColor: "var(--admin-surface-2)",
           }}
         >
           <div
@@ -378,7 +379,7 @@ export function ShopStockDirectoryPanel() {
                 borderRadius: 4,
                 border: "none",
                 backgroundColor: NAVY,
-                color: "#fff",
+                color: "var(--admin-on-navy)",
                 fontWeight: 700,
                 fontSize: 13,
                 cursor: saving ? "not-allowed" : "pointer",
@@ -393,9 +394,9 @@ export function ShopStockDirectoryPanel() {
               style={{
                 padding: "8px 18px",
                 borderRadius: 4,
-                border: "1.5px solid #ccd0d7",
-                backgroundColor: "#fff",
-                color: "#6b7280",
+                border: "1.5px solid var(--admin-border)",
+                backgroundColor: "var(--admin-surface)",
+                color: "var(--admin-text-muted)",
                 fontWeight: 700,
                 fontSize: 13,
                 cursor: "pointer",
@@ -413,7 +414,7 @@ export function ShopStockDirectoryPanel() {
           style={{
             padding: "32px 20px",
             textAlign: "center",
-            color: "#6b7280",
+            color: "var(--admin-text-muted)",
             fontSize: 14,
             fontFamily: FONT,
           }}
@@ -425,7 +426,7 @@ export function ShopStockDirectoryPanel() {
           style={{
             padding: "32px 20px",
             textAlign: "center",
-            color: "#6b7280",
+            color: "var(--admin-text-muted)",
             fontSize: 14,
             fontFamily: FONT,
           }}
@@ -443,7 +444,7 @@ export function ShopStockDirectoryPanel() {
             }}
           >
             <thead>
-              <tr style={{ backgroundColor: "#f9fafb", textAlign: "left" }}>
+              <tr style={{ backgroundColor: "var(--admin-surface-2)", textAlign: "left" }}>
                 {[
                   "Location",
                   "Stock item",
@@ -459,10 +460,10 @@ export function ShopStockDirectoryPanel() {
                       padding: "10px 16px",
                       fontSize: 11,
                       fontWeight: 700,
-                      color: "#6b7280",
+                      color: "var(--admin-text-muted)",
                       textTransform: "uppercase",
                       letterSpacing: "0.06em",
-                      borderBottom: "1px solid #eaecf0",
+                      borderBottom: "1px solid var(--admin-border)",
                     }}
                   >
                     {h}
@@ -477,7 +478,7 @@ export function ShopStockDirectoryPanel() {
                   data-testid="shop-stock-mapping-row"
                   style={{ borderBottom: "1px solid #f0f2f5" }}
                 >
-                  <td style={{ padding: "12px 16px", color: NAVY, fontWeight: 700 }}>
+                  <td style={{ padding: "12px 16px", color: "var(--admin-accent-soft)", fontWeight: 700 }}>
                     {formatMappingLocationHeader(mapping)}
                   </td>
                   <td style={{ padding: "12px 16px" }}>{mapping.stockItemLabel}</td>
@@ -492,8 +493,8 @@ export function ShopStockDirectoryPanel() {
                         borderRadius: 999,
                         fontSize: 11,
                         fontWeight: 700,
-                        backgroundColor: mapping.active ? "#e8f4ea" : "#f3f4f6",
-                        color: mapping.active ? "#2e7d32" : "#6b7280",
+                        backgroundColor: mapping.active ? "#e8f4ea" : "var(--admin-surface-2)",
+                        color: mapping.active ? "var(--admin-success-text)" : "var(--admin-text-muted)",
                       }}
                     >
                       {mapping.active ? "Reserved" : "Inactive"}
@@ -508,8 +509,8 @@ export function ShopStockDirectoryPanel() {
                         marginRight: 6,
                         borderRadius: 4,
                         border: `1.5px solid ${NAVY}`,
-                        backgroundColor: "#fff",
-                        color: NAVY,
+                        backgroundColor: "var(--admin-surface)",
+                        color: "var(--admin-accent-soft)",
                         fontSize: 12,
                         fontWeight: 600,
                         cursor: "pointer",
@@ -526,7 +527,7 @@ export function ShopStockDirectoryPanel() {
                           padding: "4px 10px",
                           borderRadius: 4,
                           border: "1.5px solid #fca5a5",
-                          backgroundColor: "#fff",
+                          backgroundColor: "var(--admin-surface)",
                           color: RED,
                           fontSize: 12,
                           fontWeight: 600,

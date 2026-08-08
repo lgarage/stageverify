@@ -125,39 +125,27 @@ function sidebar(page) {
   return page.locator("aside");
 }
 
-function assertReadableInputColor(page, testId, label) {
-  return page.getByTestId(testId).evaluate((el) => {
-    const style = window.getComputedStyle(el);
-    const color = style.color;
-    const rgb = color.match(/\d+/g);
-    if (!rgb || rgb.length < 3) return { ok: false, color };
-    const [r, g, b] = rgb.map(Number);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return { ok: luminance < 0.45, color, luminance };
-  }).then((result) => {
-    if (!result.ok) {
-      throw new Error(
-        `${label}: input text should be dark/readable, got color ${result.color}`,
-      );
-    }
+async function assertReadableInputColor(page, testId, label) {
+  await assertReadableTextContrast(page, {
+    rootSelector: "body",
+    elements: [
+      {
+        name: `${label} input`,
+        selector: `[data-testid="${testId}"]`,
+      },
+    ],
   });
 }
 
-function assertReadableLabelColor(page, testId, label) {
-  return page.getByTestId(testId).evaluate((el) => {
-    const style = window.getComputedStyle(el);
-    const color = style.color;
-    const rgb = color.match(/\d+/g);
-    if (!rgb || rgb.length < 3) return { ok: false, color };
-    const [r, g, b] = rgb.map(Number);
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return { ok: luminance < 0.45, color, luminance };
-  }).then((result) => {
-    if (!result.ok) {
-      throw new Error(
-        `${label}: label text should be dark/readable on white panel, got color ${result.color}`,
-      );
-    }
+async function assertReadableLabelColor(page, testId, label) {
+  await assertReadableTextContrast(page, {
+    rootSelector: "body",
+    elements: [
+      {
+        name: `${label} label`,
+        selector: `[data-testid="${testId}"]`,
+      },
+    ],
   });
 }
 

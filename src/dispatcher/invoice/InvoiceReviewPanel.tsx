@@ -75,18 +75,18 @@ function StatusChip({
         data-testid="invoice-review-status-chip"
         style={{
           backgroundColor: isIssue
-            ? "#fff7ed"
+            ? "var(--admin-warning-bg)"
             : isWillCall
-              ? "#fef3c7"
+              ? "var(--admin-warning-bg)"
               : isDeliverToSite
-                ? "#ecfdf5"
+                ? "var(--admin-success-bg)"
                 : "#e8f0fe",
           color: isIssue
             ? "#9a3412"
             : isWillCall
-              ? "#92400e"
+              ? "var(--admin-warning-text)"
               : isDeliverToSite
-                ? "#166534"
+                ? "var(--admin-success-text)"
                 : NAVY,
           fontWeight: 700,
           fontSize: 11,
@@ -101,16 +101,16 @@ function StatusChip({
         style={{
           backgroundColor:
             reviewStatus === "pending_review"
-              ? "#fff7ed"
+              ? "var(--admin-warning-bg)"
               : reviewStatus === "approved"
-                ? "#ecfdf5"
-                : "#fef2f2",
+                ? "var(--admin-success-bg)"
+                : "var(--admin-danger-bg)",
           color:
             reviewStatus === "pending_review"
               ? "#9a3412"
               : reviewStatus === "approved"
-                ? "#166534"
-                : "#991b1b",
+                ? "var(--admin-success-text)"
+                : "var(--admin-danger-text)",
           fontWeight: 600,
           fontSize: 11,
           padding: "3px 8px",
@@ -124,8 +124,8 @@ function StatusChip({
         <span
           data-testid="invoice-review-credit-skip-chip"
           style={{
-            backgroundColor: "#f3f4f6",
-            color: "#374151",
+            backgroundColor: "var(--admin-surface-2)",
+            color: "var(--admin-text)",
             fontWeight: 600,
             fontSize: 11,
             padding: "3px 8px",
@@ -140,14 +140,14 @@ function StatusChip({
         <span
           data-testid="invoice-review-credit-advisory-chip"
           style={{
-            backgroundColor: "#fef2f2",
-            color: "#991b1b",
+            backgroundColor: "var(--admin-danger-bg)",
+            color: "var(--admin-danger-text)",
             fontWeight: 700,
             fontSize: 11,
             padding: "3px 8px",
             borderRadius: 999,
             whiteSpace: "nowrap",
-            border: "1px solid #fecaca",
+            border: "1px solid var(--admin-danger-border)",
           }}
         >
           {advisoryLabel}
@@ -157,7 +157,7 @@ function StatusChip({
         <span
           data-testid="invoice-review-ignore-suppressed-chip"
           style={{
-            backgroundColor: "#fff7ed",
+            backgroundColor: "var(--admin-warning-bg)",
             color: "#9a3412",
             fontWeight: 700,
             fontSize: 11,
@@ -179,8 +179,8 @@ function CodPaymentChip({ label }: { label: string }) {
     <span
       data-testid="invoice-review-cod-chip"
       style={{
-        backgroundColor: "#fef3c7",
-        color: "#92400e",
+        backgroundColor: "var(--admin-warning-bg)",
+        color: "var(--admin-warning-text)",
         fontWeight: 700,
         fontSize: 11,
         padding: "3px 8px",
@@ -225,7 +225,7 @@ function isArchiveFilter(filter: QueueFilter): boolean {
 
 const ARCHIVE_NAV_BUTTON_STYLE = {
   backgroundColor: NAVY,
-  color: "#fff",
+  color: "var(--admin-on-navy)",
   border: "none",
   borderRadius: 4,
   padding: "8px 16px",
@@ -241,8 +241,8 @@ function LinkedDeliveryBadge({ linkedDeliveryOrderId }: { linkedDeliveryOrderId?
       data-testid="invoice-review-linked-badge"
       title={linked ? linkedDeliveryOrderId : undefined}
       style={{
-        backgroundColor: linked ? "#ecfdf5" : "#f3f4f6",
-        color: linked ? "#166534" : "#6b7280",
+        backgroundColor: linked ? "var(--admin-success-bg)" : "var(--admin-surface-2)",
+        color: linked ? "var(--admin-success-text)" : "var(--admin-text-muted)",
         fontWeight: 600,
         fontSize: 11,
         padding: "3px 8px",
@@ -258,12 +258,12 @@ function LinkedDeliveryBadge({ linkedDeliveryOrderId }: { linkedDeliveryOrderId?
 function FieldCell({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ minWidth: 0 }}>
-      <div style={{ color: "#9ca3af", fontSize: 10, fontWeight: 600, textTransform: "uppercase" }}>
+      <div style={{ color: "var(--admin-text-muted)", fontSize: 10, fontWeight: 600, textTransform: "uppercase" }}>
         {label}
       </div>
       <div
         style={{
-          color: NAVY,
+          color: "var(--admin-accent-soft)",
           fontSize: 12,
           fontWeight: value === "—" ? 400 : 500,
           overflow: "hidden",
@@ -654,8 +654,8 @@ export function InvoiceReviewPanel({
       <div
         data-testid={listTestId(filter)}
         style={{
-          backgroundColor: "#fff",
-          border: "1px solid #e0e3e8",
+          backgroundColor: "var(--admin-surface)",
+          border: "1px solid var(--admin-border)",
           borderRadius: 8,
           overflow: "hidden",
         }}
@@ -663,14 +663,14 @@ export function InvoiceReviewPanel({
         <div
           style={{
             padding: "14px 16px",
-            borderBottom: "1px solid #e0e3e8",
+            borderBottom: "1px solid var(--admin-border)",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             gap: 8,
           }}
         >
-          <span style={{ fontWeight: 700, color: NAVY, fontSize: 14 }}>
+          <span style={{ fontWeight: 700, color: "var(--admin-accent-soft)", fontSize: 14 }}>
             {listHeading(filter)}
           </span>
           {!isArchiveFilter(filter) && (
@@ -681,7 +681,7 @@ export function InvoiceReviewPanel({
                 fontSize: 12,
                 padding: "4px 8px",
                 borderRadius: 4,
-                border: "1px solid #d1d5db",
+                border: "1px solid var(--admin-border)",
               }}
             >
               <option value="pending">Pending only</option>
@@ -699,7 +699,7 @@ export function InvoiceReviewPanel({
                   ? "invoice-review-rejected-empty"
                   : "invoice-review-empty"
             }
-            style={{ padding: 16, color: "#6b7280", fontSize: 13, margin: 0 }}
+            style={{ padding: 16, color: "var(--admin-text-muted)", fontSize: 13, margin: 0 }}
           >
             {filter === "approved"
               ? "No approved invoices yet. Approve imports from the review queue to see them here."
@@ -713,7 +713,7 @@ export function InvoiceReviewPanel({
         )}
 
         {loading && (
-          <p style={{ padding: 16, color: "#6b7280", fontSize: 13, margin: 0 }}>
+          <p style={{ padding: 16, color: "var(--admin-text-muted)", fontSize: 13, margin: 0 }}>
             Loading…
           </p>
         )}
@@ -730,8 +730,8 @@ export function InvoiceReviewPanel({
               key={row.id}
               data-testid={`invoice-review-queue-row-${row.id}`}
               style={{
-                borderBottom: "1px solid #e0e3e8",
-                backgroundColor: "#fff",
+                borderBottom: "1px solid var(--admin-border)",
+                backgroundColor: "var(--admin-surface)",
                 padding: "14px 16px",
               }}
             >
@@ -766,13 +766,13 @@ export function InvoiceReviewPanel({
                     <div
                       style={{
                         fontWeight: 700,
-                        color: NAVY,
+                        color: "var(--admin-accent-soft)",
                         fontSize: 14,
                         marginBottom: 6,
                       }}
                     >
                       {queueRowTitle(row)}
-                      <span style={{ fontWeight: 400, color: "#9ca3af", fontSize: 12 }}>
+                      <span style={{ fontWeight: 400, color: "var(--admin-text-muted)", fontSize: 12 }}>
                         {" "}
                         · {row.pageId}
                       </span>
@@ -880,7 +880,7 @@ export function InvoiceReviewPanel({
                     !isArchiveFilter(filter) &&
                     row.reviewStatus !== "pending_review" &&
                     row.linkedDeliveryOrderId && (
-                      <div style={{ marginTop: 10, fontSize: 12, color: "#166534" }}>
+                      <div style={{ marginTop: 10, fontSize: 12, color: "var(--admin-success-text)" }}>
                         Linked delivery: {row.linkedDeliveryOrderId}
                       </div>
                     )
@@ -906,8 +906,8 @@ export function InvoiceReviewPanel({
                         void handleReopen(row);
                       }}
                       style={{
-                        backgroundColor: "#fff",
-                        color: NAVY,
+                        backgroundColor: "var(--admin-surface)",
+                        color: "var(--admin-accent-soft)",
                         border: `1px solid ${NAVY}`,
                         borderRadius: 4,
                         padding: "6px 10px",
@@ -944,8 +944,8 @@ export function InvoiceReviewPanel({
             data-testid="invoice-review-back-to-queue"
             onClick={() => setFilter("pending")}
             style={{
-              backgroundColor: "#fff",
-              color: NAVY,
+              backgroundColor: "var(--admin-surface)",
+              color: "var(--admin-accent-soft)",
               border: `1px solid ${NAVY}`,
               borderRadius: 4,
               padding: "8px 16px",
@@ -986,8 +986,8 @@ export function InvoiceReviewPanel({
           style={{
             marginTop: 12,
             padding: "10px 12px",
-            backgroundColor: "#fef2f2",
-            color: "#991b1b",
+            backgroundColor: "var(--admin-danger-bg)",
+            color: "var(--admin-danger-text)",
             borderRadius: 6,
             fontSize: 13,
           }}
@@ -1002,8 +1002,8 @@ export function InvoiceReviewPanel({
           style={{
             marginTop: 12,
             padding: "10px 12px",
-            backgroundColor: "#ecfdf5",
-            color: "#166534",
+            backgroundColor: "var(--admin-success-bg)",
+            color: "var(--admin-success-text)",
             borderRadius: 6,
             fontSize: 13,
           }}
@@ -1023,7 +1023,7 @@ export function InvoiceReviewPanel({
             transform: "translateX(-50%)",
             zIndex: 10000,
             backgroundColor: "#0a3161",
-            color: "#fff",
+            color: "var(--admin-on-navy)",
             padding: "12px 18px",
             borderRadius: 8,
             fontSize: 14,

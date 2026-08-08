@@ -229,9 +229,9 @@ export function NeedsReviewEmailStrip() {
       ref={stripRef}
       data-testid="needs-review-email-strip"
       style={{
-        border: "1px solid #dde1e7",
+        border: "1px solid var(--admin-border)",
         borderRadius: 8,
-        backgroundColor: "#fff",
+        backgroundColor: "var(--admin-surface)",
         boxShadow: "rgba(0,0,0,0.08) 0px 2px 8px 0px",
         overflow: "hidden",
       }}
@@ -250,7 +250,7 @@ export function NeedsReviewEmailStrip() {
               gap: 12,
               padding: "14px 18px",
               border: "none",
-              backgroundColor: "#f8fafc",
+              backgroundColor: "var(--admin-surface-2)",
               cursor: "pointer",
               textAlign: "left",
               fontFamily: FONT,
@@ -258,11 +258,11 @@ export function NeedsReviewEmailStrip() {
           >
             <span
               data-testid="needs-review-email-count"
-              style={{ fontSize: 15, fontWeight: 700, color: NAVY }}
+              style={{ fontSize: 15, fontWeight: 700, color: "var(--admin-accent-soft)" }}
             >
               Needs Review ({needsReview.length})
             </span>
-            <span style={{ fontSize: 12, color: "#64748b" }}>
+            <span style={{ fontSize: 12, color: "var(--admin-text-muted)" }}>
               {expanded ? "Hide" : "Show"} vendor replies · unmatched · ambiguous
             </span>
           </button>
@@ -284,9 +284,9 @@ export function NeedsReviewEmailStrip() {
                     margin: 0,
                     padding: "8px 10px",
                     borderRadius: 4,
-                    backgroundColor: "#fef2f2",
-                    border: "1px solid #fecaca",
-                    color: "#b91c1c",
+                    backgroundColor: "var(--admin-danger-bg)",
+                    border: "1px solid var(--admin-danger-border)",
+                    color: "var(--admin-danger-text)",
                     fontSize: 12,
                   }}
                 >
@@ -332,7 +332,7 @@ export function NeedsReviewEmailStrip() {
         <div style={{ padding: "12px 18px" }}>
           <p
             data-testid="needs-review-email-count"
-            style={{ margin: 0, fontSize: 13, color: "#64748b", fontFamily: FONT }}
+            style={{ margin: 0, fontSize: 13, color: "var(--admin-text-muted)", fontFamily: FONT }}
           >
             Needs Review (0) — no unmatched or ambiguous emails.
           </p>
@@ -400,10 +400,10 @@ function NeedsReviewEmailCard({
       data-testid={`needs-review-email-item-${row.messageId}`}
       data-review-tier={headlines.tier}
       style={{
-        border: "1px solid #e0e3e8",
+        border: "1px solid var(--admin-border)",
         borderRadius: 6,
         padding: "12px",
-        backgroundColor: isCalmMatch ? "#f8fafc" : "#fffef8",
+        backgroundColor: isCalmMatch ? "var(--admin-surface-2)" : "#fffef8",
       }}
     >
       <div
@@ -411,7 +411,7 @@ function NeedsReviewEmailCard({
         style={{
           marginBottom: 10,
           padding: "10px 12px",
-          backgroundColor: "#fff",
+          backgroundColor: "var(--admin-surface)",
           border: "1px solid #e8ecf0",
           borderRadius: 4,
           fontSize: 12,
@@ -419,15 +419,15 @@ function NeedsReviewEmailCard({
         }}
       >
         <div style={{ marginBottom: 4 }}>
-          <span style={{ color: "#64748b", fontWeight: 600 }}>From: </span>
+          <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>From: </span>
           {preview.sender}
         </div>
         <div style={{ marginBottom: 4 }}>
-          <span style={{ color: "#64748b", fontWeight: 600 }}>Subject: </span>
+          <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>Subject: </span>
           {preview.subject}
         </div>
         <div style={{ marginBottom: 8 }}>
-          <span style={{ color: "#64748b", fontWeight: 600 }}>Received: </span>
+          <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>Received: </span>
           {preview.receivedLabel}
         </div>
         <p
@@ -450,7 +450,7 @@ function NeedsReviewEmailCard({
           margin: "0 0 4px",
           fontSize: 13,
           fontWeight: 700,
-          color: isCalmMatch ? NAVY : "#b45309",
+          color: isCalmMatch ? NAVY : "var(--admin-warning-text)",
         }}
       >
         {headlines.primary}
@@ -460,7 +460,7 @@ function NeedsReviewEmailCard({
         style={{
           margin: "0 0 10px",
           fontSize: 12,
-          color: "#64748b",
+          color: "var(--admin-text-muted)",
           lineHeight: 1.4,
         }}
       >
@@ -476,8 +476,8 @@ function NeedsReviewEmailCard({
             padding: "4px 10px",
             borderRadius: 4,
             border: `1px solid ${NAVY}`,
-            backgroundColor: "#fff",
-            color: NAVY,
+            backgroundColor: "var(--admin-surface)",
+            color: "var(--admin-accent-soft)",
             fontSize: 11,
             fontWeight: 700,
             cursor: "pointer",
@@ -495,7 +495,7 @@ function NeedsReviewEmailCard({
               borderRadius: 4,
               border: `1px solid ${NAVY}`,
               backgroundColor: NAVY,
-              color: "#fff",
+              color: "var(--admin-on-navy)",
               fontSize: 11,
               fontWeight: 700,
               cursor: "pointer",
@@ -514,7 +514,7 @@ function NeedsReviewEmailCard({
               padding: "4px 10px",
               borderRadius: 4,
               border: `1px solid ${RED}`,
-              backgroundColor: dismissingId === row.eventId ? "#f8fafc" : "#fff",
+              backgroundColor: dismissingId === row.eventId ? "var(--admin-surface-2)" : "var(--admin-surface)",
               color: RED,
               fontSize: 11,
               fontWeight: 700,
@@ -532,7 +532,7 @@ function NeedsReviewEmailCard({
           style={{
             marginTop: 10,
             padding: "10px 12px",
-            backgroundColor: "#f8fafc",
+            backgroundColor: "var(--admin-surface-2)",
             borderRadius: 4,
             fontSize: 12,
             color: "#334155",
@@ -589,13 +589,13 @@ function DismissedEmailsFooter({
     return (
       <div
         style={{
-          borderTop: "1px solid #e0e3e8",
+          borderTop: "1px solid var(--admin-border)",
           padding: "12px 18px",
         }}
       >
         <p
           data-testid="needs-review-dismissed-count"
-          style={{ margin: 0, fontSize: 13, color: "#64748b", fontFamily: FONT }}
+          style={{ margin: 0, fontSize: 13, color: "var(--admin-text-muted)", fontFamily: FONT }}
         >
           Dismissed emails (0) — none dismissed.
         </p>
@@ -606,8 +606,8 @@ function DismissedEmailsFooter({
   return (
     <div
       style={{
-        borderTop: "1px solid #e0e3e8",
-        backgroundColor: "#f8fafc",
+        borderTop: "1px solid var(--admin-border)",
+        backgroundColor: "var(--admin-surface-2)",
       }}
     >
       <button
@@ -622,7 +622,7 @@ function DismissedEmailsFooter({
           gap: 12,
           padding: "14px 18px",
           border: "none",
-          backgroundColor: "#f8fafc",
+          backgroundColor: "var(--admin-surface-2)",
           cursor: "pointer",
           textAlign: "left",
           fontFamily: FONT,
@@ -630,12 +630,12 @@ function DismissedEmailsFooter({
       >
         <span
           data-testid="needs-review-dismissed-count"
-          style={{ fontSize: 15, fontWeight: 700, color: NAVY }}
+          style={{ fontSize: 15, fontWeight: 700, color: "var(--admin-accent-soft)" }}
         >
           Dismissed emails
           {dismissedLoaded ? ` (${dismissedCount})` : ""}
         </span>
-        <span style={{ fontSize: 12, color: "#64748b" }}>
+        <span style={{ fontSize: 12, color: "var(--admin-text-muted)" }}>
           {dismissedExpanded ? "Hide" : "Show"} dismissed · undo restore
         </span>
       </button>
@@ -651,12 +651,12 @@ function DismissedEmailsFooter({
           }}
         >
           {!dismissedLoaded && (
-            <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>Loading…</p>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--admin-text-muted)" }}>Loading…</p>
           )}
           {dismissedLoaded && dismissedEvents.length === 0 && (
             <p
               data-testid="needs-review-dismissed-empty"
-              style={{ margin: 0, fontSize: 12, color: "#64748b" }}
+              style={{ margin: 0, fontSize: 12, color: "var(--admin-text-muted)" }}
             >
               No dismissed emails.
             </p>
@@ -668,9 +668,9 @@ function DismissedEmailsFooter({
                 margin: 0,
                 padding: "8px 10px",
                 borderRadius: 4,
-                backgroundColor: "#fef2f2",
-                border: "1px solid #fecaca",
-                color: "#b91c1c",
+                backgroundColor: "var(--admin-danger-bg)",
+                border: "1px solid var(--admin-danger-border)",
+                color: "var(--admin-danger-text)",
                 fontSize: 12,
               }}
             >
@@ -695,12 +695,12 @@ function DismissedEmailsFooter({
                   padding: "10px 12px",
                   borderRadius: 6,
                   border: "1px solid #e2e8f0",
-                  backgroundColor: "#fff",
+                  backgroundColor: "var(--admin-surface)",
                 }}
               >
                 <div style={{ flex: 1, minWidth: 160 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>{subject}</div>
-                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--admin-accent-soft)" }}>{subject}</div>
+                  <div style={{ fontSize: 11, color: "var(--admin-text-muted)", marginTop: 2 }}>
                     {event.senderEmail} · {received}
                   </div>
                 </div>
@@ -713,8 +713,8 @@ function DismissedEmailsFooter({
                     padding: "4px 12px",
                     borderRadius: 4,
                     border: `1px solid ${NAVY}`,
-                    backgroundColor: "#fff",
-                    color: NAVY,
+                    backgroundColor: "var(--admin-surface)",
+                    color: "var(--admin-accent-soft)",
                     fontSize: 12,
                     fontWeight: 700,
                     cursor: loading || undoLoadingId !== null ? "wait" : "pointer",

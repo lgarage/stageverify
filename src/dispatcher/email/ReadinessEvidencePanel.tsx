@@ -28,9 +28,9 @@ const EVIDENCE_SOURCE_LABEL: Record<string, string> = {
 type SnapshotTone = "ok" | "neutral" | "attention";
 
 function toneColor(tone: SnapshotTone): string {
-  if (tone === "ok") return "#2e7d32";
-  if (tone === "attention") return "#b45309";
-  return "#64748b";
+  if (tone === "ok") return "var(--admin-success-text)";
+  if (tone === "attention") return "var(--admin-warning-text)";
+  return "var(--admin-text-muted)";
 }
 
 function formatSnapshotDate(iso: string): string {
@@ -66,7 +66,7 @@ function SnapshotRow({
         fontSize: 13,
       }}
     >
-      <span style={{ color: "#6b7280", fontWeight: 600, flexShrink: 0 }}>{label}</span>
+      <span style={{ color: "var(--admin-text-muted)", fontWeight: 600, flexShrink: 0 }}>{label}</span>
       <span
         data-testid={valueTestId}
         style={{
@@ -93,8 +93,8 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
     <div
       data-testid={`email-evidence-card-${row.messageId}`}
       style={{
-        backgroundColor: "#fff",
-        border: "1px solid #e0e3e8",
+        backgroundColor: "var(--admin-surface)",
+        border: "1px solid var(--admin-border)",
         borderRadius: 6,
         padding: "12px",
       }}
@@ -104,7 +104,7 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
         style={{
           marginBottom: 10,
           padding: "10px 12px",
-          backgroundColor: "#f8fafc",
+          backgroundColor: "var(--admin-surface-2)",
           border: "1px solid #e8ecf0",
           borderRadius: 4,
           fontSize: 12,
@@ -112,15 +112,15 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
         }}
       >
         <div style={{ marginBottom: 4 }}>
-          <span style={{ color: "#64748b", fontWeight: 600 }}>From: </span>
+          <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>From: </span>
           {preview.sender}
         </div>
         <div style={{ marginBottom: 4 }}>
-          <span style={{ color: "#64748b", fontWeight: 600 }}>Subject: </span>
+          <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>Subject: </span>
           {preview.subject}
         </div>
         <div style={{ marginBottom: 8 }}>
-          <span style={{ color: "#64748b", fontWeight: 600 }}>Received: </span>
+          <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>Received: </span>
           {preview.receivedLabel}
         </div>
         <p style={{ margin: 0, fontSize: 13, color: "#1e293b", lineHeight: 1.45 }}>
@@ -136,7 +136,7 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
               margin: "0 0 4px",
               fontSize: 12,
               fontWeight: 700,
-              color: isCalmMatch ? "#0a3161" : "#b45309",
+              color: isCalmMatch ? "#0a3161" : "var(--admin-warning-text)",
             }}
           >
             {headlines.primary}
@@ -146,7 +146,7 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
             style={{
               margin: "0 0 8px",
               fontSize: 11,
-              color: "#64748b",
+              color: "var(--admin-text-muted)",
               lineHeight: 1.4,
             }}
           >
@@ -160,7 +160,7 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
           data-testid={`email-evidence-interpretation-${row.messageId}`}
           style={{ marginBottom: 8, fontSize: 12, color: "#334155" }}
         >
-          <span style={{ fontWeight: 700, fontSize: 11, color: "#64748b" }}>
+          <span style={{ fontWeight: 700, fontSize: 11, color: "var(--admin-text-muted)" }}>
             SV Interpretation:{" "}
           </span>
           {interpretation.map((line) => (
@@ -173,13 +173,13 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
 
       <p
         data-testid={`email-evidence-classification-${row.messageId}`}
-        style={{ margin: "0 0 6px", fontSize: 11, color: "#64748b" }}
+        style={{ margin: "0 0 6px", fontSize: 11, color: "var(--admin-text-muted)" }}
       >
         {row.classification.replace(/_/g, " ")} · {row.receivedAt.slice(0, 16).replace("T", " ")}
       </p>
 
       {row.itemLines.length > 0 && (
-        <p style={{ margin: "0 0 8px", fontSize: 11, color: "#64748b" }}>
+        <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--admin-text-muted)" }}>
           {row.itemLines.length} parsed line(s)
         </p>
       )}
@@ -187,7 +187,7 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
       {row.condition1ApprovalNote && (
         <p
           data-testid={`email-evidence-condition1-note-${row.messageId}`}
-          style={{ margin: "0 0 8px", fontSize: 11, color: "#64748b" }}
+          style={{ margin: "0 0 8px", fontSize: 11, color: "var(--admin-text-muted)" }}
         >
           {row.condition1ApprovalNote}
         </p>
@@ -201,7 +201,7 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
           padding: "4px 10px",
           borderRadius: 4,
           border: "1px solid #0a3161",
-          backgroundColor: "#fff",
+          backgroundColor: "var(--admin-surface)",
           color: "#0a3161",
           fontSize: 11,
           fontWeight: 700,
@@ -217,7 +217,7 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
           style={{
             marginTop: 10,
             padding: "10px 12px",
-            backgroundColor: "#f8fafc",
+            backgroundColor: "var(--admin-surface-2)",
             borderRadius: 4,
             fontSize: 12,
             color: "#334155",
@@ -293,8 +293,8 @@ function InvoiceSourceEmailCard({ inbound }: { inbound: InboundEmailProcessing }
     <div
       data-testid={`email-evidence-invoice-source-${inbound.id}`}
       style={{
-        backgroundColor: "#fff",
-        border: "1px solid #e0e3e8",
+        backgroundColor: "var(--admin-surface)",
+        border: "1px solid var(--admin-border)",
         borderRadius: 6,
         padding: "12px",
       }}
@@ -315,7 +315,7 @@ function InvoiceSourceEmailCard({ inbound }: { inbound: InboundEmailProcessing }
         style={{
           marginBottom: 10,
           padding: "10px 12px",
-          backgroundColor: "#f8fafc",
+          backgroundColor: "var(--admin-surface-2)",
           border: "1px solid #e8ecf0",
           borderRadius: 4,
           fontSize: 12,
@@ -323,19 +323,19 @@ function InvoiceSourceEmailCard({ inbound }: { inbound: InboundEmailProcessing }
         }}
       >
         <div style={{ marginBottom: 4 }}>
-          <span style={{ color: "#64748b", fontWeight: 600 }}>From: </span>
+          <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>From: </span>
           {inbound.senderEmail || "—"}
         </div>
         <div style={{ marginBottom: 4 }}>
-          <span style={{ color: "#64748b", fontWeight: 600 }}>Subject: </span>
+          <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>Subject: </span>
           {inbound.subject || "—"}
         </div>
         <div style={{ marginBottom: 4 }}>
-          <span style={{ color: "#64748b", fontWeight: 600 }}>Date: </span>
+          <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>Date: </span>
           {formatInboundEmailWhen(inbound)}
         </div>
         <div style={{ marginBottom: bodyPreview ? 8 : 0 }}>
-          <span style={{ color: "#64748b", fontWeight: 600 }}>Attachment: </span>
+          <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>Attachment: </span>
           {attachments}
         </div>
         {bodyPreview ? (
@@ -353,7 +353,7 @@ function InvoiceSourceEmailCard({ inbound }: { inbound: InboundEmailProcessing }
           padding: "4px 10px",
           borderRadius: 4,
           border: "1px solid #0a3161",
-          backgroundColor: "#fff",
+          backgroundColor: "var(--admin-surface)",
           color: "#0a3161",
           fontSize: 11,
           fontWeight: 700,
@@ -369,7 +369,7 @@ function InvoiceSourceEmailCard({ inbound }: { inbound: InboundEmailProcessing }
           style={{
             marginTop: 10,
             padding: "10px 12px",
-            backgroundColor: "#f8fafc",
+            backgroundColor: "var(--admin-surface-2)",
             borderRadius: 4,
             fontSize: 12,
             color: "#334155",
@@ -401,7 +401,7 @@ function InvoiceSourceEmailCard({ inbound }: { inbound: InboundEmailProcessing }
               {inbound.combinedExtractedTextTruncated ? "\n\n[PDF text truncated for preview]" : ""}
             </pre>
           ) : (
-            <p style={{ margin: 0, color: "#64748b", fontStyle: "italic" }}>
+            <p style={{ margin: 0, color: "var(--admin-text-muted)", fontStyle: "italic" }}>
               Email body was not stored; this delivery was created from a scanned invoice PDF
               attachment.
             </p>
@@ -428,8 +428,8 @@ function VendorEmailEventCard({ event }: { event: VendorEmailEvent }) {
     <div
       data-testid={`email-evidence-live-card-${event.id}`}
       style={{
-        backgroundColor: "#fff",
-        border: "1px solid #e0e3e8",
+        backgroundColor: "var(--admin-surface)",
+        border: "1px solid var(--admin-border)",
         borderRadius: 6,
         padding: "12px",
       }}
@@ -440,7 +440,7 @@ function VendorEmailEventCard({ event }: { event: VendorEmailEvent }) {
           margin: "0 0 8px",
           fontSize: 11,
           fontWeight: 700,
-          color: isOutbound ? "#0a3161" : "#2e7d32",
+          color: isOutbound ? "#0a3161" : "var(--admin-success-text)",
           letterSpacing: "0.02em",
         }}
       >
@@ -450,7 +450,7 @@ function VendorEmailEventCard({ event }: { event: VendorEmailEvent }) {
         style={{
           marginBottom: 10,
           padding: "10px 12px",
-          backgroundColor: "#f8fafc",
+          backgroundColor: "var(--admin-surface-2)",
           border: "1px solid #e8ecf0",
           borderRadius: 4,
           fontSize: 12,
@@ -458,19 +458,19 @@ function VendorEmailEventCard({ event }: { event: VendorEmailEvent }) {
         }}
       >
         <div style={{ marginBottom: 4 }}>
-          <span style={{ color: "#64748b", fontWeight: 600 }}>From: </span>
+          <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>From: </span>
           {event.senderEmail}
         </div>
         <div style={{ marginBottom: 4 }}>
-          <span style={{ color: "#64748b", fontWeight: 600 }}>To: </span>
+          <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>To: </span>
           {recipients}
         </div>
         <div style={{ marginBottom: 4 }}>
-          <span style={{ color: "#64748b", fontWeight: 600 }}>Subject: </span>
+          <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>Subject: </span>
           {event.subject}
         </div>
         <div style={{ marginBottom: preview ? 8 : 0 }}>
-          <span style={{ color: "#64748b", fontWeight: 600 }}>Date: </span>
+          <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>Date: </span>
           {formatEmailEventWhen(event)}
         </div>
         {preview ? (
@@ -488,7 +488,7 @@ function VendorEmailEventCard({ event }: { event: VendorEmailEvent }) {
           padding: "4px 10px",
           borderRadius: 4,
           border: "1px solid #0a3161",
-          backgroundColor: "#fff",
+          backgroundColor: "var(--admin-surface)",
           color: "#0a3161",
           fontSize: 11,
           fontWeight: 700,
@@ -504,7 +504,7 @@ function VendorEmailEventCard({ event }: { event: VendorEmailEvent }) {
           style={{
             marginTop: 10,
             padding: "10px 12px",
-            backgroundColor: "#f8fafc",
+            backgroundColor: "var(--admin-surface-2)",
             borderRadius: 4,
             fontSize: 12,
             color: "#334155",
@@ -535,7 +535,7 @@ function VendorEmailEventCard({ event }: { event: VendorEmailEvent }) {
               {body}
             </pre>
           ) : (
-            <p style={{ margin: 0, color: "#64748b", fontStyle: "italic" }}>
+            <p style={{ margin: 0, color: "var(--admin-text-muted)", fontStyle: "italic" }}>
               Message body was not stored for this email.
             </p>
           )}
@@ -544,7 +544,7 @@ function VendorEmailEventCard({ event }: { event: VendorEmailEvent }) {
               style={{
                 margin: "8px 0 0",
                 fontSize: 11,
-                color: "#64748b",
+                color: "var(--admin-text-muted)",
                 fontStyle: "italic",
               }}
             >
@@ -834,8 +834,8 @@ export function ReadinessEvidencePanel({
     <div
       data-testid="readiness-evidence-panel"
       style={{
-        backgroundColor: "#f8fafc",
-        border: "1px solid #e0e3e8",
+        backgroundColor: "var(--admin-surface-2)",
+        border: "1px solid var(--admin-border)",
         borderRadius: 8,
         padding: "15px",
         display: "flex",
@@ -899,7 +899,7 @@ export function ReadinessEvidencePanel({
             padding: "6px 12px",
             borderRadius: 4,
             border: "1px solid #0a3161",
-            backgroundColor: "#fff",
+            backgroundColor: "var(--admin-surface)",
             color: "#0a3161",
             fontSize: 12,
             fontWeight: 700,
@@ -918,7 +918,7 @@ export function ReadinessEvidencePanel({
               padding: "6px 12px",
               borderRadius: 4,
               border: "1px solid #cbd5e1",
-              backgroundColor: "#fff",
+              backgroundColor: "var(--admin-surface)",
               color: "#334155",
               fontSize: 12,
               fontWeight: 600,
@@ -931,7 +931,7 @@ export function ReadinessEvidencePanel({
         ) : (
           <span
             data-testid="readiness-evidence-no-email-chain"
-            style={{ fontSize: 12, color: "#9ca3af", padding: "6px 0" }}
+            style={{ fontSize: 12, color: "var(--admin-text-muted)", padding: "6px 0" }}
           >
             No related vendor email chain found yet.
           </span>
@@ -942,7 +942,7 @@ export function ReadinessEvidencePanel({
         <div
           data-testid="readiness-evidence-details"
           style={{
-            borderTop: "1px solid #eaecf0",
+            borderTop: "1px solid var(--admin-border)",
             paddingTop: 14,
             display: "flex",
             flexDirection: "column",
@@ -968,7 +968,7 @@ export function ReadinessEvidencePanel({
                   margin: "0 0 8px",
                   fontSize: 13,
                   fontWeight: 700,
-                  color: "#2e7d32",
+                  color: "var(--admin-success-text)",
                 }}
               >
                 Confirmed
@@ -989,7 +989,7 @@ export function ReadinessEvidencePanel({
                   margin: "0 0 8px",
                   fontSize: 13,
                   fontWeight: 700,
-                  color: "#b45309",
+                  color: "var(--admin-warning-text)",
                 }}
               >
                 Review required
@@ -1000,7 +1000,7 @@ export function ReadinessEvidencePanel({
             ) : (
               <p
                 data-testid="readiness-evidence-condition1-status"
-                style={{ margin: "0 0 8px", fontSize: 13, color: "#64748b" }}
+                style={{ margin: "0 0 8px", fontSize: 13, color: "var(--admin-text-muted)" }}
               >
                 Not confirmed
                 {proposals.length > 0 ? " · related email evidence on file" : ""}
@@ -1011,7 +1011,7 @@ export function ReadinessEvidencePanel({
               style={{
                 margin: 0,
                 fontSize: 11,
-                color: "#64748b",
+                color: "var(--admin-text-muted)",
                 fontStyle: "italic",
               }}
             >
@@ -1033,7 +1033,7 @@ export function ReadinessEvidencePanel({
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                <span style={{ color: "#6b7280", fontWeight: 600 }}>Shop drop-off</span>
+                <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>Shop drop-off</span>
                 <span data-testid="readiness-evidence-vendor-delivered">
                   {readiness.evidence.physicalDropoffComplete
                     ? "Confirmed"
@@ -1048,7 +1048,7 @@ export function ReadinessEvidencePanel({
                 </span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                <span style={{ color: "#6b7280", fontWeight: 600 }}>Staging location</span>
+                <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>Staging location</span>
                 <span data-testid="readiness-evidence-staging">
                   {details.stagingLocation
                     ? `${details.stagingLocation.code} — ${details.stagingLocation.label}`
@@ -1058,7 +1058,7 @@ export function ReadinessEvidencePanel({
               <div>
                 <span
                   style={{
-                    color: "#6b7280",
+                    color: "var(--admin-text-muted)",
                     fontWeight: 600,
                     display: "block",
                     marginBottom: 4,
@@ -1069,7 +1069,7 @@ export function ReadinessEvidencePanel({
                 {additionalSpots.length === 0 ? (
                   <span
                     data-testid="readiness-evidence-need-more-space"
-                    style={{ color: "#9ca3af", fontSize: 12 }}
+                    style={{ color: "var(--admin-text-muted)", fontSize: 12 }}
                   >
                     No additional staging spots added.
                   </span>
@@ -1107,7 +1107,7 @@ export function ReadinessEvidencePanel({
             itemConflicts.length === 0 ? (
               <p
                 data-testid="readiness-evidence-blockers-none"
-                style={{ margin: 0, fontSize: 13, color: "#64748b" }}
+                style={{ margin: 0, fontSize: 13, color: "var(--admin-text-muted)" }}
               >
                 No blocking items for this delivery.
               </p>
@@ -1173,7 +1173,7 @@ export function ReadinessEvidencePanel({
               >
                 Related email evidence ({emailEvidenceCount})
               </span>
-              <span style={{ fontSize: 11, color: "#64748b" }}>
+              <span style={{ fontSize: 11, color: "var(--admin-text-muted)" }}>
                 {emailEvidenceOpen ? "Collapse" : "Expand"}
               </span>
             </button>
@@ -1191,14 +1191,14 @@ export function ReadinessEvidencePanel({
                 {emailEvidenceLoading ? (
                   <p
                     data-testid="email-evidence-loading"
-                    style={{ margin: 0, fontSize: 13, color: "#64748b" }}
+                    style={{ margin: 0, fontSize: 13, color: "var(--admin-text-muted)" }}
                   >
                     Loading vendor emails…
                   </p>
                 ) : emailEvidenceCount === 0 ? (
                   <p
                     data-testid="email-evidence-empty"
-                    style={{ margin: 0, fontSize: 13, color: "#9ca3af" }}
+                    style={{ margin: 0, fontSize: 13, color: "var(--admin-text-muted)" }}
                   >
                     No matched email evidence for this delivery.
                   </p>

@@ -85,8 +85,8 @@ export function VendorCommunicationsPanel({
     <div
       data-testid="vendor-communications-panel"
       style={{
-        backgroundColor: "#f8fafc",
-        border: "1px solid #e0e3e8",
+        backgroundColor: "var(--admin-surface-2)",
+        border: "1px solid var(--admin-border)",
         borderRadius: 8,
         padding: "12px 14px",
       }}
@@ -119,7 +119,7 @@ export function VendorCommunicationsPanel({
         >
           Vendor Communications ({count})
         </span>
-        <span style={{ fontSize: 11, color: "#64748b" }}>
+        <span style={{ fontSize: 11, color: "var(--admin-text-muted)" }}>
           {expanded ? "Hide" : "Show"}
         </span>
       </button>
@@ -129,7 +129,7 @@ export function VendorCommunicationsPanel({
           {loading && (
             <p
               data-testid="vendor-communications-loading"
-              style={{ margin: 0, fontSize: 13, color: "#64748b", fontFamily: font }}
+              style={{ margin: 0, fontSize: 13, color: "var(--admin-text-muted)", fontFamily: font }}
             >
               Loading…
             </p>
@@ -137,7 +137,7 @@ export function VendorCommunicationsPanel({
           {!loading && loadError && (
             <p
               data-testid="vendor-communications-error"
-              style={{ margin: 0, fontSize: 13, color: "#b91c1c", fontFamily: font }}
+              style={{ margin: 0, fontSize: 13, color: "var(--admin-danger-text)", fontFamily: font }}
             >
               {loadError}
             </p>
@@ -149,7 +149,7 @@ export function VendorCommunicationsPanel({
               style={{
                 margin: 0,
                 fontSize: 13,
-                color: "#9ca3af",
+                color: "var(--admin-text-muted)",
                 fontFamily: font,
               }}
             >
@@ -176,7 +176,7 @@ export function VendorCommunicationsPanel({
                     padding: "10px 12px",
                     borderRadius: 6,
                     border: "1px solid #e2e8f0",
-                    backgroundColor: "#fff",
+                    backgroundColor: "var(--admin-surface)",
                   }}
                 >
                   <div
@@ -206,7 +206,7 @@ export function VendorCommunicationsPanel({
                   <div
                     style={{
                       fontSize: 11,
-                      color: "#64748b",
+                      color: "var(--admin-text-muted)",
                       fontFamily: font,
                     }}
                   >
