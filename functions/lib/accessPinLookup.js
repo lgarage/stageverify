@@ -35,12 +35,21 @@ async function collectSecretMatches(db, secrets, pin, entityGuard, collection, m
 }
 async function findHashOnlySecretsByPagination(targetType, pin, entityGuard, collection) {
     const db = (0, accessPinSecretsShared_1.getDb)();
+    const probe = await db
+        .collection(accessPinSecretsShared_1.ACCESS_PIN_SECRETS_COLLECTION)
+        .where("targetType", "==", targetType)
+        .where("revealable", "==", false)
+        .limit(1)
+        .get();
+    if (probe.empty)
+        return null;
     const matches = [];
     let lastDoc;
     for (let batch = 0; batch < SECONDARY_MAX_BATCHES; batch += 1) {
         let query = db
             .collection(accessPinSecretsShared_1.ACCESS_PIN_SECRETS_COLLECTION)
             .where("targetType", "==", targetType)
+            .where("revealable", "==", false)
             .orderBy(admin.firestore.FieldPath.documentId())
             .limit(SECONDARY_PAGE_SIZE);
         if (lastDoc) {
