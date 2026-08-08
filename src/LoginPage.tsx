@@ -5,6 +5,7 @@ import {
 } from "firebase/auth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { auth } from "./firebase";
+import { StageVerifyBrandMark } from "./StageVerifyBrandMark";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -113,6 +114,15 @@ export function LoginPage() {
         }}
       >
         <div className="mb-8 text-center">
+          <StageVerifyBrandMark
+            height={64}
+            className="mx-auto mb-4"
+            style={{
+              marginLeft: "auto",
+              marginRight: "auto",
+              filter: "drop-shadow(0 5px 14px rgba(0,0,0,0.28))",
+            }}
+          />
           <h1
             className="text-2xl font-bold tracking-tight"
             style={{ color: "var(--color-text-primary)" }}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getAppSettings } from "./dispatcher/firestoreService";
 import { verifyTechnicianPin } from "./verifyTechnicianPinClient";
 import { setTechnicianPinSession } from "./technicianPinSession";
+import { StageVerifyBrandMark } from "./StageVerifyBrandMark";
 
 const KEYPAD = [
   ["1", "2", "3"],
@@ -117,9 +118,15 @@ export function TechnicianPinGate({
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6 py-8">
-      <p className="text-center text-text-secondary text-sm mb-6">
-        Technician Pickup
-      </p>
+      <div className="mb-5 flex flex-col items-center">
+        <StageVerifyBrandMark height={46} className="mb-2" />
+        <p className="text-sm font-bold tracking-wide text-text-primary">
+          StageVerify
+        </p>
+        <p className="mt-0.5 text-xs text-text-secondary">
+          Technician Pickup
+        </p>
+      </div>
       <div className="w-full max-w-sm rounded-2xl border border-border bg-bg-surface p-6 shadow-lg">
         <h1 className="text-xl font-bold text-center text-text-primary mb-2">
           Enter Technician PIN

@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { auth } from "./firebase";
 import { signOutWithConfirm } from "./signOutWithConfirm";
+import { StageVerifyBrandMark } from "./StageVerifyBrandMark";
 
 function abbreviateEmail(email: string): string {
   const at = email.indexOf("@");
@@ -56,7 +57,12 @@ export function MobileHubPage() {
     >
       <div className="flex h-full flex-col">
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <span className="text-lg font-bold tracking-tight">stageverify</span>
+          <div className="flex items-center gap-2">
+            <StageVerifyBrandMark height={34} />
+            <span className="text-base font-bold tracking-tight">
+              StageVerify
+            </span>
+          </div>
           <div className="flex min-w-0 items-center gap-2">
             <span
               className="truncate text-xs text-text-secondary"
