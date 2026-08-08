@@ -15,3 +15,6 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-05 | backend-write-critical (will-call → Picked Up category) | T3 high-risk | Composer 2.5 + D-60/D-38 Sonnet | 92 | 92 | pending | Root cause: recordPickupEvent requires staging; blocked on Dan CF approve |
 | 2026-08-05 | bug-investigate + CF fix (rejected invoices reappear) | T3 backend-write-critical | Composer 2.5 Fast | 97 | 99 | ok | Root cause: Gmail reparse treated user credit/return reject as system skip; fix isSystemAutoRejectedImport |
 | 2026-08-07 | backend-write-critical (P0-ROI TECH_JOB_OPENED CF) | T3 high-risk | Composer 2.5 + D-60/D-38 Sonnet; Grok verify | 94 | 99 | ok | recordTechnicianJobOpen; sonnet Agree+PASS; tests 14/14; branch PR no deploy |
+| 2026-08-08 | readonly-prod-audit (MGMT-VERIFY fixtures) | T0 scout | Composer 2.5 Fast | 90 | 97 | ok | Live Firestore audit before delete |
+| 2026-08-08 | backend-write-critical (prod SAFE test-data delete) | T3 high-risk | Composer 2.5 Fast (+ Grok delete review) | 88 | 98 | ok | 21 deliveries+10 items deleted; job-1 restored; D-38 Sonnet unavailable |
+| 2026-08-08 | service-logic (verifier fixture teardown) | T1 | Composer 2.5 Fast | 95 | 98 | ok | catch-all + monday-safe finally cleanup; PR #42 |

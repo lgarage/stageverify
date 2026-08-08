@@ -33,7 +33,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- Dan/ops: for Monday vendor `/#/receive` path, set Settings → Exception-only Delivered hub when ready; hard-refresh vendor phone after v0.0.225.
+- Dan/ops: merge PR #42 (MGMT-VERIFY cleanup scripts) so future prod verifies use teardown; Monday vendor list cleaned (MGMT-VERIFY gone; job-1 restored to Riverside / JOB-2026-0421). Then set Settings → Exception-only Delivered hub when ready; hard-refresh vendor phone after v0.0.225.
 ## Queued product (deferred)
 - **After D-59 phases P1–P7 deploy:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client; high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).
 - **Phase 5 Slice B:** pickup verification v2 polish (per-location confirms, exception flags).
