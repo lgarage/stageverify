@@ -1443,7 +1443,7 @@ export function ZoneManagementPage() {
                         borderRadius: 6,
                         border: "none",
                         backgroundColor: assignSaving ? "#fdba74" : "#ea580c",
-                        color: "var(--admin-text)",
+                        color: "var(--admin-on-navy)",
                         fontWeight: 800,
                         fontSize: 14,
                         cursor: assignSaving ? "not-allowed" : "pointer",

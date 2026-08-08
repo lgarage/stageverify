@@ -2630,7 +2630,9 @@ export function SettingsPage() {
                           backgroundColor:
                             connectingGmail || loadingGmailConnection ? "var(--admin-border)" : NAVY,
                           color:
-                            connectingGmail || loadingGmailConnection ? "var(--admin-text-muted)" : "var(--admin-text)",
+                            connectingGmail || loadingGmailConnection
+                              ? "var(--admin-text-muted)"
+                              : "var(--admin-on-navy)",
                           fontWeight: 700,
                           fontSize: 13,
                           cursor:

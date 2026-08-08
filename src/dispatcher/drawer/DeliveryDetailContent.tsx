@@ -870,7 +870,9 @@ export function DetailContent({
                   borderRadius: 8,
                   border: `2px solid ${navy}`,
                   backgroundColor: emailProviderConnected ? navy : "var(--admin-border)",
-                  color: emailProviderConnected ? "var(--admin-text)" : "var(--admin-text-muted)",
+                  color: emailProviderConnected
+                    ? "var(--admin-on-navy)"
+                    : "var(--admin-text-muted)",
                   fontSize: 15,
                   fontWeight: 800,
                   letterSpacing: "0.03em",
@@ -894,7 +896,7 @@ export function DetailContent({
                     borderRadius: 8,
                     border: "2px solid #ea580c",
                     backgroundColor: "#ea580c",
-                    color: "var(--admin-text)",
+                    color: "var(--admin-on-navy)",
                     fontSize: 15,
                     fontWeight: 800,
                     letterSpacing: "0.03em",
@@ -2558,7 +2560,10 @@ function StatusActionPanel({
               style={{
                 backgroundColor:
                   loading || !reason.trim() ? "var(--admin-surface-2)" : "var(--admin-danger-text)",
-                color: loading || !reason.trim() ? "var(--admin-text-muted)" : "var(--admin-text)",
+                color:
+                  loading || !reason.trim()
+                    ? "var(--admin-text-muted)"
+                    : "var(--admin-on-navy)",
                 border: `1.5px solid ${
                   loading || !reason.trim() ? "var(--admin-border)" : "var(--admin-danger-text)"
                 }`,
@@ -2692,7 +2697,9 @@ function StatusActionPanel({
               disabled={loading || !editReason.trim()}
               style={{
                 backgroundColor: loading || !editReason.trim() ? "var(--admin-surface-2)" : "var(--admin-danger-text)",
-                color: loading || !editReason.trim() ? "var(--admin-text-muted)" : "var(--admin-text)",
+                color: loading || !editReason.trim()
+                  ? "var(--admin-text-muted)"
+                  : "var(--admin-on-navy)",
                 border: `1.5px solid ${loading || !editReason.trim() ? "var(--admin-border)" : "var(--admin-danger-text)"}`,
                 borderRadius: 4,
                 padding: "6px 12px",

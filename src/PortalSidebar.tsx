@@ -14,7 +14,7 @@ function navLinkStyle(active: boolean): CSSProperties {
   return active
     ? {
         backgroundColor: RED,
-        color: "var(--admin-text)",
+        color: "var(--admin-on-navy)",
         borderRadius: "var(--admin-radius-sm)",
         display: "flex",
         alignItems: "center",
@@ -93,7 +93,7 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
         </div>
         <span
           style={{
-            color: "var(--admin-text)",
+            color: "var(--admin-on-navy)",
             fontWeight: 700,
             fontSize: 14,
             letterSpacing: "0.08em",
@@ -142,7 +142,8 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
                 if (!active) {
                   (e.currentTarget as HTMLElement).style.backgroundColor =
                     "rgba(255,255,255,0.08)";
-                  (e.currentTarget as HTMLElement).style.color = "var(--admin-text)";
+                  (e.currentTarget as HTMLElement).style.color =
+                    "var(--admin-on-navy)";
                 }
               }}
               onMouseLeave={(e) => {
@@ -187,7 +188,8 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
             if (!isSettings) {
               (e.currentTarget as HTMLElement).style.backgroundColor =
                 "rgba(255,255,255,0.08)";
-              (e.currentTarget as HTMLElement).style.color = "var(--admin-text)";
+              (e.currentTarget as HTMLElement).style.color =
+                "var(--admin-on-navy)";
             }
           }}
           onMouseLeave={(e) => {

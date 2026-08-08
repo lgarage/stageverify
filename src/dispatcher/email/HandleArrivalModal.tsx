@@ -372,7 +372,7 @@ export function HandleArrivalModal({
               borderRadius: 6,
               border: "none",
               backgroundColor: canSubmit ? NAVY : "var(--admin-text-muted)",
-              color: "var(--admin-text)",
+              color: "var(--admin-on-navy)",
               fontSize: 13,
               fontWeight: 700,
               cursor: canSubmit ? "pointer" : "not-allowed",

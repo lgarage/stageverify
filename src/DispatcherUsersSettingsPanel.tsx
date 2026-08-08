@@ -288,7 +288,7 @@ export function DispatcherUsersSettingsPanel() {
                 borderRadius: 6,
                 border: "none",
                 background: NAVY,
-                color: "var(--admin-text)",
+                color: "var(--admin-on-navy)",
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: "pointer",
