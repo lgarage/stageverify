@@ -4,7 +4,9 @@
  * Covers expand-below-row, single editor, Admin Access on tech/vendor/management,
  * Auth exclusion, reveal / hash-only copy, save toast + revoke + collapse,
  * cancel revoke, row-switch revoke, reveal auto-hide, Light/Dark contrast,
- * and PIN input length (numeric, max 6).
+ * and PIN input length (numeric, 4–6 — rejects >6 by construction).
+ *
+ * Reconciled from main auth-settle helpers + PR #62 Admin Access flow hardening.
  */
 import { chromium } from "playwright";
 import { existsSync, mkdirSync, readFileSync } from "fs";
@@ -143,7 +145,19 @@ async function openEditorByType(page, type) {
   await pinEdit.click();
   const detail = page.getByTestId("pin-access-detail");
   await detail.waitFor({ timeout: 10_000 });
-  await detail.getByTestId("pin-access-admin-button").waitFor();
+  const adminBtn = detail.getByTestId("pin-access-admin-button");
+  await adminBtn.waitFor({ timeout: 10_000 });
+  // Row switch revokes prior session asynchronously — wait until Admin Access is clickable.
+  await page.waitForFunction(
+    () => {
+      const btn = document.querySelector(
+        '[data-testid="pin-access-detail"] [data-testid="pin-access-admin-button"]',
+      );
+      return btn instanceof HTMLButtonElement && !btn.disabled;
+    },
+    null,
+    { timeout: 15_000 },
+  );
   await detail.getByTestId("pin-access-save").waitFor();
   await detail.getByTestId("pin-access-cancel").waitFor();
   await assertExpandedBelowRow(detail);
@@ -152,6 +166,54 @@ async function openEditorByType(page, type) {
     throw new Error(`Expected exactly one open editor, found ${detailCount}.`);
   }
   return detail;
+}
+
+async function startAdminAccessOnDetail(detail, page) {
+  const adminBtn = detail.getByTestId("pin-access-admin-button");
+  await page.waitForFunction(
+    () => {
+      const btn = document.querySelector(
+        '[data-testid="pin-access-detail"] [data-testid="pin-access-admin-button"]',
+      );
+      return btn instanceof HTMLButtonElement && !btn.disabled;
+    },
+    null,
+    { timeout: 15_000 },
+  );
+  const cfErrors = [];
+  const onResponse = async (res) => {
+    if (
+      res.url().includes("startAdminAccessSession") ||
+      res.url().includes("revealAccessPin")
+    ) {
+      const text = await res.text().catch(() => "");
+      cfErrors.push({
+        status: res.status(),
+        fn: res.url().split("/").pop(),
+        // Redact 3+ digit runs so 4–6 digit PINs never leak as [PIN]56
+        body: text.slice(0, 300).replace(/\d{3,}/g, "[PIN]"),
+      });
+    }
+  };
+  page.on("response", onResponse);
+  try {
+    await adminBtn.click();
+    await detail
+      .getByTestId("pin-access-admin-active")
+      .waitFor({ timeout: 25_000 });
+  } catch (err) {
+    const panelText = (
+      await page.getByTestId("pin-access-management-panel").innerText()
+    )
+      .slice(0, 400)
+      .replace(/\n/g, " | ")
+      .replace(/\d{3,}/g, "[PIN]");
+    throw new Error(
+      `Admin Access did not activate. panel="${panelText}" cf=${JSON.stringify(cfErrors)} original=${err.message}`,
+    );
+  } finally {
+    page.off("response", onResponse);
+  }
 }
 
 async function assertPinShellContrast(page, theme) {
@@ -182,7 +244,13 @@ async function assertPinLengthContract(detail) {
     throw new Error("PIN input allowed more than 6 digits — STOP.");
   }
   await input.fill("");
-  console.log("PASS: PIN input numeric-only, maxLength 6");
+  const cleared = await input.inputValue();
+  if (cleared !== "") {
+    throw new Error(
+      `PIN input should be empty after clear; leftover digits "${cleared}"`,
+    );
+  }
+  console.log("PASS: PIN input numeric-only, maxLength 6 (4–6 contract)");
 }
 
 async function main() {
@@ -209,10 +277,11 @@ async function main() {
     });
     await page.reload({ waitUntil: "domcontentloaded" });
     await ensureAuthenticated(page);
+    // Re-query panel after reload (stale locator hardening from main).
     const panelAfterLight = page.getByTestId("pin-access-management-panel");
     await panelAfterLight.waitFor({ timeout: 30_000 });
 
-    // 3) Technician Admin Access + expand-below + pin length
+    // 3) Technician Admin Access + expand-below
     let detail = await openEditorByType(page, "technician");
     console.log("PASS: Technician row shows row-scoped Admin Access");
     await assertPinShellContrast(page, "Light");
@@ -220,9 +289,8 @@ async function main() {
       path: resolve(outDir, "settings-admin-access-light.png"),
     });
 
-    // 7) Technician reveal (+ New PIN input only visible while elevated)
-    await detail.getByTestId("pin-access-admin-button").click();
-    await detail.getByTestId("pin-access-admin-active").waitFor({ timeout: 20_000 });
+    // 7) Technician reveal (+ PIN length contract once New PIN input is shown)
+    await startAdminAccessOnDetail(detail, page);
     await assertPinLengthContract(detail);
     const techPin = detail.getByTestId("pin-access-current-pin");
     await page.waitForFunction(
@@ -238,58 +306,58 @@ async function main() {
     if (!/^\d{4,6}$/.test(revealed)) {
       throw new Error("Technician reveal did not show a 4–6 digit PIN.");
     }
+    // Do not log plaintext PIN values.
     console.log("PASS: Technician current PIN reveal works");
 
-    // 12) auto-hide (~25s)
-    await page.waitForFunction(
-      () => {
-        const el = document.querySelector('[data-testid="pin-access-current-pin"]');
-        const t = el?.textContent?.trim() || "";
-        return t.includes("•") || t === "••••" || !/^\d{4,6}$/.test(t);
-      },
-      null,
-      { timeout: 35_000 },
-    );
-    console.log("PASS: Revealed PIN auto-hides");
-
-    // 11) row switch revokes prior session — open vendor while tech was elevated
-    // Auto-hide only masks the PIN; Admin Access session may still be active.
-    if ((await detail.getByTestId("pin-access-admin-active").count()) === 0) {
-      await detail.getByTestId("pin-access-admin-button").click();
-      await detail.getByTestId("pin-access-admin-active").waitFor({ timeout: 20_000 });
-    }
+    // 11) row switch revokes prior session while elevation is live
+    // (auto-hide verified later in isolation — do not interleave with row switch)
     detail = await openEditorByType(page, "vendor");
     console.log("PASS: Vendor row shows row-scoped Admin Access (single editor)");
-    // Prior tech elevation should be gone after switch (no active on closed tech row)
+    if ((await detail.getByTestId("pin-access-admin-active").count()) !== 0) {
+      throw new Error("Prior Admin Access session carried over to the vendor row.");
+    }
     if ((await page.getByTestId("pin-access-detail").count()) !== 1) {
       throw new Error("Row switch left multiple editors open.");
     }
-    if ((await detail.getByTestId("pin-access-admin-active").count()) !== 0) {
-      throw new Error("Admin Access carried over to vendor row after switch.");
-    }
     console.log("PASS: Row switch keeps a single editor (prior session revoked on switch)");
 
-    // 7) Vendor reveal — wait for prior revoke to settle before starting a new session
+    // 7) Vendor reveal — settle prior revoke, then elevate via helper
     await page.waitForTimeout(1500);
-    const vendorAdminBtn = detail.getByTestId("pin-access-admin-button");
-    await vendorAdminBtn.waitFor({ state: "visible", timeout: 10_000 });
-    await vendorAdminBtn.click();
-    await detail.getByTestId("pin-access-admin-active").waitFor({ timeout: 30_000 });
+    await startAdminAccessOnDetail(detail, page);
     await page.waitForFunction(
       () => {
-        const el = document.querySelector('[data-testid="pin-access-current-pin"]');
+        const el = document.querySelector(
+          '[data-testid="pin-access-current-pin"]',
+        );
         const t = el?.textContent?.trim() || "";
         return /^\d{4,6}$/.test(t);
       },
       null,
-      { timeout: 20_000 },
+      { timeout: 25_000 },
     );
     console.log("PASS: Vendor current PIN reveal works");
+    await page.waitForTimeout(1000);
 
     // 9) Save without PIN change — toast, revoke, collapse
+    const newPin = detail.getByTestId("pin-access-new-pin-input");
+    if ((await newPin.count()) > 0) {
+      await newPin.fill("");
+      await newPin.press("Control+A");
+      await newPin.press("Backspace");
+    }
     await detail.getByTestId("pin-access-save").click();
-    await page.getByText("Changes saved").waitFor({ timeout: 20_000 });
-    await page.getByTestId("pin-access-detail").waitFor({ state: "detached", timeout: 15_000 });
+    const saveError = page
+      .locator('[data-testid="pin-access-management-panel"]')
+      .getByText(/Could not save|required|denied|Invalid/i);
+    await Promise.race([
+      page.getByText("Changes saved").waitFor({ timeout: 20_000 }),
+      saveError.waitFor({ state: "visible", timeout: 20_000 }).then(async () => {
+        throw new Error(`Save failed: ${(await saveError.innerText()).trim()}`);
+      }),
+    ]);
+    await page
+      .getByTestId("pin-access-detail")
+      .waitFor({ state: "detached", timeout: 20_000 });
     if ((await page.getByTestId("pin-access-admin-active").count()) !== 0) {
       throw new Error("Admin Access still active after Save.");
     }
@@ -298,8 +366,7 @@ async function main() {
     // 5 + 8) Management Admin Access + hash-only copy
     detail = await openEditorByType(page, "management");
     console.log("PASS: Management PIN row shows row-scoped Admin Access");
-    await detail.getByTestId("pin-access-admin-button").click();
-    await detail.getByTestId("pin-access-admin-active").waitFor({ timeout: 20_000 });
+    await startAdminAccessOnDetail(detail, page);
     await page.waitForFunction(
       () => {
         const el = document.querySelector('[data-testid="pin-access-current-pin"]');
@@ -323,16 +390,46 @@ async function main() {
     }
     console.log("PASS: Cancel revokes and collapses");
 
+    // 12) revealed PIN auto-hides (fresh elevation — do not interleave with row switch)
+    detail = await openEditorByType(page, "technician");
+    await startAdminAccessOnDetail(detail, page);
+    await page.waitForFunction(
+      () => {
+        const el = document.querySelector(
+          '[data-testid="pin-access-current-pin"]',
+        );
+        const t = el?.textContent?.trim() || "";
+        return /^\d{4,6}$/.test(t);
+      },
+      null,
+      { timeout: 20_000 },
+    );
+    await page.waitForFunction(
+      () => {
+        const el = document.querySelector(
+          '[data-testid="pin-access-current-pin"]',
+        );
+        const t = el?.textContent?.trim() || "";
+        return t.includes("•") || t === "••••" || !/^\d{4,6}$/.test(t);
+      },
+      null,
+      { timeout: 35_000 },
+    );
+    console.log("PASS: Revealed PIN auto-hides");
+    await detail.getByTestId("pin-access-cancel").click();
+    await page.getByTestId("pin-access-detail").waitFor({ state: "detached", timeout: 15_000 });
+
     // 14) Dark mode contrast with Admin Access shell open
     await page.evaluate(() => {
       localStorage.setItem("stageverify-theme", "dark");
     });
     await page.reload({ waitUntil: "domcontentloaded" });
     await ensureAuthenticated(page);
-    await panel.waitFor({ timeout: 30_000 });
+    const panelAfterDark = page.getByTestId("pin-access-management-panel");
+    await panelAfterDark.waitFor({ timeout: 30_000 });
     detail = await openEditorByType(page, "technician");
     await assertPinShellContrast(page, "Dark");
-    await panel.screenshot({
+    await panelAfterDark.screenshot({
       path: resolve(outDir, "settings-admin-access-dark.png"),
     });
     await detail.getByTestId("pin-access-cancel").click();
