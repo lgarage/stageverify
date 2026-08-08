@@ -778,6 +778,13 @@ export interface AppSettings {
   vendorRevertWindowMinutes: number;
   autoSubmitMinutes: number;
   entrywayEslTagId?: string;
+  /**
+   * StageVerify Start Date — calendar date `YYYY-MM-DD` (shop-local).
+   * Explicit ROI/reporting baseline for “Since StageVerify started” windows.
+   * Changing this value does not rewrite historical events.
+   * Never auto-set from deploy, now(), or oldest delivery.
+   */
+  stageVerifyActivatedAt?: string;
   /** Vendor receive UX: full line-item check-in vs exception-only Delivered hub. */
   vendorDeliveryMode?: VendorDeliveryMode;
   /** Minutes for vendor PIN session absolute TTL (server expiresAt). Default 15. */

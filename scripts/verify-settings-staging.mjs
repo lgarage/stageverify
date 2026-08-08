@@ -154,24 +154,96 @@ async function ensureAuthenticated(page) {
   });
   await page.waitForTimeout(1500);
 
-  if (!page.url().includes("/login")) return;
+  if (page.url().includes("/login")) {
+    if (!email || !password) {
+      throw new Error(
+        "Redirected to login — set STAGEVERIFY_TEST_EMAIL/PASSWORD in .env.local",
+      );
+    }
 
-  if (!email || !password) {
-    throw new Error(
-      "Redirected to login — set STAGEVERIFY_TEST_EMAIL/PASSWORD in .env.local",
-    );
+    await page.fill("#email", email);
+    await page.fill("#password", password);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/\/#\/(settings|dispatcher|hub)/, { timeout: 20_000 });
   }
 
-  await page.fill("#email", email);
-  await page.fill("#password", password);
-  await page.click('button[type="submit"]');
-  await page.waitForURL(/\/#\/(settings|dispatcher|hub)/, { timeout: 20_000 });
-
+  // Auth may land on dispatcher after reload — always re-open Settings.
   if (!page.url().includes("/settings")) {
     await page.goto(`${appBase}/#/settings`, {
       waitUntil: "domcontentloaded",
       timeout: 45_000,
     });
+    await page.waitForTimeout(800);
+  }
+}
+
+async function waitForStartDateInput(page) {
+  await page.getByText("Workflow", { exact: true }).first().waitFor({
+    timeout: 20_000,
+  });
+  const input = page.locator('[data-testid="settings-stageverify-start-date"]');
+  await input.waitFor({ state: "attached", timeout: 20_000 });
+  await input.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(200);
+  return input;
+}
+
+async function setDateInput(page, locator, value) {
+  await locator.scrollIntoViewIfNeeded();
+  // React controlled <input type="date"> — use fill so onChange updates state before Save.
+  await locator.fill(value);
+  await locator.dispatchEvent("change");
+}
+
+async function saveWorkflowSettings(page) {
+  // Workflow card Save is the first Save on Settings.
+  await page.getByRole("button", { name: /^Save$/i }).first().click();
+  await page.waitForTimeout(1200);
+}
+
+/** StageVerify Start Date — YYYY-MM-DD on appSettings; restore prior value in finally. */
+async function assertStageVerifyStartDateRoundTrip(page) {
+  const input = await waitForStartDateInput(page);
+  await assertReadableTextContrast(page, {
+    rootSelector: "body",
+    elements: [
+      {
+        name: "StageVerify Start Date label",
+        selector: 'label[for="settings-stageverify-start-date"]',
+      },
+      {
+        name: "StageVerify Start Date hint",
+        selector: '[data-testid="settings-stageverify-start-date-hint"]',
+        large: true,
+      },
+    ],
+    minText: MIN_TEXT_CONTRAST,
+    minLarge: MIN_LARGE_TEXT_CONTRAST,
+  });
+  console.log("PASS: StageVerify Start Date D-42 contrast.");
+  const prior = await input.inputValue();
+  const probe = "2099-01-02";
+  try {
+    await setDateInput(page, input, probe);
+    await saveWorkflowSettings(page);
+    await page.goto(`${appBase}/#/settings`, {
+      waitUntil: "domcontentloaded",
+      timeout: 45_000,
+    });
+    await ensureAuthenticated(page);
+    const inputAfter = await waitForStartDateInput(page);
+    const after = await inputAfter.inputValue();
+    if (after !== probe) {
+      throw new Error(
+        `StageVerify Start Date round-trip failed: expected ${probe}, got "${after}"`,
+      );
+    }
+    console.log("PASS: StageVerify Start Date save/reload round-trip.");
+  } finally {
+    await ensureAuthenticated(page);
+    const inputRestore = await waitForStartDateInput(page);
+    await setDateInput(page, inputRestore, prior);
+    await saveWorkflowSettings(page);
   }
 }
 
@@ -194,6 +266,12 @@ async function countMapStagingSpots(page) {
   console.log(`Opening ${appBase}/#/settings`);
   await ensureAuthenticated(page);
 
+  console.log("StageVerify Start Date (Workflow)…");
+  await page.getByText("Workflow", { exact: true }).first().waitFor({
+    timeout: 15_000,
+  });
+  await assertStageVerifyStartDateRoundTrip(page);
+
   await page.getByText("Staging Spots", { exact: true }).first().waitFor({
     timeout: 30_000,
   });
@@ -215,8 +293,9 @@ async function countMapStagingSpots(page) {
 
   console.log("Email Monitoring settings (save + reload)…");
   await page.reload({ waitUntil: "domcontentloaded" });
+  await ensureAuthenticated(page);
   await page.getByText("Email Monitoring", { exact: true }).first().waitFor({
-    timeout: 10_000,
+    timeout: 15_000,
   });
 
   const inboxInput = page.getByTestId("monitoring-inbox-email");
@@ -243,6 +322,7 @@ async function countMapStagingSpots(page) {
     await page.getByTestId("save-email-settings").click();
     await page.getByTestId("email-settings-saved").waitFor({ timeout: 15_000 });
     await page.reload({ waitUntil: "domcontentloaded" });
+    await ensureAuthenticated(page);
     await page.getByTestId("email-monitoring-enabled").waitFor({ timeout: 15_000 });
     const reloadedEnabled = await page
       .getByTestId("email-monitoring-enabled")
@@ -280,6 +360,7 @@ async function countMapStagingSpots(page) {
     await page.waitForTimeout(1500);
 
     await page.reload({ waitUntil: "domcontentloaded" });
+    await ensureAuthenticated(page);
     await page.getByTestId("monitoring-inbox-email").waitFor({ timeout: 15_000 });
     await page.waitForTimeout(800);
     const reloadedEmail = await page.getByTestId("monitoring-inbox-email").inputValue();
