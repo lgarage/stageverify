@@ -16,8 +16,14 @@ import {
 import {
   ensureAuthenticated,
   loadEnvLocal,
+  openDeliveryDrawerByDeepLink,
   openDeliveryDrawerForNavVerify,
 } from "./dispatcherVerifyHelpers.mjs";
+
+/** Seed fixtures — CASE A no staging; CASE B assigned/planned staging. */
+const FIXTURE_NO_STAGING_ID = "delivery-2";
+/** Live demo seed with stagingLocationId + planned IDs (shows G1 chips; delivery-1 may be absent). */
+const FIXTURE_ASSIGNED_STAGING_ID = "delivery-demo-vendor-1";
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -44,12 +50,12 @@ const STATUS_CONTROL_CONTRAST = {
       large: false,
     },
     {
-      name: "fulfillment drop-off button",
+      name: "fulfillment vendor drop-off button",
       selector: '[data-testid="delivery-fulfillment-delivery"]',
       large: false,
     },
     {
-      name: "fulfillment will-call button",
+      name: "fulfillment will-call pickup button",
       selector: '[data-testid="delivery-fulfillment-will_call_pickup"]',
       large: false,
     },
@@ -90,6 +96,55 @@ const STATUS_CONTROL_CONTRAST = {
   await fulfillmentControl.waitFor({ timeout: 10_000 });
   console.log("PASS: Fulfillment control present");
 
+  const vendorDropOffButton = page.getByTestId(
+    "delivery-fulfillment-delivery",
+  );
+  const willCallPickupButton = page.getByTestId(
+    "delivery-fulfillment-will_call_pickup",
+  );
+  const vendorDropOffText = (await vendorDropOffButton.innerText()).trim();
+  const willCallPickupText = (await willCallPickupButton.innerText()).trim();
+  if (vendorDropOffText !== "Vendor Drop-Off") {
+    throw new Error(
+      `FAIL: Delivery fulfillment button should say "Vendor Drop-Off" — got "${vendorDropOffText}".`,
+    );
+  }
+  if (willCallPickupText !== "Will-Call / Pickup") {
+    throw new Error(
+      `FAIL: Will-call fulfillment button should say "Will-Call / Pickup" — got "${willCallPickupText}".`,
+    );
+  }
+  console.log("PASS: Fulfillment buttons use dispatcher-facing wording");
+
+  await page.waitForFunction(() => {
+    const deliveryButton = document.querySelector(
+      '[data-testid="delivery-fulfillment-delivery"]',
+    );
+    const willCallButton = document.querySelector(
+      '[data-testid="delivery-fulfillment-will_call_pickup"]',
+    );
+    return (
+      deliveryButton instanceof HTMLButtonElement &&
+      willCallButton instanceof HTMLButtonElement &&
+      deliveryButton.disabled !== willCallButton.disabled
+    );
+  });
+  const willCallActive = await willCallPickupButton.isDisabled();
+  const expectedFulfillmentContext = willCallActive
+    ? "Will-Call / Pickup"
+    : "Vendor Drop-Off";
+  const statusContextText = (
+    await page.getByTestId("delivery-status-current-label").innerText()
+  ).trim();
+  if (!statusContextText.includes(`· ${expectedFulfillmentContext}`)) {
+    throw new Error(
+      `FAIL: Status context should include "· ${expectedFulfillmentContext}" — got "${statusContextText}".`,
+    );
+  }
+  console.log(
+    `PASS: Status context uses "${expectedFulfillmentContext}" for active fixture`,
+  );
+
   const poRow = basicsCard.locator("text=PO #");
   const statusControls = page.getByTestId("delivery-status-controls");
   const poBox = await poRow.boundingBox();
@@ -111,6 +166,80 @@ const STATUS_CONTROL_CONTRAST = {
     );
   }
   console.log("PASS: Status controls precede staging location chips");
+
+  const stagingBanner = page.getByTestId("drawer-staging-location-banner");
+  const stagingBannerCount = await stagingBanner.count();
+  const hasAssignedStagingAttribute = await page
+    .getByTestId("delivery-basics-staging-locations")
+    .getAttribute("data-has-assigned-staging");
+  if (
+    hasAssignedStagingAttribute !== "true" &&
+    hasAssignedStagingAttribute !== "false"
+  ) {
+    throw new Error(
+      `FAIL: Drawer fixture is missing assignment metadata — got "${hasAssignedStagingAttribute}".`,
+    );
+  }
+  const hasAssignedStaging = hasAssignedStagingAttribute === "true";
+
+  if (willCallActive || hasAssignedStaging) {
+    if (stagingBannerCount > 0) {
+      throw new Error(
+        `FAIL: Staging banner should be absent for ${
+          willCallActive ? "Will-Call / Pickup" : "assigned staging IDs"
+        }.`,
+      );
+    }
+    console.log(
+      `PASS: Staging banner absent for ${
+        willCallActive ? "Will-Call / Pickup" : "assigned staging IDs"
+      } fixture`,
+    );
+  } else {
+    if (stagingBannerCount === 0) {
+      throw new Error(
+        "FAIL: Vendor Drop-Off fixture without staging should show the staging banner.",
+      );
+    }
+    const fulfillmentBox = await fulfillmentControl.boundingBox();
+    const bannerBox = await stagingBanner.boundingBox();
+    if (
+      !fulfillmentBox ||
+      !bannerBox ||
+      !stagingBox ||
+      bannerBox.y <= fulfillmentBox.y ||
+      bannerBox.y >= stagingBox.y
+    ) {
+      throw new Error(
+        `FAIL: Staging banner should sit below Fulfillment and above Staging Locations (fulfillment y=${fulfillmentBox?.y ?? "?"}, banner y=${bannerBox?.y ?? "?"}, staging y=${stagingBox?.y ?? "?"}).`,
+      );
+    }
+    console.log(
+      "PASS: Staging banner sits below Fulfillment and above Staging Locations",
+    );
+
+    await assertReadableTextContrast(page, {
+      rootSelector: '[data-testid="drawer-staging-location-banner"]',
+      elements: [
+        {
+          name: "staging location banner heading",
+          selector: '[data-testid="drawer-staging-location-banner-heading"]',
+          large: false,
+        },
+        {
+          name: "staging location banner body",
+          selector: '[data-testid="drawer-staging-location-banner-body"]',
+          large: false,
+        },
+        {
+          name: "staging location assign button",
+          selector: '[data-testid="drawer-staging-location-assign"]',
+          large: false,
+        },
+      ],
+    });
+    console.log("PASS: D-42 contrast on staging location banner");
+  }
 
   const advancedToggle = page.getByTestId("advanced-manual-controls-toggle");
   if ((await advancedToggle.count()) > 0) {
@@ -329,6 +458,121 @@ const STATUS_CONTROL_CONTRAST = {
       "SKIP: picked_up option not enabled on fixture delivery (no transition available)",
     );
   }
+
+  // ── CASE A — Vendor Drop-Off + no location (seed delivery-2 / ORD-002) ──
+  await openDeliveryDrawerByDeepLink(page, appBase, FIXTURE_NO_STAGING_ID);
+  const caseABanner = page.getByTestId("drawer-staging-location-banner");
+  await caseABanner.waitFor({ state: "visible", timeout: 15_000 });
+  const caseAAssigned = await page
+    .getByTestId("delivery-basics-staging-locations")
+    .getAttribute("data-has-assigned-staging");
+  if (caseAAssigned !== "false") {
+    throw new Error(
+      `FAIL CASE A: delivery-2 should have no assigned staging — data-has-assigned-staging="${caseAAssigned}".`,
+    );
+  }
+  const caseAFulfillment = page.getByTestId("delivery-fulfillment-control");
+  const caseAStagingHeading = page.getByTestId(
+    "delivery-basics-staging-locations-heading",
+  );
+  const caseAFulfillmentBox = await caseAFulfillment.boundingBox();
+  const caseABannerBox = await caseABanner.boundingBox();
+  const caseAStagingBox = await caseAStagingHeading.boundingBox();
+  if (
+    !caseAFulfillmentBox ||
+    !caseABannerBox ||
+    !caseAStagingBox ||
+    caseABannerBox.y <= caseAFulfillmentBox.y ||
+    caseABannerBox.y >= caseAStagingBox.y
+  ) {
+    throw new Error(
+      `FAIL CASE A: Staging banner must sit below Fulfillment and above Staging Locations (fulfillment y=${caseAFulfillmentBox?.y ?? "?"}, banner y=${caseABannerBox?.y ?? "?"}, staging y=${caseAStagingBox?.y ?? "?"}).`,
+    );
+  }
+  const caseAVendorLabel = (
+    await page.getByTestId("delivery-fulfillment-delivery").innerText()
+  ).trim();
+  if (caseAVendorLabel !== "Vendor Drop-Off") {
+    throw new Error(
+      `FAIL CASE A: expected Vendor Drop-Off button — got "${caseAVendorLabel}".`,
+    );
+  }
+  console.log(
+    "PASS CASE A: Vendor Drop-Off + no location — banner below fulfillment",
+  );
+
+  // ── CASE D — switch Vendor Drop-Off ↔ Will-Call / Pickup updates warning ──
+  const caseAWillCall = page.getByTestId(
+    "delivery-fulfillment-will_call_pickup",
+  );
+  if (!(await caseAWillCall.isDisabled())) {
+    await caseAWillCall.click();
+    await page
+      .getByTestId("drawer-staging-location-banner")
+      .waitFor({ state: "hidden", timeout: 20_000 });
+    await page.waitForFunction(() => {
+      const el = document.querySelector(
+        '[data-testid="delivery-status-current-label"]',
+      );
+      return el?.textContent?.includes("Will-Call / Pickup") ?? false;
+    }, null, { timeout: 10_000 });
+    const willCallCtx = (
+      await page.getByTestId("delivery-status-current-label").innerText()
+    ).trim();
+    if (!willCallCtx.includes("Will-Call / Pickup")) {
+      throw new Error(
+        `FAIL CASE D: status context should show Will-Call / Pickup — got "${willCallCtx}".`,
+      );
+    }
+    // Restore Vendor Drop-Off so seed fixture stays drop-off for other verifies
+    const restoreDropOff = page.getByTestId("delivery-fulfillment-delivery");
+    if (!(await restoreDropOff.isDisabled())) {
+      await restoreDropOff.click();
+      await page
+        .getByTestId("drawer-staging-location-banner")
+        .waitFor({ state: "visible", timeout: 20_000 });
+    }
+    console.log(
+      "PASS CASE D: fulfillment switch updates wording + clears stale staging banner",
+    );
+  } else {
+    console.log(
+      "SKIP CASE D: Will-Call already active or toggle disabled on delivery-2",
+    );
+  }
+
+  // ── CASE B — Vendor Drop-Off + existing location (seed delivery-1) ──
+  await openDeliveryDrawerByDeepLink(page, appBase, FIXTURE_ASSIGNED_STAGING_ID);
+  await page.getByTestId("delivery-basics-staging-locations").waitFor({
+    timeout: 15_000,
+  });
+  const caseBAssigned = await page
+    .getByTestId("delivery-basics-staging-locations")
+    .getAttribute("data-has-assigned-staging");
+  if (caseBAssigned !== "true") {
+    throw new Error(
+      `FAIL CASE B: delivery-1 should have assigned staging — data-has-assigned-staging="${caseBAssigned}".`,
+    );
+  }
+  if ((await page.getByTestId("drawer-staging-location-banner").count()) > 0) {
+    throw new Error(
+      "FAIL CASE B: Staging banner must not render when a staging location is assigned.",
+    );
+  }
+  console.log("PASS CASE B: assigned staging — no staging warning banner");
+
+  // ── CASE C — Will-Call wording (toggle path already covers skip-staging) ──
+  const caseCWillCallLabel = (
+    await page.getByTestId("delivery-fulfillment-will_call_pickup").innerText()
+  ).trim();
+  if (caseCWillCallLabel !== "Will-Call / Pickup") {
+    throw new Error(
+      `FAIL CASE C: Will-Call button should say "Will-Call / Pickup" — got "${caseCWillCallLabel}".`,
+    );
+  }
+  console.log(
+    "PASS CASE C: Will-Call / Pickup wording present; staging not required by skipsShopStaging",
+  );
 
   await page.screenshot({
     path: resolve(outDir, "delivery-drawer-status-controls.png"),
