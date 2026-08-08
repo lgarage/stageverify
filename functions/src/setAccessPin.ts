@@ -55,14 +55,14 @@ export const setAccessPin = onCall(
     const secretRef = db
       .collection(ACCESS_PIN_SECRETS_COLLECTION)
       .doc(accessPinSecretDocId(targetType, targetId));
+    const pinLookupKey = pinLookupKeyForPin(pin);
     const uniquenessRef = db
       .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
-      .doc(accessPinUniquenessDocId(targetType, pin));
+      .doc(accessPinUniquenessDocId(targetType, pinLookupKey));
 
     const now = new Date().toISOString();
     const pinHash = hashPinForStorage(pin);
     const pinEncrypted = encryptPinForStorage(pin);
-    const pinLookupKey = pinLookupKeyForPin(pin);
 
     await db.runTransaction(async (tx) => {
       const entitySnap = await tx.get(entityRef);
@@ -95,7 +95,12 @@ export const setAccessPin = onCall(
             if (oldPin !== pin) {
               const oldUniquenessRef = db
                 .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
-                .doc(accessPinUniquenessDocId(targetType, oldPin));
+                .doc(
+                  accessPinUniquenessDocId(
+                    targetType,
+                    pinLookupKeyForPin(oldPin),
+                  ),
+                );
               tx.delete(oldUniquenessRef);
             }
           } catch {

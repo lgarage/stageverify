@@ -1,4 +1,3 @@
-import { createHash } from "crypto";
 import * as admin from "firebase-admin";
 import type { PinEncrypted } from "./accessPinCrypto";
 
@@ -50,16 +49,12 @@ export function accessPinSecretDocId(
   return `${targetType}_${targetId}`;
 }
 
-/** SHA-256 hex of plaintext PIN — used for uniqueness index doc id only (never stored in doc body). */
-export function sha256PinHex(pin: string): string {
-  return createHash("sha256").update(pin, "utf8").digest("hex");
-}
-
+/** Uniqueness index doc id — second arg is HMAC lookup key from pinLookupKeyForPin, not plaintext PIN. */
 export function accessPinUniquenessDocId(
   targetType: AccessPinTargetType,
-  pin: string,
+  pinLookupKey: string,
 ): string {
-  return `${targetType}_${sha256PinHex(pin)}`;
+  return `${targetType}_${pinLookupKey}`;
 }
 
 export function parseAccessPinTargetType(

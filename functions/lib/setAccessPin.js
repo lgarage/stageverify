@@ -30,9 +30,10 @@ exports.setAccessPin = (0, https_1.onCall)({
     const secretRef = db
         .collection(accessPinSecretsShared_1.ACCESS_PIN_SECRETS_COLLECTION)
         .doc((0, accessPinSecretsShared_1.accessPinSecretDocId)(targetType, targetId));
+    const pinLookupKey = (0, accessPinCrypto_1.pinLookupKeyForPin)(pin);
     const uniquenessRef = db
         .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
-        .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)(targetType, pin));
+        .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)(targetType, pinLookupKey));
     const now = new Date().toISOString();
     const pinHash = (0, pinHashing_1.hashPinForStorage)(pin);
     const pinEncrypted = (0, accessPinCrypto_1.encryptPinForStorage)(pin);
@@ -59,7 +60,7 @@ exports.setAccessPin = (0, https_1.onCall)({
                     if (oldPin !== pin) {
                         const oldUniquenessRef = db
                             .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
-                            .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)(targetType, oldPin));
+                            .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)(targetType, (0, accessPinCrypto_1.pinLookupKeyForPin)(oldPin)));
                         tx.delete(oldUniquenessRef);
                     }
                 }
@@ -73,6 +74,7 @@ exports.setAccessPin = (0, https_1.onCall)({
             targetId,
             pinHash,
             pinEncrypted,
+            pinLookupKey,
             revealable: true,
             updatedAt: now,
         });

@@ -123,7 +123,12 @@ async function migrateCollection(
       if (plainPin) {
         const uniquenessRef = db
           .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
-          .doc(accessPinUniquenessDocId(targetType, plainPin));
+          .doc(
+            accessPinUniquenessDocId(
+              targetType,
+              pinLookupKeyForPin(plainPin),
+            ),
+          );
         tx.set(secretRef, {
           targetType,
           targetId: doc.id,
