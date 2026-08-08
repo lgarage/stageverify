@@ -323,6 +323,8 @@ export interface Vendor {
   pinCode?: string;
   /** scrypt hash `salt:hex` — preferred over pinCode when set. */
   pinHash?: string;
+  /** Server-written — true when accessPinSecrets doc exists (CF setAccessPin / migrate). */
+  pinConfigured?: boolean;
   /** When false, PIN verification fails. Defaults to active when unset. */
   active?: boolean;
   /** Opt-in company PIN path — lists vendor open orders across jobs (D-09 amended). Default false. */
@@ -368,6 +370,8 @@ export interface Technician {
   name: string;
   pinCode?: string;
   pinHash?: string;
+  /** Server-written — true when accessPinSecrets doc exists (CF setAccessPin / migrate). */
+  pinConfigured?: boolean;
   active?: boolean;
   permissions?: TechnicianPermissions;
   /** Light palette bg hex for Released To badges — must match TECHNICIAN_BADGE_PALETTE. */

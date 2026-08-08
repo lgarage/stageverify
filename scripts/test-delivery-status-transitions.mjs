@@ -500,6 +500,77 @@ try {
     }
   }
 
+  console.log("\n=== accessPinSecrets / pinAccessAudit / technicians pin fields ===\n");
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "dispatcherRoles", "dispatcher-pin"), {
+      active: true,
+    });
+    await setDoc(doc(ctx.firestore(), "technicians", "tech-pin-test"), {
+      id: "tech-pin-test",
+      name: "Test Tech",
+      active: true,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+  });
+  const dispatcherPin = testEnv.authenticatedContext("dispatcher-pin");
+  for (const [coll, docId] of [
+    ["accessPinSecrets", "technician_tech-pin-test"],
+    ["accessPinUniqueness", "technician_abc123deadbeef"],
+    ["pinAccessAudit", "audit-1"],
+    ["accessPinRevealAttempts", "attempt-1"],
+    ["accessPinSetAttempts", "attempt-set-1"],
+  ]) {
+    try {
+      await assertFails(
+        getDoc(doc(dispatcherPin.firestore(), coll, docId)),
+      );
+      pass(`dispatcher read ${coll} denied`);
+    } catch (err) {
+      fail(`dispatcher read ${coll} should be denied`, err);
+    }
+    try {
+      await assertFails(
+        setDoc(doc(dispatcherPin.firestore(), coll, docId), { targetType: "x" }),
+      );
+      pass(`client write ${coll} denied`);
+    } catch (err) {
+      fail(`client write ${coll} should be denied`, err);
+    }
+  }
+  try {
+    await assertFails(
+      updateDoc(doc(dispatcherPin.firestore(), "technicians", "tech-pin-test"), {
+        pinCode: "1234",
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+    pass("client technician pinCode update denied");
+  } catch (err) {
+    fail("client technician pinCode update should be denied", err);
+  }
+  try {
+    await assertFails(
+      updateDoc(doc(dispatcherPin.firestore(), "technicians", "tech-pin-test"), {
+        pinConfigured: true,
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+    pass("client technician pinConfigured update denied");
+  } catch (err) {
+    fail("client technician pinConfigured update should be denied", err);
+  }
+  try {
+    await assertSucceeds(
+      updateDoc(doc(dispatcherPin.firestore(), "technicians", "tech-pin-test"), {
+        name: "Renamed Tech",
+        updatedAt: new Date().toISOString(),
+      }),
+    );
+    pass("dispatcher technician non-pin field update allowed");
+  } catch (err) {
+    fail("dispatcher technician non-pin field update should be allowed", err);
+  }
+
   console.log(`\n=== Summary: ${passed} passed, ${failed} failed ===\n`);
   if (failed > 0) process.exit(1);
 } finally {

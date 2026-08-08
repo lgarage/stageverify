@@ -9,6 +9,7 @@ import type {
 } from "./dispatcher/models";
 import {
   createTechnician,
+  getMyDispatcherRole,
   getTechnicianDayReleaseForDate,
   listJobs,
   listTechnicians,
@@ -20,6 +21,8 @@ import {
   deactivateManagementPinClient,
   listManagementPinsClient,
   releaseJobsToTechnicianClient,
+  revealAccessPinClient,
+  setAccessPinClient,
   upsertManagementPinClient,
 } from "./phase2CallableClients";
 import {
@@ -120,6 +123,25 @@ function normalizeManagementPermissions(
 function withoutPlaintextVendorPin(vendor: Vendor): Vendor {
   const copy = { ...vendor };
   delete copy.pinCode;
+  delete copy.pinHash;
+  return copy;
+}
+
+function hasConfiguredAccessPin(input: {
+  pinConfigured?: boolean;
+  pinCode?: string;
+  pinHash?: string;
+}): boolean {
+  return (
+    input.pinConfigured === true ||
+    Boolean(input.pinCode || input.pinHash)
+  );
+}
+
+function withoutPlaintextTechnicianPin(technician: Technician): Technician {
+  const copy = { ...technician };
+  delete copy.pinCode;
+  delete copy.pinHash;
   return copy;
 }
 
@@ -170,11 +192,14 @@ export function PinAccessManagementPanel() {
   const [managementPins, setManagementPins] = useState<ManagementPinPublic[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isManager, setIsManager] = useState(false);
   const [selected, setSelected] = useState<SelectedAccess | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pinDraft, setPinDraft] = useState("");
+  const [revealedPin, setRevealedPin] = useState<string | null>(null);
+  const [revealTargetKey, setRevealTargetKey] = useState<string | null>(null);
 
   const [releaseTechnicianId, setReleaseTechnicianId] = useState("");
   const [releaseJobIds, setReleaseJobIds] = useState<Set<string>>(new Set());
@@ -240,6 +265,26 @@ export function PinAccessManagementPanel() {
   }, [reload]);
 
   useEffect(() => {
+    void getMyDispatcherRole().then((role) => {
+      setIsManager(role?.manager === true && role?.active !== false);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!revealedPin) return;
+    const timer = window.setTimeout(() => {
+      setRevealedPin(null);
+      setRevealTargetKey(null);
+    }, 25_000);
+    return () => window.clearTimeout(timer);
+  }, [revealedPin, revealTargetKey]);
+
+  useEffect(() => {
+    setRevealedPin(null);
+    setRevealTargetKey(null);
+  }, [selected]);
+
+  useEffect(() => {
     if (!releaseTechnicianId) return;
     let mounted = true;
     void getTechnicianDayReleaseForDate(
@@ -263,10 +308,10 @@ export function PinAccessManagementPanel() {
       id: technician.id,
       name: technician.name,
       active: technician.active !== false,
-      hasPin: Boolean(technician.pinCode || technician.pinHash),
+      hasPin: hasConfiguredAccessPin(technician),
     })),
     ...vendors
-      .filter((vendor) => Boolean(vendor.pinCode || vendor.pinHash))
+      .filter((vendor) => hasConfiguredAccessPin(vendor))
       .map((vendor): AccessRow => ({
         type: "vendor",
         id: vendor.id,
@@ -329,7 +374,7 @@ export function PinAccessManagementPanel() {
       if (!technician) return;
       await runMutation(row.id, async () => {
         await updateTechnician({
-          ...technician,
+          ...withoutPlaintextTechnicianPin(technician),
           active: technician.active === false,
           updatedAt: new Date().toISOString(),
         });
@@ -364,6 +409,31 @@ export function PinAccessManagementPanel() {
     });
   };
 
+  const hideRevealedPin = () => {
+    setRevealedPin(null);
+    setRevealTargetKey(null);
+  };
+
+  const revealAccessPin = async (
+    targetType: "technician" | "vendor",
+    targetId: string,
+  ) => {
+    if (!isManager) return;
+    const revealKey = `${targetType}:${targetId}`;
+    setBusyId(`reveal:${revealKey}`);
+    setError(null);
+    hideRevealedPin();
+    try {
+      const result = await revealAccessPinClient({ targetType, targetId });
+      setRevealedPin(result.pin);
+      setRevealTargetKey(revealKey);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not reveal PIN.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const saveTechnicianPin = async (technician: Technician) => {
     if (!/^\d{4}$/.test(pinDraft)) {
       setError("PIN must be exactly 4 digits.");
@@ -372,12 +442,13 @@ export function PinAccessManagementPanel() {
     await runMutation(
       technician.id,
       async () => {
-        await updateTechnician({
-          ...technician,
-          pinCode: pinDraft,
-          updatedAt: new Date().toISOString(),
+        await setAccessPinClient({
+          targetType: "technician",
+          targetId: technician.id,
+          pin: pinDraft,
         });
         setPinDraft("");
+        hideRevealedPin();
       },
       `PIN updated for ${technician.name}.`,
     );
@@ -391,12 +462,13 @@ export function PinAccessManagementPanel() {
     await runMutation(
       vendor.id,
       async () => {
-        await updateVendor({
-          ...withoutPlaintextVendorPin(vendor),
-          pinCode: pinDraft,
-          updatedAt: new Date().toISOString(),
+        await setAccessPinClient({
+          targetType: "vendor",
+          targetId: vendor.id,
+          pin: pinDraft,
         });
         setPinDraft("");
+        hideRevealedPin();
       },
       `PIN updated for ${vendor.name}.`,
     );
@@ -429,7 +501,7 @@ export function PinAccessManagementPanel() {
   ) => {
     await runMutation(technician.id, async () => {
       await updateTechnician({
-        ...technician,
+        ...withoutPlaintextTechnicianPin(technician),
         permissions: {
           ...normalizeTechnicianPermissions(technician.permissions),
           ...patch,
@@ -445,7 +517,7 @@ export function PinAccessManagementPanel() {
   ) => {
     await runMutation(technician.id, async () => {
       await updateTechnician({
-        ...technician,
+        ...withoutPlaintextTechnicianPin(technician),
         badgeColor,
         updatedAt: new Date().toISOString(),
       });
@@ -554,22 +626,30 @@ export function PinAccessManagementPanel() {
         await createTechnician({
           id,
           name: wizardName.trim(),
-          pinCode: wizardPin,
           active: true,
           permissions: wizardTechPermissions,
           badgeColor: wizardBadgeColor || defaultBadgeColorHex(id),
           createdAt: now,
           updatedAt: now,
         });
+        await setAccessPinClient({
+          targetType: "technician",
+          targetId: id,
+          pin: wizardPin,
+        });
       } else if (wizardType === "vendor") {
         const vendor = vendors.find((item) => item.id === wizardVendorId);
         if (!vendor) throw new Error("Select a vendor.");
         await updateVendor({
           ...withoutPlaintextVendorPin(vendor),
-          pinCode: wizardPin,
           active: wizardVendorActive,
           companyWideSessionEnabled: wizardVendorCompanyWide,
           updatedAt: new Date().toISOString(),
+        });
+        await setAccessPinClient({
+          targetType: "vendor",
+          targetId: vendor.id,
+          pin: wizardPin,
         });
       } else {
         await upsertManagementPinClient({
@@ -587,6 +667,56 @@ export function PinAccessManagementPanel() {
     } finally {
       setBusyId(null);
     }
+  };
+
+  const renderRevealPinControls = (
+    targetType: "technician" | "vendor",
+    targetId: string,
+    configured: boolean,
+  ) => {
+    if (!isManager || !configured) return null;
+    const revealKey = `${targetType}:${targetId}`;
+    const showing = revealTargetKey === revealKey && revealedPin !== null;
+    return (
+      <div
+        data-testid={`pin-access-reveal-${targetType}-${targetId}`}
+        style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}
+      >
+        {!showing ? (
+          <button
+            data-testid={`pin-access-reveal-button-${targetType}-${targetId}`}
+            type="button"
+            disabled={busyId === `reveal:${revealKey}`}
+            onClick={() => void revealAccessPin(targetType, targetId)}
+            style={secondaryButtonStyle}
+          >
+            {busyId === `reveal:${revealKey}` ? "Revealing…" : "Reveal PIN"}
+          </button>
+        ) : (
+          <>
+            <span
+              data-testid={`pin-access-revealed-value-${targetType}-${targetId}`}
+              style={{
+                fontFamily: "monospace",
+                fontSize: 16,
+                letterSpacing: "0.2em",
+                color: TEXT,
+              }}
+            >
+              {revealedPin}
+            </span>
+            <button
+              data-testid={`pin-access-hide-revealed-${targetType}-${targetId}`}
+              type="button"
+              onClick={hideRevealedPin}
+              style={secondaryButtonStyle}
+            >
+              Hide
+            </button>
+          </>
+        )}
+      </div>
+    );
   };
 
   const renderWizard = () => (
@@ -922,7 +1052,7 @@ export function PinAccessManagementPanel() {
             />
           ))}
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <input
             data-testid={`technician-pin-input-${technician.id}`}
             aria-label={`Change PIN for ${technician.name}`}
@@ -946,6 +1076,11 @@ export function PinAccessManagementPanel() {
           >
             Change PIN
           </button>
+          {renderRevealPinControls(
+            "technician",
+            technician.id,
+            hasConfiguredAccessPin(technician),
+          )}
           <button
             data-testid={`technician-active-toggle-${technician.id}`}
             type="button"
@@ -956,7 +1091,7 @@ export function PinAccessManagementPanel() {
                 id: technician.id,
                 name: technician.name,
                 active: technician.active !== false,
-                hasPin: Boolean(technician.pinCode || technician.pinHash),
+                hasPin: hasConfiguredAccessPin(technician),
               })
             }
             style={secondaryButtonStyle}
@@ -1065,10 +1200,12 @@ export function PinAccessManagementPanel() {
           data-testid={`vendor-access-pin-state-${vendor.id}`}
           style={{ margin: "5px 0 0", color: MUTED, fontSize: 12 }}
         >
-          {vendor.pinCode || vendor.pinHash ? "PIN configured" : "No PIN configured"}
+          {hasConfiguredAccessPin(vendor)
+            ? "PIN configured"
+            : "No PIN configured"}
         </p>
       </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <input
           data-testid={`vendor-access-pin-input-${vendor.id}`}
           aria-label={`Change PIN for ${vendor.name}`}
@@ -1092,6 +1229,11 @@ export function PinAccessManagementPanel() {
         >
           Change PIN
         </button>
+        {renderRevealPinControls(
+          "vendor",
+          vendor.id,
+          hasConfiguredAccessPin(vendor),
+        )}
       </div>
       <label style={{ color: TEXT }}>
         <input

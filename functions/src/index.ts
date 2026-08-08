@@ -90,6 +90,10 @@ import {
 import { getTechnicianReleasedJobs } from "./getTechnicianReleasedJobs";
 import { releaseJobsToTechnician } from "./releaseJobsToTechnician";
 import { recordTechnicianJobOpen } from "./recordTechnicianJobOpen";
+import { setAccessPin } from "./setAccessPin";
+import { revealAccessPin } from "./revealAccessPin";
+import { migrateAccessPins } from "./migrateAccessPins";
+import { listPinAccessAudit } from "./listPinAccessAudit";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -247,6 +251,10 @@ export {
   getTechnicianReleasedJobs,
   recordTechnicianJobOpen,
   releaseJobsToTechnician,
+  setAccessPin,
+  revealAccessPin,
+  migrateAccessPins,
+  listPinAccessAudit,
   processInboundVendorEmail,
   initiateGmailOAuth,
   completeGmailOAuth,
