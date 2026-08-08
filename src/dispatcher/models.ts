@@ -1432,6 +1432,8 @@ export interface ApproveVendorInvoiceImportResult {
   itemsApplied?: number;
   /** True when a new dashboard shell delivery was created (review-only approve / create_shell). */
   shellCreated?: boolean;
+  /** True when Approve targeted a server-matched existing delivery (D-67). */
+  deliveryMatched?: boolean;
   /** True when a job was auto-created from invoice P/O hints. */
   jobCreated?: boolean;
   /** True when relink_to_shell moved off a non-shell delivery. */

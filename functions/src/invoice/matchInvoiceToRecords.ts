@@ -23,8 +23,42 @@ export interface InvoiceMatchResult {
   humanReviewRequired: boolean;
 }
 
-const INVOICE_AUTO_APPLY_CONFIDENCE = 85;
+export const INVOICE_AUTO_APPLY_CONFIDENCE = 85;
 const INVOICE_REVIEW_CONFIDENCE = 60;
+
+/**
+ * Server eligibility for Approve → existing delivery (D-67).
+ * Reuses matchInvoiceToRecords thresholds — no second scoring system.
+ */
+export function isEligibleMatchedDeliveryTarget(
+  match: InvoiceMatchResult,
+  importId: string,
+  deliveries: MatchContext["deliveries"],
+): boolean {
+  if (match.humanReviewRequired) return false;
+  if (match.candidates.length !== 1) return false;
+  const deliveryOrderId = match.deliveryOrderId?.trim();
+  if (!deliveryOrderId) return false;
+  if (match.candidates[0]?.deliveryId !== deliveryOrderId) return false;
+
+  const target = deliveries.find((d) => d.id === deliveryOrderId);
+  if (!target) return false;
+
+  // Never coalesce onto another import's shell / owned delivery.
+  const ownerImportId = target.vendorInvoiceImportId?.trim();
+  if (
+    target.createdFromInvoiceImport === true &&
+    ownerImportId &&
+    ownerImportId !== importId
+  ) {
+    return false;
+  }
+  if (ownerImportId && ownerImportId !== importId) {
+    // Non-shell stamped for a different import — treat as foreign-owned.
+    return false;
+  }
+  return true;
+}
 
 /** Extract PO-##### token from customer reference when present. */
 export function extractPoHint(customerPoOrReference: string): string | undefined {

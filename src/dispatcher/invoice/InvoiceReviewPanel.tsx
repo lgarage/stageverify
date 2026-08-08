@@ -514,8 +514,11 @@ export function InvoiceReviewPanel({
         : result.trainingLessonPendingAdminReview
           ? " Training note pending Admin review."
           : "";
+      const matchNote = result.deliveryMatched
+        ? " Applied to matched existing delivery."
+        : "";
       setSuccessMessage(
-        `Approved — delivery ${result.deliveryOrderId} is on the dispatcher dashboard.${jobNote}${lessonNote}`,
+        `Approved — delivery ${result.deliveryOrderId} is on the dispatcher dashboard.${matchNote}${jobNote}${lessonNote}`,
       );
       if (result.trainingLessonWrote) {
         showTrainingToast(INVOICE_TRAINING_LESSON_TOAST);

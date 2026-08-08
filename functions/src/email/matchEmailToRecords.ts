@@ -25,6 +25,9 @@ export interface MatchDelivery {
   jobId: string;
   vendorId: string;
   purchaseOrderId?: string;
+  /** Invoice shell / ownership stamps — used only to exclude foreign invoice targets. */
+  createdFromInvoiceImport?: boolean;
+  vendorInvoiceImportId?: string;
 }
 
 export interface MatchJobRecord {

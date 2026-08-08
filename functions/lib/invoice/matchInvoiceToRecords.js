@@ -1,9 +1,41 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.INVOICE_AUTO_APPLY_CONFIDENCE = void 0;
+exports.isEligibleMatchedDeliveryTarget = isEligibleMatchedDeliveryTarget;
 exports.extractPoHint = extractPoHint;
 exports.matchInvoiceToRecords = matchInvoiceToRecords;
-const INVOICE_AUTO_APPLY_CONFIDENCE = 85;
+exports.INVOICE_AUTO_APPLY_CONFIDENCE = 85;
 const INVOICE_REVIEW_CONFIDENCE = 60;
+/**
+ * Server eligibility for Approve → existing delivery (D-67).
+ * Reuses matchInvoiceToRecords thresholds — no second scoring system.
+ */
+function isEligibleMatchedDeliveryTarget(match, importId, deliveries) {
+    if (match.humanReviewRequired)
+        return false;
+    if (match.candidates.length !== 1)
+        return false;
+    const deliveryOrderId = match.deliveryOrderId?.trim();
+    if (!deliveryOrderId)
+        return false;
+    if (match.candidates[0]?.deliveryId !== deliveryOrderId)
+        return false;
+    const target = deliveries.find((d) => d.id === deliveryOrderId);
+    if (!target)
+        return false;
+    // Never coalesce onto another import's shell / owned delivery.
+    const ownerImportId = target.vendorInvoiceImportId?.trim();
+    if (target.createdFromInvoiceImport === true &&
+        ownerImportId &&
+        ownerImportId !== importId) {
+        return false;
+    }
+    if (ownerImportId && ownerImportId !== importId) {
+        // Non-shell stamped for a different import — treat as foreign-owned.
+        return false;
+    }
+    return true;
+}
 /** Extract PO-##### token from customer reference when present. */
 function extractPoHint(customerPoOrReference) {
     const match = customerPoOrReference.match(/\b(PO-\d+)\b/i);
@@ -147,7 +179,7 @@ function matchInvoiceToRecords(vendorInvoiceImportId, header, ctx, deliveryNotes
         reasons.push("multiple_delivery_candidates");
     }
     score = Math.max(0, Math.min(100, score || (candidates[0]?.confidenceScore ?? 0)));
-    const humanReviewRequired = score < INVOICE_AUTO_APPLY_CONFIDENCE || candidates.length !== 1;
+    const humanReviewRequired = score < exports.INVOICE_AUTO_APPLY_CONFIDENCE || candidates.length !== 1;
     return {
         vendorInvoiceImportId,
         purchaseOrderId,

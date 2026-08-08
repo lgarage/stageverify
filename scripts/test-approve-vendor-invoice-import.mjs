@@ -533,13 +533,16 @@ try {
     action: "approve",
     deliveryOrderId: "delivery-approve-test",
   });
-  fail("approve with deliveryOrderId should be rejected");
+  fail("approve with unrelated deliveryOrderId should be rejected");
 } catch (err) {
   const msg = String(err?.message ?? "");
-  if (msg.includes("always creates") || msg.includes("invalid-argument")) {
-    pass("approve with deliveryOrderId rejected");
+  if (
+    msg.includes("does not match the server-resolved") ||
+    msg.includes("invalid-argument")
+  ) {
+    pass("approve with unrelated deliveryOrderId rejected");
   } else {
-    fail("expected approve deliveryOrderId rejection", err?.message);
+    fail("expected approve deliveryOrderId mismatch rejection", err?.message);
   }
 }
 
@@ -1531,6 +1534,377 @@ if (
   pass("re-approve replaces plannedStagingLocationIds (no duplicates)");
 } else {
   fail("re-approve replace semantics", reapprovePlanned);
+}
+
+console.log("\n=== CF: matched existing delivery on approve (D-67) ===\n");
+
+/** Unique PO + order per case so match stays single-candidate (score ≥ 85). */
+async function seedHighConfidenceMatchCase(adminDb, {
+  importId,
+  orderNumber,
+  poNumber,
+  fulfillmentMethod = "delivery",
+  importStatus = "pending",
+  deliveryExtras = {},
+}) {
+  const poId = `po-for-${importId}`;
+  const deliveryId = `delivery-for-${importId}`;
+  await setDoc(doc(adminDb, "purchaseOrders", poId), {
+    id: poId,
+    poNumber,
+    jobId: "job-1",
+    vendorId: "vendor-1",
+    status: "open",
+    createdAt: "2026-06-02T00:00:00Z",
+    updatedAt: "2026-06-02T00:00:00Z",
+  });
+  await setDoc(doc(adminDb, "deliveries", deliveryId), {
+    id: deliveryId,
+    orderNumber,
+    jobId: "job-1",
+    vendorId: "vendor-1",
+    purchaseOrderId: poId,
+    status: "pending",
+    notes: `Operational history for ${importId}`,
+    createdAt: "2026-06-01T00:00:00Z",
+    updatedAt: "2026-06-01T00:00:00Z",
+    ...deliveryExtras,
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", importId), {
+    id: importId,
+    inboundEmailProcessingId: `inbound-${importId}`,
+    gmailMessageId: `msg-${importId}`,
+    importBatchId: "batch-matched",
+    pageId: `inv-${importId}`,
+    pageIndexInBatch: 0,
+    reviewStatus: "pending_review",
+    importStatus,
+    confidenceTier: "high",
+    confidenceScore: 90,
+    humanReviewRequired: false,
+    duplicate: false,
+    parsedHeader: {
+      ...dropOffHeader,
+      customerPoOrReference: poNumber,
+      vendorOrderNumber: orderNumber,
+      vendorInvoiceNumber: orderNumber,
+      // Clear inherited jobNumberRaw from `header` — matcher adds every job-1
+      // delivery as a candidate and would force humanReviewRequired.
+      jobNumberRaw: "",
+      fulfillmentMethod,
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+  return deliveryId;
+}
+
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await seedHighConfidenceMatchCase(adminDb, {
+    importId: "vii-matched-no-staging",
+    orderNumber: "MATCH-ORD-A1",
+    poNumber: "PO-80001",
+    deliveryExtras: { notes: "Operational history A1" },
+  });
+  await seedHighConfidenceMatchCase(adminDb, {
+    importId: "vii-matched-preserve-staging",
+    orderNumber: "MATCH-ORD-A2",
+    poNumber: "PO-80002",
+    deliveryExtras: {
+      plannedStagingLocationIds: ["staging-g1"],
+      status: "arrived",
+      notes: "Preserve me",
+    },
+  });
+  await seedHighConfidenceMatchCase(adminDb, {
+    importId: "vii-matched-change-staging",
+    orderNumber: "MATCH-ORD-A3",
+    poNumber: "PO-80003",
+    deliveryExtras: {
+      plannedStagingLocationIds: ["staging-g1"],
+      status: "arrived",
+      notes: "Change staging",
+    },
+  });
+  await seedHighConfidenceMatchCase(adminDb, {
+    importId: "vii-matched-willcall",
+    orderNumber: "MATCH-ORD-A4",
+    poNumber: "PO-80004",
+    fulfillmentMethod: "will_call_pickup",
+    importStatus: "pickup_at_vendor",
+  });
+  await seedHighConfidenceMatchCase(adminDb, {
+    importId: "vii-matched-malicious-id",
+    orderNumber: "MATCH-ORD-A5",
+    poNumber: "PO-80005",
+  });
+
+  // Foreign shell owns the only candidate for this order/PO → must fall back to own shell.
+  await setDoc(doc(adminDb, "purchaseOrders", "po-foreign"), {
+    id: "po-foreign",
+    poNumber: "PO-80999",
+    jobId: "job-1",
+    vendorId: "vendor-1",
+    status: "open",
+    createdAt: "2026-06-02T00:00:00Z",
+    updatedAt: "2026-06-02T00:00:00Z",
+  });
+  await setDoc(doc(adminDb, "deliveries", "delivery-foreign-shell"), {
+    id: "delivery-foreign-shell",
+    orderNumber: "MATCH-ORD-FOREIGN",
+    jobId: "job-1",
+    vendorId: "vendor-1",
+    purchaseOrderId: "po-foreign",
+    status: "pending",
+    createdFromInvoiceImport: true,
+    vendorInvoiceImportId: "vii-other-import-owner",
+    createdAt: "2026-06-01T00:00:00Z",
+    updatedAt: "2026-06-01T00:00:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-match-foreign-shell"), {
+    id: "vii-match-foreign-shell",
+    inboundEmailProcessingId: "inbound-foreign",
+    gmailMessageId: "msg-foreign",
+    importBatchId: "batch-matched",
+    pageId: "inv-foreign",
+    pageIndexInBatch: 0,
+    reviewStatus: "pending_review",
+    importStatus: "pending",
+    confidenceTier: "high",
+    confidenceScore: 90,
+    humanReviewRequired: false,
+    duplicate: false,
+    parsedHeader: {
+      ...dropOffHeader,
+      customerPoOrReference: "PO-80999",
+      vendorOrderNumber: "MATCH-ORD-FOREIGN",
+      vendorInvoiceNumber: "MATCH-ORD-FOREIGN",
+      jobNumberRaw: "",
+      fulfillmentMethod: "delivery",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+
+let matchedNoStg;
+try {
+  matchedNoStg = await approveImport({
+    vendorInvoiceImportId: "vii-matched-no-staging",
+    action: "approve",
+    plannedStagingLocationIds: ["staging-g2"],
+  });
+} catch (err) {
+  fail("matched drop-off approve failed", err?.message);
+}
+const matchedTarget = "delivery-for-vii-matched-no-staging";
+const matchedShell = shellDeliveryIdForImport("vii-matched-no-staging");
+const matchedSnap = await getDoc(doc(db, "deliveries", matchedTarget));
+const matchedShellSnap = await getDoc(doc(db, "deliveries", matchedShell));
+if (
+  matchedNoStg?.data?.reviewStatus === "approved" &&
+  matchedNoStg?.data?.deliveryMatched === true &&
+  matchedNoStg?.data?.shellCreated === false &&
+  matchedNoStg?.data?.deliveryOrderId === matchedTarget &&
+  matchedSnap.exists() &&
+  matchedSnap.data()?.plannedStagingLocationIds?.[0] === "staging-g2" &&
+  matchedSnap.data()?.notes === "Operational history A1" &&
+  matchedSnap.data()?.status === "pending" &&
+  !matchedShellSnap.exists()
+) {
+  pass("matched drop-off updates existing delivery — no shell duplicate");
+} else {
+  fail("matched drop-off target/shell", {
+    response: matchedNoStg?.data,
+    existing: matchedSnap.data(),
+    shellExists: matchedShellSnap.exists(),
+  });
+}
+
+let matchedPreserve;
+try {
+  matchedPreserve = await approveImport({
+    vendorInvoiceImportId: "vii-matched-preserve-staging",
+    action: "approve",
+    // omit plannedStagingLocationIds — preserve existing
+  });
+} catch (err) {
+  fail("matched preserve staging approve failed", err?.message);
+}
+const preserveId = "delivery-for-vii-matched-preserve-staging";
+const preserveSnap = await getDoc(doc(db, "deliveries", preserveId));
+const preservePlanned = preserveSnap.data()?.plannedStagingLocationIds ?? [];
+if (
+  matchedPreserve?.data?.deliveryMatched === true &&
+  preservePlanned.length === 1 &&
+  preservePlanned[0] === "staging-g1" &&
+  preserveSnap.data()?.notes === "Preserve me"
+) {
+  pass("matched drop-off preserves existing staging when omitted");
+} else {
+  fail("matched preserve staging", {
+    response: matchedPreserve?.data,
+    planned: preservePlanned,
+    notes: preserveSnap.data()?.notes,
+  });
+}
+
+let matchedChange;
+try {
+  matchedChange = await approveImport({
+    vendorInvoiceImportId: "vii-matched-change-staging",
+    action: "approve",
+    plannedStagingLocationIds: ["staging-g2"],
+  });
+} catch (err) {
+  fail("matched change staging approve failed", err?.message);
+}
+const changeId = "delivery-for-vii-matched-change-staging";
+const changeSnap = await getDoc(doc(db, "deliveries", changeId));
+const changePlanned = changeSnap.data()?.plannedStagingLocationIds ?? [];
+if (
+  matchedChange?.data?.deliveryMatched === true &&
+  changePlanned.length === 1 &&
+  changePlanned[0] === "staging-g2" &&
+  changeSnap.data()?.status === "arrived"
+) {
+  pass("matched drop-off replaces staging on existing delivery");
+} else {
+  fail("matched change staging", { planned: changePlanned, status: changeSnap.data()?.status });
+}
+
+let matchedWill;
+try {
+  matchedWill = await approveImport({
+    vendorInvoiceImportId: "vii-matched-willcall",
+    action: "approve",
+    plannedStagingLocationIds: ["staging-g1"],
+  });
+} catch (err) {
+  fail("matched will-call approve failed", err?.message);
+}
+const willId = "delivery-for-vii-matched-willcall";
+const willSnap = await getDoc(doc(db, "deliveries", willId));
+if (
+  matchedWill?.data?.deliveryMatched === true &&
+  willSnap.data()?.plannedStagingLocationIds === undefined
+) {
+  pass("matched will-call ignores stale staging ids");
+} else {
+  fail("matched will-call staging", {
+    response: matchedWill?.data,
+    planned: willSnap.data()?.plannedStagingLocationIds,
+  });
+}
+
+try {
+  await approveImport({
+    vendorInvoiceImportId: "vii-matched-malicious-id",
+    action: "approve",
+    deliveryOrderId: "delivery-unrelated-malicious",
+    plannedStagingLocationIds: ["staging-g1"],
+  });
+  fail("malicious deliveryOrderId should be rejected");
+} catch (err) {
+  const msg = String(err?.message ?? "");
+  if (msg.includes("does not match the server-resolved") || msg.includes("invalid-argument")) {
+    pass("malicious/unrelated deliveryOrderId rejected server-side");
+  } else {
+    fail("expected malicious id rejection", err?.message);
+  }
+}
+
+let foreignFallthrough;
+try {
+  foreignFallthrough = await approveImport({
+    vendorInvoiceImportId: "vii-match-foreign-shell",
+    action: "approve",
+    plannedStagingLocationIds: ["staging-g1"],
+  });
+} catch (err) {
+  fail("foreign-shell candidate should fall back to own shell", err?.message);
+}
+const foreignShellId = shellDeliveryIdForImport("vii-match-foreign-shell");
+const foreignExisting = await getDoc(doc(db, "deliveries", "delivery-foreign-shell"));
+const foreignOwnShell = await getDoc(doc(db, "deliveries", foreignShellId));
+if (
+  foreignFallthrough?.data?.deliveryMatched !== true &&
+  foreignFallthrough?.data?.deliveryOrderId === foreignShellId &&
+  foreignOwnShell.exists() &&
+  foreignExisting.data()?.vendorInvoiceImportId === "vii-other-import-owner"
+) {
+  pass("foreign invoice shell candidate excluded — falls back to own shell");
+} else {
+  fail("foreign shell exclusion", {
+    response: foreignFallthrough?.data,
+    foreignOwner: foreignExisting.data()?.vendorInvoiceImportId,
+    ownExists: foreignOwnShell.exists(),
+  });
+}
+
+// Re-approve matched: reject then reopen then approve again — same target, no shell
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(
+    doc(adminDb, "vendorInvoiceImports", "vii-matched-no-staging"),
+    {
+      reviewStatus: "rejected",
+      rejectedAt: "2026-06-25T00:00:00Z",
+      rejectedBy: "system",
+      // keep linkedDeliveryOrderId from prior approve
+    },
+    { merge: true },
+  );
+});
+// reopen system path may block manual reject — set pending directly for re-approve identity test
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(
+    doc(adminDb, "vendorInvoiceImports", "vii-matched-no-staging"),
+    {
+      reviewStatus: "pending_review",
+      rejectedAt: null,
+      rejectedBy: null,
+    },
+    { merge: true },
+  );
+});
+let matchedReapprove;
+try {
+  matchedReapprove = await approveImport({
+    vendorInvoiceImportId: "vii-matched-no-staging",
+    action: "approve",
+    plannedStagingLocationIds: ["staging-g1"],
+  });
+} catch (err) {
+  fail("matched re-approve failed", err?.message);
+}
+const reMatchedSnap = await getDoc(doc(db, "deliveries", matchedTarget));
+const reMatchedShell = await getDoc(doc(db, "deliveries", matchedShell));
+if (
+  matchedReapprove?.data?.deliveryOrderId === matchedTarget &&
+  reMatchedSnap.data()?.plannedStagingLocationIds?.[0] === "staging-g1" &&
+  reMatchedSnap.data()?.notes === "Operational history A1" &&
+  !reMatchedShell.exists()
+) {
+  pass("matched re-approve keeps same delivery — no shell, no history wipe");
+} else {
+  fail("matched re-approve identity", {
+    response: matchedReapprove?.data,
+    notes: reMatchedSnap.data()?.notes,
+    shellExists: reMatchedShell.exists(),
+  });
 }
 
 await testEnv.cleanup();
