@@ -293,6 +293,8 @@ export function PinAccessManagementPanel({
   const [adminAccess, setAdminAccess] =
     useState<AdminAccessElevation | null>(null);
   const adminAccessRef = useRef<AdminAccessElevation | null>(null);
+  const adminAccessRequestRef = useRef(0);
+  const mountedRef = useRef(true);
   const [adminAccessBusy, setAdminAccessBusy] = useState(false);
 
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -351,8 +353,11 @@ export function PinAccessManagementPanel({
     return () => window.clearTimeout(timeout);
   }, [adminAccess, revokeCurrentAdminAccess]);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      adminAccessRequestRef.current += 1;
       const current = adminAccessRef.current;
       adminAccessRef.current = null;
       if (current) {
@@ -362,9 +367,8 @@ export function PinAccessManagementPanel({
           targetId: current.targetId,
         }).catch(() => undefined);
       }
-    },
-    [],
-  );
+    };
+  }, []);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -482,6 +486,8 @@ export function PinAccessManagementPanel({
       : undefined;
 
   const selectAccess = async (row: AccessRow) => {
+    adminAccessRequestRef.current += 1;
+    setAdminAccessBusy(false);
     await revokeCurrentAdminAccess();
     setSelected({ type: row.type, id: row.id });
     setPinDraft("");
@@ -609,6 +615,8 @@ export function PinAccessManagementPanel({
     targetType: AccessPinTargetType,
     targetId: string,
   ) => {
+    const requestId = adminAccessRequestRef.current + 1;
+    adminAccessRequestRef.current = requestId;
     setAdminAccessBusy(true);
     setError(null);
     try {
@@ -617,6 +625,17 @@ export function PinAccessManagementPanel({
         targetType,
         targetId,
       });
+      if (
+        !mountedRef.current ||
+        adminAccessRequestRef.current !== requestId
+      ) {
+        await revokeAdminAccessSessionClient({
+          sessionToken: session.sessionToken,
+          targetType,
+          targetId,
+        }).catch(() => undefined);
+        return;
+      }
       const elevation: AdminAccessElevation = {
         token: session.sessionToken,
         targetType,
@@ -631,6 +650,17 @@ export function PinAccessManagementPanel({
           targetId,
           sessionToken: session.sessionToken,
         });
+        if (
+          !mountedRef.current ||
+          adminAccessRequestRef.current !== requestId
+        ) {
+          await revokeAdminAccessSessionClient({
+            sessionToken: session.sessionToken,
+            targetType,
+            targetId,
+          }).catch(() => undefined);
+          return;
+        }
         const revealedElevation = {
           ...elevation,
           revealedPin: reveal.pin,
@@ -638,6 +668,17 @@ export function PinAccessManagementPanel({
         adminAccessRef.current = revealedElevation;
         setAdminAccess(revealedElevation);
       } catch (err) {
+        if (
+          !mountedRef.current ||
+          adminAccessRequestRef.current !== requestId
+        ) {
+          await revokeAdminAccessSessionClient({
+            sessionToken: session.sessionToken,
+            targetType,
+            targetId,
+          }).catch(() => undefined);
+          return;
+        }
         if (isRevealUnavailableError(err)) {
           const unavailableElevation = {
             ...elevation,
@@ -651,15 +692,27 @@ export function PinAccessManagementPanel({
         }
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Could not start Admin Access.",
-      );
+      if (
+        mountedRef.current &&
+        adminAccessRequestRef.current === requestId
+      ) {
+        setError(
+          err instanceof Error ? err.message : "Could not start Admin Access.",
+        );
+      }
     } finally {
-      setAdminAccessBusy(false);
+      if (
+        mountedRef.current &&
+        adminAccessRequestRef.current === requestId
+      ) {
+        setAdminAccessBusy(false);
+      }
     }
   };
 
   const cancelEditor = async () => {
+    adminAccessRequestRef.current += 1;
+    setAdminAccessBusy(false);
     await revokeCurrentAdminAccess();
     setPinDraft("");
     setEditorDraft(null);
@@ -670,6 +723,7 @@ export function PinAccessManagementPanel({
   const savePinEditor = async (
     row: Extract<AccessRow, { type: PinUserType }>,
   ) => {
+    if (adminAccessBusy) return;
     if (!editorDraft || editorDraft.type !== row.type) return;
     if (pinDraft && !/^\d{4}$/.test(pinDraft)) {
       setError("PIN must be exactly 4 digits.");
@@ -1630,13 +1684,16 @@ export function PinAccessManagementPanel({
             data-testid="pin-access-save"
             type="button"
             disabled={
-              busyId === row.id || Boolean(pinDraft && !/^\d{4}$/.test(pinDraft))
+              adminAccessBusy ||
+              busyId === row.id ||
+              Boolean(pinDraft && !/^\d{4}$/.test(pinDraft))
             }
             onClick={() => void savePinEditor(row)}
             style={{
               ...primaryButtonStyle,
               minHeight: 36,
               opacity:
+                adminAccessBusy ||
                 busyId === row.id ||
                 Boolean(pinDraft && !/^\d{4}$/.test(pinDraft))
                   ? 0.55
