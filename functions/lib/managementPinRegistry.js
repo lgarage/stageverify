@@ -15,7 +15,6 @@ const https_1 = require("firebase-functions/v2/https");
 const adminAccessSession_1 = require("./adminAccessSession");
 const accessPinSecretWrite_1 = require("./accessPinSecretWrite");
 const pinMatching_1 = require("./pinMatching");
-const accessPinLookup_1 = require("./accessPinLookup");
 const accessPinSecretsShared_1 = require("./accessPinSecretsShared");
 /** Stable id used by setManagementPin back-compat wrapper + legacy migration. */
 exports.DEFAULT_MANAGEMENT_PIN_ID = "default";
@@ -95,11 +94,22 @@ async function managementPinRegistryHasDocs() {
 async function listManagementPinsForSettings() {
     const docs = await listAllManagementPinDocs();
     if (docs.length > 0) {
-        return docs.map(({ pinHash: _h, virtual: _v, ...rest }) => ({
-            ...rest,
-            hasPin: Boolean(_h?.includes(":")),
-            virtual: false,
+        const withSecretFlags = await Promise.all(docs.map(async ({ pinHash: _h, virtual: _v, ...rest }) => {
+            let hasSecret = false;
+            if (!_h?.includes(":")) {
+                const secretSnap = await (0, accessPinSecretsShared_1.getDb)()
+                    .collection(accessPinSecretsShared_1.ACCESS_PIN_SECRETS_COLLECTION)
+                    .doc((0, accessPinSecretsShared_1.accessPinSecretDocId)("management", rest.id))
+                    .get();
+                hasSecret = secretSnap.exists;
+            }
+            return {
+                ...rest,
+                hasPin: Boolean(_h?.includes(":")) || hasSecret,
+                virtual: false,
+            };
         }));
+        return withSecretFlags;
     }
     const legacyHash = await loadLegacyPinHash();
     if (!legacyHash.includes(":"))
@@ -149,7 +159,10 @@ async function loadManagementPinById(pinId) {
  * Legacy dual-read only when managementPins collection is empty.
  */
 async function resolveManagementPinMatch(pin) {
-    const fromSecrets = await (0, accessPinLookup_1.findManagementPinByAccessPinSecrets)(pin);
+    // Dynamic import avoids a circular init cycle with accessPinLookup
+    // (lookup → loadManagementPinById → registry → findManagement…).
+    const { findManagementPinByAccessPinSecrets } = await Promise.resolve().then(() => require("./accessPinLookup"));
+    const fromSecrets = await findManagementPinByAccessPinSecrets(pin);
     if (fromSecrets)
         return fromSecrets;
     const all = await listAllManagementPinDocs();
