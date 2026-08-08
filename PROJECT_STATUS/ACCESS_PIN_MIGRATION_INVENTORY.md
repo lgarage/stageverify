@@ -28,3 +28,5 @@
 Do **not** run mutating migration against prod until Dan approves deploy.
 
 **Local/emulator fixtures:** none seeded in this PR — tests cover crypto, session helpers, and rules blocks only.
+
+**Post-sync re-verify (2026-08-08):** D-43 UI/build evidence stamped after rebase — `verify:settings-pin-access` PASS; MERGEABLE+CLEAN.
