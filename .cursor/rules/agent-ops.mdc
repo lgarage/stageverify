@@ -13,7 +13,7 @@ This repo uses the **agent-ops** skill (`~/.cursor/skills/agent-ops`, git `C:\Pr
 - **Trials:** `.cursor/trials.json` (per-project)
 - **Authority:** This file wins on orchestration; SKILL.md wins on outcome schema and tier table.
 - **Session start / pre-edit / model routing:** `composer-orchestrator.mdc` + `model-gates.mdc` + `confidence-gate.mdc` (D-47: conf ≥ 97% before **every** edit) — do not duplicate here.
-- **3-fail stuck spin (D-50):** 3 consecutive implement+verify fails on same task scope → Grok ↔ Sonnet Agree → Grok implements stuck scope only → Composer resumes default implementer after that ship — see `model-gates.mdc` § 3-fail stuck-task escalation.
+- **3-fail stuck spin (D-50):** 3 consecutive implement+verify fails on same task scope → Grok ↔ Sonnet Agree → Grok implements stuck scope only → Sol (UI-class) / Composer (non-UI) resumes default implementer after that ship — see `model-gates.mdc` § 3-fail stuck-task escalation.
 
 ## During work
 
