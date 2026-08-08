@@ -46,11 +46,6 @@ async function checkSetRateLimit(attemptKey) {
         }, { merge: true });
     });
 }
-async function requireManagerForInitialAssign(uid) {
-    if (!(await (0, dispatcherAuth_1.hasManagerRole)(uid))) {
-        throw new https_1.HttpsError("permission-denied", "Manager role required for this action.");
-    }
-}
 function managementEntityPatch(now) {
     return {
         pinHash: firestore_1.FieldValue.delete(),
@@ -71,7 +66,7 @@ exports.setAccessPin = (0, https_1.onCall)({
     region: "us-central1",
     secrets: [accessPinCrypto_1.accessPinEncryptionKey],
 }, async (request) => {
-    const uid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+    const uid = await (0, dispatcherAuth_1.requireManagerAuth)(request);
     const data = (request.data ?? {});
     const targetType = (0, accessPinSecretsShared_1.parseAccessPinTargetType)(data.targetType);
     const targetId = typeof data.targetId === "string" ? data.targetId.trim() : "";
@@ -96,9 +91,6 @@ exports.setAccessPin = (0, https_1.onCall)({
         if (!sessionCheck.ok) {
             throw new https_1.HttpsError("permission-denied", "Admin access session invalid or expired.");
         }
-    }
-    else {
-        await requireManagerForInitialAssign(uid);
     }
     const db = (0, accessPinSecretsShared_1.getDb)();
     const entityRef = (0, accessPinTargetHelpers_1.entityRefForTarget)(targetType, targetId);
