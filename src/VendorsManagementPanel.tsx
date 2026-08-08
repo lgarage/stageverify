@@ -1,6 +1,14 @@
-import { useState, useEffect, useRef, type CSSProperties, type FormEvent } from "react";
+import { useState, useEffect, useMemo, useRef, type CSSProperties, type FormEvent } from "react";
 import type { Vendor } from "./dispatcher/models";
 import { listVendors, createVendor, updateVendor } from "./dispatcher/firestoreService";
+import {
+  buildVendorDisplayFields,
+  formatVendorDisplayName,
+  listVendorCompanyNames,
+  resolveVendorCompanyName,
+  resolveVendorLocationName,
+  vendorMatchesSearch,
+} from "./dispatcher/vendorDisplayName";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -50,7 +58,9 @@ export function VendorsManagementPanel({
   const [, setRefresh] = useState(0);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const lastAppliedGeneration = useRef(0);
-  const [name, setName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [locationName, setLocationName] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -61,7 +71,8 @@ export function VendorsManagementPanel({
   const [active, setActive] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState({
-    name: "",
+    companyName: "",
+    locationName: "",
     contactName: "",
     contactPhone: "",
     email: "",
@@ -72,10 +83,17 @@ export function VendorsManagementPanel({
     active: true,
   });
 
+  const companyOptions = useMemo(() => listVendorCompanyNames(vendors), [vendors]);
+  const filteredVendors = useMemo(
+    () => vendors.filter((v) => vendorMatchesSearch(v, searchQuery)),
+    [vendors, searchQuery],
+  );
+
   const startEdit = (vendor: Vendor) => {
     setEditingId(vendor.id);
     setEditDraft({
-      name: vendor.name,
+      companyName: resolveVendorCompanyName(vendor),
+      locationName: resolveVendorLocationName(vendor),
       contactName: vendor.contactName ?? "",
       contactPhone: vendor.contactPhone ?? "",
       email: vendor.email ?? "",
@@ -90,10 +108,14 @@ export function VendorsManagementPanel({
   const cancelEdit = () => setEditingId(null);
 
   const saveEdit = async (vendor: Vendor) => {
-    if (!editDraft.name.trim()) return;
+    if (!editDraft.companyName.trim()) return;
+    const display = buildVendorDisplayFields({
+      companyName: editDraft.companyName,
+      locationName: editDraft.locationName,
+    });
     const updated: Vendor = {
       ...withoutPlaintextVendorPin(vendor),
-      name: editDraft.name.trim(),
+      ...display,
       contactName: editDraft.contactName.trim() || undefined,
       contactPhone: editDraft.contactPhone.trim() || undefined,
       email: editDraft.email.trim() || undefined,
@@ -125,10 +147,14 @@ export function VendorsManagementPanel({
 
   const handleAddVendor = async (e: FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!companyName.trim()) return;
+    const display = buildVendorDisplayFields({
+      companyName,
+      locationName,
+    });
     const newVendor: Vendor = {
       id: "vendor-" + Date.now(),
-      name: name.trim(),
+      ...display,
       contactName: contactName.trim() || undefined,
       contactPhone: contactPhone.trim() || undefined,
       email: email.trim() || undefined,
@@ -143,7 +169,8 @@ export function VendorsManagementPanel({
     await createVendor(newVendor);
     setVendors((prev) => [...prev, newVendor]);
     setRefresh((r) => r + 1);
-    setName("");
+    setCompanyName("");
+    setLocationName("");
     setContactName("");
     setContactPhone("");
     setEmail("");
@@ -175,8 +202,46 @@ export function VendorsManagementPanel({
                   fontWeight: 500,
                 }}
               >
-                {vendors.length} {vendors.length === 1 ? "vendor" : "vendors"}
+                {filteredVendors.length} of {vendors.length}{" "}
+                {vendors.length === 1 ? "location" : "locations"}
               </span>
+            </div>
+
+            <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--admin-border)" }}>
+              <label
+                htmlFor="vendors-search"
+                style={{
+                  display: "block",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "var(--admin-text-muted)",
+                  marginBottom: 6,
+                  fontFamily: FONT,
+                }}
+              >
+                Search companies or locations
+              </label>
+              <input
+                id="vendors-search"
+                data-testid="vendors-search"
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Johnstone, Appleton, De Pere…"
+                style={{
+                  width: "100%",
+                  maxWidth: 420,
+                  padding: "10px 12px",
+                  border: "1.5px solid var(--admin-border)",
+                  borderRadius: "var(--admin-control-radius)",
+                  fontSize: 14,
+                  color: "var(--admin-text)",
+                  outline: "none",
+                  backgroundColor: "var(--admin-surface)",
+                  fontFamily: FONT,
+                  boxSizing: "border-box",
+                }}
+              />
             </div>
 
             <div style={{ overflowX: "auto" }}>
@@ -190,7 +255,7 @@ export function VendorsManagementPanel({
               >
                 <thead>
                   <tr data-testid="vendors-table-header">
-                    {["Name", "Active", "Contact Name", "Contact Phone", "Email", "Email Domain", "Address", "Supplies", "Notes", ""].map(
+                    {["Display Name", "Company", "Location", "Active", "Contact Name", "Contact Phone", "Email", "Email Domain", "Address", "Supplies", "Notes", ""].map(
                       (col, i) => (
                         <th
                           key={i}
@@ -209,7 +274,7 @@ export function VendorsManagementPanel({
                   </tr>
                 </thead>
                 <tbody>
-                  {vendors.map((vendor, idx) => {
+                  {filteredVendors.map((vendor, idx) => {
                     const isEditing = editingId === vendor.id;
                     const rowBg = idx % 2 === 0 ? "var(--admin-row-even)" : "var(--admin-row-odd)";
                     const tdBase: CSSProperties = {
@@ -237,17 +302,50 @@ export function VendorsManagementPanel({
                         {...(idx === 0 ? { "data-testid": "vendors-table-row" } : {})}
                       >
                         <td style={{ ...tdBase, fontWeight: 600, color: "var(--admin-text)" }}>
+                          {isEditing
+                            ? formatVendorDisplayName({
+                                companyName: editDraft.companyName,
+                                locationName: editDraft.locationName,
+                              }) || "—"
+                            : formatVendorDisplayName(vendor)}
+                        </td>
+                        <td style={{ ...tdBase, color: "var(--admin-text)" }}>
+                          {isEditing ? (
+                            <>
+                              <input
+                                list="vendor-company-options"
+                                style={inlineInput}
+                                value={editDraft.companyName}
+                                data-testid="edit-vendor-company"
+                                onChange={(e) =>
+                                  setEditDraft((d) => ({
+                                    ...d,
+                                    companyName: e.target.value,
+                                  }))
+                                }
+                                autoFocus
+                              />
+                            </>
+                          ) : (
+                            resolveVendorCompanyName(vendor) || "—"
+                          )}
+                        </td>
+                        <td style={{ ...tdBase, color: "var(--admin-text)" }}>
                           {isEditing ? (
                             <input
                               style={inlineInput}
-                              value={editDraft.name}
+                              value={editDraft.locationName}
+                              data-testid="edit-vendor-location"
+                              placeholder="Appleton"
                               onChange={(e) =>
-                                setEditDraft((d) => ({ ...d, name: e.target.value }))
+                                setEditDraft((d) => ({
+                                  ...d,
+                                  locationName: e.target.value,
+                                }))
                               }
-                              autoFocus
                             />
                           ) : (
-                            vendor.name
+                            resolveVendorLocationName(vendor) || "—"
                           )}
                         </td>
                         <td style={{ ...tdBase, color: "var(--admin-text)" }}>
@@ -377,18 +475,18 @@ export function VendorsManagementPanel({
                               <button
                                 data-testid="vendor-row-save"
                                 onClick={() => saveEdit(vendor)}
-                                disabled={!editDraft.name.trim()}
+                                disabled={!editDraft.companyName.trim()}
                                 style={{
                                   padding: "3px 10px",
                                   borderRadius: 4,
                                   border: "none",
-                                  backgroundColor: !editDraft.name.trim() ? "var(--admin-border)" : NAVY,
-                                  color: !editDraft.name.trim()
+                                  backgroundColor: !editDraft.companyName.trim() ? "var(--admin-border)" : NAVY,
+                                  color: !editDraft.companyName.trim()
                                     ? "var(--admin-text-muted)"
                                     : "var(--admin-on-navy)",
                                   fontSize: 12,
                                   fontWeight: 600,
-                                  cursor: !editDraft.name.trim() ? "not-allowed" : "pointer",
+                                  cursor: !editDraft.companyName.trim() ? "not-allowed" : "pointer",
                                   fontFamily: FONT,
                                 }}
                               >
@@ -439,18 +537,34 @@ export function VendorsManagementPanel({
             </div>
           </div>
 
-          {/* Add Vendor form */}
+          {/* Add Vendor Location form */}
           <div className="admin-card" style={{ ...cardStyle, padding: "20px" }}>
             <h2
               style={{
-                margin: "0 0 16px",
+                margin: "0 0 8px",
                 fontSize: 15,
                 fontWeight: 700,
                 color: "var(--admin-accent-soft)",
               }}
             >
-              Add Vendor
+              Add Vendor Location
             </h2>
+            <p
+              style={{
+                margin: "0 0 16px",
+                fontSize: 12,
+                color: "var(--admin-text-secondary)",
+                fontFamily: FONT,
+              }}
+            >
+              Pick or type a company, then add a branch/location. Display name is
+              generated as Company — Location.
+            </p>
+            <datalist id="vendor-company-options">
+              {companyOptions.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
             <form onSubmit={handleAddVendor}>
               <div
                 style={{
@@ -470,13 +584,16 @@ export function VendorsManagementPanel({
                       marginBottom: 6,
                     }}
                   >
-                    Name <span style={{ color: RED }}>*</span>
+                    Company <span style={{ color: RED }}>*</span>
                   </label>
                   <input
                     type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    list="vendor-company-options"
+                    data-testid="add-vendor-company"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
                     required
+                    placeholder="Johnstone Supply"
                     style={{
                       width: "100%",
                       padding: "10px 12px",
@@ -490,6 +607,55 @@ export function VendorsManagementPanel({
                       boxSizing: "border-box",
                     }}
                   />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "var(--admin-text-muted)",
+                      marginBottom: 6,
+                    }}
+                  >
+                    Location / Branch
+                  </label>
+                  <input
+                    type="text"
+                    data-testid="add-vendor-location"
+                    value={locationName}
+                    onChange={(e) => setLocationName(e.target.value)}
+                    placeholder="Appleton"
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      border: "1.5px solid var(--admin-border)",
+                      borderRadius: 6,
+                      fontSize: 14,
+                      color: "var(--admin-text)",
+                      outline: "none",
+                      backgroundColor: "var(--admin-surface)",
+                      fontFamily: FONT,
+                      boxSizing: "border-box",
+                    }}
+                  />
+                  {companyName.trim() ? (
+                    <p
+                      data-testid="add-vendor-display-preview"
+                      style={{
+                        margin: "6px 0 0",
+                        fontSize: 12,
+                        color: "var(--admin-text-secondary)",
+                        fontFamily: FONT,
+                      }}
+                    >
+                      Display:{" "}
+                      {formatVendorDisplayName({
+                        companyName,
+                        locationName,
+                      })}
+                    </p>
+                  ) : null}
                 </div>
                 <div>
                   <label
@@ -723,16 +889,16 @@ export function VendorsManagementPanel({
               <button
                 type="submit"
                 data-testid="add-vendor-submit"
-                disabled={!name.trim()}
+                disabled={!companyName.trim()}
                 style={{
                   padding: "8px 18px",
                   borderRadius: "var(--admin-control-radius)",
                   border: "none",
-                  backgroundColor: !name.trim() ? "var(--admin-surface-2)" : RED,
-                  color: !name.trim() ? "var(--admin-text-muted)" : "var(--admin-on-navy)",
+                  backgroundColor: !companyName.trim() ? "var(--admin-surface-2)" : RED,
+                  color: !companyName.trim() ? "var(--admin-text-muted)" : "var(--admin-on-navy)",
                   fontWeight: 700,
                   fontSize: 13,
-                  cursor: !name.trim() ? "not-allowed" : "pointer",
+                  cursor: !companyName.trim() ? "not-allowed" : "pointer",
                   fontFamily: FONT,
                   outline: "none",
                 }}
