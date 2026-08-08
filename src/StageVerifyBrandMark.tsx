@@ -2,7 +2,7 @@ import type { CSSProperties, ImgHTMLAttributes } from "react";
 import {
   stageVerifyBrandAssetPath,
   type StageVerifyBrandVariant,
-} from "./brandTokens";
+} from "./stageVerifyBrandAssets";
 
 interface StageVerifyBrandMarkProps
   extends Omit<
