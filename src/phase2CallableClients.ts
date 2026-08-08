@@ -203,6 +203,7 @@ export async function getLocationPublicBrandingClient(
 
 export async function setManagementPinClient(input: {
   pin: string;
+  sessionToken?: string;
 }): Promise<{ success: boolean }> {
   return callCallable("setManagementPin", input);
 }
@@ -219,6 +220,7 @@ export async function upsertManagementPinClient(input: {
   pin?: string;
   active?: boolean;
   permissions?: import("./dispatcher/models").ManagementPinPermissions;
+  sessionToken?: string;
 }): Promise<{ success: boolean; id: string }> {
   return callCallable("upsertManagementPin", input);
 }

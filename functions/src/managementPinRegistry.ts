@@ -1,11 +1,20 @@
 import { HttpsError } from "firebase-functions/v2/https";
 import {
+  hashAdminAccessSessionRaw,
+  type AdminAccessSessionDoc,
+} from "./adminAccessSession";
+import {
   applyAccessPinSecretWriteInTransaction,
   prepareAccessPinSecretWrite,
 } from "./accessPinSecretWrite";
 import { asFourDigitPin, pinMatches } from "./pinMatching";
 import { findManagementPinByAccessPinSecrets } from "./accessPinLookup";
-import { getDb, accessPinSecretDocId } from "./accessPinSecretsShared";
+import {
+  ADMIN_ACCESS_SESSIONS_COLLECTION,
+  getDb,
+  accessPinSecretDocId,
+} from "./accessPinSecretsShared";
+import type { ManagementPinSessionConsumption } from "./managementPinWriteAuth";
 
 /** Stable id used by setManagementPin back-compat wrapper + legacy migration. */
 export const DEFAULT_MANAGEMENT_PIN_ID = "default";
@@ -282,6 +291,8 @@ export interface UpsertManagementPinInput {
   pin?: string;
   active?: boolean;
   permissions?: ManagementPinPermissions;
+  sessionConsumption?: ManagementPinSessionConsumption | null;
+  actorUid?: string;
 }
 
 export async function upsertManagementPinDoc(
@@ -301,17 +312,6 @@ export async function upsertManagementPinDoc(
     throw new HttpsError("invalid-argument", "A 4-digit PIN is required.");
   }
 
-  if (!existing && !pin) {
-    throw new HttpsError(
-      "invalid-argument",
-      "A 4-digit PIN is required for a new management PIN.",
-    );
-  }
-
-  if (pin) {
-    await assertUniqueActivePin(pin, pinId);
-  }
-
   const label =
     asLabel(input.label) ??
     existing?.label ??
@@ -324,7 +324,25 @@ export async function upsertManagementPinDoc(
     input.permissions ?? existing?.permissions,
   );
 
+  if (!existing && !pin) {
+    await ref.set(
+      {
+        id: pinId,
+        label,
+        active,
+        permissions,
+        pinConfigured: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+      { merge: true },
+    );
+    return { id: pinId };
+  }
+
   if (pin) {
+    await assertUniqueActivePin(pin, pinId);
+
     const db = getDb();
     const refs = prepareAccessPinSecretWrite("management", pinId, pin);
     await db.runTransaction(async (tx) => {
@@ -360,6 +378,57 @@ export async function upsertManagementPinDoc(
         },
         { merge: true },
       );
+
+      if (input.sessionConsumption && input.actorUid) {
+        const sessionRef = db
+          .collection(ADMIN_ACCESS_SESSIONS_COLLECTION)
+          .doc(input.sessionConsumption.sessionId);
+        const sessionSnap = await tx.get(sessionRef);
+        if (!sessionSnap.exists) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Admin access session expired.",
+          );
+        }
+        const session = sessionSnap.data() as AdminAccessSessionDoc;
+        if (
+          session.secretHash !==
+          hashAdminAccessSessionRaw(input.sessionConsumption.raw)
+        ) {
+          throw new HttpsError(
+            "permission-denied",
+            "Invalid admin access session.",
+          );
+        }
+        if (session.revoked || session.consumedAt) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Admin access session expired.",
+          );
+        }
+        if (Date.parse(session.expiresAt) <= Date.now()) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Admin access session expired.",
+          );
+        }
+        if (session.managerUid !== input.actorUid) {
+          throw new HttpsError(
+            "permission-denied",
+            "Invalid admin access session.",
+          );
+        }
+        if (
+          session.targetType !== "management" ||
+          session.targetId !== pinId
+        ) {
+          throw new HttpsError(
+            "permission-denied",
+            "Invalid admin access session.",
+          );
+        }
+        tx.set(sessionRef, { consumedAt: now }, { merge: true });
+      }
     });
 
     return { id: pinId };

@@ -6,8 +6,8 @@ const firestore_1 = require("firebase-admin/firestore");
 const https_1 = require("firebase-functions/v2/https");
 const accessPinCrypto_1 = require("./accessPinCrypto");
 const pinMatching_1 = require("./pinMatching");
-const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const managementPinRegistry_1 = require("./managementPinRegistry");
+const managementPinWriteAuth_1 = require("./managementPinWriteAuth");
 function getDb() {
     return admin.firestore();
 }
@@ -19,11 +19,17 @@ exports.setManagementPin = (0, https_1.onCall)({
     region: "us-central1",
     secrets: [accessPinCrypto_1.accessPinEncryptionKey],
 }, async (request) => {
-    await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
-    const pin = (0, pinMatching_1.asFourDigitPin)(request.data?.pin);
+    const data = (request.data ?? {});
+    const pin = (0, pinMatching_1.asFourDigitPin)(data.pin);
     if (!pin) {
         throw new https_1.HttpsError("invalid-argument", "A 4-digit PIN is required.");
     }
+    const auth = await (0, managementPinWriteAuth_1.authorizeManagementPinWrite)(request, {
+        pin,
+        id: managementPinRegistry_1.DEFAULT_MANAGEMENT_PIN_ID,
+        fixedTargetId: managementPinRegistry_1.DEFAULT_MANAGEMENT_PIN_ID,
+        sessionToken: data.sessionToken,
+    });
     await (0, managementPinRegistry_1.upsertManagementPinDoc)({
         id: managementPinRegistry_1.DEFAULT_MANAGEMENT_PIN_ID,
         label: "Management PIN",
@@ -35,6 +41,8 @@ exports.setManagementPin = (0, https_1.onCall)({
             viewWaitingParts: true,
             markOrFlagParcel: true,
         },
+        sessionConsumption: auth.sessionConsumption,
+        actorUid: auth.actorUid,
     });
     const now = new Date().toISOString();
     // Keep legacy secret in sync for older readers during dual-read window.

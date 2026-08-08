@@ -937,11 +937,15 @@ export function PinAccessManagementPanel({
           pin: wizardPin,
         });
       } else {
-        await upsertManagementPinClient({
+        const created = await upsertManagementPinClient({
           label: wizardName.trim(),
-          pin: wizardPin,
           active: true,
           permissions: wizardManagementPermissions,
+        });
+        await setAccessPinClient({
+          targetType: "management",
+          targetId: created.id,
+          pin: wizardPin,
         });
       }
       setMessage(`${typeLabels[wizardType]} access added.`);
