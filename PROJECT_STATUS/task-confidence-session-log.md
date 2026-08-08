@@ -46,3 +46,5 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-08 | ui-component (drawer fulfillment wording + staging banner condition/position) | T1 fast-safe | Composer 2.5 Fast (cheapest); Dan override: GPT-5.6 Sol High + Grok verify | 98 | 99 | ok (PR only, hold deploy) | Vendor Drop-Off / Will-Call / Pickup; banner only when required∧unassigned; below fulfillment |
 | 2026-08-08 | merge-resolve (PR #49 + main D-63 harness) | T0/T1 | Composer 2.5 Fast | 99 | 99 | ok (PR only, hold deploy) | Merged origin/main; preserved drawer wording/banner + D-63 governance |
 | 2026-08-08 | ship-op (merge PR #49 + gh-pages deploy v0.0.233) | T0/T1 fast-safe | Composer 2.5 Fast | 99 | 99 | ok | Drawer fulfillment/staging LIVE; no CF/rules |
+| 2026-08-08 | css-restyle (dark section/card separation layers) | T1 fast-safe | GPT-5.6 Sol Medium + Grok verify | 94→98 | 99 | ok | admin-section tokens+wrappers; ship v0.0.234 |
+
