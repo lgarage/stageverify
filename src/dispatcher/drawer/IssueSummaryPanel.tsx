@@ -11,8 +11,8 @@ import { DeliverToSitePanel } from "./DeliverToSitePanel";
 
 const VIEW_PDF_BTN = {
   backgroundColor: "var(--admin-surface)",
-  color: "#0a3161",
-  border: "1px solid #0a3161",
+  color: "var(--admin-accent-soft)",
+  border: "1px solid var(--admin-accent)",
   borderRadius: 6,
   padding: "6px 12px",
   fontWeight: 600,
@@ -23,13 +23,13 @@ const VIEW_PDF_BTN = {
 
 const BACKORDERED_BADGE = {
   display: "inline-block",
-  backgroundColor: "#ffedd5",
-  border: "2px solid #c2410c",
+  backgroundColor: "var(--admin-warning-bg)",
+  border: "2px solid var(--admin-warning-border)",
   borderRadius: 999,
   padding: "2px 8px",
   fontWeight: 800,
   fontSize: 11,
-  color: "#7c2d12",
+  color: "var(--admin-warning-text)",
   letterSpacing: "0.04em",
   textTransform: "uppercase" as const,
 };
@@ -159,7 +159,7 @@ export function IssueSummaryPanel({
           style={{
             margin: "0 0 10px",
             fontSize: 12,
-            color: "#9a3412",
+            color: "var(--admin-warning-text)",
             lineHeight: 1.4,
           }}
         >
@@ -201,7 +201,7 @@ export function IssueSummaryPanel({
           {statusLines.map((line) => (
             <li
               key={line}
-              style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#334155" }}
+              style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--admin-text-data)" }}
             >
               {line}
             </li>
@@ -240,7 +240,7 @@ export function IssueSummaryPanel({
                 gridTemplateColumns: "1fr 48px 120px",
                 gap: 8,
                 padding: "8px 12px",
-                backgroundColor: "#f1f5f9",
+                backgroundColor: "var(--admin-surface-2)",
                 borderBottom: "1px solid var(--admin-border)",
                 fontSize: 11,
                 fontWeight: 700,
@@ -289,7 +289,7 @@ export function IssueSummaryPanel({
                 fontFamily: font,
                 fontSize: 13,
                 fontWeight: 700,
-                color: navy,
+                color: "var(--admin-accent-soft)",
                 textAlign: "left",
               }}
             >
@@ -389,15 +389,15 @@ function IssueTableRow({
         gridTemplateColumns: "1fr 48px 120px",
         gap: 8,
         padding: "8px 12px",
-        borderBottom: "1px solid #f1f5f9",
+        borderBottom: "1px solid var(--admin-border)",
         fontSize: 13,
         alignItems: "center",
       }}
     >
-      <span style={{ color: "#334155" }}>{row.description}</span>
+      <span style={{ color: "var(--admin-text-data)" }}>{row.description}</span>
       <span
         data-testid={`issue-summary-qty-${row.itemId}`}
-        style={{ textAlign: "center", fontWeight: 600, color: "#475569" }}
+        style={{ textAlign: "center", fontWeight: 600, color: "var(--admin-text-data)" }}
       >
         {row.qty}
       </span>

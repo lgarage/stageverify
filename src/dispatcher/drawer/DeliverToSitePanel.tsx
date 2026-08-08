@@ -115,7 +115,7 @@ export function DeliverToSitePanel({
           onClick={() => void onSetConfirmed(true)}
           style={{
             backgroundColor: navy,
-            color: "var(--admin-text)",
+            color: "var(--admin-on-navy)",
             border: "none",
             borderRadius: 4,
             padding: "8px 14px",

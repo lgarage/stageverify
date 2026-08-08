@@ -105,10 +105,10 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
           marginBottom: 10,
           padding: "10px 12px",
           backgroundColor: "var(--admin-surface-2)",
-          border: "1px solid #e8ecf0",
+          border: "1px solid var(--admin-border)",
           borderRadius: 4,
           fontSize: 12,
-          color: "#334155",
+          color: "var(--admin-text-secondary)",
         }}
       >
         <div style={{ marginBottom: 4 }}>
@@ -123,7 +123,7 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
           <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>Received: </span>
           {preview.receivedLabel}
         </div>
-        <p style={{ margin: 0, fontSize: 13, color: "#1e293b", lineHeight: 1.45 }}>
+        <p style={{ margin: 0, fontSize: 13, color: "var(--admin-text-data)", lineHeight: 1.45 }}>
           {preview.replyPreview}
         </p>
       </div>
@@ -136,7 +136,7 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
               margin: "0 0 4px",
               fontSize: 12,
               fontWeight: 700,
-              color: isCalmMatch ? "#0a3161" : "var(--admin-warning-text)",
+              color: isCalmMatch ? "var(--admin-accent)" : "var(--admin-warning-text)",
             }}
           >
             {headlines.primary}
@@ -158,7 +158,7 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
       {interpretation.length > 0 && (
         <div
           data-testid={`email-evidence-interpretation-${row.messageId}`}
-          style={{ marginBottom: 8, fontSize: 12, color: "#334155" }}
+          style={{ marginBottom: 8, fontSize: 12, color: "var(--admin-text-secondary)" }}
         >
           <span style={{ fontWeight: 700, fontSize: 11, color: "var(--admin-text-muted)" }}>
             SV Interpretation:{" "}
@@ -200,9 +200,9 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
         style={{
           padding: "4px 10px",
           borderRadius: 4,
-          border: "1px solid #0a3161",
+          border: "1px solid var(--admin-accent)",
           backgroundColor: "var(--admin-surface)",
-          color: "#0a3161",
+          color: "var(--admin-accent)",
           fontSize: 11,
           fontWeight: 700,
           cursor: "pointer",
@@ -220,7 +220,7 @@ function EmailEvidenceCard({ row }: { row: ProposedEmailUpdate }) {
             backgroundColor: "var(--admin-surface-2)",
             borderRadius: 4,
             fontSize: 12,
-            color: "#334155",
+            color: "var(--admin-text-secondary)",
           }}
         >
           <div style={{ marginBottom: 4 }}>
@@ -305,7 +305,7 @@ function InvoiceSourceEmailCard({ inbound }: { inbound: InboundEmailProcessing }
           margin: "0 0 8px",
           fontSize: 11,
           fontWeight: 700,
-          color: "#0a3161",
+          color: "var(--admin-accent)",
           letterSpacing: "0.02em",
         }}
       >
@@ -316,10 +316,10 @@ function InvoiceSourceEmailCard({ inbound }: { inbound: InboundEmailProcessing }
           marginBottom: 10,
           padding: "10px 12px",
           backgroundColor: "var(--admin-surface-2)",
-          border: "1px solid #e8ecf0",
+          border: "1px solid var(--admin-border)",
           borderRadius: 4,
           fontSize: 12,
-          color: "#334155",
+          color: "var(--admin-text-secondary)",
         }}
       >
         <div style={{ marginBottom: 4 }}>
@@ -339,7 +339,7 @@ function InvoiceSourceEmailCard({ inbound }: { inbound: InboundEmailProcessing }
           {attachments}
         </div>
         {bodyPreview ? (
-          <p style={{ margin: 0, fontSize: 13, color: "#1e293b", lineHeight: 1.45 }}>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--admin-text-data)", lineHeight: 1.45 }}>
             {bodyPreview.length > 220 ? `${bodyPreview.slice(0, 219).trim()}…` : bodyPreview}
           </p>
         ) : null}
@@ -352,9 +352,9 @@ function InvoiceSourceEmailCard({ inbound }: { inbound: InboundEmailProcessing }
         style={{
           padding: "4px 10px",
           borderRadius: 4,
-          border: "1px solid #0a3161",
+          border: "1px solid var(--admin-accent)",
           backgroundColor: "var(--admin-surface)",
-          color: "#0a3161",
+          color: "var(--admin-accent)",
           fontSize: 11,
           fontWeight: 700,
           cursor: "pointer",
@@ -372,7 +372,7 @@ function InvoiceSourceEmailCard({ inbound }: { inbound: InboundEmailProcessing }
             backgroundColor: "var(--admin-surface-2)",
             borderRadius: 4,
             fontSize: 12,
-            color: "#334155",
+            color: "var(--admin-text-secondary)",
           }}
         >
           <div style={{ marginBottom: 4 }}>
@@ -440,7 +440,7 @@ function VendorEmailEventCard({ event }: { event: VendorEmailEvent }) {
           margin: "0 0 8px",
           fontSize: 11,
           fontWeight: 700,
-          color: isOutbound ? "#0a3161" : "var(--admin-success-text)",
+          color: isOutbound ? "var(--admin-accent)" : "var(--admin-success-text)",
           letterSpacing: "0.02em",
         }}
       >
@@ -451,10 +451,10 @@ function VendorEmailEventCard({ event }: { event: VendorEmailEvent }) {
           marginBottom: 10,
           padding: "10px 12px",
           backgroundColor: "var(--admin-surface-2)",
-          border: "1px solid #e8ecf0",
+          border: "1px solid var(--admin-border)",
           borderRadius: 4,
           fontSize: 12,
-          color: "#334155",
+          color: "var(--admin-text-secondary)",
         }}
       >
         <div style={{ marginBottom: 4 }}>
@@ -474,7 +474,7 @@ function VendorEmailEventCard({ event }: { event: VendorEmailEvent }) {
           {formatEmailEventWhen(event)}
         </div>
         {preview ? (
-          <p style={{ margin: 0, fontSize: 13, color: "#1e293b", lineHeight: 1.45 }}>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--admin-text-data)", lineHeight: 1.45 }}>
             {preview}
           </p>
         ) : null}
@@ -487,9 +487,9 @@ function VendorEmailEventCard({ event }: { event: VendorEmailEvent }) {
         style={{
           padding: "4px 10px",
           borderRadius: 4,
-          border: "1px solid #0a3161",
+          border: "1px solid var(--admin-accent)",
           backgroundColor: "var(--admin-surface)",
-          color: "#0a3161",
+          color: "var(--admin-accent)",
           fontSize: 11,
           fontWeight: 700,
           cursor: "pointer",
@@ -507,7 +507,7 @@ function VendorEmailEventCard({ event }: { event: VendorEmailEvent }) {
             backgroundColor: "var(--admin-surface-2)",
             borderRadius: 4,
             fontSize: 12,
-            color: "#334155",
+            color: "var(--admin-text-secondary)",
           }}
         >
           <div style={{ marginBottom: 4 }}>
@@ -898,9 +898,9 @@ export function ReadinessEvidencePanel({
           style={{
             padding: "6px 12px",
             borderRadius: 4,
-            border: "1px solid #0a3161",
+            border: "1px solid var(--admin-accent)",
             backgroundColor: "var(--admin-surface)",
-            color: "#0a3161",
+            color: "var(--admin-accent)",
             fontSize: 12,
             fontWeight: 700,
             cursor: "pointer",
@@ -917,9 +917,9 @@ export function ReadinessEvidencePanel({
             style={{
               padding: "6px 12px",
               borderRadius: 4,
-              border: "1px solid #cbd5e1",
+              border: "1px solid var(--admin-border)",
               backgroundColor: "var(--admin-surface)",
-              color: "#334155",
+              color: "var(--admin-text-secondary)",
               fontSize: 12,
               fontWeight: 600,
               cursor: "pointer",
@@ -1113,7 +1113,7 @@ export function ReadinessEvidencePanel({
               </p>
             ) : (
               <ul
-                style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#334155" }}
+                style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "var(--admin-text-secondary)" }}
               >
                 {blockReasons.map((reason) => (
                   <li key={reason} data-testid={`readiness-evidence-blocker-${reason}`}>

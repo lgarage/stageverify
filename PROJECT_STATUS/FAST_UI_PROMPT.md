@@ -1,6 +1,6 @@
 # Fast UI pass — copy-paste prompt
 
-Use for **routine frontend/UI-only** changes (layout, copy, colors, spacing). Paste into **Agent mode** (not Multitask). **Sol primary** (`gpt-5.6-sol-high` per D-63; `fallback-from: gpt-5.6-sol-medium (unavailable)`); **Grok verifies** (D-45). Backend deploy policy (Firestore rules, Cloud Functions, Gmail) — see `.cursor/rules/ship-loop.mdc`; do not auto-deploy without Dan approval.
+Use for **routine frontend/UI-only** changes (layout, copy, colors, spacing). Paste into **Agent mode** (not Multitask). **Sol Medium preferred** (`gpt-5.6-sol-medium` per D-63; parent session already Medium → inline; Task dispatch escalates to `gpt-5.6-sol-high` with `fallback-from: gpt-5.6-sol-medium (task-allowlist-rejected)`); **Grok verifies** (D-45). Backend deploy policy (Firestore rules, Cloud Functions, Gmail) — see `.cursor/rules/ship-loop.mdc`; do not auto-deploy without Dan approval.
 
 ---
 
@@ -14,7 +14,7 @@ Frontend/UI only.
 
 Use:
 - Agent mode
-- **Sol** implementer (`gpt-5.6-sol-high`)
+- **Sol Medium** implementer (`gpt-5.6-sol-medium`; Task escalate High when dispatching Task)
 - Grok UI verifier
 - One agent only
 - No scouts unless blocked

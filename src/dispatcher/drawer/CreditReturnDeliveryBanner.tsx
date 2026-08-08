@@ -1,9 +1,6 @@
 import type { VendorInvoiceImportReview } from "../models";
-import {
-  linkedImportRejectBlockedReason,
-} from "../invoice/deliveryCreditReturn";
+import { linkedImportRejectBlockedReason } from "../invoice/deliveryCreditReturn";
 
-const RED = "#bf0a30";
 const RED_BG = "var(--admin-danger-bg)";
 const RED_BORDER = "var(--admin-danger-border)";
 
@@ -56,7 +53,7 @@ export function CreditReturnDeliveryBanner({
               margin: 0,
               fontSize: 13,
               fontWeight: 700,
-              color: RED,
+              color: "var(--admin-danger-text)",
               lineHeight: 1.35,
             }}
           >
@@ -67,7 +64,7 @@ export function CreditReturnDeliveryBanner({
             style={{
               margin: "6px 0 0",
               fontSize: 12,
-              color: "#7f1d1d",
+              color: "var(--admin-danger-text)",
               lineHeight: 1.45,
             }}
           >
@@ -83,7 +80,7 @@ export function CreditReturnDeliveryBanner({
           {!importId?.trim() ? (
             <p
               data-testid="delivery-credit-return-no-import"
-              style={{ margin: "8px 0 0", fontSize: 11, color: "#7f1d1d" }}
+              style={{ margin: "8px 0 0", fontSize: 11, color: "var(--admin-danger-text)" }}
             >
               No linked invoice import on this delivery.
             </p>

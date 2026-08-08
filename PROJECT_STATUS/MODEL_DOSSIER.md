@@ -28,7 +28,7 @@
 | `ship-verifier` | post-ship verification after every substantive ship | **§ Ship Verifier — Grok 4.5 Fast** (tier 1) — SSOT in `model-gates.mdc` § Ship Verifier auto-invoke |
 | `build-checker` | pre-commit check that Composer’s uncommitted diff matches agreed solution | **§ Build Checker — Grok 4.5 Fast** (tier 1g) — SSOT in `model-gates.mdc` § Solution deliberation Phase 3 / D-43; PASS before `git commit` |
 | `ui-playwright-verifier` | visible UI edit in `src/` — Playwright route verify + D-42 judgment before commit | **§ UI Playwright Verifier — Grok 4.5 Fast** (tier 1h) — SSOT in `model-gates.mdc` § UI Playwright Verifier / D-45; D-63 readability + Grok independent pass; PASS before `git commit` on UI ships |
-| `ui-ux-routing` | UI-class implementer pick, Sol fallbacks, readability evidence | **D-63** — Sol primary `gpt-5.6-sol-high`; Grok verifier; SSOT `PROJECT_STATUS/ui-model-routing.json` |
+| `ui-ux-routing` | UI-class implementer pick, Sol fallbacks, readability evidence | **D-63** — Sol Medium preferred (`gpt-5.6-sol-medium`); Task escalate High; Grok verifier; SSOT `PROJECT_STATUS/ui-model-routing.json` |
 
 ## § qr-routing
 - Entry points: URL deep link, camera callback, manual input — all call `handleScannedQr(raw, "receive-page")`.
@@ -42,7 +42,7 @@
 - Occupancy map: `mapActiveZoneOccupancyByCode`.
 
 ## § billing
-- **UI-class** (`ui-component`, `css-restyle`, presentation-only visible UI): **Sol** primary `gpt-5.6-sol-high` (D-63; `ui-model-routing.json`); Grok verifies (D-45 + readability).
+- **UI-class** (`ui-component`, `css-restyle`, presentation-only visible UI): **Sol Medium** preferred `gpt-5.6-sol-medium` (D-63; Task escalate `gpt-5.6-sol-high`; `ui-model-routing.json`); Grok verifies (D-45 + readability).
 - **Non-UI:** Composer 2.5 = orchestrator + default worker (included quota).
 - Sonnet 5 (`claude-sonnet-5-thinking-high`) = security gate + authority review only (on-demand cost; D-38/D-60 unchanged).
 - **Public Firestore writes:** code fix + `firebase deploy --only firestore:rules` in the same session — `npm run deploy` (gh-pages) does not ship rules.

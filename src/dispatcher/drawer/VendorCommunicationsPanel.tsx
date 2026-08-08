@@ -25,14 +25,12 @@ function outboundEvents(events: VendorEmailEvent[]): VendorEmailEvent[] {
 }
 
 export function VendorCommunicationsPanel({
-  navy,
   font,
   emailProviderConnected,
   deliveryOrderId,
   refreshKey = 0,
   expandSignal = 0,
 }: {
-  navy: string;
   font: string;
   emailProviderConnected: boolean;
   deliveryOrderId: string | null;
@@ -113,7 +111,7 @@ export function VendorCommunicationsPanel({
           style={{
             fontSize: 11,
             fontWeight: 700,
-            color: navy,
+            color: "var(--admin-text-label)",
             letterSpacing: "0.02em",
           }}
         >
@@ -175,7 +173,7 @@ export function VendorCommunicationsPanel({
                   style={{
                     padding: "10px 12px",
                     borderRadius: 6,
-                    border: "1px solid #e2e8f0",
+                    border: "1px solid var(--admin-border)",
                     backgroundColor: "var(--admin-surface)",
                   }}
                 >
@@ -183,7 +181,7 @@ export function VendorCommunicationsPanel({
                     style={{
                       fontSize: 13,
                       fontWeight: 700,
-                      color: "#111827",
+                      color: "var(--admin-text-data)",
                       fontFamily: font,
                       marginBottom: 4,
                     }}
@@ -195,7 +193,7 @@ export function VendorCommunicationsPanel({
                       style={{
                         margin: "0 0 6px",
                         fontSize: 12,
-                        color: "#475569",
+                        color: "var(--admin-text-secondary)",
                         fontFamily: font,
                         lineHeight: 1.45,
                       }}

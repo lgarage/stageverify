@@ -87,7 +87,7 @@ export function DrawerStagingLocationChips({
     return (
       <span
         data-testid="delivery-basics-staging-unassigned"
-        style={{ color: "#9ca3af", fontStyle: "italic", fontFamily: font }}
+        style={{ color: "var(--admin-text-muted)", fontStyle: "italic", fontFamily: font }}
       >
         Not Assigned
       </span>

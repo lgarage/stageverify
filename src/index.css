@@ -63,8 +63,12 @@ body {
   --admin-border: #d0d7de;
   --admin-border-strong: #8c959f;
   --admin-text: #24292f;
+  --admin-text-data: var(--admin-text);
+  --admin-text-label: #4b5563;
+  --admin-text-secondary: #57606a;
   --admin-text-muted: #57606a;
   --admin-text-disabled: #8c959f;
+  --admin-table-header-text: #57606a;
   --admin-accent: #0969da;
   --admin-accent-soft: #0969da;
   --admin-link: #0969da;
@@ -120,8 +124,12 @@ html[data-sv-admin-theme="dark"] .portal-shell,
   --admin-border: #30363d;
   --admin-border-strong: #46566a;
   --admin-text: #f0f6fc;
-  --admin-text-muted: #8b949e;
+  --admin-text-data: var(--admin-text);
+  --admin-text-label: #c9d1d9;
+  --admin-text-secondary: #a8b3bf;
+  --admin-text-muted: #9aa4b0;
   --admin-text-disabled: #7d8590;
+  --admin-table-header-text: #e6edf3;
   --admin-accent: #3b82f6;
   --admin-accent-soft: #93c5fd;
   --admin-link: #67e8f9;
@@ -131,16 +139,16 @@ html[data-sv-admin-theme="dark"] .portal-shell,
   --admin-row-selected: var(--admin-info-bg);
   --admin-row-hover: var(--admin-surface-hover);
   --admin-warning-bg: #3b2f16;
-  --admin-warning-text: #f6c76f;
+  --admin-warning-text: #ffd580;
   --admin-warning-border: #8a6d1f;
   --admin-danger-bg: #3a1d24;
-  --admin-danger-text: #fda4af;
+  --admin-danger-text: #ffb3bd;
   --admin-danger-border: #8f3444;
   --admin-success-bg: #183829;
   --admin-success-text: #7ee2a8;
   --admin-success-border: #2f6f4e;
   --admin-info-bg: #172b4d;
-  --admin-info-text: #93c5fd;
+  --admin-info-text: #b6d4fe;
   --admin-info-border: #315d91;
   --admin-purple-bg: #302044;
   --admin-purple-text: #d8b4fe;
@@ -215,7 +223,7 @@ html[data-sv-admin-theme="dark"] .portal-shell,
 
 .portal-shell .admin-btn-primary {
   background: var(--admin-accent);
-  color: #fff;
+  color: var(--admin-on-navy);
 }
 
 .portal-shell .admin-btn-danger {
@@ -240,7 +248,7 @@ html[data-sv-admin-theme="dark"] .portal-shell,
 
 .portal-shell .admin-table thead th {
   background: var(--admin-surface-2);
-  color: var(--admin-text-muted);
+  color: var(--admin-table-header-text);
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.04em;

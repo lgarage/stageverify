@@ -232,8 +232,8 @@ export function statusLabel(status: ExpectedFieldStatus): string {
 }
 
 export function statusColor(status: ExpectedFieldStatus): string {
-  if (status === "found") return "#166534";
-  if (status === "missing") return "#991b1b";
-  if (status === "questionable") return "#9a3412";
-  return "#6b7280";
+  if (status === "found") return "var(--admin-success-text)";
+  if (status === "missing") return "var(--admin-danger-text)";
+  if (status === "questionable") return "var(--admin-warning-text)";
+  return "var(--admin-text-muted)";
 }

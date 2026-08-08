@@ -228,7 +228,7 @@ export function JobReleaseToTechnicianPanel({
               fontWeight: 800,
               letterSpacing: "0.03em",
               textTransform: "uppercase",
-              color: "var(--admin-text)",
+              color: "var(--admin-on-navy)",
             }}
           >
             Release to technician
@@ -290,7 +290,7 @@ export function JobReleaseToTechnicianPanel({
                 borderRadius: 6,
                 border: "1px solid rgba(255,255,255,0.55)",
                 backgroundColor: "rgba(255,255,255,0.14)",
-                color: "var(--admin-text)",
+                color: "var(--admin-on-navy)",
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: "pointer",
@@ -356,7 +356,9 @@ export function JobReleaseToTechnicianPanel({
                 ...actionBase,
                 border: `2px solid ${NAVY}`,
                 backgroundColor: releaseDisabled ? "var(--admin-border)" : NAVY,
-                color: releaseDisabled ? "var(--admin-text-muted)" : "var(--admin-text)",
+                color: releaseDisabled
+                  ? "var(--admin-text-muted)"
+                  : "var(--admin-on-navy)",
                 cursor: releaseDisabled ? "not-allowed" : "pointer",
                 boxShadow: releaseDisabled
                   ? "none"

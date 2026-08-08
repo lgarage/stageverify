@@ -137,7 +137,7 @@ export function HandleArrivalModal({
       >
         <h2
           data-testid="handle-arrival-modal-title"
-          style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 700, color: "var(--admin-accent-soft)" }}
+          style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 700, color: "var(--admin-text-label)" }}
         >
           Handle arrival
         </h2>
@@ -153,10 +153,10 @@ export function HandleArrivalModal({
             marginBottom: 16,
             padding: "10px 12px",
             backgroundColor: "var(--admin-surface-2)",
-            border: "1px solid #e2e8f0",
+            border: "1px solid var(--admin-border)",
             borderRadius: 6,
             fontSize: 12,
-            color: "#334155",
+            color: "var(--admin-text-secondary)",
             lineHeight: 1.45,
           }}
         >
@@ -178,7 +178,7 @@ export function HandleArrivalModal({
           </div>
           <ul
             data-testid="handle-arrival-backorder-lines"
-            style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "#1e293b" }}
+            style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "var(--admin-text-data)" }}
           >
             {backorderLines.map((row) => (
               <li key={row.id} data-testid={`handle-arrival-bo-line-${row.id}`}>
@@ -352,9 +352,9 @@ export function HandleArrivalModal({
             style={{
               padding: "8px 16px",
               borderRadius: 6,
-              border: `1px solid ${NAVY}`,
+              border: "1px solid var(--admin-border)",
               backgroundColor: "var(--admin-surface)",
-              color: "var(--admin-accent-soft)",
+              color: "var(--admin-text-label)",
               fontSize: 13,
               fontWeight: 700,
               cursor: submitting ? "wait" : "pointer",
@@ -372,7 +372,7 @@ export function HandleArrivalModal({
               borderRadius: 6,
               border: "none",
               backgroundColor: canSubmit ? NAVY : "var(--admin-text-muted)",
-              color: "var(--admin-text)",
+              color: "var(--admin-on-navy)",
               fontSize: 13,
               fontWeight: 700,
               cursor: canSubmit ? "pointer" : "not-allowed",
