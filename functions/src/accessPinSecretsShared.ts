@@ -5,6 +5,7 @@ export const ACCESS_PIN_SECRETS_COLLECTION = "accessPinSecrets";
 export const ACCESS_PIN_UNIQUENESS_COLLECTION = "accessPinUniqueness";
 export const PIN_ACCESS_AUDIT_COLLECTION = "pinAccessAudit";
 export const ACCESS_PIN_REVEAL_ATTEMPTS_COLLECTION = "accessPinRevealAttempts";
+export const ACCESS_PIN_SET_ATTEMPTS_COLLECTION = "accessPinSetAttempts";
 
 export type AccessPinTargetType = "technician" | "vendor";
 

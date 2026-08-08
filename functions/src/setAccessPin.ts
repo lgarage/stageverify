@@ -8,11 +8,12 @@ import {
 } from "./accessPinCrypto";
 import {
   ACCESS_PIN_SECRETS_COLLECTION,
+  ACCESS_PIN_SET_ATTEMPTS_COLLECTION,
   ACCESS_PIN_UNIQUENESS_COLLECTION,
+  PIN_ACCESS_AUDIT_COLLECTION,
   accessPinSecretDocId,
   accessPinUniquenessDocId,
   parseAccessPinTargetType,
-  writePinAccessAudit,
   getDb,
   type AccessPinSecretDoc,
   type AccessPinTargetType,
@@ -27,10 +28,67 @@ interface SetAccessPinRequest {
   pin?: string;
 }
 
+const MAX_SET_ATTEMPTS_PER_WINDOW = 8;
+const SET_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+const MIN_SET_ATTEMPT_INTERVAL_MS = 750;
+
+interface PinAttemptDoc {
+  count?: number;
+  windowStartedAt?: string;
+  lastAttemptAt?: string;
+}
+
 const ENTITY_COLLECTION: Record<AccessPinTargetType, string> = {
   technician: "technicians",
   vendor: "vendors",
 };
+
+async function checkSetRateLimit(attemptKey: string): Promise<void> {
+  const ref = getDb()
+    .collection(ACCESS_PIN_SET_ATTEMPTS_COLLECTION)
+    .doc(attemptKey);
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+
+  await getDb().runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const data = (snap.exists ? snap.data() : {}) as PinAttemptDoc;
+    const windowStart = data.windowStartedAt
+      ? Date.parse(data.windowStartedAt)
+      : now;
+    const inWindow = now - windowStart < SET_ATTEMPT_WINDOW_MS;
+    const count = inWindow ? (data.count ?? 0) : 0;
+
+    if (inWindow && count >= MAX_SET_ATTEMPTS_PER_WINDOW) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Too many PIN set attempts. Try again later.",
+      );
+    }
+
+    const lastAttempt = data.lastAttemptAt
+      ? Date.parse(data.lastAttemptAt)
+      : 0;
+    if (lastAttempt && now - lastAttempt < MIN_SET_ATTEMPT_INTERVAL_MS) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Please wait a moment before trying again.",
+      );
+    }
+
+    tx.set(
+      ref,
+      {
+        count: inWindow ? count + 1 : 1,
+        windowStartedAt: inWindow
+          ? (data.windowStartedAt ?? nowIso)
+          : nowIso,
+        lastAttemptAt: nowIso,
+      },
+      { merge: true },
+    );
+  });
+}
 
 /** Dispatcher sets technician/vendor PIN — hash + encrypt in CF-only secrets doc. */
 export const setAccessPin = onCall(
@@ -50,6 +108,9 @@ export const setAccessPin = onCall(
       throw new HttpsError("invalid-argument", "Invalid PIN access target.");
     }
 
+    const attemptKey = `set:${targetType}:${uid}`;
+    await checkSetRateLimit(attemptKey);
+
     const db = getDb();
     const entityRef = db.collection(ENTITY_COLLECTION[targetType]).doc(targetId);
     const secretRef = db
@@ -59,6 +120,7 @@ export const setAccessPin = onCall(
     const uniquenessRef = db
       .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
       .doc(accessPinUniquenessDocId(targetType, pinLookupKey));
+    const auditRef = db.collection(PIN_ACCESS_AUDIT_COLLECTION).doc();
 
     const now = new Date().toISOString();
     const pinHash = hashPinForStorage(pin);
@@ -76,10 +138,7 @@ export const setAccessPin = onCall(
       if (uniquenessSnap.exists) {
         const existing = uniquenessSnap.data() as { targetId?: string };
         if (existing.targetId && existing.targetId !== targetId) {
-          throw new HttpsError(
-            "already-exists",
-            "Another target already uses this PIN.",
-          );
+          throw new HttpsError("already-exists", "Could not set PIN.");
         }
       }
 
@@ -133,13 +192,13 @@ export const setAccessPin = onCall(
         },
         { merge: true },
       );
-    });
-
-    await writePinAccessAudit({
-      action: "PIN_SET",
-      targetType,
-      targetId,
-      actorUid: uid,
+      tx.set(auditRef, {
+        action: "PIN_SET",
+        targetType,
+        targetId,
+        actorUid: uid,
+        createdAt: now,
+      });
     });
 
     return { success: true, targetType, targetId, pinConfigured: true };

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ACCESS_PIN_REVEAL_ATTEMPTS_COLLECTION = exports.PIN_ACCESS_AUDIT_COLLECTION = exports.ACCESS_PIN_UNIQUENESS_COLLECTION = exports.ACCESS_PIN_SECRETS_COLLECTION = void 0;
+exports.ACCESS_PIN_SET_ATTEMPTS_COLLECTION = exports.ACCESS_PIN_REVEAL_ATTEMPTS_COLLECTION = exports.PIN_ACCESS_AUDIT_COLLECTION = exports.ACCESS_PIN_UNIQUENESS_COLLECTION = exports.ACCESS_PIN_SECRETS_COLLECTION = void 0;
 exports.getDb = getDb;
 exports.accessPinSecretDocId = accessPinSecretDocId;
 exports.accessPinUniquenessDocId = accessPinUniquenessDocId;
@@ -12,6 +12,7 @@ exports.ACCESS_PIN_SECRETS_COLLECTION = "accessPinSecrets";
 exports.ACCESS_PIN_UNIQUENESS_COLLECTION = "accessPinUniqueness";
 exports.PIN_ACCESS_AUDIT_COLLECTION = "pinAccessAudit";
 exports.ACCESS_PIN_REVEAL_ATTEMPTS_COLLECTION = "accessPinRevealAttempts";
+exports.ACCESS_PIN_SET_ATTEMPTS_COLLECTION = "accessPinSetAttempts";
 function getDb() {
     return admin.firestore();
 }

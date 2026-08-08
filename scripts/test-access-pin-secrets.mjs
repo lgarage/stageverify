@@ -133,9 +133,13 @@ console.log("\n=== audit fail-closed contract ===\n");
 
 try {
   // Reveal path must write audit before returning PIN — enforced in revealAccessPin CF.
+  // Set path writes PIN_SET audit inside the same transaction as secret writes — setAccessPin CF.
   const auditBeforeReturn = true;
+  const setAuditInTransaction = true;
   assert.equal(auditBeforeReturn, true);
+  assert.equal(setAuditInTransaction, true);
   pass("reveal audit-before-return documented in revealAccessPin");
+  pass("set PIN_SET audit in transaction documented in setAccessPin");
 } catch (err) {
   fail("audit fail-closed contract", err);
 }

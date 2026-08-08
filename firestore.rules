@@ -131,6 +131,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /accessPinSetAttempts/{id} {
+      allow read, write: if false;
+    }
+
     // Multi-PIN management identities + capability matrix — CF Admin SDK only.
     match /managementPins/{pinId} {
       allow read, write: if false;

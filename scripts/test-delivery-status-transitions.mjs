@@ -518,6 +518,7 @@ try {
     ["accessPinUniqueness", "technician_abc123deadbeef"],
     ["pinAccessAudit", "audit-1"],
     ["accessPinRevealAttempts", "attempt-1"],
+    ["accessPinSetAttempts", "attempt-set-1"],
   ]) {
     try {
       await assertFails(
