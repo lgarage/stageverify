@@ -30,6 +30,8 @@ import {
   assertNoElementOverlap,
   assertReadableTextContrast,
   VENDOR_DELIVERED_HUB_CONTRAST_SPEC,
+  VENDOR_DELIVERED_HUB_ITEMS_CONTRAST_SPEC,
+  VENDOR_DELIVERED_HUB_ITEMS_EMPTY_CONTRAST_SPEC,
   VENDOR_DELIVERED_HUB_HEADER_OVERLAP_SPEC,
 } from "./lib/ui-text-contrast-lib.mjs";
 
@@ -288,6 +290,47 @@ try {
   await assertReadableTextContrast(page, VENDOR_DELIVERED_HUB_CONTRAST_SPEC);
   await assertNoElementOverlap(page, VENDOR_DELIVERED_HUB_HEADER_OVERLAP_SPEC);
   record("receive hub contrast/overlap", true);
+
+  // Items accordion — collapsed by default
+  const itemsToggle = page.getByTestId("vendor-hub-items-toggle");
+  const itemsList = page.getByTestId("vendor-hub-items-list");
+  record(
+    "receive items toggle visible",
+    await itemsToggle.isVisible(),
+  );
+  record(
+    "receive items list collapsed by default",
+    !(await itemsList.isVisible().catch(() => false)) &&
+      (await itemsToggle.getAttribute("aria-expanded")) === "false",
+  );
+
+  await itemsToggle.click();
+  await page.waitForTimeout(400);
+  record(
+    "receive items list expands on tap",
+    await itemsList.isVisible(),
+  );
+
+  const itemRows = page.getByTestId("vendor-hub-item-row");
+  const rowCount = await itemRows.count();
+  if (rowCount > 0) {
+    record("receive at least one item row", rowCount >= 1, `count=${rowCount}`);
+    await assertReadableTextContrast(page, VENDOR_DELIVERED_HUB_ITEMS_CONTRAST_SPEC);
+  } else {
+    record(
+      "receive empty items copy",
+      await page.getByText("No item details available.").isVisible(),
+    );
+    await assertReadableTextContrast(page, VENDOR_DELIVERED_HUB_ITEMS_EMPTY_CONTRAST_SPEC);
+  }
+
+  await itemsToggle.click();
+  await page.waitForTimeout(400);
+  record(
+    "receive items list collapses on second tap",
+    !(await itemsList.isVisible().catch(() => false)) &&
+      (await itemsToggle.getAttribute("aria-expanded")) === "false",
+  );
 
   // Report a Problem reasons on receive hub
   await page.getByTestId("vendor-report-problem").click();

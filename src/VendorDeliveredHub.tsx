@@ -62,6 +62,7 @@ export function VendorDeliveredHub({
   const [showSpaceFlow, setShowSpaceFlow] = useState(false);
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [issueToast, setIssueToast] = useState<string | null>(null);
+  const [itemsExpanded, setItemsExpanded] = useState(false);
   const [ctaPhase, setCtaPhase] = useState<DeliverCtaPhase>(() =>
     isVendorDeliveryConfirmed(deliveryDetails.delivery) ? "delivered" : "idle",
   );
@@ -156,45 +157,104 @@ export function VendorDeliveredHub({
         </p>
 
         <div className="w-full bg-bg-surface rounded-2xl border border-border overflow-hidden">
-          <div className="p-3 border-b border-border flex items-center gap-3">
-            <div className="size-12 shrink-0 rounded-xl bg-accent/15 text-accent font-mono text-xl font-light flex items-center justify-center">
-              {locationCode}
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-widest text-text-secondary">
-                Assigned location
-              </p>
-              <p className="text-base font-medium text-text-primary truncate">
-                {locationLabel}
-              </p>
-            </div>
-          </div>
-
-          <div className="p-3 space-y-1.5">
-            {[
-              ["Job / Site", job?.jobName ?? "—"],
-              ["Vendor", vendor.name],
-              ["Order #", delivery.orderNumber],
-              ["PO #", purchaseOrder?.poNumber ?? "—"],
-              ["Expected items", String(items.length)],
-            ].map(([label, value]) => (
-              <div
-                key={label}
-                className="flex items-center justify-between gap-3 text-sm"
-              >
-                <span className="text-text-secondary shrink-0">{label}</span>
-                <span className="text-text-primary font-medium text-right">
-                  {label === "Order #" ? (
-                    <span className="font-mono text-xs bg-bg-secondary px-2 py-0.5 rounded">
-                      {value}
-                    </span>
-                  ) : (
-                    value
-                  )}
-                </span>
+          <button
+            type="button"
+            onClick={() => setItemsExpanded((prev) => !prev)}
+            aria-expanded={itemsExpanded}
+            aria-label={
+              itemsExpanded
+                ? "Hide expected item details"
+                : "View expected item details"
+            }
+            data-testid="vendor-hub-items-toggle"
+            className="w-full text-left"
+          >
+            <div className="p-3 border-b border-border flex items-center gap-3">
+              <div className="size-12 shrink-0 rounded-xl bg-accent/15 text-accent font-mono text-xl font-light flex items-center justify-center">
+                {locationCode}
               </div>
-            ))}
-          </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] uppercase tracking-widest text-text-secondary">
+                  Assigned location
+                </p>
+                <p className="text-base font-medium text-text-primary truncate">
+                  {locationLabel}
+                </p>
+              </div>
+              <span
+                className="shrink-0 text-text-secondary transition-transform duration-200"
+                aria-hidden
+                style={{
+                  transform: itemsExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                }}
+              >
+                ▾
+              </span>
+            </div>
+
+            <div className="p-3 space-y-1.5">
+              {[
+                ["Job / Site", job?.jobName ?? "—"],
+                ["Vendor", vendor.name],
+                ["Order #", delivery.orderNumber],
+                ["PO #", purchaseOrder?.poNumber ?? "—"],
+                ["Expected items", String(items.length)],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="flex items-center justify-between gap-3 text-sm"
+                >
+                  <span className="text-text-secondary shrink-0">{label}</span>
+                  <span className="text-text-primary font-medium text-right">
+                    {label === "Order #" ? (
+                      <span className="font-mono text-xs bg-bg-secondary px-2 py-0.5 rounded">
+                        {value}
+                      </span>
+                    ) : (
+                      value
+                    )}
+                  </span>
+                </div>
+              ))}
+              <p className="text-xs text-accent pt-0.5">
+                {itemsExpanded ? "Tap to hide items" : "Tap to view items"}
+              </p>
+            </div>
+          </button>
+
+          {itemsExpanded && (
+            <div
+              className="border-t border-border px-3 py-2.5 space-y-2 bg-bg-secondary/40"
+              data-testid="vendor-hub-items-list"
+            >
+              {items.length === 0 ? (
+                <p className="text-sm text-text-secondary">
+                  No item details available.
+                </p>
+              ) : (
+                items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-lg border border-border bg-bg-primary px-3 py-2"
+                    data-testid="vendor-hub-item-row"
+                  >
+                    <p className="text-sm font-medium text-text-primary leading-snug">
+                      {item.description}
+                    </p>
+                    <p className="text-xs text-text-secondary mt-1">
+                      Qty {item.qtyOrdered}
+                      {item.sku ? (
+                        <>
+                          {" · "}
+                          <span className="font-mono">{item.sku}</span>
+                        </>
+                      ) : null}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
 
         <p className="mt-3 text-center text-xs text-text-secondary leading-snug">

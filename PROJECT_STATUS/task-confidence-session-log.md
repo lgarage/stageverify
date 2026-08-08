@@ -21,3 +21,4 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-08 | backend-write-critical (prod SAFE test-data delete) | T3 high-risk | Composer 2.5 Fast (+ Grok delete review) | 88 | 98 | ok | 21 deliveries+10 items deleted; job-1 restored; D-38 Sonnet unavailable |
 | 2026-08-08 | service-logic (verifier fixture teardown) | T1 | Composer 2.5 Fast | 95 | 98 | ok | catch-all + monday-safe finally cleanup; PR #42 |
 | 2026-08-08 | backend-write-critical (merge PR #42) | T3 | Composer 2.5 Fast (gh merge only) | 99 | 99 | ok | Squash-merged #42 @ 31ed7242; no deploy |
+| 2026-08-08 | ui-component (vendor hub item expand accordion) | T0/T1 fast-safe | Composer 2.5 Fast | 98 | 99 | ok | VendorDeliveredHub read-only items expand; no CF; PR only |
