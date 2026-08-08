@@ -450,6 +450,7 @@ export function InvoiceReviewPanel({
   const submitApprove = async (
     row: VendorInvoiceImportReview,
     correctionNote?: string,
+    plannedStagingLocationIds?: string[],
   ) => {
     if (row.importStatus === "issue") return;
     setActionLoadingId(row.id);
@@ -461,6 +462,9 @@ export function InvoiceReviewPanel({
         action: "approve",
         ...(correctionNote?.trim()
           ? { correctionNote: correctionNote.trim() }
+          : {}),
+        ...(plannedStagingLocationIds && plannedStagingLocationIds.length > 0
+          ? { plannedStagingLocationIds }
           : {}),
       });
       if (result.importDismissed) {
@@ -1067,8 +1071,12 @@ export function InvoiceReviewPanel({
           onApprove={
             inspectImport.reviewStatus === "pending_review" ||
             inspectImport.reviewStatus === "rejected"
-              ? (correctionNote) => {
-                  void submitApprove(inspectImport, correctionNote);
+              ? (correctionNote, plannedStagingLocationIds) => {
+                  void submitApprove(
+                    inspectImport,
+                    correctionNote,
+                    plannedStagingLocationIds,
+                  );
                 }
               : undefined
           }

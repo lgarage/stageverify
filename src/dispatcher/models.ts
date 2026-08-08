@@ -1438,6 +1438,8 @@ export interface ApproveVendorInvoiceImportResult {
   relinked?: boolean;
   /** Set when shell was expected but could not be created (legacy clients). */
   shellError?: string;
+  /** Planned staging ids written on Vendor Drop-Off approve (empty when skipped). */
+  plannedStagingLocationIds?: string[];
   /** True when a generalized correction note was appended to vendor training MD. */
   trainingLessonWrote?: boolean;
   /** True when the note failed safety/redaction and needs Admin review. */

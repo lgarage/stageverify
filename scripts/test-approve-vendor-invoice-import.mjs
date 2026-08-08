@@ -575,9 +575,10 @@ if (deliverySnap.data()?.vendorInvoiceImportId === "vii-approve-test") {
 
 if (
   deliverySnap.data()?.stagingLocationId === undefined &&
-  deliverySnap.data()?.readinessStatus === undefined
+  deliverySnap.data()?.readinessStatus === undefined &&
+  deliverySnap.data()?.plannedStagingLocationIds === undefined
 ) {
-  pass("shell staging/readiness untouched");
+  pass("shell staging/readiness untouched (will-call — no planned staging)");
 } else {
   fail("unexpected staging/readiness on shell", deliverySnap.data());
 }
@@ -1288,6 +1289,248 @@ try {
     code: String(err?.code ?? ""),
     message: String(err?.message ?? ""),
   });
+}
+
+console.log("\n=== CF: approve plannedStagingLocationIds (drop-off / will-call) ===\n");
+
+const dropOffHeader = {
+  ...header,
+  fulfillmentMethod: "delivery",
+  customerPoOrReference: "DROP OFF STAGING",
+  vendorInvoiceNumber: "DROP-STG-1",
+  vendorOrderNumber: "DROP-STG-1",
+};
+
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "stagingLocations", "staging-g1"), {
+    id: "staging-g1",
+    code: "G1",
+    label: "Ground 1",
+    type: "Ground",
+    status: "Active",
+    createdAt: "2026-06-02T00:00:00Z",
+    updatedAt: "2026-06-02T00:00:00Z",
+  });
+  await setDoc(doc(adminDb, "stagingLocations", "staging-g2"), {
+    id: "staging-g2",
+    code: "G2",
+    label: "Ground 2",
+    type: "Ground",
+    status: "Active",
+    createdAt: "2026-06-02T00:00:00Z",
+    updatedAt: "2026-06-02T00:00:00Z",
+  });
+  for (const id of [
+    "vii-dropoff-no-staging",
+    "vii-dropoff-one",
+    "vii-dropoff-multi",
+    "vii-dropoff-bad-loc",
+    "vii-dropoff-reapprove",
+  ]) {
+    await setDoc(doc(adminDb, "vendorInvoiceImports", id), {
+      id,
+      inboundEmailProcessingId: `inbound-${id}`,
+      gmailMessageId: `msg-${id}`,
+      importBatchId: "batch-staging",
+      pageId: `inv-${id}`,
+      pageIndexInBatch: 0,
+      reviewStatus: "pending_review",
+      importStatus: "pending",
+      confidenceTier: "medium",
+      confidenceScore: 70,
+      humanReviewRequired: true,
+      duplicate: false,
+      parsedHeader: {
+        ...dropOffHeader,
+        vendorInvoiceNumber: id,
+        vendorOrderNumber: id,
+      },
+      parsedLines: sampleLines,
+      parsedLineCount: 2,
+      parseWarnings: [],
+      orderNotes: [],
+      outcome: "needs_review",
+      createdAt: "2026-06-24T10:00:00Z",
+      updatedAt: "2026-06-24T10:00:00Z",
+    });
+  }
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-willcall-stale-staging"), {
+    id: "vii-willcall-stale-staging",
+    inboundEmailProcessingId: "inbound-willcall-stale",
+    gmailMessageId: "msg-willcall-stale",
+    importBatchId: "batch-staging",
+    pageId: "inv-willcall-stale",
+    pageIndexInBatch: 0,
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    confidenceTier: "medium",
+    confidenceScore: 70,
+    humanReviewRequired: true,
+    duplicate: false,
+    parsedHeader: header,
+    parsedLines: sampleLines,
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+
+try {
+  await approveImport({
+    vendorInvoiceImportId: "vii-dropoff-no-staging",
+    action: "approve",
+  });
+  fail("drop-off approve without staging should fail");
+} catch (err) {
+  const msg = String(err?.message ?? "");
+  if (
+    msg.includes("Choose a staging location") ||
+    msg.includes("failed-precondition")
+  ) {
+    pass("drop-off approve blocked without staging");
+  } else {
+    fail("expected drop-off staging required error", err?.message);
+  }
+}
+
+try {
+  await approveImport({
+    vendorInvoiceImportId: "vii-dropoff-bad-loc",
+    action: "approve",
+    plannedStagingLocationIds: ["staging-does-not-exist"],
+  });
+  fail("drop-off approve with missing location should fail");
+} catch (err) {
+  const msg = String(err?.message ?? "");
+  if (
+    msg.includes("no longer exist") ||
+    msg.includes("invalid-argument")
+  ) {
+    pass("drop-off approve rejects missing staging location id");
+  } else {
+    fail("expected missing staging location error", err?.message);
+  }
+}
+
+let dropOne;
+try {
+  dropOne = await approveImport({
+    vendorInvoiceImportId: "vii-dropoff-one",
+    action: "approve",
+    plannedStagingLocationIds: ["staging-g1"],
+  });
+} catch (err) {
+  fail("drop-off approve with one location failed", err?.message);
+}
+const dropOneShell = shellDeliveryIdForImport("vii-dropoff-one");
+const dropOneSnap = await getDoc(doc(db, "deliveries", dropOneShell));
+const dropOnePlanned = dropOneSnap.data()?.plannedStagingLocationIds;
+if (
+  dropOne?.data?.reviewStatus === "approved" &&
+  Array.isArray(dropOnePlanned) &&
+  dropOnePlanned.length === 1 &&
+  dropOnePlanned[0] === "staging-g1" &&
+  Array.isArray(dropOne?.data?.plannedStagingLocationIds) &&
+  dropOne.data.plannedStagingLocationIds[0] === "staging-g1"
+) {
+  pass("drop-off approve writes plannedStagingLocationIds (one)");
+} else {
+  fail("drop-off one-location response/doc", {
+    response: dropOne?.data,
+    planned: dropOnePlanned,
+  });
+}
+
+let dropMulti;
+try {
+  dropMulti = await approveImport({
+    vendorInvoiceImportId: "vii-dropoff-multi",
+    action: "approve",
+    plannedStagingLocationIds: ["staging-g1", "staging-g2", "staging-g1"],
+  });
+} catch (err) {
+  fail("drop-off approve with multiple locations failed", err?.message);
+}
+const dropMultiShell = shellDeliveryIdForImport("vii-dropoff-multi");
+const dropMultiSnap = await getDoc(doc(db, "deliveries", dropMultiShell));
+const dropMultiPlanned = dropMultiSnap.data()?.plannedStagingLocationIds ?? [];
+if (
+  dropMulti?.data?.reviewStatus === "approved" &&
+  dropMultiPlanned.length === 2 &&
+  dropMultiPlanned.includes("staging-g1") &&
+  dropMultiPlanned.includes("staging-g2")
+) {
+  pass("drop-off approve writes deduped multi plannedStagingLocationIds");
+} else {
+  fail("drop-off multi-location planned ids", dropMultiPlanned);
+}
+
+let willStale;
+try {
+  willStale = await approveImport({
+    vendorInvoiceImportId: "vii-willcall-stale-staging",
+    action: "approve",
+    plannedStagingLocationIds: ["staging-g1", "staging-g2"],
+  });
+} catch (err) {
+  fail("will-call approve with stale staging ids failed", err?.message);
+}
+const willStaleShell = shellDeliveryIdForImport("vii-willcall-stale-staging");
+const willStaleSnap = await getDoc(doc(db, "deliveries", willStaleShell));
+if (
+  willStale?.data?.reviewStatus === "approved" &&
+  willStaleSnap.data()?.plannedStagingLocationIds === undefined &&
+  Array.isArray(willStale?.data?.plannedStagingLocationIds) &&
+  willStale.data.plannedStagingLocationIds.length === 0
+) {
+  pass("will-call ignores stale plannedStagingLocationIds (not written)");
+} else {
+  fail("will-call stale staging should not write planned ids", {
+    response: willStale?.data,
+    doc: willStaleSnap.data()?.plannedStagingLocationIds,
+  });
+}
+
+const reapproveShell = shellDeliveryIdForImport("vii-dropoff-reapprove");
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "deliveries", reapproveShell), {
+    id: reapproveShell,
+    jobId: "job-1",
+    vendorId: "vendor-1",
+    orderNumber: "ORD-REAPPROVE",
+    status: "pending",
+    createdFromInvoiceImport: true,
+    vendorInvoiceImportId: "vii-dropoff-reapprove",
+    plannedStagingLocationIds: ["staging-g1"],
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+let reapprove;
+try {
+  reapprove = await approveImport({
+    vendorInvoiceImportId: "vii-dropoff-reapprove",
+    action: "approve",
+    plannedStagingLocationIds: ["staging-g2"],
+  });
+} catch (err) {
+  fail("re-approve with replace staging failed", err?.message);
+}
+const reapproveSnap = await getDoc(doc(db, "deliveries", reapproveShell));
+const reapprovePlanned = reapproveSnap.data()?.plannedStagingLocationIds ?? [];
+if (
+  reapprove?.data?.reviewStatus === "approved" &&
+  reapprovePlanned.length === 1 &&
+  reapprovePlanned[0] === "staging-g2"
+) {
+  pass("re-approve replaces plannedStagingLocationIds (no duplicates)");
+} else {
+  fail("re-approve replace semantics", reapprovePlanned);
 }
 
 await testEnv.cleanup();

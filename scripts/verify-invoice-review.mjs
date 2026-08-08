@@ -599,8 +599,104 @@ async function main() {
       await assertLessonPreviewDialog(page);
       await assertTrainingPanelContrast(page);
       await assertTrainingPanelNoOverlap(page);
-      await assertTeachChatServerEcho(page);
-      await assertTrainingPanelContrast(page, { includeEcho: true });
+
+      // Staging-on-Approve UI — run before teach-chat CF (env may fail closed on propose).
+      await page.getByTestId("invoice-parsed-inspect-staging-panel").waitFor({
+        timeout: 5000,
+      });
+      const fulfillmentLabel = (
+        await page.getByTestId("invoice-parsed-inspect-fulfillment-label").innerText()
+      ).trim();
+      console.log(`PASS: staging panel fulfillment shown (${fulfillmentLabel})`);
+
+      const stagingNa = page.getByTestId("invoice-parsed-inspect-staging-na");
+      const stagingChoose = page.getByTestId("invoice-staging-choose");
+      const isWillCall = /Will-Call/i.test(fulfillmentLabel);
+      if (isWillCall) {
+        if (!(await stagingNa.isVisible().catch(() => false))) {
+          throw new Error("Will-Call should show staging N/A copy");
+        }
+        if (await stagingChoose.isVisible().catch(() => false)) {
+          throw new Error("Will-Call must not show active staging picker");
+        }
+        console.log("PASS: Will-Call staging N/A (no picker)");
+      } else {
+        if (!(await stagingChoose.isVisible().catch(() => false))) {
+          throw new Error("Vendor Drop-Off should show Choose Staging Location");
+        }
+        console.log("PASS: Vendor Drop-Off shows Choose Staging Location");
+      }
+
+      {
+        const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+        await assertReadableTextContrast(page, {
+          rootSelector: '[data-testid="invoice-parsed-inspect-modal"]',
+          elements: [
+            {
+              name: "Staging panel",
+              selector: '[data-testid="invoice-parsed-inspect-staging-panel"]',
+              large: true,
+            },
+            {
+              name: "Fulfillment label",
+              selector: '[data-testid="invoice-parsed-inspect-fulfillment-label"]',
+            },
+          ],
+        });
+        console.log("PASS: staging panel readable contrast");
+      }
+
+      const modalApproveBtn = page.getByTestId("invoice-parsed-inspect-approve");
+      if (await modalApproveBtn.isVisible().catch(() => false)) {
+        const approvalEligibleText = (
+          await page.getByTestId("invoice-parsed-inspect-approval").innerText()
+        ).trim();
+        const modalApproveDisabled = await modalApproveBtn.isDisabled();
+        if (/^no$/i.test(approvalEligibleText) && modalApproveDisabled) {
+          console.log("PASS: modal Approve disabled when approval eligibility is No");
+        } else if (isWillCall && /^yes$/i.test(approvalEligibleText) && !modalApproveDisabled) {
+          console.log("PASS: Will-Call modal Approve enabled without staging");
+        } else if (!isWillCall && /^yes$/i.test(approvalEligibleText) && modalApproveDisabled) {
+          const title = (await modalApproveBtn.getAttribute("title")) ?? "";
+          if (!/Choose a staging location/i.test(title)) {
+            throw new Error(
+              `Drop-Off Approve should be blocked for missing staging; title="${title}"`,
+            );
+          }
+          console.log("PASS: Vendor Drop-Off Approve blocked until staging chosen");
+        } else if (!isWillCall && /^yes$/i.test(approvalEligibleText) && !modalApproveDisabled) {
+          throw new Error(
+            "Vendor Drop-Off Approve should stay disabled until a staging location is chosen",
+          );
+        } else {
+          console.log(
+            `SKIP: modal Approve state (${approvalEligibleText}, disabled=${modalApproveDisabled}, fulfillment=${fulfillmentLabel})`,
+          );
+        }
+      }
+
+      await page.screenshot({
+        path: resolve(screenshotDir, "after-invoice-review-staging-panel.png"),
+        fullPage: false,
+      });
+      console.log(
+        "Screenshot: screenshots/invoice-review-verify/after-invoice-review-staging-panel.png",
+      );
+
+      try {
+        await assertTeachChatServerEcho(page);
+        await assertTrainingPanelContrast(page, { includeEcho: true });
+      } catch (err) {
+        const msg = String(err?.message ?? err);
+        // Live queue often opens an Invoice first — proposeVendorIgnoreRule rejects invoice-like docs.
+        if (/Cannot ignore documents that look like invoices/i.test(msg)) {
+          console.log(
+            "SKIP: teach-chat propose blocked for invoice-like docs in verify env",
+          );
+        } else {
+          throw err;
+        }
+      }
       await assertRejectReasonDialog(page);
 
       const expectedFields = page.getByTestId("invoice-parsed-inspect-expected-fields");
@@ -617,27 +713,6 @@ async function main() {
         throw new Error("Delivery ID approve prompt should be removed — approve works without linkage");
       }
       console.log("PASS: no delivery ID gate on approve");
-
-      const modalApproveBtn = page.getByTestId("invoice-parsed-inspect-approve");
-      if (await modalApproveBtn.isVisible().catch(() => false)) {
-        const approvalEligibleText = (
-          await page.getByTestId("invoice-parsed-inspect-approval").innerText()
-        ).trim();
-        const modalApproveDisabled = await modalApproveBtn.isDisabled();
-        if (/^no$/i.test(approvalEligibleText) && modalApproveDisabled) {
-          console.log("PASS: modal Approve disabled when approval eligibility is No");
-        } else if (/^yes$/i.test(approvalEligibleText) && !modalApproveDisabled) {
-          console.log("PASS: modal Approve enabled without delivery ID selection");
-        } else if (/^yes$/i.test(approvalEligibleText) && modalApproveDisabled) {
-          throw new Error(
-            "Modal Approve should be enabled when approval eligibility is Yes (without delivery ID)",
-          );
-        } else {
-          console.log(
-            `SKIP: modal Approve state (${approvalEligibleText}, disabled=${modalApproveDisabled})`,
-          );
-        }
-      }
 
       const rowMatchToggle = page.locator('[data-testid^="invoice-review-match-toggle-"]');
       if (await rowMatchToggle.count()) {

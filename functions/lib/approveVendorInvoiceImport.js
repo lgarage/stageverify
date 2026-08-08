@@ -56,6 +56,23 @@ function assertDeliveryAllowedForImport(doc) {
         throw new https_1.HttpsError("failed-precondition", creditReturnSkip_1.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
     }
 }
+const MAX_PLANNED_STAGING_IDS = 20;
+/** Sanitize client staging ids — approve path only; will-call ignores via approvePlannedStagingPatch. */
+function sanitizePlannedStagingLocationIds(raw) {
+    if (!Array.isArray(raw))
+        return [];
+    return [
+        ...new Set(raw
+            .filter((id) => typeof id === "string")
+            .map((id) => id.trim())
+            .filter((id) => id.length > 0 && id.length <= 128)),
+    ].slice(0, MAX_PLANNED_STAGING_IDS);
+}
+function approvePlannedStagingPatch(stagingSkipped, ids) {
+    if (stagingSkipped || ids.length === 0)
+        return {};
+    return { plannedStagingLocationIds: ids };
+}
 exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
     const uid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
@@ -65,6 +82,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     const action = typeof data.action === "string" ? data.action.trim() : "";
     const deliveryOrderId = typeof data.deliveryOrderId === "string" ? data.deliveryOrderId.trim() : "";
     const correctionNoteRaw = typeof data.correctionNote === "string" ? data.correctionNote : "";
+    const plannedStagingLocationIds = sanitizePlannedStagingLocationIds(data.plannedStagingLocationIds);
     if (!importId || importId.length > 256) {
         throw new https_1.HttpsError("invalid-argument", "vendorInvoiceImportId is required.");
     }
@@ -483,6 +501,22 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     }
     const shell = await (0, createDeliveryShellFromImport_1.buildInvoiceDeliveryShellContext)(getDb(), importId, importDoc);
     const deliveryRef = getDb().collection("deliveries").doc(shell.deliveryOrderId);
+    const stagingSkipped = (0, invoiceShellDisplayHelpers_1.isInvoiceShellNoShopStaging)({
+        createdFromInvoiceImport: true,
+        invoiceImportStatus: importDoc.importStatus,
+        invoiceFulfillmentMethod: shell.invoiceFulfillmentMethod,
+        invoiceDeliverToSite: shell.invoiceDeliverToSite,
+    });
+    if (!stagingSkipped && plannedStagingLocationIds.length === 0) {
+        throw new https_1.HttpsError("failed-precondition", "Choose a staging location before approving this Vendor Drop-Off.");
+    }
+    if (!stagingSkipped && plannedStagingLocationIds.length > 0) {
+        const locSnaps = await Promise.all(plannedStagingLocationIds.map((id) => getDb().collection("stagingLocations").doc(id).get()));
+        if (locSnaps.some((snap) => !snap.exists)) {
+            throw new https_1.HttpsError("invalid-argument", "One or more selected staging locations no longer exist. Refresh and reselect.");
+        }
+    }
+    const stagingPatch = approvePlannedStagingPatch(stagingSkipped, plannedStagingLocationIds);
     await getDb().runTransaction(async (tx) => {
         const freshImport = await tx.get(importRef);
         if (!freshImport.exists) {
@@ -498,10 +532,16 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         }
         const existingDelivery = await tx.get(deliveryRef);
         if (!existingDelivery.exists) {
-            tx.set(deliveryRef, (0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shell, importId, fresh, now));
+            tx.set(deliveryRef, {
+                ...(0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shell, importId, fresh, now),
+                ...stagingPatch,
+            });
         }
         else {
-            tx.update(deliveryRef, (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, fresh, now, existingDelivery.data()));
+            tx.update(deliveryRef, {
+                ...(0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, fresh, now, existingDelivery.data()),
+                ...stagingPatch,
+            });
         }
         for (const item of shell.expectedItems) {
             tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
@@ -539,6 +579,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             });
         }
     }
+    const appliedPlanned = stagingPatch.plannedStagingLocationIds ?? [];
     return {
         vendorInvoiceImportId: importId,
         reviewStatus: "approved",
@@ -546,6 +587,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         itemsApplied: shell.expectedItems.length,
         shellCreated: true,
         jobCreated: shell.jobCreated,
+        plannedStagingLocationIds: appliedPlanned,
         trainingLessonWrote,
         trainingLessonPendingAdminReview,
         trainingLessonAlertEmailed,

@@ -11,7 +11,10 @@ import {
   buildInvoiceDeliveryShellContext,
   buildInvoiceShellPatchDocument,
 } from "./invoice/createDeliveryShellFromImport";
-import { jobNameFromInvoiceContext } from "./invoice/invoiceShellDisplayHelpers";
+import {
+  isInvoiceShellNoShopStaging,
+  jobNameFromInvoiceContext,
+} from "./invoice/invoiceShellDisplayHelpers";
 import {
   buildImportDecisionLogEntry,
   computeAutoImportEligibility,
@@ -77,6 +80,29 @@ function assertDeliveryAllowedForImport(doc: VendorInvoiceImportDoc): void {
   }
 }
 
+const MAX_PLANNED_STAGING_IDS = 20;
+
+/** Sanitize client staging ids — approve path only; will-call ignores via approvePlannedStagingPatch. */
+function sanitizePlannedStagingLocationIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return [
+    ...new Set(
+      raw
+        .filter((id): id is string => typeof id === "string")
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0 && id.length <= 128),
+    ),
+  ].slice(0, MAX_PLANNED_STAGING_IDS);
+}
+
+function approvePlannedStagingPatch(
+  stagingSkipped: boolean,
+  ids: string[],
+): Record<string, unknown> {
+  if (stagingSkipped || ids.length === 0) return {};
+  return { plannedStagingLocationIds: ids };
+}
+
 export const approveVendorInvoiceImport = onCall(
   { region: "us-central1" },
   async (request) => {
@@ -87,6 +113,8 @@ export const approveVendorInvoiceImport = onCall(
       deliveryOrderId?: string;
       /** Generalized pattern note for vendor training MD — not invoice-specific details. */
       correctionNote?: string;
+      /** Staging location doc ids — applied on approve for Vendor Drop-Off only. */
+      plannedStagingLocationIds?: unknown;
     };
 
     const importId =
@@ -98,6 +126,9 @@ export const approveVendorInvoiceImport = onCall(
       typeof data.deliveryOrderId === "string" ? data.deliveryOrderId.trim() : "";
     const correctionNoteRaw =
       typeof data.correctionNote === "string" ? data.correctionNote : "";
+    const plannedStagingLocationIds = sanitizePlannedStagingLocationIds(
+      data.plannedStagingLocationIds,
+    );
 
     if (!importId || importId.length > 256) {
       throw new HttpsError("invalid-argument", "vendorInvoiceImportId is required.");
@@ -686,6 +717,36 @@ export const approveVendorInvoiceImport = onCall(
     const shell = await buildInvoiceDeliveryShellContext(getDb(), importId, importDoc);
     const deliveryRef = getDb().collection("deliveries").doc(shell.deliveryOrderId);
 
+    const stagingSkipped = isInvoiceShellNoShopStaging({
+      createdFromInvoiceImport: true,
+      invoiceImportStatus: importDoc.importStatus,
+      invoiceFulfillmentMethod: shell.invoiceFulfillmentMethod,
+      invoiceDeliverToSite: shell.invoiceDeliverToSite,
+    });
+    if (!stagingSkipped && plannedStagingLocationIds.length === 0) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Choose a staging location before approving this Vendor Drop-Off.",
+      );
+    }
+    if (!stagingSkipped && plannedStagingLocationIds.length > 0) {
+      const locSnaps = await Promise.all(
+        plannedStagingLocationIds.map((id) =>
+          getDb().collection("stagingLocations").doc(id).get(),
+        ),
+      );
+      if (locSnaps.some((snap) => !snap.exists)) {
+        throw new HttpsError(
+          "invalid-argument",
+          "One or more selected staging locations no longer exist. Refresh and reselect.",
+        );
+      }
+    }
+    const stagingPatch = approvePlannedStagingPatch(
+      stagingSkipped,
+      plannedStagingLocationIds,
+    );
+
     await getDb().runTransaction(async (tx) => {
       const freshImport = await tx.get(importRef);
       if (!freshImport.exists) {
@@ -708,21 +769,21 @@ export const approveVendorInvoiceImport = onCall(
 
       const existingDelivery = await tx.get(deliveryRef);
       if (!existingDelivery.exists) {
-        tx.set(
-          deliveryRef,
-          buildDeliveryShellDocument(shell, importId, fresh, now),
-        );
+        tx.set(deliveryRef, {
+          ...buildDeliveryShellDocument(shell, importId, fresh, now),
+          ...stagingPatch,
+        });
       } else {
-        tx.update(
-          deliveryRef,
-          buildInvoiceShellPatchDocument(
+        tx.update(deliveryRef, {
+          ...buildInvoiceShellPatchDocument(
             shell,
             importId,
             fresh,
             now,
             existingDelivery.data(),
           ),
-        );
+          ...stagingPatch,
+        });
       }
       for (const item of shell.expectedItems) {
         tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
@@ -772,6 +833,8 @@ export const approveVendorInvoiceImport = onCall(
       }
     }
 
+    const appliedPlanned =
+      (stagingPatch.plannedStagingLocationIds as string[] | undefined) ?? [];
     return {
       vendorInvoiceImportId: importId,
       reviewStatus: "approved",
@@ -779,6 +842,7 @@ export const approveVendorInvoiceImport = onCall(
       itemsApplied: shell.expectedItems.length,
       shellCreated: true,
       jobCreated: shell.jobCreated,
+      plannedStagingLocationIds: appliedPlanned,
       trainingLessonWrote,
       trainingLessonPendingAdminReview,
       trainingLessonAlertEmailed,
