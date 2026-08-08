@@ -76,12 +76,20 @@ async function migrateCollection(targetType, collectionName, dryRun, remainingLi
                 ? fresh.pinHash
                 : null;
             if (plainPin) {
+                const uniquenessRef = db
+                    .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
+                    .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)(targetType, plainPin));
                 tx.set(secretRef, {
                     targetType,
                     targetId: doc.id,
                     pinHash: (0, pinHashing_1.hashPinForStorage)(plainPin),
                     pinEncrypted: (0, accessPinCrypto_1.encryptPinForStorage)(plainPin),
                     revealable: true,
+                    updatedAt: now,
+                });
+                tx.set(uniquenessRef, {
+                    targetType,
+                    targetId: doc.id,
                     updatedAt: now,
                 });
             }

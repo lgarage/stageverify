@@ -515,6 +515,7 @@ try {
   const dispatcherPin = testEnv.authenticatedContext("dispatcher-pin");
   for (const [coll, docId] of [
     ["accessPinSecrets", "technician_tech-pin-test"],
+    ["accessPinUniqueness", "technician_abc123deadbeef"],
     ["pinAccessAudit", "audit-1"],
     ["accessPinRevealAttempts", "attempt-1"],
   ]) {

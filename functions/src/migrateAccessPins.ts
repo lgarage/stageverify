@@ -6,6 +6,8 @@ import {
 } from "./accessPinCrypto";
 import {
   accessPinSecretDocId,
+  accessPinUniquenessDocId,
+  ACCESS_PIN_UNIQUENESS_COLLECTION,
   getDb,
   type AccessPinTargetType,
 } from "./accessPinSecretsShared";
@@ -118,12 +120,20 @@ async function migrateCollection(
           : null;
 
       if (plainPin) {
+        const uniquenessRef = db
+          .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
+          .doc(accessPinUniquenessDocId(targetType, plainPin));
         tx.set(secretRef, {
           targetType,
           targetId: doc.id,
           pinHash: hashPinForStorage(plainPin),
           pinEncrypted: encryptPinForStorage(plainPin),
           revealable: true,
+          updatedAt: now,
+        });
+        tx.set(uniquenessRef, {
+          targetType,
+          targetId: doc.id,
           updatedAt: now,
         });
       } else if (legacyHash) {

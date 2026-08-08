@@ -2,18 +2,22 @@ import { FieldValue } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import {
   accessPinEncryptionKey,
+  decryptPinFromStorage,
   encryptPinForStorage,
 } from "./accessPinCrypto";
 import {
   ACCESS_PIN_SECRETS_COLLECTION,
+  ACCESS_PIN_UNIQUENESS_COLLECTION,
   accessPinSecretDocId,
+  accessPinUniquenessDocId,
   parseAccessPinTargetType,
   writePinAccessAudit,
   getDb,
+  type AccessPinSecretDoc,
   type AccessPinTargetType,
 } from "./accessPinSecretsShared";
 import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
-import { asFourDigitPin, pinMatches } from "./pinMatching";
+import { asFourDigitPin } from "./pinMatching";
 import { hashPinForStorage } from "./pinHashing";
 
 interface SetAccessPinRequest {
@@ -47,44 +51,68 @@ export const setAccessPin = onCall(
 
     const db = getDb();
     const entityRef = db.collection(ENTITY_COLLECTION[targetType]).doc(targetId);
-    const entitySnap = await entityRef.get();
-    if (!entitySnap.exists) {
-      throw new HttpsError("not-found", "Target not found.");
-    }
+    const secretRef = db
+      .collection(ACCESS_PIN_SECRETS_COLLECTION)
+      .doc(accessPinSecretDocId(targetType, targetId));
+    const uniquenessRef = db
+      .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
+      .doc(accessPinUniquenessDocId(targetType, pin));
 
     const now = new Date().toISOString();
     const pinHash = hashPinForStorage(pin);
     const pinEncrypted = encryptPinForStorage(pin);
 
-    const secretsSnap = await db
-      .collection(ACCESS_PIN_SECRETS_COLLECTION)
-      .where("targetType", "==", targetType)
-      .limit(300)
-      .get();
-
-    for (const secretDoc of secretsSnap.docs) {
-      const secret = secretDoc.data() as { pinHash?: string; targetId?: string };
-      if (!secret.targetId || secret.targetId === targetId) continue;
-      if (!secret.pinHash) continue;
-      if (pinMatches({ pinHash: secret.pinHash }, pin)) {
-        throw new HttpsError(
-          "already-exists",
-          "Another target already uses this PIN.",
-        );
-      }
-    }
-
-    const secretRef = db
-      .collection("accessPinSecrets")
-      .doc(accessPinSecretDocId(targetType, targetId));
-
     await db.runTransaction(async (tx) => {
+      const entitySnap = await tx.get(entityRef);
+      if (!entitySnap.exists) {
+        throw new HttpsError("not-found", "Target not found.");
+      }
+
+      const existingSecretSnap = await tx.get(secretRef);
+      const uniquenessSnap = await tx.get(uniquenessRef);
+
+      if (uniquenessSnap.exists) {
+        const existing = uniquenessSnap.data() as { targetId?: string };
+        if (existing.targetId && existing.targetId !== targetId) {
+          throw new HttpsError(
+            "already-exists",
+            "Another target already uses this PIN.",
+          );
+        }
+      }
+
+      if (existingSecretSnap.exists) {
+        const oldSecret = existingSecretSnap.data() as AccessPinSecretDoc;
+        if (
+          oldSecret.revealable &&
+          oldSecret.pinEncrypted?.ciphertext &&
+          oldSecret.pinEncrypted.ciphertext.length > 0
+        ) {
+          try {
+            const oldPin = decryptPinFromStorage(oldSecret.pinEncrypted);
+            if (oldPin !== pin) {
+              const oldUniquenessRef = db
+                .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
+                .doc(accessPinUniquenessDocId(targetType, oldPin));
+              tx.delete(oldUniquenessRef);
+            }
+          } catch {
+            // Hash-only or corrupt prior secret — skip old uniqueness cleanup.
+          }
+        }
+      }
+
       tx.set(secretRef, {
         targetType,
         targetId,
         pinHash,
         pinEncrypted,
         revealable: true,
+        updatedAt: now,
+      });
+      tx.set(uniquenessRef, {
+        targetType,
+        targetId,
         updatedAt: now,
       });
       tx.set(

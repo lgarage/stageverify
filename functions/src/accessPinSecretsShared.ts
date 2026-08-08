@@ -1,7 +1,9 @@
+import { createHash } from "crypto";
 import * as admin from "firebase-admin";
 import type { PinEncrypted } from "./accessPinCrypto";
 
 export const ACCESS_PIN_SECRETS_COLLECTION = "accessPinSecrets";
+export const ACCESS_PIN_UNIQUENESS_COLLECTION = "accessPinUniqueness";
 export const PIN_ACCESS_AUDIT_COLLECTION = "pinAccessAudit";
 export const ACCESS_PIN_REVEAL_ATTEMPTS_COLLECTION = "accessPinRevealAttempts";
 
@@ -13,6 +15,12 @@ export type AccessPinSecretDoc = {
   pinHash: string;
   pinEncrypted: PinEncrypted;
   revealable: boolean;
+  updatedAt: string;
+};
+
+export type AccessPinUniquenessDoc = {
+  targetType: AccessPinTargetType;
+  targetId: string;
   updatedAt: string;
 };
 
@@ -38,6 +46,18 @@ export function accessPinSecretDocId(
   targetId: string,
 ): string {
   return `${targetType}_${targetId}`;
+}
+
+/** SHA-256 hex of plaintext PIN — used for uniqueness index doc id only (never stored in doc body). */
+export function sha256PinHex(pin: string): string {
+  return createHash("sha256").update(pin, "utf8").digest("hex");
+}
+
+export function accessPinUniquenessDocId(
+  targetType: AccessPinTargetType,
+  pin: string,
+): string {
+  return `${targetType}_${sha256PinHex(pin)}`;
 }
 
 export function parseAccessPinTargetType(

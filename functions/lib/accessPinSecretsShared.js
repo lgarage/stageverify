@@ -1,13 +1,17 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ACCESS_PIN_REVEAL_ATTEMPTS_COLLECTION = exports.PIN_ACCESS_AUDIT_COLLECTION = exports.ACCESS_PIN_SECRETS_COLLECTION = void 0;
+exports.ACCESS_PIN_REVEAL_ATTEMPTS_COLLECTION = exports.PIN_ACCESS_AUDIT_COLLECTION = exports.ACCESS_PIN_UNIQUENESS_COLLECTION = exports.ACCESS_PIN_SECRETS_COLLECTION = void 0;
 exports.getDb = getDb;
 exports.accessPinSecretDocId = accessPinSecretDocId;
+exports.sha256PinHex = sha256PinHex;
+exports.accessPinUniquenessDocId = accessPinUniquenessDocId;
 exports.parseAccessPinTargetType = parseAccessPinTargetType;
 exports.writePinAccessAudit = writePinAccessAudit;
 exports.writePinRevealDeniedAuditBestEffort = writePinRevealDeniedAuditBestEffort;
+const crypto_1 = require("crypto");
 const admin = require("firebase-admin");
 exports.ACCESS_PIN_SECRETS_COLLECTION = "accessPinSecrets";
+exports.ACCESS_PIN_UNIQUENESS_COLLECTION = "accessPinUniqueness";
 exports.PIN_ACCESS_AUDIT_COLLECTION = "pinAccessAudit";
 exports.ACCESS_PIN_REVEAL_ATTEMPTS_COLLECTION = "accessPinRevealAttempts";
 function getDb() {
@@ -15,6 +19,13 @@ function getDb() {
 }
 function accessPinSecretDocId(targetType, targetId) {
     return `${targetType}_${targetId}`;
+}
+/** SHA-256 hex of plaintext PIN — used for uniqueness index doc id only (never stored in doc body). */
+function sha256PinHex(pin) {
+    return (0, crypto_1.createHash)("sha256").update(pin, "utf8").digest("hex");
+}
+function accessPinUniquenessDocId(targetType, pin) {
+    return `${targetType}_${sha256PinHex(pin)}`;
 }
 function parseAccessPinTargetType(value) {
     if (value === "technician" || value === "vendor")

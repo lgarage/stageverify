@@ -1,3 +1,5 @@
+import { FieldPath } from "firebase-admin/firestore";
+import type { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { pinMatches } from "./pinMatching";
 import {
   ACCESS_PIN_SECRETS_COLLECTION,
@@ -22,6 +24,37 @@ interface VendorEntity {
   pinHash?: string;
 }
 
+const SECRETS_PAGE_SIZE = 300;
+
+async function getAllSecretsForTargetType(
+  targetType: AccessPinTargetType,
+): Promise<QueryDocumentSnapshot[]> {
+  const db = getDb();
+  const allDocs: QueryDocumentSnapshot[] = [];
+  let lastDoc: QueryDocumentSnapshot | undefined;
+
+  while (true) {
+    let query = db
+      .collection(ACCESS_PIN_SECRETS_COLLECTION)
+      .where("targetType", "==", targetType)
+      .orderBy(FieldPath.documentId())
+      .limit(SECRETS_PAGE_SIZE);
+
+    if (lastDoc) {
+      query = query.startAfter(lastDoc);
+    }
+
+    const snap = await query.get();
+    if (snap.empty) break;
+
+    allDocs.push(...snap.docs);
+    if (snap.docs.length < SECRETS_PAGE_SIZE) break;
+    lastDoc = snap.docs[snap.docs.length - 1];
+  }
+
+  return allDocs;
+}
+
 async function findByAccessPinSecrets<T extends { active?: boolean }>(
   targetType: AccessPinTargetType,
   pin: string,
@@ -29,15 +62,10 @@ async function findByAccessPinSecrets<T extends { active?: boolean }>(
   collection: string,
 ): Promise<{ id: string; data: T } | null> {
   const db = getDb();
-  const snap = await db
-    .collection(ACCESS_PIN_SECRETS_COLLECTION)
-    .where("targetType", "==", targetType)
-    .limit(300)
-    .get();
-
+  const secretDocs = await getAllSecretsForTargetType(targetType);
   const matches: { id: string; data: T }[] = [];
 
-  for (const secretDoc of snap.docs) {
+  for (const secretDoc of secretDocs) {
     const secret = secretDoc.data() as { pinHash?: string; targetId?: string };
     if (!secret.targetId || !secret.pinHash) continue;
     if (!pinMatches({ pinHash: secret.pinHash }, pin)) continue;
@@ -49,8 +77,8 @@ async function findByAccessPinSecrets<T extends { active?: boolean }>(
     matches.push({ id: secret.targetId, data: entity });
   }
 
-  if (matches.length === 1) return matches[0];
-  return null;
+  if (matches.length !== 1) return null;
+  return matches[0];
 }
 
 export async function findTechnicianByAccessPinSecrets(

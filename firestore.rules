@@ -119,6 +119,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /accessPinUniqueness/{id} {
+      allow read, write: if false;
+    }
+
     match /pinAccessAudit/{id} {
       allow read, write: if false;
     }

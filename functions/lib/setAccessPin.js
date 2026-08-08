@@ -27,38 +27,58 @@ exports.setAccessPin = (0, https_1.onCall)({
     }
     const db = (0, accessPinSecretsShared_1.getDb)();
     const entityRef = db.collection(ENTITY_COLLECTION[targetType]).doc(targetId);
-    const entitySnap = await entityRef.get();
-    if (!entitySnap.exists) {
-        throw new https_1.HttpsError("not-found", "Target not found.");
-    }
+    const secretRef = db
+        .collection(accessPinSecretsShared_1.ACCESS_PIN_SECRETS_COLLECTION)
+        .doc((0, accessPinSecretsShared_1.accessPinSecretDocId)(targetType, targetId));
+    const uniquenessRef = db
+        .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
+        .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)(targetType, pin));
     const now = new Date().toISOString();
     const pinHash = (0, pinHashing_1.hashPinForStorage)(pin);
     const pinEncrypted = (0, accessPinCrypto_1.encryptPinForStorage)(pin);
-    const secretsSnap = await db
-        .collection(accessPinSecretsShared_1.ACCESS_PIN_SECRETS_COLLECTION)
-        .where("targetType", "==", targetType)
-        .limit(300)
-        .get();
-    for (const secretDoc of secretsSnap.docs) {
-        const secret = secretDoc.data();
-        if (!secret.targetId || secret.targetId === targetId)
-            continue;
-        if (!secret.pinHash)
-            continue;
-        if ((0, pinMatching_1.pinMatches)({ pinHash: secret.pinHash }, pin)) {
-            throw new https_1.HttpsError("already-exists", "Another target already uses this PIN.");
-        }
-    }
-    const secretRef = db
-        .collection("accessPinSecrets")
-        .doc((0, accessPinSecretsShared_1.accessPinSecretDocId)(targetType, targetId));
     await db.runTransaction(async (tx) => {
+        const entitySnap = await tx.get(entityRef);
+        if (!entitySnap.exists) {
+            throw new https_1.HttpsError("not-found", "Target not found.");
+        }
+        const existingSecretSnap = await tx.get(secretRef);
+        const uniquenessSnap = await tx.get(uniquenessRef);
+        if (uniquenessSnap.exists) {
+            const existing = uniquenessSnap.data();
+            if (existing.targetId && existing.targetId !== targetId) {
+                throw new https_1.HttpsError("already-exists", "Another target already uses this PIN.");
+            }
+        }
+        if (existingSecretSnap.exists) {
+            const oldSecret = existingSecretSnap.data();
+            if (oldSecret.revealable &&
+                oldSecret.pinEncrypted?.ciphertext &&
+                oldSecret.pinEncrypted.ciphertext.length > 0) {
+                try {
+                    const oldPin = (0, accessPinCrypto_1.decryptPinFromStorage)(oldSecret.pinEncrypted);
+                    if (oldPin !== pin) {
+                        const oldUniquenessRef = db
+                            .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
+                            .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)(targetType, oldPin));
+                        tx.delete(oldUniquenessRef);
+                    }
+                }
+                catch {
+                    // Hash-only or corrupt prior secret — skip old uniqueness cleanup.
+                }
+            }
+        }
         tx.set(secretRef, {
             targetType,
             targetId,
             pinHash,
             pinEncrypted,
             revealable: true,
+            updatedAt: now,
+        });
+        tx.set(uniquenessRef, {
+            targetType,
+            targetId,
             updatedAt: now,
         });
         tx.set(entityRef, {
