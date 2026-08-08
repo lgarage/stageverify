@@ -25,3 +25,5 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-08 | ship-op (merge PR #43 + gh-pages deploy) | T0 fast-safe | Composer 2.5 Fast | 99 | 99 | ok | Squash-merge #43; v0.0.226; vendor hub accordion LIVE |
 | 2026-08-08 | ui-component (vendor hub location/invoice display) | T0 fast-safe | Composer 2.5 Fast | 98 | 99 | ok | Location: code + Invoice #; PR only |
 | 2026-08-08 | ship-op (merge PR #44 + gh-pages deploy) | T0 fast-safe | Composer 2.5 Fast | 99 | 99 | ok | Squash-merge #44; v0.0.227; vendor hub Location/Invoice LIVE |
+| 2026-08-08 | multi-file-feature (Settings PIN & Access Management consolidate) | T1 (fast-safe UI; high-risk if CF/auth/session touched) | Composer 2.5 Fast (cheapest); Dan override: GPT-5.6 Sol Medium + Grok verifier | 91 | 91 | classify-only | STOP — no implement; map tech/vendor/mgmt PIN SoTs; no duplicate PIN DB |
+| 2026-08-08 | multi-file-feature (PIN & Access Management Settings) | T1 fast-safe UI | GPT-5.6 Sol High (Dan override) + Grok verify | 98 | 99 | ok (PR only) | Consolidated roster; no CF; no merge/deploy |

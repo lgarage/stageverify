@@ -312,8 +312,8 @@ export function OfficeReceiversSettingsPanel() {
             <p style={{ fontSize: 13, color: MUTED, marginBottom: 16 }}>
               Notify targets for Catch-All delivery alerts — staff who receive
               email when a catch-all parcel needs check-in. On-site check-in
-              still uses a management PIN (under Management); these contacts are
-              alert recipients only.
+              still uses a management PIN (in PIN &amp; Access Management); these
+              contacts are alert recipients only.
             </p>
 
             {displayReceivers.length > 0 ? (

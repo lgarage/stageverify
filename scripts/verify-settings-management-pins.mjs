@@ -1,5 +1,5 @@
 /**
- * Settings → Management PINs capability matrix (D-49).
+ * Settings → PIN & Access Management management capability matrix (D-49).
  * Requires STAGEVERIFY_TEST_EMAIL / PASSWORD + playwright auth or live login.
  */
 import { chromium } from "playwright";
@@ -52,11 +52,34 @@ async function main() {
     await page.waitForURL(/#\/(dispatcher|settings|portal)/, { timeout: 45_000 }).catch(() => {});
 
     await page.goto(`${appBase}/#/settings`, { waitUntil: "domcontentloaded", timeout: 45_000 });
-    await page.getByTestId("management-settings-panel").waitFor({ timeout: 30_000 });
-    record("management settings panel visible", true);
+    await page.getByTestId("pin-access-management-panel").waitFor({ timeout: 30_000 });
+    record("PIN & Access Management panel visible", true);
 
-    await page.getByTestId("mgmt-pins-section").waitFor({ timeout: 15_000 });
-    record("management PINs section visible", true);
+    const pinPanel = page.getByTestId("pin-access-management-panel");
+    await pinPanel.getByTestId("mgmt-pins-section").waitFor({ timeout: 15_000 });
+    record("management PIN roster section visible in consolidated panel", true);
+
+    await page.getByTestId("management-settings-panel").waitFor({ timeout: 15_000 });
+    record("catch-all management settings panel visible separately", true);
+    const duplicatePinSections = await page
+      .getByTestId("management-settings-panel")
+      .getByTestId("mgmt-pins-section")
+      .count();
+    if (duplicatePinSections !== 0) {
+      throw new Error("Management PIN section still exists inside management-settings-panel");
+    }
+    record("no competing management PIN section", true);
+
+    await pinPanel.getByTestId("pin-access-add-button").click();
+    await pinPanel
+      .getByTestId("pin-access-new-user-type")
+      .selectOption("management");
+    await pinPanel.getByTestId("pin-access-wizard-next").click();
+    await pinPanel.getByTestId("mgmt-pin-new-label").fill("Verification only");
+    await pinPanel.getByTestId("pin-access-wizard-next").click();
+    await pinPanel.getByTestId("mgmt-pin-new-code").fill("2468");
+    await pinPanel.getByTestId("pin-access-wizard-next").click();
+    await pinPanel.getByTestId("mgmt-pin-create").waitFor({ timeout: 10_000 });
 
     for (const key of [
       "enterPortalAnyQr",
@@ -69,12 +92,20 @@ async function main() {
     record("create-PIN capability checkboxes present", true);
 
     await assertReadableTextContrast(page, {
-      rootSelector: "[data-testid='management-settings-panel']",
+      rootSelector: "[data-testid='pin-access-management-panel']",
       elements: [
-        { name: "pins heading", selector: "[data-testid='mgmt-pins-section'] h3" },
+        {
+          name: "pins heading",
+          selector: "[data-testid='pin-access-heading']",
+          large: true,
+        },
         {
           name: "create section label",
-          selector: "[data-testid='mgmt-pin-create'] p",
+          selector: "[data-testid='mgmt-pin-create'] strong",
+        },
+        {
+          name: "management capability",
+          selector: "label:has([data-testid^='mgmt-pin-new-cap-'])",
         },
       ],
     });

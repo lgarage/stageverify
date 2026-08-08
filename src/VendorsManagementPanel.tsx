@@ -27,6 +27,12 @@ function domainFromEmail(email: string): string | undefined {
   return domain || undefined;
 }
 
+function withoutPlaintextVendorPin(vendor: Vendor): Vendor {
+  const copy = { ...vendor };
+  delete copy.pinCode;
+  return copy;
+}
+
 const cardStyle = {
   backgroundColor: "#fff",
   border: "1px solid #dde1e7",
@@ -52,9 +58,7 @@ export function VendorsManagementPanel({
   const [address, setAddress] = useState("");
   const [supplies, setSupplies] = useState("");
   const [notes, setNotes] = useState("");
-  const [pinCode, setPinCode] = useState("");
   const [active, setActive] = useState(true);
-  const [companyWideSessionEnabled, setCompanyWideSessionEnabled] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState({
     name: "",
@@ -65,9 +69,7 @@ export function VendorsManagementPanel({
     address: "",
     supplies: "",
     notes: "",
-    pinCode: "",
     active: true,
-    companyWideSessionEnabled: false,
   });
 
   const startEdit = (vendor: Vendor) => {
@@ -81,9 +83,7 @@ export function VendorsManagementPanel({
       address: vendor.address ?? "",
       supplies: vendor.supplies ?? "",
       notes: vendor.notes ?? "",
-      pinCode: vendor.pinCode ?? "",
       active: vendor.active !== false,
-      companyWideSessionEnabled: vendor.companyWideSessionEnabled === true,
     });
   };
 
@@ -92,7 +92,7 @@ export function VendorsManagementPanel({
   const saveEdit = async (vendor: Vendor) => {
     if (!editDraft.name.trim()) return;
     const updated: Vendor = {
-      ...vendor,
+      ...withoutPlaintextVendorPin(vendor),
       name: editDraft.name.trim(),
       contactName: editDraft.contactName.trim() || undefined,
       contactPhone: editDraft.contactPhone.trim() || undefined,
@@ -103,11 +103,7 @@ export function VendorsManagementPanel({
       address: editDraft.address.trim() || undefined,
       supplies: editDraft.supplies.trim() || undefined,
       notes: editDraft.notes.trim() || undefined,
-      pinCode: /^\d{4}$/.test(editDraft.pinCode.trim())
-        ? editDraft.pinCode.trim()
-        : undefined,
       active: editDraft.active,
-      companyWideSessionEnabled: editDraft.companyWideSessionEnabled,
       updatedAt: new Date().toISOString(),
     };
     await updateVendor(updated);
@@ -140,9 +136,7 @@ export function VendorsManagementPanel({
       address: address.trim() || undefined,
       supplies: supplies.trim() || undefined,
       notes: notes.trim() || undefined,
-      pinCode: /^\d{4}$/.test(pinCode.trim()) ? pinCode.trim() : undefined,
       active,
-      companyWideSessionEnabled,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -157,9 +151,7 @@ export function VendorsManagementPanel({
     setAddress("");
     setSupplies("");
     setNotes("");
-    setPinCode("");
     setActive(true);
-    setCompanyWideSessionEnabled(false);
   };
 
   return (
@@ -199,7 +191,7 @@ export function VendorsManagementPanel({
               >
                 <thead>
                   <tr style={{ backgroundColor: NAVY }}>
-                    {["Name", "PIN", "Active", "Multi-site", "Contact Name", "Contact Phone", "Email", "Email Domain", "Address", "Supplies", "Notes", ""].map(
+                    {["Name", "Active", "Contact Name", "Contact Phone", "Email", "Email Domain", "Address", "Supplies", "Notes", ""].map(
                       (col, i) => (
                         <th
                           key={i}
@@ -256,27 +248,6 @@ export function VendorsManagementPanel({
                             vendor.name
                           )}
                         </td>
-                        <td style={{ ...tdBase, color: "#333", fontFamily: "monospace" }}>
-                          {isEditing ? (
-                            <input
-                              style={inlineInput}
-                              value={editDraft.pinCode}
-                              placeholder="4 digits"
-                              maxLength={4}
-                              inputMode="numeric"
-                              onChange={(e) =>
-                                setEditDraft((d) => ({
-                                  ...d,
-                                  pinCode: e.target.value.replace(/\D/g, "").slice(0, 4),
-                                }))
-                              }
-                            />
-                          ) : vendor.pinCode ? (
-                            "••••"
-                          ) : (
-                            "—"
-                          )}
-                        </td>
                         <td style={{ ...tdBase, color: "#333" }}>
                           {isEditing ? (
                             <input
@@ -290,28 +261,6 @@ export function VendorsManagementPanel({
                             "Inactive"
                           ) : (
                             "Active"
-                          )}
-                        </td>
-                        <td style={{ ...tdBase, color: "#333" }}>
-                          {isEditing ? (
-                            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-                              <input
-                                type="checkbox"
-                                checked={editDraft.companyWideSessionEnabled}
-                                data-testid="edit-vendor-company-wide"
-                                onChange={(e) =>
-                                  setEditDraft((d) => ({
-                                    ...d,
-                                    companyWideSessionEnabled: e.target.checked,
-                                  }))
-                                }
-                              />
-                              Multi-site run
-                            </label>
-                          ) : vendor.companyWideSessionEnabled ? (
-                            "On"
-                          ) : (
-                            "Off"
                           )}
                         </td>
                         <td style={{ ...tdBase, color: "#333" }}>
@@ -546,41 +495,6 @@ export function VendorsManagementPanel({
                       marginBottom: 6,
                     }}
                   >
-                    Vendor PIN (4 digits)
-                  </label>
-                  <input
-                    type="text"
-                    value={pinCode}
-                    maxLength={4}
-                    inputMode="numeric"
-                    placeholder="1234"
-                    onChange={(e) =>
-                      setPinCode(e.target.value.replace(/\D/g, "").slice(0, 4))
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      border: "1.5px solid #ccd0d7",
-                      borderRadius: 6,
-                      fontSize: 14,
-                      color: "#333",
-                      outline: "none",
-                      backgroundColor: "#fff",
-                      fontFamily: FONT,
-                      boxSizing: "border-box",
-                    }}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      color: "#6b7280",
-                      marginBottom: 6,
-                    }}
-                  >
                     Active
                   </label>
                   <input
@@ -589,28 +503,6 @@ export function VendorsManagementPanel({
                     onChange={(e) => setActive(e.target.checked)}
                     style={{ width: 18, height: 18 }}
                   />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      color: "#6b7280",
-                      marginBottom: 6,
-                    }}
-                  >
-                    Multi-site run (company PIN)
-                  </label>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
-                    <input
-                      type="checkbox"
-                      checked={companyWideSessionEnabled}
-                      data-testid="add-vendor-company-wide"
-                      onChange={(e) => setCompanyWideSessionEnabled(e.target.checked)}
-                    />
-                    Allow company PIN across jobs
-                  </label>
                 </div>
                 <div>
                   <label
