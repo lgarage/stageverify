@@ -62,7 +62,7 @@
 
 ## NOW (Phase 5 prototype)
 
-**In flight (2026-08-09):** Staging Map assign-mode auto-exit after successful Assign Location confirm — **v0.0.267** FE-only.
+**Shipped (2026-08-09):** Staging Map assign-mode auto-exit after successful Assign Location confirm — **v0.0.267** gh-pages FE-only; merge `804c74c8`; prod A–H PASS.
 **Shipped (2026-08-09):** Unplanned status single-badge + U1 verify-fixture cleanup/teardown harden — **v0.0.266** gh-pages FE-only.
 
 **Shipped (2026-08-09):** Dispatcher Deliveries status legend + row wording/colors align (Assigned/Planned yellow, Staged green, Unplanned bright orange, Shop Stock gray) — **v0.0.265** gh-pages FE-only.
