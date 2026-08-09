@@ -88,7 +88,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- **PR #97 Invoice Review Staging Map Assign (v0.0.274) — waiting Dan manual acceptance after merge/deploy:** Will-Call → Confirm Drop-Off → STAGING LOCATION NEEDED card → Assign Location → Staging Map → Confirm draft → reopen shows location + Change Location; hard refresh; spot not occupied pre-Approve.
+- **PR #97 Invoice Review Staging Map Assign LIVE (merge `b62401eb` / PR #119 / packaged v0.0.274; served under tip **v0.0.275** `index-DMbwfhP-.js`) — waiting Dan manual acceptance:** Will-Call → Confirm Drop-Off → STAGING LOCATION NEEDED card → Assign Location → Staging Map → Confirm draft → reopen shows location + Change Location; hard refresh; spot not occupied pre-Approve.
 - **Staging Map zoom/canvas (v0.0.273)** — hard-refresh Staging Map → Edit Locations → zoom −/+ / 100% / Fit; enlarge Canvas Wider/Taller; drag a spot while zoomed; Done editing → refresh → confirm logical positions unchanged.
 - **C3-B Johnstone parser LIVE** — PR #111 merge `04031ca9`; CF `syncInboundGmail` + `reparseVendorInvoiceImportCallable` deployed (C3-B tip hashes then PR #97 redeploy live `ce70ab9f` / `6b5a443e`; srcGen `1786309783217144` / `1786309783253545`). Prod reparse `vii-19fe78ea427b3142-page-0` → PO `2205 EARLY` (not `…PICKUP`). Next **C3-C**. No firestore.rules.
 - **Settings PIN # updated badge LIVE (v0.0.271 / `index-DZiw9ihY.js` / merge `64197430`) — waiting Dan manual acceptance:** hard-refresh → Settings → PIN & Access → successful PIN save → toast `New PIN saved` + green **PIN # updated** right of Deactivate; stays for visit; clears when leaving Settings. Keep Cursor job open until Dan reports pass/fail.
