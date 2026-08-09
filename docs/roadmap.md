@@ -64,6 +64,7 @@
 
 **Shipped (2026-08-09):** Settings PIN visit-scoped green **PIN # updated** row badge (right of Deactivate; clears on leave Settings; toast `New PIN saved` kept) — **v0.0.271** gh-pages FE-only; no CF/rules.
 
+**Shipped (2026-08-09):** Staging Map action buttons into map guide header (v0.0.276) — FE-only vertical relocate; zoom/canvas unchanged.
 **Shipped (2026-08-09):** Staging Map view zoom + logical canvas size (v0.0.273) — session View zoom + edit Canvas W×H; FE-only.
 **Shipped (2026-08-09):** Staging Map assign-mode auto-exit after successful Assign Location confirm — **v0.0.267** gh-pages FE-only; merge `804c74c8`; prod A–H PASS.
 **Shipped (2026-08-09):** Unplanned status single-badge + U1 verify-fixture cleanup/teardown harden — **v0.0.266** gh-pages FE-only.
@@ -355,6 +356,33 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 | Shared types in Cloud Functions | Refactor CF `DeliveryStatus` duplicate                    |
 | Shop map / location IDs         | Blocked on Jake Korb shelving decision                    |
 | Firebase App Check (public routes) | `svscope` deferred; evaluate in Phase 3 Slice 4 or later |
+| **Warehouse-Scale Staging Map Navigation** | **POST-MVP / FUTURE** — see subsection below. **Not an MVP blocker.** |
+
+### Warehouse-Scale Staging Map Navigation (POST-MVP / FUTURE)
+
+> **MVP decision (authoritative):** The **v0.0.273** Staging Map **View zoom** + **Canvas W×H** controls are **ACCEPTABLE FOR MVP**. Warehouse-scale camera zoom/pan is a **future enhancement** and must **not** reopen MVP scope.
+
+**Context:** Current whole-map scaling works for today’s shop layout. StageVerify may eventually run warehouses with hundreds of shelves, hundreds of G/ground locations, and potentially **1,000+** staging locations — simple whole-map scaling will not be enough.
+
+**Desired model (do not implement until explicitly scheduled):** Staging Map behaves like a **map/camera viewport**:
+
+| Concept | Role |
+| ------- | ---- |
+| Warehouse layout | **WORLD** — persisted logical coordinates + Canvas W×H |
+| Map viewport | **CAMERA** — presentation-only `scale` / `panX` / `panY` |
+
+- **Fit** = see the entire warehouse  
+- **Zoom in** = magnify an aisle / shelf cluster / G-location group  
+- **Zoom out** = see more of the warehouse  
+- **Pan** = move around while zoomed  
+- Prefer **cursor-centered zoom** on desktop; optional intentional wheel/trackpad zoom  
+- Assignment mode and edit-mode dragging must work at any zoom/pan  
+- Logical object coordinates **unchanged** by camera (e.g. Shelf S10 at x=850,y=420 stays 850,420 at 50%/100%/200%/400%)  
+- Zoom/pan = presentation/camera state only; **Canvas W×H** remains the persisted logical warehouse size  
+
+**Scale goal:** Practical navigation of ~**500–1,000+** map objects via a bounded viewport + zoom/pan camera — without forcing the browser page itself to become thousands of pixels wide/tall.
+
+**Out of scope until scheduled:** pan implementation, zoom rewrite, map engine, virtualization, coordinate-architecture change, persistence/backend/schema changes.
 
 ---
 

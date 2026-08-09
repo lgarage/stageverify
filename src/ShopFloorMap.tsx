@@ -8,6 +8,7 @@ import {
   useImperativeHandle,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
 import type { DeliveryDetails } from "./dispatcher";
 import type { ShopStockLocationMapping, StagingLocation } from "./dispatcher/models";
@@ -141,6 +142,11 @@ type Props = {
   onSpotDeliveryUnavailable?: (message: string) => void;
   /** View mode only — open catch-all status drawer (not in edit drag/resize). */
   onCatchAllClick?: () => void;
+  /**
+   * Optional actions rendered on the right of the SV / VENDOR DROP-OFF header
+   * (e.g. Print / Vendor view / Edit / Zone tools). Presentation slot only.
+   */
+  headerActions?: ReactNode;
 };
 
 export type ShopFloorMapHandle = {
@@ -373,6 +379,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       onRemoveCatchAllSpot,
       onSpotDeliveryUnavailable: _onSpotDeliveryUnavailable,
       onCatchAllClick,
+      headerActions,
     },
     ref,
   ) {
@@ -2921,55 +2928,98 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       style={{ fontFamily: FONT, position: "relative" }}
     >
       <div
+        data-testid="shop-map-guide-header"
         style={{
           display: "flex",
-          alignItems: "center",
-          gap: 10,
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 12,
           marginBottom: 12,
         }}
       >
         <div
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: 8,
-            backgroundColor: NAVY,
-            color: "var(--admin-on-navy)",
-            fontWeight: 800,
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            fontSize: 14,
+            gap: 10,
+            minWidth: 0,
+            flex: "1 1 220px",
           }}
         >
-          SV
-        </div>
-        <h2
-          style={{
-            margin: 0,
-            fontSize: 18,
-            fontWeight: 800,
-            color: "var(--admin-accent-soft)",
-            letterSpacing: 0.3,
-          }}
-        >
-          VENDOR DROP-OFF LOCATION GUIDE
-        </h2>
-        {editMode && (
-          <span
-            data-testid="shop-map-edit-mode-banner"
+          <div
             style={{
-              marginLeft: "auto",
-              fontSize: 12,
-              fontWeight: 700,
-              color: "var(--admin-info-text)",
-              backgroundColor: "var(--admin-info-bg)",
-              padding: "4px 10px",
-              borderRadius: 6,
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              backgroundColor: NAVY,
+              color: "var(--admin-on-navy)",
+              fontWeight: 800,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 14,
+              flexShrink: 0,
             }}
           >
-            Edit mode — drag spots, marquee-select, drag shelf frames
-          </span>
+            SV
+          </div>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: 18,
+              fontWeight: 800,
+              color: "var(--admin-accent-soft)",
+              letterSpacing: 0.3,
+            }}
+          >
+            VENDOR DROP-OFF LOCATION GUIDE
+          </h2>
+        </div>
+        {(headerActions || editMode) && (
+          <div
+            data-testid="shop-map-header-actions"
+            className="print:hidden"
+            style={{
+              marginLeft: "auto",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-end",
+              gap: 6,
+              flex: "1 1 280px",
+              minWidth: 0,
+            }}
+          >
+            {headerActions ? (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  justifyContent: "flex-end",
+                  alignItems: "center",
+                  gap: 12,
+                  width: "100%",
+                }}
+              >
+                {headerActions}
+              </div>
+            ) : null}
+            {editMode && (
+              <span
+                data-testid="shop-map-edit-mode-banner"
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "var(--admin-info-text)",
+                  backgroundColor: "var(--admin-info-bg)",
+                  padding: "4px 10px",
+                  borderRadius: 6,
+                }}
+              >
+                Edit mode — drag spots, marquee-select, drag shelf frames
+              </span>
+            )}
+          </div>
         )}
       </div>
 
