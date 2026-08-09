@@ -59,6 +59,7 @@ const REQUIRED = {
   "t2-prod-sensitive": ["ship-verifier:", "build-checker:"],
   "high-risk": [
     "sonnet-instruct:",
+    "high-risk-adversarial:",
     "sonnet-verify:",
     "security-gate-id",
     "ship-verifier:",
@@ -70,6 +71,7 @@ const patterns = {
   "ship-verifier:": /ship-verifier:\s*\S+/i,
   "build-checker:": /build-checker:\s*\S+/i,
   "sonnet-instruct:": /sonnet-instruct:\s*\S+/i,
+  "high-risk-adversarial:": /high-risk-adversarial:\s*\S+/i,
   "sonnet-verify:": /sonnet-verify:\s*\S+/i,
   "security-gate-id": /security-gate-id:\s*[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
   "model:": /model:\s*\S+/i,

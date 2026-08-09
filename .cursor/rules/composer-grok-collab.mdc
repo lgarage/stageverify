@@ -11,11 +11,11 @@ alwaysApply: true
 
 | Phase | Who | When |
 |-------|-----|------|
-| **1 — Agree** | Grok **Solution Verifier** | Only if multiple paths / unclear SoT / ambiguous data model / multi-file diverge risk. Else `solution-verifier: N/A (…)`. **conf ≥ 97%** always (D-47). |
-| **2 — Implement** | **Simple UI / non-UI → Composer**; **visual-judgment UI → Sol** (Task → `gpt-5.6-sol-high` **directly**; parent Medium → inline). Grok only after D-50 stuck Agree. | Always for product builds. **D-51** before first visible UI edit. |
-| **2b — UI judgment** | Grok **UI Playwright** (optional) | Prefer judgment-from-log after worker `verify:*` PASS; live re-run only per D-45/D-65 criteria. Simple UI usually N/A. |
-| **3 — Pre-commit** | Mechanical build/verify; Grok **Build Checker** only when judgment needed | Not to re-run green `npm run build`. |
-| **4 — Ship** | Composer commit/push/deploy; Grok **Ship Verifier** when required | Tiny-fast-safe FE → Ship N/A; run `ship:evidence-preflight` before any Ship Task. High-risk keeps D-38 + Ship. |
+| **1 — Agree** | Grok **Solution Verifier** | Only if multiple paths / unclear SoT / ambiguous data model / multi-file diverge risk. Else `solution-verifier: N/A (…)`. **High-risk/T3:** `solution-verifier: N/A (high-risk — D-60 sonnet-instruct)` — Sonnet owns pre-review. **conf ≥ 97%** always (D-47). |
+| **2 — Implement** | **Simple UI / non-UI → Composer**; **visual-judgment UI → Sol** (Task → `gpt-5.6-sol-high` **directly**; parent Medium → inline). Grok only after D-50 stuck Agree. | Always for product builds. **D-51** before first visible UI edit. **High-risk:** builder follows Sonnet constraints (`high-risk-sonnet-loop.mdc`). |
+| **2b — UI judgment** | Grok **UI Playwright** (optional) | Prefer judgment-from-log after worker `verify:*` PASS; live re-run only per D-45/D-65 criteria. Simple UI usually N/A. **High-risk:** N/A (Sonnet owns Playwright acceptance). |
+| **3 — Pre-commit** | Mechanical build/verify; Grok **Build Checker** only when judgment needed | Not to re-run green `npm run build`. **High-risk/T3:** mandatory Grok **`high-risk-adversarial:`** then Sonnet final verify — Build Checker N/A (adversarial owns diff judgment). |
+| **4 — Ship** | Composer commit/push/deploy; Grok **Ship Verifier** when required | Tiny-fast-safe FE → Ship N/A; run `ship:evidence-preflight` before any Ship Task. High-risk keeps D-60 full loop + D-38 + Ship; CF/rules deploy still need Dan approval. |
 
 **Ship lock (hard STOP):** Grok **never** commits, pushes, or deploys — except D-50 Phase B product edits after stuck-task Agree (still no ship lock transfer).
 
@@ -33,7 +33,7 @@ When Solution Verifier is required, PASS/N/A **before first repo write**. Worker
 
 ## Evidence
 
-Include evidence lines **only for lanes that fired** (or valid N/A). Do not invent Solution/Build/UI-PW/Ship Task ids for skipped lanes. **D-51** still required for visible UI. High-risk: `sonnet-instruct:` + `sonnet-verify:` + `security-gate-id` **PROTECTED**.
+Include evidence lines **only for lanes that fired** (or valid N/A). Do not invent Solution/Build/UI-PW/Ship Task ids for skipped lanes. **D-51** still required for visible UI. High-risk/T3: `sonnet-instruct:` + `high-risk-adversarial:` + `sonnet-verify:` + `security-gate-id` **PROTECTED** (D-60).
 
 ## Authority
 

@@ -29,6 +29,7 @@ describe("ship-evidence-preflight (D-65)", () => {
   it("PASS high-risk when all tokens present", () => {
     const body = `
 sonnet-instruct: abc-123 Agree
+high-risk-adversarial: adv-111 PASS
 sonnet-verify: def-456 PASS
 security-gate-id: 12345678-1234-1234-1234-123456789abc
 model: claude-sonnet-5-thinking-high
@@ -39,9 +40,23 @@ ship-verifier: ghi-789 PASS
     assert.match(r.stdout, /PASS/);
   });
 
+  it("FAIL high-risk when high-risk-adversarial missing", () => {
+    const body = `
+sonnet-instruct: abc Agree
+sonnet-verify: def PASS
+security-gate-id: 12345678-1234-1234-1234-123456789abc
+model: claude-sonnet-5-thinking-high
+ship-verifier: ghi
+`;
+    const r = run(body, "high-risk");
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /high-risk-adversarial/);
+  });
+
   it("FAIL high-risk when security-gate-id missing", () => {
     const body = `
 sonnet-instruct: abc
+high-risk-adversarial: adv PASS
 sonnet-verify: def PASS
 ship-verifier: ghi
 model: claude-sonnet-5-thinking-high
