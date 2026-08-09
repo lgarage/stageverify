@@ -1,0 +1,1 @@
+import{Wn as e,_a as t,ma as n}from"./index-DESPUa99.js";var r=e();function i(){let{orderId:e}=t(),i=e?.trim()??``;return(0,r.jsx)(n,{to:i?`/receive?id=${encodeURIComponent(i)}`:`/receive`,replace:!0})}export{i as CheckinToReceiveRedirect};
