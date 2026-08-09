@@ -119,6 +119,7 @@ import {
 import { collectDeliveryStagingCodes } from "./drawer/DrawerStagingLocationChips";
 import {
   fulfillmentDisplayLabel,
+  isWillCallPickupStagingListNa,
   resolveDeliveryPoNumber,
 } from "./invoice/invoiceShellDisplayHelpers";
 import { formatVendorDisplayName } from "./vendorDisplayName";
@@ -517,8 +518,7 @@ export class FirestoreDataService implements DispatcherDataService {
         openIssueCount: display.openIssueCount,
         missingStagingAssignment: display.missingStagingAssignment,
         stagingLocationListNotApplicable:
-          delivery.invoiceImportStatus === "pickup_at_vendor" ||
-          delivery.invoiceFulfillmentMethod === "will_call_pickup",
+          isWillCallPickupStagingListNa(delivery),
         creditReturnLinked,
       });
     }

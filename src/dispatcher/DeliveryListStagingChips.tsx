@@ -21,6 +21,11 @@ type Props = {
   deliveryId: string;
   /** Will-Call vendor pickup — shop staging not used. */
   stagingNotApplicable?: boolean;
+  /**
+   * Vendor Drop-Off with no assigned/planned spot — do not look like a normal
+   * empty cell; surface incomplete staging assignment.
+   */
+  needsStagingAssignment?: boolean;
 };
 
 export function DeliveryListStagingChips({
@@ -30,6 +35,7 @@ export function DeliveryListStagingChips({
   occupancyReady,
   deliveryId,
   stagingNotApplicable = false,
+  needsStagingAssignment = false,
 }: Props) {
   if (stagingNotApplicable) {
     return (
@@ -43,6 +49,28 @@ export function DeliveryListStagingChips({
   }
 
   if (codes.length === 0) {
+    if (needsStagingAssignment) {
+      return (
+        <span
+          data-testid={`delivery-list-staging-needed-${deliveryId}`}
+          title="Vendor Drop-Off requires a StageVerify staging location"
+          style={{
+            display: "inline-block",
+            padding: "2px 8px",
+            borderRadius: 999,
+            backgroundColor: "var(--admin-warning-bg)",
+            color: "var(--admin-warning-text)",
+            border: "1px solid var(--admin-warning-border)",
+            fontSize: 11,
+            fontWeight: 700,
+            fontFamily: FONT,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Needs staging
+        </span>
+      );
+    }
     return (
       <span
         data-testid={`delivery-list-staging-unassigned-${deliveryId}`}

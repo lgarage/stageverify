@@ -123,13 +123,18 @@ const STATUS_CONTROL_CONTRAST = {
     const willCallButton = document.querySelector(
       '[data-testid="delivery-fulfillment-will_call_pickup"]',
     );
-    return (
-      deliveryButton instanceof HTMLButtonElement &&
-      willCallButton instanceof HTMLButtonElement &&
-      deliveryButton.disabled !== willCallButton.disabled
-    );
+    if (
+      !(deliveryButton instanceof HTMLButtonElement) ||
+      !(willCallButton instanceof HTMLButtonElement)
+    ) {
+      return false;
+    }
+    const deliverySelected = deliveryButton.getAttribute("data-selected") === "true";
+    const willCallSelected = willCallButton.getAttribute("data-selected") === "true";
+    return deliverySelected !== willCallSelected;
   });
-  const willCallActive = await willCallPickupButton.isDisabled();
+  const willCallActive =
+    (await willCallPickupButton.getAttribute("data-selected")) === "true";
   const expectedFulfillmentContext = willCallActive
     ? "Will-Call / Pickup from Vendor"
     : "Vendor Drop-Off";
@@ -461,6 +466,13 @@ const STATUS_CONTROL_CONTRAST = {
 
   // ── CASE A — Vendor Drop-Off + no location (seed delivery-2 / ORD-002) ──
   await openDeliveryDrawerByDeepLink(page, appBase, FIXTURE_NO_STAGING_ID);
+  // Seed may be left on Will-Call from a prior interrupted CASE D (shared Firestore).
+  const caseAEnsureDropOff = page.getByTestId("delivery-fulfillment-delivery");
+  await caseAEnsureDropOff.waitFor({ timeout: 10_000 });
+  if ((await caseAEnsureDropOff.getAttribute("data-selected")) !== "true") {
+    await caseAEnsureDropOff.click();
+    await page.waitForTimeout(1500);
+  }
   const caseABanner = page.getByTestId("drawer-staging-location-banner");
   await caseABanner.waitFor({ state: "visible", timeout: 15_000 });
   const caseAAssigned = await page
@@ -505,11 +517,23 @@ const STATUS_CONTROL_CONTRAST = {
   const caseAWillCall = page.getByTestId(
     "delivery-fulfillment-will_call_pickup",
   );
-  if (!(await caseAWillCall.isDisabled())) {
+  const caseAWillCallSelected =
+    (await caseAWillCall.getAttribute("data-selected")) === "true";
+  if (!caseAWillCallSelected) {
     await caseAWillCall.click();
     await page
       .getByTestId("drawer-staging-location-banner")
       .waitFor({ state: "hidden", timeout: 20_000 });
+    await page.getByTestId("delivery-basics-staging-will-call-na").waitFor({
+      timeout: 10_000,
+    });
+    if (
+      (await page.getByTestId("delivery-basics-assign-location").count()) > 0
+    ) {
+      throw new Error(
+        "FAIL CASE D: Assign Location must be hidden for Will-Call / Pickup from Vendor.",
+      );
+    }
     await page.waitForFunction(() => {
       const el = document.querySelector(
         '[data-testid="delivery-status-current-label"]',
@@ -526,7 +550,7 @@ const STATUS_CONTROL_CONTRAST = {
     }
     // Restore Vendor Drop-Off so seed fixture stays drop-off for other verifies
     const restoreDropOff = page.getByTestId("delivery-fulfillment-delivery");
-    if (!(await restoreDropOff.isDisabled())) {
+    if ((await restoreDropOff.getAttribute("data-selected")) !== "true") {
       await restoreDropOff.click();
       await page
         .getByTestId("drawer-staging-location-banner")
@@ -536,9 +560,7 @@ const STATUS_CONTROL_CONTRAST = {
       "PASS CASE D: fulfillment switch updates wording + clears stale staging banner",
     );
   } else {
-    console.log(
-      "SKIP CASE D: Will-Call already active or toggle disabled on delivery-2",
-    );
+    console.log("SKIP CASE D: Will-Call already active on delivery-2");
   }
 
   // ── CASE B — Vendor Drop-Off + existing location (seed delivery-1) ──
