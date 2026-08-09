@@ -1154,6 +1154,44 @@ export function InvoiceReviewPanel({
               ),
             );
           }}
+          onImportRowMerged={(patch) => {
+            const mergeRow = (
+              row: VendorInvoiceImportReview,
+            ): VendorInvoiceImportReview => ({
+              ...row,
+              parsedHeader: patch.parsedHeader ?? row.parsedHeader,
+              importStatus: patch.importStatus ?? row.importStatus,
+              fulfillmentOverride: patch.fulfillmentOverride ?? row.fulfillmentOverride,
+              draftPlannedStagingLocationIds:
+                patch.draftPlannedStagingLocationIds ??
+                row.draftPlannedStagingLocationIds,
+              ...(patch.parseWarnings ? { parseWarnings: patch.parseWarnings } : {}),
+              ...(patch.autoImportEligible !== undefined
+                ? { autoImportEligible: patch.autoImportEligible }
+                : {}),
+              ...(patch.autoImportConfidence !== undefined
+                ? { autoImportConfidence: patch.autoImportConfidence }
+                : {}),
+              ...(patch.autoImportReasons
+                ? { autoImportReasons: patch.autoImportReasons }
+                : {}),
+              ...(patch.reviewRequiredReasons
+                ? { reviewRequiredReasons: patch.reviewRequiredReasons }
+                : {}),
+              ...(patch.importDecisionMode
+                ? { importDecisionMode: patch.importDecisionMode }
+                : {}),
+              ...(patch.suggestedAction
+                ? { suggestedAction: patch.suggestedAction }
+                : {}),
+            });
+            setInspectImport((prev) => (prev ? mergeRow(prev) : prev));
+            setImports((prev) =>
+              prev.map((row) =>
+                row.id === inspectImport.id ? mergeRow(row) : row,
+              ),
+            );
+          }}
           onImportDismissed={() => {
             setInspectImport(null);
             void loadQueue();

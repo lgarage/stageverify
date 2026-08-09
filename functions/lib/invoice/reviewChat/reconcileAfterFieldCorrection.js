@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.reconcileParseWarningsForHeader = reconcileParseWarningsForHeader;
+exports.applyFulfillmentOverrideToHeader = applyFulfillmentOverrideToHeader;
 exports.applyFieldCorrectionLogToHeader = applyFieldCorrectionLogToHeader;
 exports.reconcileImportStateAfterCorrection = reconcileImportStateAfterCorrection;
 /**
@@ -40,6 +41,36 @@ function reconcileParseWarningsForHeader(parseWarnings, parsedHeader) {
         }
         return true;
     });
+}
+function parseActiveFulfillmentOverride(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw))
+        return null;
+    const o = raw;
+    if (o.active !== true)
+        return null;
+    if (o.fromMethod !== "will_call_pickup" || o.toMethod !== "delivery")
+        return null;
+    const at = typeof o.at === "string" ? o.at : "";
+    const by = typeof o.by === "string" ? o.by : "";
+    if (!at || !by)
+        return null;
+    return {
+        active: true,
+        fromMethod: "will_call_pickup",
+        toMethod: "delivery",
+        at,
+        by,
+    };
+}
+/** Re-apply active human fulfillment override onto a freshly parsed header. */
+function applyFulfillmentOverrideToHeader(parsedHeader, fulfillmentOverride) {
+    const override = parseActiveFulfillmentOverride(fulfillmentOverride);
+    if (!override)
+        return asRecord(parsedHeader);
+    return {
+        ...asRecord(parsedHeader),
+        fulfillmentMethod: override.toMethod,
+    };
 }
 /** Re-apply durable fieldCorrectionLog overrides onto a freshly parsed header. */
 function applyFieldCorrectionLogToHeader(parsedHeader, fieldCorrectionLog) {

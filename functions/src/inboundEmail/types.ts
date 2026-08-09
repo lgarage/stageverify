@@ -174,6 +174,16 @@ export interface VendorInvoiceImportDoc {
   originalParsedHeader?: Record<string, unknown>;
   /** Parser warnings at first C2 correction (historical — not current unresolved). */
   originalParseWarnings?: string[];
+  /** Human Will-Call → Vendor Drop-Off override (Assign Location); survives reparse. */
+  fulfillmentOverride?: {
+    active: true;
+    fromMethod: "will_call_pickup";
+    toMethod: "delivery";
+    at: string;
+    by: string;
+  };
+  /** Draft staging picks before Approve — no occupancy claim until approve CF. */
+  draftPlannedStagingLocationIds?: string[];
   createdAt: string;
   updatedAt: string;
 }

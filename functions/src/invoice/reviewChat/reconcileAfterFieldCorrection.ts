@@ -74,6 +74,46 @@ export function reconcileParseWarningsForHeader(
   });
 }
 
+export type InvoiceFulfillmentOverrideRecord = {
+  active: true;
+  fromMethod: "will_call_pickup";
+  toMethod: "delivery";
+  at: string;
+  by: string;
+};
+
+function parseActiveFulfillmentOverride(
+  raw: unknown,
+): InvoiceFulfillmentOverrideRecord | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  if (o.active !== true) return null;
+  if (o.fromMethod !== "will_call_pickup" || o.toMethod !== "delivery") return null;
+  const at = typeof o.at === "string" ? o.at : "";
+  const by = typeof o.by === "string" ? o.by : "";
+  if (!at || !by) return null;
+  return {
+    active: true,
+    fromMethod: "will_call_pickup",
+    toMethod: "delivery",
+    at,
+    by,
+  };
+}
+
+/** Re-apply active human fulfillment override onto a freshly parsed header. */
+export function applyFulfillmentOverrideToHeader(
+  parsedHeader: Record<string, unknown>,
+  fulfillmentOverride: unknown,
+): Record<string, unknown> {
+  const override = parseActiveFulfillmentOverride(fulfillmentOverride);
+  if (!override) return asRecord(parsedHeader);
+  return {
+    ...asRecord(parsedHeader),
+    fulfillmentMethod: override.toMethod,
+  };
+}
+
 /** Re-apply durable fieldCorrectionLog overrides onto a freshly parsed header. */
 export function applyFieldCorrectionLogToHeader(
   parsedHeader: Record<string, unknown>,

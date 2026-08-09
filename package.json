@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.269",
+  "version": "0.0.270",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -64,6 +64,8 @@
     "verify:catch-all-map": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map scripts/verify-catch-all-map.mjs",
     "verify:catch-all-map:prod": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map:prod scripts/verify-catch-all-map.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-review": "node scripts/verify-invoice-review.mjs",
+    "verify:invoice-assign-location": "node scripts/verify-invoice-assign-location.mjs",
+    "verify:invoice-assign-location:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-assign-location:prod scripts/verify-invoice-assign-location.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-review-chat": "node scripts/verify-invoice-review-chat.mjs",
     "verify:invoice-review-chat:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-review-chat:prod scripts/verify-invoice-review-chat.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-reject-reason": "node scripts/verify-invoice-review.mjs",
@@ -172,6 +174,7 @@
     "test:invoice-ai-shadow": "cd functions && npm run build && cd .. && node scripts/test-invoice-ai-shadow.mjs",
     "test:invoice-review-chat": "cd functions && npm run build && cd .. && node scripts/test-invoice-review-chat.mjs",
     "test:invoice-field-correction": "cd functions && npm run build && cd .. && node scripts/test-invoice-field-correction.mjs",
+    "test:invoice-fulfillment-override": "cd functions && npm run build && cd .. && node scripts/test-invoice-fulfillment-override.mjs",
     "test:invoice-review-truth-state": "cd functions && npm run build && cd .. && node scripts/test-invoice-review-truth-state.mjs",
     "test:c2-natural-confirmation": "cd functions && npm run build && cd .. && node scripts/test-c2-natural-confirmation.mjs",
     "test:firestore-rules-invoice-corrections": "firebase emulators:exec --only firestore \"node scripts/test-firestore-rules-invoice-corrections.mjs\"",
@@ -261,8 +264,8 @@
   },
   "_vendorVerifyScriptsDoc": {
     "see": "scripts/VERIFY_PROD_ENV.md",
-    "verify:vendor-delivered:prod": "CANONICAL prod \u2014 receive deep link + exception-only Delivered hub; requires STAGEVERIFY_RECEIVE_DELIVERY + vendor env (see VERIFY_PROD_ENV.md)",
-    "verify:vendor-demo": "DEPRECATED \u2014 no demo defaults; use verify:vendor-delivered with real ingest env",
-    "verify:vendor-demo:prod": "DEPRECATED \u2014 use verify:vendor-delivered:prod"
+    "verify:vendor-delivered:prod": "CANONICAL prod — receive deep link + exception-only Delivered hub; requires STAGEVERIFY_RECEIVE_DELIVERY + vendor env (see VERIFY_PROD_ENV.md)",
+    "verify:vendor-demo": "DEPRECATED — no demo defaults; use verify:vendor-delivered with real ingest env",
+    "verify:vendor-demo:prod": "DEPRECATED — use verify:vendor-delivered:prod"
   }
 }
