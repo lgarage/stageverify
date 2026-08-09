@@ -35,7 +35,10 @@ import {
   isCompleteOverviewRow,
   UNPLANNED_BADGE,
 } from "./dispatcher/deliveryDisplayHelpers";
-import { AWAITING_DELIVERY_STATUS_LABEL } from "./dispatcher/jobReadinessDisplay";
+import {
+  AWAITING_DELIVERY_STATUS_LABEL,
+  UNPLANNED_STATUS_LABEL,
+} from "./dispatcher/jobReadinessDisplay";
 import { DeliveryListStagingChips } from "./dispatcher/DeliveryListStagingChips";
 import { DeliveryDetailDrawer } from "./dispatcher/drawer/DeliveryDetailDrawer";
 
@@ -103,10 +106,15 @@ const AWAITING_DELIVERY_BADGE = {
 const STATUS_LABEL = (status: DeliveryOverviewFilterStatus): string =>
   DELIVERY_OVERVIEW_FILTER_LABEL[status];
 
-function listStatusBadge(
-  row: DeliveryListRow,
-): (typeof STATUS_BADGE)[DeliveryOverviewFilterStatus] {
+type ListStatusBadgeStyle =
+  | (typeof STATUS_BADGE)[DeliveryOverviewFilterStatus]
+  | typeof UNPLANNED_BADGE;
+
+function listStatusBadge(row: DeliveryListRow): ListStatusBadgeStyle {
   const label = row.statusDisplayLabel;
+  if (label === UNPLANNED_STATUS_LABEL || label === "Unplanned") {
+    return UNPLANNED_BADGE;
+  }
   if (label === "Picked Up") return STATUS_BADGE.complete;
   if (label === "Staged — Ready for Pickup") return STATUS_BADGE.ready_for_pickup;
   if (label === "Issue / Review Required") return STATUS_BADGE.issue;
@@ -1008,25 +1016,6 @@ export function DispatcherDashboardPage() {
                               }}
                             >
                               Credit/Return
-                            </span>
-                          ) : null}
-                          {row.unplanned || row.unplannedReviewFlag ? (
-                            <span
-                              className="admin-chip"
-                              data-testid={`delivery-list-unplanned-badge-${row.deliveryId}`}
-                              title="Vendor unplanned delivery — needs job/PO match"
-                              style={{
-                                display: "inline-flex",
-                                marginTop: 4,
-                                fontSize: 10,
-                                fontWeight: 700,
-                                color: UNPLANNED_BADGE.text,
-                                backgroundColor: UNPLANNED_BADGE.bg,
-                                border: `1px solid ${UNPLANNED_BADGE.border}`,
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              Unplanned
                             </span>
                           ) : null}
                         </td>

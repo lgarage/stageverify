@@ -169,29 +169,34 @@ async function teardownFixture(db) {
     ["stagingLocations", FIXTURE_LOC_ID],
   ];
   let deleted = 0;
+
+  if (process.env.FIREBASE_TOKEN?.trim()) {
+    try {
+      const accessToken = await getFirebaseAccessToken();
+      for (const [col, id] of ids) {
+        const result = await restDeleteDoc(
+          accessToken,
+          "stageverify-db",
+          `${col}/${id}`,
+        );
+        if (result.deleted) {
+          deleted += 1;
+        }
+      }
+      return deleted;
+    } catch (err) {
+      console.warn(
+        `admin teardown soft-fail: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
   for (const [col, id] of ids) {
     try {
       await deleteDoc(doc(db, col, id));
       deleted += 1;
     } catch {
-      /* client rules may block vendors/jobs — admin REST below */
-    }
-  }
-  if (process.env.FIREBASE_TOKEN?.trim()) {
-    try {
-      const accessToken = await getFirebaseAccessToken();
-      for (const [col, id] of ids) {
-        try {
-          await restDeleteDoc(accessToken, "stageverify-db", `${col}/${id}`);
-          deleted += 1;
-        } catch {
-          /* already gone */
-        }
-      }
-    } catch (err) {
-      console.warn(
-        `admin teardown soft-fail: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      /* client rules may block vendors/jobs */
     }
   }
   return deleted;
@@ -336,6 +341,42 @@ async function assertUnplannedDrawerLoaded(page, deliveryId) {
       `dispatcher-delivery-row-${FIXTURE_DELIVERY_ID}`,
     );
     await row.waitFor({ state: "visible", timeout: 20_000 });
+    const statusChip = row.getByTestId(
+      `delivery-status-chip-${FIXTURE_DELIVERY_ID}`,
+    );
+    await statusChip.waitFor({ state: "visible", timeout: 10_000 });
+    const statusText = (await statusChip.innerText()).replace(/\s+/g, " ").trim();
+    if (!/^Unplanned$/i.test(statusText)) {
+      throw new Error(
+        `expected list status chip "Unplanned", got "${statusText}"`,
+      );
+    }
+    const secondaryUnplanned = row.getByTestId(
+      `delivery-list-unplanned-badge-${FIXTURE_DELIVERY_ID}`,
+    );
+    if (await secondaryUnplanned.isVisible().catch(() => false)) {
+      throw new Error(
+        "secondary Unplanned overlay badge must not appear when primary chip is Unplanned",
+      );
+    }
+    const stagingChip = row.locator(
+      `[data-testid^="delivery-list-staging-chip-"]`,
+    );
+    if ((await stagingChip.count()) > 0) {
+      const spotColor = await stagingChip.first().getAttribute("data-spot-color");
+      const chipText = (await stagingChip.first().innerText()).trim();
+      if (chipText !== FIXTURE_LOC_CODE) {
+        throw new Error(
+          `expected staging chip ${FIXTURE_LOC_CODE}, got "${chipText}"`,
+        );
+      }
+      if (spotColor !== "orange") {
+        throw new Error(
+          `expected assigned staging chip data-spot-color orange, got "${spotColor}"`,
+        );
+      }
+    }
+    record("list status chip is Unplanned (orange primary, no double badge)", true);
     record(
       "table row uses Firestore doc id as deliveryId",
       true,

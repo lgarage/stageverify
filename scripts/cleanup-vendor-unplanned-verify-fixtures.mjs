@@ -1,5 +1,5 @@
 /**
- * Production cleanup: StageVerify "Unplanned Verify Vendor" fixtures only.
+ * Production cleanup: StageVerify unplanned verify/drawer fixtures only.
  * Dry-run default. Uses FIREBASE_TOKEN admin REST (client rules deny vendor/
  * accessPinSecrets deletes).
  *
@@ -18,18 +18,49 @@ import {
 
 const PROJECT_ID = "stageverify-db";
 const EXCLUDED_VENDOR_IDS = new Set(["vendor-1", "vendor-2", "vendor-3"]);
-const SHARED_JOB_ID = "job-unplanned-verify-anchor";
-const SHARED_LOC_ID = "loc-unplanned-verify";
+
+const FIXTURE_VENDORS = [
+  {
+    id: "vendor-unpl-verify",
+    name: "Unplanned Verify Vendor",
+    jobId: "job-unplanned-verify-anchor",
+    jobName: "Unplanned Verify Anchor",
+    locId: "loc-unplanned-verify",
+    locLabel: "Unplanned Verify Bay",
+  },
+  {
+    id: "vendor-unpl-drawer-verify",
+    name: "Unplanned Drawer Vendor",
+    jobId: "job-unpl-drawer-verify",
+    jobName: "Unplanned Drawer Match Job",
+    locId: "loc-unpl-drawer-verify",
+    locLabel: "Unplanned Drawer Verify",
+  },
+];
+
+const FIXTURE_VENDOR_NAMES = new Set(FIXTURE_VENDORS.map((v) => v.name));
+const FIXTURE_VENDOR_IDS = new Set(FIXTURE_VENDORS.map((v) => v.id));
+const FIXTURE_JOB_IDS = new Set(FIXTURE_VENDORS.map((v) => v.jobId));
+const FIXTURE_LOC_IDS = new Set(FIXTURE_VENDORS.map((v) => v.locId));
 
 function isUnplannedVendorId(id) {
   return typeof id === "string" && /^vendor-unpl-/.test(id);
 }
 
-function isSafeUnplannedVendor(id, data) {
-  if (!isUnplannedVendorId(id)) return false;
+function isFixtureVendor(id, data) {
   if (EXCLUDED_VENDOR_IDS.has(id)) return false;
-  const name = typeof data.name === "string" ? data.name : "";
-  return name === "Unplanned Verify Vendor";
+  if (FIXTURE_VENDOR_IDS.has(id)) {
+    const name = typeof data.name === "string" ? data.name : "";
+    return FIXTURE_VENDOR_NAMES.has(name);
+  }
+  return false;
+}
+
+function isFixtureDelivery(data) {
+  const vendorId = data.vendorId || "";
+  const vendorName = data.vendorName || "";
+  if (FIXTURE_VENDOR_IDS.has(vendorId)) return true;
+  return FIXTURE_VENDOR_NAMES.has(vendorName);
 }
 
 async function buildPlan(accessToken) {
@@ -61,10 +92,10 @@ async function buildPlan(accessToken) {
   for (const doc of vendors) {
     const id = restDocId(doc.name);
     const data = restFields(doc);
-    if (!isUnplannedVendorId(id) && !/Unplanned Verify/i.test(data.name || "")) {
+    if (!isUnplannedVendorId(id) && !FIXTURE_VENDOR_NAMES.has(data.name || "")) {
       continue;
     }
-    if (!isSafeUnplannedVendor(id, data)) {
+    if (!isFixtureVendor(id, data)) {
       skipped.push({
         path: `vendors/${id}`,
         reason: `safety mismatch name=${data.name ?? ""}`,
@@ -80,26 +111,14 @@ async function buildPlan(accessToken) {
   for (const doc of deliveries) {
     const id = restDocId(doc.name);
     const data = restFields(doc);
-    const vendorId = data.vendorId || "";
-    const anchor =
-      id.endsWith("-anchor") && isUnplannedVendorId(vendorId);
-    const nameMatch = data.vendorName === "Unplanned Verify Vendor";
-    if ((anchor || nameMatch) && vendorIds.has(vendorId)) {
-      deliveryRows.push({ path: `deliveries/${id}`, id, vendorId });
-    } else if (anchor || nameMatch || isUnplannedVendorId(vendorId)) {
-      if (vendorIds.has(vendorId) || isUnplannedVendorId(vendorId)) {
-        if (
-          nameMatch ||
-          (anchor && isUnplannedVendorId(vendorId))
-        ) {
-          deliveryRows.push({ path: `deliveries/${id}`, id, vendorId });
-          vendorIds.add(vendorId);
-        }
+    if (isFixtureDelivery(data)) {
+      deliveryRows.push({ path: `deliveries/${id}`, id, vendorId: data.vendorId });
+      if (isUnplannedVendorId(data.vendorId)) {
+        vendorIds.add(data.vendorId);
       }
     }
   }
 
-  // Include orphan unpl vendors from deliveries even if vendor doc missing
   for (const d of deliveryRows) {
     if (isUnplannedVendorId(d.vendorId) && !vendorIds.has(d.vendorId)) {
       vendorIds.add(d.vendorId);
@@ -140,25 +159,36 @@ async function buildPlan(accessToken) {
     }
   }
 
-  let sharedJob = null;
+  const sharedJobs = [];
   for (const doc of jobs) {
     const id = restDocId(doc.name);
     const data = restFields(doc);
-    if (id === SHARED_JOB_ID || data.jobName === "Unplanned Verify Anchor") {
-      sharedJob = { path: `jobs/${id}`, id, jobName: data.jobName };
+    if (FIXTURE_JOB_IDS.has(id)) {
+      sharedJobs.push({ path: `jobs/${id}`, id, jobName: data.jobName });
+      continue;
+    }
+    for (const fixture of FIXTURE_VENDORS) {
+      if (data.jobName === fixture.jobName) {
+        sharedJobs.push({ path: `jobs/${id}`, id, jobName: data.jobName });
+      }
     }
   }
 
-  let sharedLoc = null;
+  const sharedLocs = [];
   for (const doc of locs) {
     const id = restDocId(doc.name);
     const data = restFields(doc);
-    if (id === SHARED_LOC_ID || data.label === "Unplanned Verify Bay") {
-      sharedLoc = { path: `stagingLocations/${id}`, id, label: data.label };
+    if (FIXTURE_LOC_IDS.has(id)) {
+      sharedLocs.push({ path: `stagingLocations/${id}`, id, label: data.label });
+      continue;
+    }
+    for (const fixture of FIXTURE_VENDORS) {
+      if (data.label === fixture.locLabel) {
+        sharedLocs.push({ path: `stagingLocations/${id}`, id, label: data.label });
+      }
     }
   }
 
-  // Hard stop if any excluded id appears in delete plan
   for (const row of [...vendorRows, ...secretRows, ...uniquenessRows]) {
     const id = row.id || row.targetId;
     if (EXCLUDED_VENDOR_IDS.has(id)) {
@@ -171,8 +201,8 @@ async function buildPlan(accessToken) {
     deliveries: deliveryRows,
     secrets: secretRows,
     uniqueness: uniquenessRows,
-    sharedJob,
-    sharedLoc,
+    sharedJobs,
+    sharedLocs,
     skipped,
   };
 }
@@ -187,23 +217,21 @@ async function main() {
     ...plan.secrets.map((r) => r.path),
     ...plan.uniqueness.map((r) => r.path),
     ...plan.vendors.map((r) => r.path),
+    ...plan.sharedJobs.map((r) => r.path),
+    ...plan.sharedLocs.map((r) => r.path),
   ];
-  if (plan.sharedJob) deletePaths.push(plan.sharedJob.path);
-  if (plan.sharedLoc) deletePaths.push(plan.sharedLoc.path);
 
   console.log(
     confirm
-      ? `CONFIRM — deleting Unplanned Verify fixtures from ${PROJECT_ID}:`
+      ? `CONFIRM — deleting unplanned verify/drawer fixtures from ${PROJECT_ID}:`
       : `DRY RUN — would delete from ${PROJECT_ID}:`,
   );
   console.log(`  vendors: ${plan.vendors.length}`);
   console.log(`  deliveries: ${plan.deliveries.length}`);
   console.log(`  accessPinSecrets: ${plan.secrets.length}`);
   console.log(`  accessPinUniqueness: ${plan.uniqueness.length}`);
-  console.log(`  shared job: ${plan.sharedJob ? plan.sharedJob.path : "(none)"}`);
-  console.log(
-    `  shared location: ${plan.sharedLoc ? plan.sharedLoc.path : "(none)"}`,
-  );
+  console.log(`  shared jobs: ${plan.sharedJobs.length}`);
+  console.log(`  shared locations: ${plan.sharedLocs.length}`);
   if (plan.skipped.length) {
     console.log(`  skipped: ${plan.skipped.length}`);
     for (const s of plan.skipped) {
@@ -228,7 +256,6 @@ async function main() {
     }
   }
 
-  // Post-delete: no Unplanned Verify Vendor names remain
   const vendorsAfter = await restListCollection(
     accessToken,
     PROJECT_ID,
@@ -239,15 +266,14 @@ async function main() {
     .filter(
       (v) =>
         isUnplannedVendorId(v.id) ||
-        v.name === "Unplanned Verify Vendor",
+        FIXTURE_VENDOR_NAMES.has(v.name || ""),
     );
   if (leftover.length) {
     throw new Error(
-      `Post-delete leftovers: ${leftover.map((v) => v.id).join(", ")}`,
+      `Post-delete leftovers: ${leftover.map((v) => `${v.id} (${v.name})`).join(", ")}`,
     );
   }
 
-  // Protected vendors still present
   for (const id of EXCLUDED_VENDOR_IDS) {
     const still = vendorsAfter.some((d) => restDocId(d.name) === id);
     if (!still) {

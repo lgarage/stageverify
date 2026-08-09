@@ -82,7 +82,7 @@ await seed(async (db) => {
   });
   await setDoc(doc(db, "stagingLocations", "loc-unpl"), {
     id: "loc-unpl",
-    code: "U1",
+    code: "UV",
     label: "Unplanned Bay",
     type: "ground",
     status: "Active",
@@ -154,7 +154,7 @@ await seed(async (db) => {
     createdAt: new Date().toISOString(),
     sessionScope: "vendor_unplanned",
     scannedStagingLocationId: "loc-unpl",
-    scannedStagingLocationCode: "U1",
+    scannedStagingLocationCode: "UV",
     unplannedEligible: true,
   });
   await setDoc(doc(db, "vendorSessions", VENDOR_RUN_SESSION), {
@@ -175,7 +175,7 @@ try {
 
   try {
     const res = await verifyPin({
-      stagingLocationCode: "U1",
+      stagingLocationCode: "UV",
       pin: WRONG_PIN,
     });
     if (res.data?.success === false) {
@@ -195,7 +195,7 @@ try {
 
   try {
     const res = await verifyPin({
-      stagingLocationCode: "U1",
+      stagingLocationCode: "UV",
       pin: "5555",
     });
     const data = res.data;
