@@ -156,6 +156,7 @@ Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** (pickup resol
 
 - **Lane C C1 LIVE:** Invoice Review Chat — `vendorInvoiceImportChats` rules + CF `reviewAgentTurn` (`reviewagentturn-00002-fit`) + gh-pages **v0.0.247**; Training note behind Advanced; live multi-turn/durability PASS (mock OFF). Hotfix PR #69 omit undefined `citation.field`.
 - **Lane C C2 LIVE:** current-import field correction — propose in chat → Apply/`Yes, apply it` → CF `applyInvoiceReviewFieldCorrection` + `vendorInvoiceFieldCorrections` audit (D-68); merge `c0375110` / **v0.0.248**. C3 learning not started; C3 blocked on D-59 #7/#8 amend.
+- **Lane C C3 plan (docs):** `docs/c3-reusable-field-learning-plan.md` — phased A→F; next **C3-A** decision amend (PENDING APPROVAL); then C3-B parser harden before lesson store/overlay.
 
 ### Phase 3 Slice 1 — Report Issue + dispatcher visibility ✅ (shipped 2026-06-08)
 
