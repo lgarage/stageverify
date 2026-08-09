@@ -290,7 +290,7 @@ Important concepts / fields:
 
 **Examples are evidence, not rules.** An example never affects parse by itself.
 
-#### C3-D threshold counting lock (D-80 — encode now, implement in C3-D)
+#### C3-D threshold counting lock (D-81 — encode now, implement in C3-D)
 
 Future ≥3 qualification **MUST** mean independent documents, not correction-event volume:
 
