@@ -62,7 +62,7 @@
 
 ## NOW (Phase 5 prototype)
 
-**Shipping (PR):** Vendor Drop-Off reusable unplanned fallback CTA (prior listed deliveries no longer hide Add unplanned delivery) — **v0.0.261** FE-only; no CF/rules.
+**Shipped (2026-08-09):** Vendor Drop-Off reusable unplanned fallback CTA (prior listed deliveries no longer hide Add unplanned delivery) — **v0.0.261** gh-pages FE-only; merge `3bab991c` / PR #92; prod verify 7/7.
 
 **Shipped (2026-08-09):** Vendor Drop-Off delivered-card auto-collapse (compact green DELIVERED row in place; independent expand; vendor-run stable order; Undo on expanded hub) — **v0.0.258** gh-pages FE-only.
 
