@@ -77,9 +77,6 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-09 | ui-component / css-restyle (location PIN follow-up — role track + Vendor embedded gap) | T1 visual-judgment | Sol Medium preferred; Task→gpt-5.6-sol-high | 98 | 99 | ok (PR only) | bg-bg-primary/55→white/4%; VendorPinGate embedded top-flow; no merge/deploy |
 | 2026-08-09 | backend-write-critical + visual-judgment UI (vendor unplanned drop-off fallback D-73) | T3 high-risk | Composer CF + Sol UI + D-60/D-38 Sonnet; Grok orchestrate | 97 | 99 | ok (PR — CF deploy pending merge) | vendor_unplanned session; match/create/confirm CFs; LocationScanPage CTA; dispatcher Unplanned; test 12/12; verify CTA+D-42 PASS |
 | 2026-08-09 | ship-op (merge PR #79 + gh-pages deploy v0.0.253) | T0/T1 fast-safe | Composer 2.5 Fast | 99 | 99 | ok | merge f921c7f4; LIVE index-BbGXRIgB.js; prod verify-location-pin-layout PASS |
-<<<<<<< HEAD
 | 2026-08-09 | backend-write-critical (C2 chat truth-state + evidence + reparse audit recovery) | T3 high-risk | Composer 2.5 Fast + D-60/D-38 Sonnet | 70→98 | 99 | ok (PR only) | page-1 Applied wiped; gate+seed+audit recovery; no merge/deploy |
 | 2026-08-09 | ship-op (PR #81 C2 truth-state merge+CF deploy+prod verify) | T3 high-risk | Composer 2.5 Fast + D-60/D-38 Sonnet | 98 | 99 | ok | merge 95897c3b; reviewagentturn-00007-xiv; page-1 audit self-heal PASS |
-=======
 | 2026-08-09 | backend-write-critical + simple UI (neutral location-scan PIN D-74) | T3 high-risk | Composer 2.5 Fast + D-60/D-38 Sonnet | 98 | 99 | ok (PR — CF+FE deploy pending Dan) | resolveLocationScanPin fail-closed; global uniqueness; role selector removed; emulator 5/5; layout PASS; no CF/FE deploy |
->>>>>>> a044adb6 (docs: confidence log for D-74 neutral location-scan PIN)

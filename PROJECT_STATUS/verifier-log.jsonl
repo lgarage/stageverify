@@ -178,3 +178,4 @@
 {"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-4b7a6bcb-1fc0-5482-9c31-f229350356b4","model":"cursor-grok-4.5-high-fast","real":"na","note":"deploy-turn C1; rebuttal accepted"}
 {"date":"2026-08-09","role":"security","verdict":"PASS","taskId":"bc-d03d5749-0245-5401-8087-e40837894cc2","model":"claude-sonnet-5-thinking-high","real":"na","note":"PR81 re-gate after rebase"}
 {"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-949e367f-8890-5e58-b7e2-39838ce24c45","model":"cursor-grok-4.5-high-fast","real":"na","note":"PR81 CF deploy prod verify"}
+{"date":"2026-08-09","role":"security","verdict":"PASS","taskId":"bc-d7224534-3a70-5251-9244-5b84e48b85aa","model":"claude-sonnet-5-thinking-high","real":"na","note":"D-74 resolveLocationScanPin"}
