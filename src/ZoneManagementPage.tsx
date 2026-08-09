@@ -8,7 +8,7 @@ import {
   type FormEvent,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import type { LocationStatus, StagingLocation, ShopStockLocationMapping, DeliveryDetails } from "./dispatcher/models";
+import type { LocationStatus, StagingLocation, ShopStockLocationMapping, DeliveryDetails, VendorInvoiceImportReview } from "./dispatcher/models";
 import { getAllStagingLocationIds, isLocationActive, LOCATION_STATUSES } from "./dispatcher/models";
 import {
   formatStagingCodeCanonical,
@@ -25,9 +25,12 @@ import {
   updateAppSettings,
   subscribeAppSettings,
   firestoreDataService,
+  getVendorInvoiceImport,
+  setInvoiceReviewDraftStagingLocations,
   type ZoneOccupancySummary,
 } from "./dispatcher/firestoreService";
 import { resolveDeliveryPoNumber } from "./dispatcher/invoice/invoiceShellDisplayHelpers";
+import { readInvoiceHeaderField } from "./dispatcher/invoice/invoiceReviewHeaderHelpers";
 import { mapActiveShopStockReservationsByCode } from "./dispatcher/shopStockMapping";
 import {
   buildZoneEslQrUrl,
@@ -75,8 +78,9 @@ import { DeliveryDetailDrawer } from "./dispatcher/drawer/DeliveryDetailDrawer";
 import { CatchAllStatusDrawer } from "./dispatcher/drawer/CatchAllStatusDrawer";
 
 const NAVY = "#0a3161";
-const RED = "#bf0a30";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+const INVOICE_DRAFT_STAGING_STORAGE_KEY = "sv-invoice-draft-staging";
+const RED = "#bf0a30";
 const ZONE_TYPES = ["ground", "shelf", "bin", "other"] as const;
 type ZoneType = (typeof ZONE_TYPES)[number];
 
@@ -277,6 +281,22 @@ export function ZoneManagementPage() {
     return params.get("assignDelivery")?.trim() || null;
   }, [location.search]);
 
+  const assignInvoiceImportId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("assignInvoiceImport")?.trim() || null;
+  }, [location.search]);
+
+  useEffect(() => {
+    if (!assignInvoiceImportId || !assignDeliveryId) return;
+    const params = new URLSearchParams(location.search);
+    params.delete("assignDelivery");
+    const search = params.toString();
+    navigate(
+      { pathname: "/zones", search: search ? `?${search}` : "" },
+      { replace: true },
+    );
+  }, [assignInvoiceImportId, assignDeliveryId, location.search, navigate]);
+
   const focusSpotCode = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get("focusSpot")?.trim() || null;
@@ -330,6 +350,8 @@ export function ZoneManagementPage() {
   const [assignDetails, setAssignDetails] = useState<DeliveryDetails | null>(
     null,
   );
+  const [assignImportDetails, setAssignImportDetails] =
+    useState<VendorInvoiceImportReview | null>(null);
   const [pendingAssignSpot, setPendingAssignSpot] = useState<{
     layoutSlot: string;
     zoneId: string;
@@ -338,10 +360,15 @@ export function ZoneManagementPage() {
   const [assignSaving, setAssignSaving] = useState(false);
   const [assignToast, setAssignToast] = useState<string | null>(null);
 
-  const assignMode = Boolean(assignDeliveryId) && !mapEditMode;
+  const assignMode =
+    Boolean(assignDeliveryId || assignInvoiceImportId) && !mapEditMode;
   /** Spots render from layout before Firestore zones hydrate — block picks until both are ready. */
   const assignReady =
-    assignMode && zones.length > 0 && assignDetails !== null;
+    assignMode &&
+    zones.length > 0 &&
+    (assignInvoiceImportId
+      ? assignImportDetails !== null
+      : assignDetails !== null);
 
   const handleMapOpenDelivery = useCallback(
     (deliveryId: string, spotCode?: string) => {
@@ -362,14 +389,22 @@ export function ZoneManagementPage() {
 
   const exitAssignMode = useCallback(() => {
     setPendingAssignSpot(null);
+    if (assignInvoiceImportId) {
+      navigate(
+        `/dispatcher?focus=needs-review&inspectInvoiceImport=${encodeURIComponent(assignInvoiceImportId)}`,
+        { replace: true },
+      );
+      return;
+    }
     const params = new URLSearchParams(location.search);
     params.delete("assignDelivery");
+    params.delete("assignInvoiceImport");
     const search = params.toString();
     navigate(
       { pathname: "/zones", search: search ? `?${search}` : "" },
       { replace: true },
     );
-  }, [location.search, navigate]);
+  }, [assignInvoiceImportId, location.search, navigate]);
 
   useEffect(() => {
     setPendingAssignSpot(null);
@@ -395,10 +430,32 @@ export function ZoneManagementPage() {
   }, [assignDeliveryId, mapEditMode]);
 
   useEffect(() => {
-    if (mapEditMode && assignDeliveryId) {
+    setPendingAssignSpot(null);
+    if (!assignInvoiceImportId || mapEditMode) {
+      if (!assignInvoiceImportId) {
+        setAssignImportDetails(null);
+      }
+      return;
+    }
+    let cancelled = false;
+    setAssignImportDetails(null);
+    void getVendorInvoiceImport(assignInvoiceImportId)
+      .then((detail) => {
+        if (!cancelled) setAssignImportDetails(detail);
+      })
+      .catch(() => {
+        if (!cancelled) setAssignImportDetails(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assignInvoiceImportId, mapEditMode]);
+
+  useEffect(() => {
+    if (mapEditMode && (assignDeliveryId || assignInvoiceImportId)) {
       exitAssignMode();
     }
-  }, [mapEditMode, assignDeliveryId, exitAssignMode]);
+  }, [mapEditMode, assignDeliveryId, assignInvoiceImportId, exitAssignMode]);
 
   const mapLayout = useMemo(
     () => resolveShopMapLayout(layoutExtras),
@@ -924,11 +981,23 @@ export function ZoneManagementPage() {
 
   const selfPlannedLayoutSlots = useMemo(() => {
     const slots = new Set<string>();
-    if (!assignDetails) return slots;
-    const plannedIds = new Set([
-      ...(assignDetails.delivery.plannedStagingLocationIds ?? []),
-      ...getAllStagingLocationIds(assignDetails.delivery),
-    ]);
+    const plannedIds = new Set<string>();
+
+    if (assignInvoiceImportId && assignImportDetails) {
+      for (const id of assignImportDetails.draftPlannedStagingLocationIds ?? []) {
+        plannedIds.add(id);
+      }
+    } else if (assignDetails) {
+      for (const id of [
+        ...(assignDetails.delivery.plannedStagingLocationIds ?? []),
+        ...getAllStagingLocationIds(assignDetails.delivery),
+      ]) {
+        plannedIds.add(id);
+      }
+    } else {
+      return slots;
+    }
+
     for (const layoutSlot of allShopMapSpotCodes(mapLayout)) {
       const key = normalizeStagingCodeKey(layoutSlot);
       const zone =
@@ -944,7 +1013,14 @@ export function ZoneManagementPage() {
       }
     }
     return slots;
-  }, [assignDetails, mapLayout, zones, zonesByLayoutSlot]);
+  }, [
+    assignInvoiceImportId,
+    assignImportDetails,
+    assignDetails,
+    mapLayout,
+    zones,
+    zonesByLayoutSlot,
+  ]);
 
   const zoneForLayoutSlot = useCallback(
     (layoutSlot: string): StagingLocation | undefined => {
@@ -978,14 +1054,13 @@ export function ZoneManagementPage() {
 
   const handleAssignSpotClick = useCallback(
     (layoutSlot: string) => {
-      if (!assignDeliveryId) return;
+      if (!assignDeliveryId && !assignInvoiceImportId) return;
       const zone = zoneForLayoutSlot(layoutSlot);
       if (!zone?.id) {
         showAssignToast("Could not resolve that spot — try another.");
         return;
       }
       const code = displayCodeForLayoutSlot(layoutSlot);
-      // Set stores raw layoutSlot keys from allShopMapSpotCodes (same as ShopFloorMap).
       if (selfPlannedLayoutSlots.has(layoutSlot)) {
         return;
       }
@@ -993,6 +1068,7 @@ export function ZoneManagementPage() {
     },
     [
       assignDeliveryId,
+      assignInvoiceImportId,
       displayCodeForLayoutSlot,
       selfPlannedLayoutSlots,
       showAssignToast,
@@ -1001,7 +1077,39 @@ export function ZoneManagementPage() {
   );
 
   const handleAssignConfirm = useCallback(async () => {
-    if (!assignDeliveryId || !pendingAssignSpot || !assignDetails || assignSaving) {
+    if (!pendingAssignSpot || assignSaving) return;
+
+    if (assignInvoiceImportId) {
+      setAssignSaving(true);
+      try {
+        const result = await setInvoiceReviewDraftStagingLocations({
+          vendorInvoiceImportId: assignInvoiceImportId,
+          stagingLocationIds: [pendingAssignSpot.zoneId],
+        });
+        sessionStorage.setItem(
+          INVOICE_DRAFT_STAGING_STORAGE_KEY,
+          JSON.stringify({
+            importId: assignInvoiceImportId,
+            draftPlannedStagingLocationIds: result.draftPlannedStagingLocationIds,
+          }),
+        );
+        showAssignToast(
+          `${pendingAssignSpot.code} saved as draft — shop occupancy starts on Approve.`,
+        );
+        setPendingAssignSpot(null);
+        navigate(
+          `/dispatcher?focus=needs-review&inspectInvoiceImport=${encodeURIComponent(assignInvoiceImportId)}`,
+          { replace: true },
+        );
+      } catch {
+        showAssignToast("Failed to save draft staging location.");
+      } finally {
+        setAssignSaving(false);
+      }
+      return;
+    }
+
+    if (!assignDeliveryId || !assignDetails) {
       return;
     }
     setAssignSaving(true);
@@ -1037,15 +1145,30 @@ export function ZoneManagementPage() {
     }
   }, [
     assignDeliveryId,
+    assignInvoiceImportId,
     assignDetails,
     assignSaving,
     exitAssignMode,
     loadZones,
+    navigate,
     pendingAssignSpot,
     showAssignToast,
   ]);
 
   const assignIdentityLabel = useMemo(() => {
+    if (assignInvoiceImportId && assignImportDetails) {
+      const header = assignImportDetails.parsedHeader;
+      const jobNumber = readInvoiceHeaderField(header, "jobNumberRaw");
+      const po = readInvoiceHeaderField(header, "customerPoOrReference");
+      const invoiceNum = readInvoiceHeaderField(header, "vendorInvoiceNumber");
+      const parts: string[] = [];
+      if (jobNumber) parts.push(`Job ${jobNumber}`);
+      if (po) parts.push(`PO ${po}`);
+      if (invoiceNum && parts.length < 2) parts.push(`Invoice ${invoiceNum}`);
+      if (parts.length > 0) return parts.join(" / ");
+      if (invoiceNum) return `Invoice ${invoiceNum}`;
+      return assignImportDetails.id;
+    }
     if (!assignDetails) return "this delivery";
     const po = resolveDeliveryPoNumber(
       assignDetails.delivery.customerPoOrReference,
@@ -1057,7 +1180,15 @@ export function ZoneManagementPage() {
         : assignDetails.job.jobNumber;
     }
     return po ?? assignDetails.delivery.orderNumber;
-  }, [assignDetails]);
+  }, [assignDetails, assignImportDetails, assignInvoiceImportId]);
+
+  const assignSelfPlannedNote = assignInvoiceImportId
+    ? "Draft for this invoice"
+    : "Also assigned to this job";
+
+  const assignDraftNote = assignInvoiceImportId
+    ? "Selection is saved as a draft after Confirm. Shop occupancy starts only on Approve."
+    : null;
 
   const pendingAssignLayoutSlot = pendingAssignSpot?.layoutSlot ?? null;
 
@@ -1425,12 +1556,29 @@ export function ZoneManagementPage() {
                   >
                     {assignReady
                       ? "Click an open spot to assign "
-                      : "Loading job and spots for "}
+                      : assignInvoiceImportId
+                        ? "Loading invoice and spots for "
+                        : "Loading job and spots for "}
                     <span style={{ fontFamily: "monospace" }}>
                       {assignIdentityLabel}
                     </span>
                   </p>
                 )}
+                {assignDraftNote ? (
+                  <p
+                    data-testid="assign-mode-invoice-draft-note"
+                    style={{
+                      margin: "8px 0 0",
+                      fontSize: 12,
+                      lineHeight: 1.45,
+                      fontWeight: 500,
+                      color: "var(--admin-warning-text)",
+                      fontFamily: FONT,
+                    }}
+                  >
+                    {assignDraftNote}
+                  </p>
+                ) : null}
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {pendingAssignSpot ? (
@@ -1523,9 +1671,12 @@ export function ZoneManagementPage() {
               onPersistLayoutExtras={persistLayoutExtras}
               onDeactivateSlots={handleDeactivateSlots}
               assignMode={assignReady}
-              assignDeliveryId={assignDeliveryId ?? undefined}
+              assignDeliveryId={
+                assignInvoiceImportId ? undefined : (assignDeliveryId ?? undefined)
+              }
               pendingAssignLayoutSlot={pendingAssignLayoutSlot}
               selfPlannedLayoutSlots={selfPlannedLayoutSlots}
+              selfPlannedNote={assignSelfPlannedNote}
               onAssignSpotClick={handleAssignSpotClick}
               onAssignSpotRefused={showAssignToast}
               focusSpotCode={effectiveFocusSpotCode}

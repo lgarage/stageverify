@@ -4,6 +4,7 @@ Append-only session log (Dan standing preference). Not a planning SSOT.
 
 | Date | Task type | Archetype | Tier | Cheapest model | confStart | confAfter | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-08-09 | Invoice Review staging → Staging Map (PR #97 UX) | ui-component / visual-judgment | T1 | Sol High review + Composer 2.5 Fast implement | 98 | 99 | FE-only v0.0.274; solution-verifier Agree; Sol final PASS |
 | 2026-08-09 | ship-op (PR #112 merge + approveVendorInvoiceImport deploy D-79) | ship-op / CF deploy | T3 | Composer 2.5 Fast | 99 | 99 | merge 02a48bbb; CF hash f27f5aeb; smoke 6167746 PASS |
 | 2026-08-09 | Fulfillment persist create_shell overwrite (6169414/6169474) | backend-write-critical | T3 | Composer 2.5 Fast + Sonnet D-60 + Grok adversarial + D-38 | 99 | 99 | Investigate→implement; no CF deploy until Dan |
 | 2026-08-09 | Named Admin access-control redesign (auth/PIN/roles) | backend-write-critical | T3 | Composer 2.5 Fast (inline) + Sonnet D-60/D-38 | 92 | 98 | High-risk; Agree-with-revisions packet; PR #73; no deploy |
