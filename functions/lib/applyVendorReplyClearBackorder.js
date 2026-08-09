@@ -10,6 +10,7 @@ const https_1 = require("firebase-functions/v2/https");
 const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const pickupMaterialIssueReadback_1 = require("./pickupMaterialIssueReadback");
+const clearActiveStagingOnWillCall_1 = require("./invoice/clearActiveStagingOnWillCall");
 function getDb() {
     return admin.firestore();
 }
@@ -229,8 +230,16 @@ exports.applyVendorReplyClearBackorder = (0, https_1.onCall)({
         else if (action === "pickup_at_vendor") {
             deliveryPatch.invoiceFulfillmentMethod = "will_call_pickup";
             deliveryPatch.invoiceImportStatus = "pickup_at_vendor";
-            deliveryPatch.stagingLocationId = "";
-            deliveryPatch.additionalStagingLocationIds = [];
+            // Full active staging release (planned + actual + combination) in same tx.
+            const clear = (0, clearActiveStagingOnWillCall_1.buildWillCallActiveStagingClearPatch)(delivery, {
+                releasedBy: "dispatcher",
+                releasedAt: now,
+            });
+            Object.assign(deliveryPatch, clear.fields);
+            if (clear.releaseEntries.length > 0) {
+                deliveryPatch.plannedLocationReleases =
+                    admin.firestore.FieldValue.arrayUnion(...clear.releaseEntries);
+            }
         }
         tx.update(deliveryRef, deliveryPatch);
         tx.update(eventRef, {

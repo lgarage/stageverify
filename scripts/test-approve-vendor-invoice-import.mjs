@@ -366,14 +366,22 @@ if (
 
 const shellDeliverySnap = await getDoc(doc(db, "deliveries", shellDeliveryId));
 const shellDelivery = shellDeliverySnap.data() ?? {};
+const shellPlanned = shellDelivery.plannedStagingLocationIds;
+const shellActualEmpty =
+  shellDelivery.stagingLocationId === undefined ||
+  shellDelivery.stagingLocationId === "";
+const shellPlannedEmpty =
+  shellPlanned === undefined ||
+  (Array.isArray(shellPlanned) && shellPlanned.length === 0);
 if (
   shellDelivery.vendorInvoiceImportId === "vii-review-only-test" &&
   shellDelivery.invoiceImportStatus === "pickup_at_vendor" &&
   shellDelivery.status === "ready_for_pickup" &&
-  shellDelivery.stagingLocationId === undefined &&
+  shellActualEmpty &&
+  shellPlannedEmpty &&
   shellDelivery.readinessStatus === undefined
 ) {
-  pass("shell delivery created with will-call status, no staging/readiness");
+  pass("shell delivery created with will-call status, no active staging/readiness");
 } else {
   fail("shell delivery fields", shellDelivery);
 }
@@ -576,12 +584,15 @@ if (deliverySnap.data()?.vendorInvoiceImportId === "vii-approve-test") {
   fail("shell delivery link missing", deliverySnap.data());
 }
 
+const approveShellPlanned = deliverySnap.data()?.plannedStagingLocationIds;
 if (
-  deliverySnap.data()?.stagingLocationId === undefined &&
+  (deliverySnap.data()?.stagingLocationId === undefined ||
+    deliverySnap.data()?.stagingLocationId === "") &&
   deliverySnap.data()?.readinessStatus === undefined &&
-  deliverySnap.data()?.plannedStagingLocationIds === undefined
+  (approveShellPlanned === undefined ||
+    (Array.isArray(approveShellPlanned) && approveShellPlanned.length === 0))
 ) {
-  pass("shell staging/readiness untouched (will-call — no planned staging)");
+  pass("shell staging/readiness empty for will-call (no active shop staging)");
 } else {
   fail("unexpected staging/readiness on shell", deliverySnap.data());
 }
@@ -1043,17 +1054,19 @@ const preserveWillCallSnap = await getDoc(
   doc(db, "deliveries", preserveWillCallDeliveryId),
 );
 const preserveWillCallData = preserveWillCallSnap.data() ?? {};
+const preserveWillCallPlanned =
+  preserveWillCallData.plannedStagingLocationIds ?? [];
 if (
   preserveWillCallData.invoiceFulfillmentMethod === "will_call_pickup" &&
   preserveWillCallData.invoiceImportStatus === "pickup_at_vendor" &&
-  Array.isArray(preserveWillCallData.plannedStagingLocationIds) &&
-  preserveWillCallData.plannedStagingLocationIds[0] === "zone-fixture-g6"
+  Array.isArray(preserveWillCallPlanned) &&
+  preserveWillCallPlanned.length === 0
 ) {
   pass(
-    "Drop-Off import create_shell does not revert dispatcher Will-Call (+ keeps planned staging)",
+    "Drop-Off import create_shell preserves Will-Call ops and clears active staging (D-80)",
   );
 } else {
-  fail("Will-Call ops overwritten by create_shell", {
+  fail("Will-Call ops/staging after create_shell", {
     invoiceFulfillmentMethod: preserveWillCallData.invoiceFulfillmentMethod,
     invoiceImportStatus: preserveWillCallData.invoiceImportStatus,
     status: preserveWillCallData.status,
@@ -1667,15 +1680,19 @@ try {
 }
 const willStaleShell = shellDeliveryIdForImport("vii-willcall-stale-staging");
 const willStaleSnap = await getDoc(doc(db, "deliveries", willStaleShell));
+const willStaleDocPlanned = willStaleSnap.data()?.plannedStagingLocationIds;
 if (
   willStale?.data?.reviewStatus === "approved" &&
-  willStaleSnap.data()?.plannedStagingLocationIds === undefined &&
   Array.isArray(willStale?.data?.plannedStagingLocationIds) &&
-  willStale.data.plannedStagingLocationIds.length === 0
+  willStale.data.plannedStagingLocationIds.length === 0 &&
+  Array.isArray(willStaleDocPlanned) &&
+  willStaleDocPlanned.length === 0 &&
+  (willStaleSnap.data()?.stagingLocationId === "" ||
+    willStaleSnap.data()?.stagingLocationId === undefined)
 ) {
-  pass("will-call ignores stale plannedStagingLocationIds (not written)");
+  pass("will-call clears active staging (stale client ids not applied)");
 } else {
-  fail("will-call stale staging should not write planned ids", {
+  fail("will-call stale staging should clear active refs", {
     response: willStale?.data,
     doc: willStaleSnap.data()?.plannedStagingLocationIds,
   });
@@ -1821,6 +1838,12 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     poNumber: "PO-80004",
     fulfillmentMethod: "will_call_pickup",
     importStatus: "pickup_at_vendor",
+    deliveryExtras: {
+      plannedStagingLocationIds: ["staging-g1"],
+      stagingLocationId: "staging-g1",
+      combinationStagingGroupId: "combo-wc",
+      combinationMemberLocationIds: ["staging-g1"],
+    },
   });
   await seedHighConfidenceMatchCase(adminDb, {
     importId: "vii-matched-malicious-id",
@@ -1979,15 +2002,30 @@ try {
 }
 const willId = "delivery-for-vii-matched-willcall";
 const willSnap = await getDoc(doc(db, "deliveries", willId));
+const matchedWillPlanned = willSnap.data()?.plannedStagingLocationIds ?? [];
+const matchedWillActual = willSnap.data()?.stagingLocationId ?? "";
+const matchedWillCombo = willSnap.data()?.combinationStagingGroupId ?? "";
 if (
   matchedWill?.data?.deliveryMatched === true &&
-  willSnap.data()?.plannedStagingLocationIds === undefined
+  Array.isArray(matchedWillPlanned) &&
+  matchedWillPlanned.length === 0 &&
+  matchedWillActual === "" &&
+  matchedWillCombo === "" &&
+  Array.isArray(willSnap.data()?.plannedLocationReleases) &&
+  willSnap.data().plannedLocationReleases.some(
+    (r) =>
+      r?.locationId === "staging-g1" &&
+      r?.reason === "fulfillment_switched_to_will_call",
+  )
 ) {
-  pass("matched will-call ignores stale staging ids");
+  pass("matched will-call clears prior active staging + audit release");
 } else {
-  fail("matched will-call staging", {
+  fail("matched will-call staging clear", {
     response: matchedWill?.data,
-    planned: willSnap.data()?.plannedStagingLocationIds,
+    planned: matchedWillPlanned,
+    actual: matchedWillActual,
+    combo: matchedWillCombo,
+    releases: willSnap.data()?.plannedLocationReleases,
   });
 }
 
@@ -2087,6 +2125,62 @@ if (
     response: matchedReapprove?.data,
     notes: reMatchedSnap.data()?.notes,
     shellExists: reMatchedShell.exists(),
+  });
+}
+
+// D-79 + D-80: Will-Call-parsed import must not wipe dispatcher Drop-Off staging.
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await seedHighConfidenceMatchCase(adminDb, {
+    importId: "vii-matched-preserve-dropoff-vs-willcall-import",
+    orderNumber: "MATCH-ORD-A14",
+    poNumber: "PO-80014",
+    fulfillmentMethod: "will_call_pickup",
+    importStatus: "pickup_at_vendor",
+    deliveryExtras: {
+      invoiceFulfillmentMethod: "delivery",
+      invoiceImportStatus: "pending",
+      plannedStagingLocationIds: ["staging-g2"],
+      stagingLocationId: "staging-g2",
+      status: "arrived",
+      notes: "Keep Drop-Off staging",
+    },
+  });
+});
+let matchedPreserveDropOff;
+try {
+  matchedPreserveDropOff = await approveImport({
+    vendorInvoiceImportId: "vii-matched-preserve-dropoff-vs-willcall-import",
+    action: "approve",
+    plannedStagingLocationIds: ["staging-g1"],
+  });
+} catch (err) {
+  fail("preserve Drop-Off vs Will-Call import approve failed", err?.message);
+}
+const preserveDropOffId =
+  "delivery-for-vii-matched-preserve-dropoff-vs-willcall-import";
+const preserveDropOffVsWillSnap = await getDoc(
+  doc(db, "deliveries", preserveDropOffId),
+);
+const preserveDropOffVsWill = preserveDropOffVsWillSnap.data() ?? {};
+const preserveDropOffVsWillPlanned =
+  preserveDropOffVsWill.plannedStagingLocationIds ?? [];
+if (
+  matchedPreserveDropOff?.data?.deliveryMatched === true &&
+  preserveDropOffVsWill.invoiceFulfillmentMethod === "delivery" &&
+  Array.isArray(preserveDropOffVsWillPlanned) &&
+  preserveDropOffVsWillPlanned[0] === "staging-g2" &&
+  preserveDropOffVsWill.stagingLocationId === "staging-g2"
+) {
+  pass(
+    "Will-Call import approve does not clear dispatcher Drop-Off staging (D-79)",
+  );
+} else {
+  fail("preserve Drop-Off staging wiped by Will-Call import", {
+    response: matchedPreserveDropOff?.data,
+    fulfillment: preserveDropOffVsWill.invoiceFulfillmentMethod,
+    planned: preserveDropOffVsWillPlanned,
+    actual: preserveDropOffVsWill.stagingLocationId,
   });
 }
 

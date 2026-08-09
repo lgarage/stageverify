@@ -10,6 +10,7 @@ import {
   resolvePickupMaterialIssueReadback,
   type PickupMaterialIssueReadback,
 } from "./pickupMaterialIssueReadback";
+import { buildWillCallActiveStagingClearPatch } from "./invoice/clearActiveStagingOnWillCall";
 
 function getDb() {
   return admin.firestore();
@@ -352,8 +353,16 @@ export const applyVendorReplyClearBackorder = onCall(
       } else if (action === "pickup_at_vendor") {
         deliveryPatch.invoiceFulfillmentMethod = "will_call_pickup";
         deliveryPatch.invoiceImportStatus = "pickup_at_vendor";
-        deliveryPatch.stagingLocationId = "";
-        deliveryPatch.additionalStagingLocationIds = [];
+        // Full active staging release (planned + actual + combination) in same tx.
+        const clear = buildWillCallActiveStagingClearPatch(delivery, {
+          releasedBy: "dispatcher",
+          releasedAt: now,
+        });
+        Object.assign(deliveryPatch, clear.fields);
+        if (clear.releaseEntries.length > 0) {
+          deliveryPatch.plannedLocationReleases =
+            admin.firestore.FieldValue.arrayUnion(...clear.releaseEntries);
+        }
       }
 
       tx.update(deliveryRef, deliveryPatch);
