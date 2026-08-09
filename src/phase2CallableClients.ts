@@ -241,14 +241,44 @@ export async function provisionDispatcherClient(input: {
   email: string;
   temporaryPassword?: string;
   manager?: boolean;
+  role?: import("./dispatcher/models").DispatcherAccessRole;
+  fullName: string;
+  adminPin?: string;
 }): Promise<{
   success: boolean;
   uid: string;
   email: string;
+  fullName: string;
   temporaryPassword: string;
   manager: boolean;
+  role: import("./dispatcher/models").DispatcherAccessRole;
 }> {
   return callCallable("provisionDispatcher", input);
+}
+
+export async function updateDispatcherAccessClient(
+  input: import("./dispatcher/models").UpdateDispatcherAccessRequest,
+): Promise<import("./dispatcher/models").UpdateDispatcherAccessResult> {
+  return callCallable("updateDispatcherAccess", { ...input });
+}
+
+export async function setAdminPinClient(
+  input: import("./dispatcher/models").SetAdminPinRequest,
+): Promise<import("./dispatcher/models").SetAdminPinResult> {
+  return callCallable("setAdminPin", { ...input });
+}
+
+export async function bootstrapFirstAdminClient(input: {
+  uid?: string;
+  fullName: string;
+  adminPin: string;
+}): Promise<{
+  success: true;
+  uid: string;
+  fullName: string;
+  role: "admin";
+}> {
+  return callCallable("bootstrapFirstAdmin", { ...input });
 }
 
 export async function deactivateDispatcherClient(input: {
@@ -343,6 +373,7 @@ export async function markVendorDeliveriesBulkClient(input: {
 export async function startAdminAccessSessionClient(input: {
   targetType: import("./dispatcher/models").AccessPinTargetType;
   targetId: string;
+  adminPin: string;
 }): Promise<import("./dispatcher/models").StartAdminAccessSessionResult> {
   return callCallable("startAdminAccessSession", input);
 }

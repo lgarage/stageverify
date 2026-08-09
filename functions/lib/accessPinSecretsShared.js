@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ADMIN_ACCESS_SESSIONS_COLLECTION = exports.ACCESS_PIN_SET_ATTEMPTS_COLLECTION = exports.ACCESS_PIN_REVEAL_ATTEMPTS_COLLECTION = exports.PIN_ACCESS_AUDIT_COLLECTION = exports.ACCESS_PIN_UNIQUENESS_COLLECTION = exports.ACCESS_PIN_SECRETS_COLLECTION = void 0;
+exports.FIRST_ADMIN_BOOTSTRAP_LOCK_ID = exports.ACCESS_CONTROL_LOCKS_COLLECTION = exports.ADMIN_ACCESS_SESSIONS_COLLECTION = exports.ACCESS_PIN_SET_ATTEMPTS_COLLECTION = exports.ACCESS_PIN_REVEAL_ATTEMPTS_COLLECTION = exports.PIN_ACCESS_AUDIT_COLLECTION = exports.ACCESS_PIN_UNIQUENESS_COLLECTION = exports.ACCESS_PIN_SECRETS_COLLECTION = void 0;
 exports.getDb = getDb;
 exports.accessPinSecretDocId = accessPinSecretDocId;
 exports.accessPinUniquenessDocId = accessPinUniquenessDocId;
@@ -14,6 +14,8 @@ exports.PIN_ACCESS_AUDIT_COLLECTION = "pinAccessAudit";
 exports.ACCESS_PIN_REVEAL_ATTEMPTS_COLLECTION = "accessPinRevealAttempts";
 exports.ACCESS_PIN_SET_ATTEMPTS_COLLECTION = "accessPinSetAttempts";
 exports.ADMIN_ACCESS_SESSIONS_COLLECTION = "adminAccessSessions";
+exports.ACCESS_CONTROL_LOCKS_COLLECTION = "accessControlLocks";
+exports.FIRST_ADMIN_BOOTSTRAP_LOCK_ID = "firstAdmin";
 function getDb() {
     return admin.firestore();
 }
@@ -43,6 +45,9 @@ async function writePinAccessAudit(input) {
         actorUid: input.actorUid,
         createdAt,
     };
+    if (typeof input.actorFullName === "string" && input.actorFullName.trim()) {
+        doc.actorFullName = input.actorFullName.trim();
+    }
     await ref.set(doc);
     return ref.id;
 }

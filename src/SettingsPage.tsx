@@ -227,7 +227,12 @@ export function SettingsPage() {
 
   useEffect(() => {
     void getMyDispatcherRole().then((role) => {
-      setIsIgnoreRulesManager(role?.manager === true && role?.active !== false);
+      const elevated =
+        role?.active !== false &&
+        (role?.manager === true ||
+          role?.role === "admin" ||
+          role?.role === "manager");
+      setIsIgnoreRulesManager(elevated);
     });
   }, []);
 

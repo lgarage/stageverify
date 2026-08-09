@@ -62,7 +62,7 @@
 
 ## NOW (Phase 5 prototype)
 
-**Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.250**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
+**Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
 **Phase 5 — Vendor Email Parsing Prototype** — active per `CURRENT_STATE.md` (Phase 3 + Phase 4 gates closed 2026-06-20). Phase 2 gate passed 2026-06-08.
 

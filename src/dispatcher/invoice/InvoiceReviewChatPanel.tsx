@@ -10,6 +10,7 @@ import {
   subscribeInvoiceReviewChatMessages,
 } from "../firestoreService";
 import type {
+  ApplyInvoiceReviewFieldCorrectionResult,
   InvoiceCorrectableFieldKey,
   InvoiceReviewChatMessage,
 } from "../models";
@@ -52,7 +53,7 @@ export function InvoiceReviewChatPanel({
 }: {
   importId: string;
   readOnly?: boolean;
-  onCorrectionApplied?: (parsedHeader: Record<string, unknown>) => void;
+  onCorrectionApplied?: (result: ApplyInvoiceReviewFieldCorrectionResult) => void;
 }) {
   const { appearance } = useAdminAppearance();
   const [messages, setMessages] = useState<InvoiceReviewChatMessage[]>([]);
@@ -129,7 +130,7 @@ export function InvoiceReviewChatPanel({
         next.add(input.sourceMessageId);
         return next;
       });
-      onCorrectionApplied?.(result.parsedHeader);
+      onCorrectionApplied?.(result);
     } catch (err) {
       const msg =
         err instanceof Error

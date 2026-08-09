@@ -38,7 +38,17 @@ export type PinAccessAuditAction =
   | "pin_reveal_denied"
   | "pin_changed"
   | "pin_change_denied"
-  | "dispatcher_removed";
+  | "dispatcher_removed"
+  | "admin_created"
+  | "admin_deactivated"
+  | "role_changed_to_admin"
+  | "role_changed_from_admin"
+  | "admin_pin_set"
+  | "admin_pin_set_denied"
+  | "admin_bootstrap";
+
+export const ACCESS_CONTROL_LOCKS_COLLECTION = "accessControlLocks";
+export const FIRST_ADMIN_BOOTSTRAP_LOCK_ID = "firstAdmin";
 
 export type PinAccessAuditDoc = {
   action: PinAccessAuditAction;
@@ -46,6 +56,8 @@ export type PinAccessAuditDoc = {
   targetId: string;
   actorUid: string;
   createdAt: string;
+  /** Named Admin display identity when known — never PIN material. */
+  actorFullName?: string;
 };
 
 export function getDb() {
@@ -86,6 +98,7 @@ export async function writePinAccessAudit(input: {
   targetType: PinAccessAuditTargetType;
   targetId: string;
   actorUid: string;
+  actorFullName?: string;
 }): Promise<string> {
   const ref = getDb().collection(PIN_ACCESS_AUDIT_COLLECTION).doc();
   const createdAt = new Date().toISOString();
@@ -96,6 +109,9 @@ export async function writePinAccessAudit(input: {
     actorUid: input.actorUid,
     createdAt,
   };
+  if (typeof input.actorFullName === "string" && input.actorFullName.trim()) {
+    doc.actorFullName = input.actorFullName.trim();
+  }
   await ref.set(doc);
   return ref.id;
 }

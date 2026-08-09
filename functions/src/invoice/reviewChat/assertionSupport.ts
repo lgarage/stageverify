@@ -333,13 +333,13 @@ function buildSupportedAnswer(
     );
   }
   parts.push(
-    "Invoice Review Chat (C1) can explain and cite evidence only — it cannot change parsed fields yet.",
+    "I can update the allowlisted parsed field after you confirm with Apply correction or reply “Yes, apply it.”",
   );
   return parts.join(" ");
 }
 
 function buildUnsupportedAnswer(assertedValue: string): string {
-  return `I cannot find "${assertedValue}" in the document evidence. Treating that as your dispatcher assertion; I will not treat it as verified invoice text. Invoice Review Chat (C1) cannot change parsed fields.`;
+  return `I cannot find "${assertedValue}" in the document evidence. Treating that as your dispatcher assertion; I will not treat it as verified invoice text. I will not apply an unverifiable value.`;
 }
 
 /** Reconcile answer/citations when assertion support contradicts model claims. */

@@ -334,14 +334,45 @@ export function buildImportDecisionLogEntry(
   };
 }
 
-/** Use persisted fields when present; recompute for legacy rows. */
+/** True when persisted “Missing …” reasons contradict the current corrected header. */
+function persistedEligibilityStaleAfterCorrection(
+  row: AutoImportEligibilityInput & Partial<AutoImportEligibilityResult>,
+): boolean {
+  const reasons = row.reviewRequiredReasons ?? [];
+  if (reasons.length === 0) return false;
+  const header = row.parsedHeader ?? {};
+  const checks: Array<[RegExp, string]> = [
+    [/missing customer p\/?o/i, "customerPoOrReference"],
+    [/missing s\/?o|missing vendor order/i, "vendorOrderNumber"],
+    [/missing invoice/i, "vendorInvoiceNumber"],
+  ];
+  for (const [re, key] of checks) {
+    if (!reasons.some((r) => re.test(r))) continue;
+    const value = header[key];
+    if (typeof value === "string" && value.trim()) return true;
+  }
+  // Persisted "Parse warnings (N)" can also go stale after C2 clears missing-field warnings.
+  if (
+    reasons.some((r) => /^Parse warnings\b/i.test(r)) &&
+    Array.isArray(row.parseWarnings)
+  ) {
+    const unresolved = row.parseWarnings.filter(Boolean);
+    const match = reasons.find((r) => /^Parse warnings\s*\((\d+)\)/i.test(r));
+    const m = match?.match(/\((\d+)\)/);
+    if (m && Number(m[1]) !== unresolved.length) return true;
+  }
+  return false;
+}
+
+/** Use persisted fields when present; recompute for legacy rows / post-correction stale state. */
 export function resolveAutoImportEligibility(
   row: AutoImportEligibilityInput & Partial<AutoImportEligibilityResult>,
 ): AutoImportEligibilityResult {
   if (
     row.importDecisionMode &&
     row.autoImportEligible !== undefined &&
-    row.suggestedAction
+    row.suggestedAction &&
+    !persistedEligibilityStaleAfterCorrection(row)
   ) {
     return {
       autoImportEligible: row.autoImportEligible,

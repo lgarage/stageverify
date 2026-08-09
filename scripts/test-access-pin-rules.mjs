@@ -61,6 +61,18 @@ try {
   pass("client cannot write accessPinSecrets");
 
   await assert.rejects(
+    () => getDoc(doc(db, "accessPinSecrets", "admin_admin-1")),
+    /permission-denied|PERMISSION_DENIED/i,
+  );
+  pass("client cannot read admin accessPinSecrets");
+
+  await assert.rejects(
+    () => getDoc(doc(db, "adminAccessSessions", "sess1")),
+    /permission-denied|PERMISSION_DENIED/i,
+  );
+  pass("client cannot read adminAccessSessions");
+
+  await assert.rejects(
     () =>
       setDoc(doc(db, "adminAccessSessions", "sess1"), {
         managerUid: "disp-1",

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useAdminAppearance } from "../../adminAppearance";
 import type {
+  ApplyInvoiceReviewFieldCorrectionResult,
   InvoiceMatchResult,
   VendorInvoiceImportReview,
 } from "../models";
@@ -28,6 +29,7 @@ import { useVendorInvoicePdfViewer } from "./useVendorInvoicePdfViewer";
 import { AutoImportSuggestionPanel } from "./autoImportSuggestionUi";
 import { InvoiceDeliveryMatchSection } from "./InvoiceDeliveryMatchSection";
 import { InvoiceReviewChatPanel } from "./InvoiceReviewChatPanel";
+import { reconcileParseWarningsForHeader } from "./reconcileParseWarningsForHeader";
 import {
   buildHeaderDisplayRows,
   INVOICE_HEADER_FIELD_LABELS,
@@ -142,7 +144,7 @@ export function InvoiceParsedInspectModal({
   /** Called when Save lesson apply-now dismisses a CREDIT/return import. */
   onImportDismissed?: () => void;
   /** Lane C C2 — live refresh after chat field correction apply. */
-  onCorrectionApplied?: (parsedHeader: Record<string, unknown>) => void;
+  onCorrectionApplied?: (result: ApplyInvoiceReviewFieldCorrectionResult) => void;
 }) {
   const [correctionNote, setCorrectionNote] = useState("");
   const [selectedStagingIds, setSelectedStagingIds] = useState<string[]>([]);
@@ -413,7 +415,12 @@ export function InvoiceParsedInspectModal({
   const headerRows = buildHeaderDisplayRows(importRow.parsedHeader);
   const normalizedHeader = normalizeParsedHeader(importRow.parsedHeader);
   const codContext = codPaymentContext(importRow);
-  const parseWarnings = (importRow.parseWarnings ?? []).filter(Boolean);
+  // Current unresolved warnings only — drop missing allowlisted fields already present
+  // on the corrected header (C2 live reconcile; originalParseWarnings stay on the doc).
+  const parseWarnings = reconcileParseWarningsForHeader(
+    importRow.parseWarnings,
+    importRow.parsedHeader,
+  );
   const orderNotes = (importRow.orderNotes ?? []).filter(Boolean);
   const parsedLines = importRow.parsedLines ?? [];
   const lineCount = importRow.parsedLineCount ?? parsedLines.length;
@@ -613,7 +620,7 @@ export function InvoiceParsedInspectModal({
                 type="button"
                 data-testid="invoice-parsed-inspect-reparse"
                 disabled={reparseLoading || actionLoading}
-                title="Re-run the invoice parser on cached PDF text"
+                title="Re-run the invoice parser on cached PDF text (keeps applied field corrections)"
                 onClick={onReparse}
                 style={{
                   backgroundColor: "var(--admin-surface)",
@@ -1052,7 +1059,7 @@ export function InvoiceParsedInspectModal({
             {formatJson({
               parsedHeader: normalizedHeader,
               parsedLines,
-              parseWarnings: importRow.parseWarnings,
+              parseWarnings,
               orderNotes: importRow.orderNotes,
               parsedLineCount: importRow.parsedLineCount,
               importStatus: importRow.importStatus,

@@ -253,11 +253,11 @@ function buildSupportedAnswer(assertedValue, matchedEvidenceText, parserCustomer
             : "(empty)";
         parts.push(`The parser customerPoOrReference is ${parserDisplay}, which differs from your assertion.`);
     }
-    parts.push("Invoice Review Chat (C1) can explain and cite evidence only — it cannot change parsed fields yet.");
+    parts.push("I can update the allowlisted parsed field after you confirm with Apply correction or reply “Yes, apply it.”");
     return parts.join(" ");
 }
 function buildUnsupportedAnswer(assertedValue) {
-    return `I cannot find "${assertedValue}" in the document evidence. Treating that as your dispatcher assertion; I will not treat it as verified invoice text. Invoice Review Chat (C1) cannot change parsed fields.`;
+    return `I cannot find "${assertedValue}" in the document evidence. Treating that as your dispatcher assertion; I will not treat it as verified invoice text. I will not apply an unverifiable value.`;
 }
 /** Reconcile answer/citations when assertion support contradicts model claims. */
 function reconcileAssertionConsistency(input) {

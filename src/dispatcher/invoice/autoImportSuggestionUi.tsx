@@ -3,6 +3,31 @@ import {
   resolveAutoImportEligibility,
   type ImportDecisionMode,
 } from "./computeAutoImportEligibility";
+import { reconcileParseWarningsForHeader } from "./reconcileParseWarningsForHeader";
+
+function eligibilityInputFromRow(importRow: VendorInvoiceImportReview) {
+  return {
+    importStatus: importRow.importStatus,
+    confidenceScore: importRow.confidenceScore,
+    humanReviewRequired: importRow.humanReviewRequired,
+    duplicate: importRow.duplicate,
+    parseWarnings: reconcileParseWarningsForHeader(
+      importRow.parseWarnings,
+      importRow.parsedHeader,
+    ),
+    parsedHeader: importRow.parsedHeader,
+    parsedLines: importRow.parsedLines,
+    parsedLineCount: importRow.parsedLineCount,
+    pageId: importRow.pageId,
+    parserFormatId: importRow.parserFormatId,
+    autoImportEligible: importRow.autoImportEligible,
+    autoImportConfidence: importRow.autoImportConfidence,
+    autoImportReasons: importRow.autoImportReasons,
+    reviewRequiredReasons: importRow.reviewRequiredReasons,
+    importDecisionMode: importRow.importDecisionMode,
+    suggestedAction: importRow.suggestedAction,
+  };
+}
 
 const MODE_STYLES: Record<
   ImportDecisionMode,
@@ -34,24 +59,9 @@ export function AutoImportSuggestionBadge({
 }) {
   if (importRow.reviewStatus !== "pending_review") return null;
 
-  const eligibility = resolveAutoImportEligibility({
-    importStatus: importRow.importStatus,
-    confidenceScore: importRow.confidenceScore,
-    humanReviewRequired: importRow.humanReviewRequired,
-    duplicate: importRow.duplicate,
-    parseWarnings: importRow.parseWarnings,
-    parsedHeader: importRow.parsedHeader,
-    parsedLines: importRow.parsedLines,
-    parsedLineCount: importRow.parsedLineCount,
-    pageId: importRow.pageId,
-    parserFormatId: importRow.parserFormatId,
-    autoImportEligible: importRow.autoImportEligible,
-    autoImportConfidence: importRow.autoImportConfidence,
-    autoImportReasons: importRow.autoImportReasons,
-    reviewRequiredReasons: importRow.reviewRequiredReasons,
-    importDecisionMode: importRow.importDecisionMode,
-    suggestedAction: importRow.suggestedAction,
-  });
+  const eligibility = resolveAutoImportEligibility(
+    eligibilityInputFromRow(importRow),
+  );
 
   const style = MODE_STYLES[eligibility.importDecisionMode];
   const reasons =
@@ -90,24 +100,9 @@ export function AutoImportSuggestionPanel({
 }: {
   importRow: VendorInvoiceImportReview;
 }) {
-  const eligibility = resolveAutoImportEligibility({
-    importStatus: importRow.importStatus,
-    confidenceScore: importRow.confidenceScore,
-    humanReviewRequired: importRow.humanReviewRequired,
-    duplicate: importRow.duplicate,
-    parseWarnings: importRow.parseWarnings,
-    parsedHeader: importRow.parsedHeader,
-    parsedLines: importRow.parsedLines,
-    parsedLineCount: importRow.parsedLineCount,
-    pageId: importRow.pageId,
-    parserFormatId: importRow.parserFormatId,
-    autoImportEligible: importRow.autoImportEligible,
-    autoImportConfidence: importRow.autoImportConfidence,
-    autoImportReasons: importRow.autoImportReasons,
-    reviewRequiredReasons: importRow.reviewRequiredReasons,
-    importDecisionMode: importRow.importDecisionMode,
-    suggestedAction: importRow.suggestedAction,
-  });
+  const eligibility = resolveAutoImportEligibility(
+    eligibilityInputFromRow(importRow),
+  );
 
   const reasons =
     eligibility.importDecisionMode === "suggested_import"

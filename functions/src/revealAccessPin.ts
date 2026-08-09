@@ -14,7 +14,10 @@ import {
   ACCESS_PIN_REVEAL_ATTEMPTS_COLLECTION,
 } from "./accessPinSecretsShared";
 import { assertAccessPinTargetExists } from "./accessPinTargetHelpers";
-import { requireManagerAuth } from "./inboundEmail/dispatcherAuth";
+import {
+  readDispatcherRoleDoc,
+  requireAdminAuth,
+} from "./inboundEmail/dispatcherAuth";
 
 const REVEALED_FOR_MS = 25_000;
 const MAX_ATTEMPTS_PER_WINDOW = 8;
@@ -80,7 +83,7 @@ async function checkRevealRateLimit(attemptKey: string): Promise<void> {
   });
 }
 
-/** Manager reveals a configured PIN (25s client auto-hide). Requires live admin session. */
+/** Active Admin reveals a configured PIN (25s client auto-hide). Requires live admin session. */
 export const revealAccessPin = onCall(
   {
     region: "us-central1",
@@ -100,7 +103,7 @@ export const revealAccessPin = onCall(
 
     let uid: string;
     try {
-      uid = await requireManagerAuth(request);
+      uid = await requireAdminAuth(request);
     } catch (err) {
       if (
         err instanceof HttpsError &&
@@ -116,6 +119,10 @@ export const revealAccessPin = onCall(
       }
       throw err;
     }
+
+    const roleDoc = await readDispatcherRoleDoc(uid);
+    const actorFullName =
+      typeof roleDoc?.fullName === "string" ? roleDoc.fullName : undefined;
 
     const sessionCheck = await validateAdminAccessSession({
       sessionToken,
@@ -179,6 +186,7 @@ export const revealAccessPin = onCall(
       targetType,
       targetId,
       actorUid: uid,
+      actorFullName,
     });
 
     return { pin, revealedForMs: REVEALED_FOR_MS };

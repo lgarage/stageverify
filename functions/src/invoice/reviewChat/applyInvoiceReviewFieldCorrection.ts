@@ -17,6 +17,10 @@ import {
   REVIEW_CHAT_MESSAGES_SUB,
 } from "./reviewAgentTypes";
 import { REVIEW_CHAT_RECENT_TURNS } from "../aiShadow/constants";
+import {
+  reconcileImportStateAfterCorrection,
+  type ReconciledImportState,
+} from "./reconcileAfterFieldCorrection";
 
 export class ApplyCorrectionInputError extends Error {
   code:
@@ -49,6 +53,14 @@ export interface ApplyInvoiceReviewFieldCorrectionResult {
   correctionId: string;
   parsedHeader: Record<string, unknown>;
   reviewStatus: string;
+  /** Authoritative current unresolved parse warnings after correction. */
+  parseWarnings: string[];
+  autoImportEligible: boolean;
+  autoImportConfidence: number;
+  autoImportReasons: string[];
+  reviewRequiredReasons: string[];
+  importDecisionMode: ReconciledImportState["importDecisionMode"];
+  suggestedAction: string;
 }
 
 function isoNow(): string {
@@ -60,6 +72,58 @@ function asRecord(value: unknown): Record<string, unknown> {
     return value as Record<string, unknown>;
   }
   return {};
+}
+
+function reconcileFromImportDoc(
+  importDoc: Record<string, unknown>,
+  parsedHeader: Record<string, unknown>,
+): ReconciledImportState {
+  return reconcileImportStateAfterCorrection({
+    parsedHeader,
+    parseWarnings: importDoc.parseWarnings,
+    importStatus: importDoc.importStatus,
+    confidenceScore: importDoc.confidenceScore,
+    humanReviewRequired: importDoc.humanReviewRequired,
+    duplicate: importDoc.duplicate,
+    parsedLines: importDoc.parsedLines,
+    parsedLineCount: importDoc.parsedLineCount,
+    pageId: importDoc.pageId,
+    parserFormatId: importDoc.parserFormatId,
+    orderNotes: importDoc.orderNotes,
+  });
+}
+
+function resultWithReconcile(base: {
+  vendorInvoiceImportId: string;
+  field: InvoiceCorrectableFieldKey;
+  previousValue: string;
+  newValue: string;
+  applied: boolean;
+  alreadyApplied: boolean;
+  correctionId: string;
+  reviewStatus: string;
+  importDoc: Record<string, unknown>;
+  parsedHeader: Record<string, unknown>;
+}): ApplyInvoiceReviewFieldCorrectionResult {
+  const reconciled = reconcileFromImportDoc(base.importDoc, base.parsedHeader);
+  return {
+    vendorInvoiceImportId: base.vendorInvoiceImportId,
+    field: base.field,
+    previousValue: base.previousValue,
+    newValue: base.newValue,
+    applied: base.applied,
+    alreadyApplied: base.alreadyApplied,
+    correctionId: base.correctionId,
+    parsedHeader: reconciled.parsedHeader,
+    reviewStatus: base.reviewStatus,
+    parseWarnings: reconciled.parseWarnings,
+    autoImportEligible: reconciled.autoImportEligible,
+    autoImportConfidence: reconciled.autoImportConfidence,
+    autoImportReasons: reconciled.autoImportReasons,
+    reviewRequiredReasons: reconciled.reviewRequiredReasons,
+    importDecisionMode: reconciled.importDecisionMode,
+    suggestedAction: reconciled.suggestedAction,
+  };
 }
 
 async function loadCombinedExtractedText(
@@ -234,7 +298,6 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
     .doc(correctionId);
 
   if (status === "applied") {
-    const auditSnap = await auditRef.get();
     const importSnap = await input.db
       .collection("vendorInvoiceImports")
       .doc(importId)
@@ -243,7 +306,7 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
       ? (importSnap.data() as Record<string, unknown>)
       : {};
     const parsedHeader = asRecord(importDoc.parsedHeader);
-    return {
+    return resultWithReconcile({
       vendorInvoiceImportId: importId,
       field: proposed.field,
       previousValue: proposed.currentValue,
@@ -251,12 +314,13 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
       applied: false,
       alreadyApplied: true,
       correctionId,
+      importDoc,
       parsedHeader,
       reviewStatus:
         typeof importDoc.reviewStatus === "string"
           ? importDoc.reviewStatus
           : "",
-    };
+    });
   }
 
   if (status === "superseded" || status === "unresolvable") {
@@ -290,12 +354,13 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
 
   const liveCurrent = headerFieldAsString(importDoc.parsedHeader, proposed.field);
   if (liveCurrent === proposed.proposedValue) {
-    // Already correct — ensure audit exists, mark message applied.
+    // Already correct — ensure audit exists, mark message applied, reconcile UI state.
     const alreadyResult = await input.db.runTransaction(async (tx) => {
       const auditSnap = await tx.get(auditRef);
       const freshImport = await tx.get(importRef);
       const freshDoc = (freshImport.data() ?? {}) as Record<string, unknown>;
       const header = asRecord(freshDoc.parsedHeader);
+      const reconciled = reconcileFromImportDoc(freshDoc, header);
       if (!auditSnap.exists) {
         tx.set(auditRef, {
           id: correctionId,
@@ -313,12 +378,22 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
           alreadyMatched: true,
         });
       }
+      tx.update(importRef, {
+        parseWarnings: reconciled.parseWarnings,
+        autoImportEligible: reconciled.autoImportEligible,
+        autoImportConfidence: reconciled.autoImportConfidence,
+        autoImportReasons: reconciled.autoImportReasons,
+        reviewRequiredReasons: reconciled.reviewRequiredReasons,
+        importDecisionMode: reconciled.importDecisionMode,
+        suggestedAction: reconciled.suggestedAction,
+        updatedAt: isoNow(),
+      });
       tx.update(messageRef, {
         correctionStatus: "applied",
         correctionAppliedAt: FieldValue.serverTimestamp(),
         correctionAppliedBy: input.uid,
       });
-      return {
+      return resultWithReconcile({
         vendorInvoiceImportId: importId,
         field: proposed.field,
         previousValue: proposed.currentValue,
@@ -326,12 +401,13 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
         applied: false,
         alreadyApplied: true,
         correctionId,
+        importDoc: freshDoc,
         parsedHeader: header,
         reviewStatus:
           typeof freshDoc.reviewStatus === "string"
             ? freshDoc.reviewStatus
             : reviewStatus,
-      };
+      });
     });
     return alreadyResult;
   }
@@ -388,7 +464,7 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
 
     if (auditSnap.exists) {
       const audit = auditSnap.data() as Record<string, unknown>;
-      return {
+      return resultWithReconcile({
         vendorInvoiceImportId: importId,
         field: proposed.field,
         previousValue:
@@ -402,14 +478,15 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
         applied: false,
         alreadyApplied: true,
         correctionId,
+        importDoc: freshDoc,
         parsedHeader: freshHeader,
         reviewStatus: freshReview,
-      };
+      });
     }
 
     const msgData = (freshMessage.data() ?? {}) as Record<string, unknown>;
     if (msgData.correctionStatus === "applied") {
-      return {
+      return resultWithReconcile({
         vendorInvoiceImportId: importId,
         field: proposed.field,
         previousValue: proposed.currentValue,
@@ -417,13 +494,15 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
         applied: false,
         alreadyApplied: true,
         correctionId,
+        importDoc: freshDoc,
         parsedHeader: freshHeader,
         reviewStatus: freshReview,
-      };
+      });
     }
 
     const freshCurrent = headerFieldAsString(freshHeader, proposed.field);
     if (freshCurrent === proposed.proposedValue) {
+      const reconciledAlready = reconcileFromImportDoc(freshDoc, freshHeader);
       tx.set(auditRef, {
         id: correctionId,
         vendorInvoiceImportId: importId,
@@ -448,12 +527,22 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
         clientIdempotencyKey: idempotencyKey,
         alreadyMatched: true,
       });
+      tx.update(importRef, {
+        parseWarnings: reconciledAlready.parseWarnings,
+        autoImportEligible: reconciledAlready.autoImportEligible,
+        autoImportConfidence: reconciledAlready.autoImportConfidence,
+        autoImportReasons: reconciledAlready.autoImportReasons,
+        reviewRequiredReasons: reconciledAlready.reviewRequiredReasons,
+        importDecisionMode: reconciledAlready.importDecisionMode,
+        suggestedAction: reconciledAlready.suggestedAction,
+        updatedAt: appliedAt,
+      });
       tx.update(messageRef, {
         correctionStatus: "applied",
         correctionAppliedAt: FieldValue.serverTimestamp(),
         correctionAppliedBy: input.uid,
       });
-      return {
+      return resultWithReconcile({
         vendorInvoiceImportId: importId,
         field: proposed.field,
         previousValue: proposed.currentValue,
@@ -461,9 +550,10 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
         applied: false,
         alreadyApplied: true,
         correctionId,
+        importDoc: freshDoc,
         parsedHeader: freshHeader,
         reviewStatus: freshReview,
-      };
+      });
     }
 
     if (freshCurrent !== proposed.currentValue) {
@@ -477,6 +567,7 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
       ...freshHeader,
       [proposed.field]: proposed.proposedValue,
     };
+    const reconciled = reconcileFromImportDoc(freshDoc, nextHeader);
 
     const priorLog = Array.isArray(freshDoc.fieldCorrectionLog)
       ? (freshDoc.fieldCorrectionLog as Array<Record<string, unknown>>)
@@ -495,9 +586,21 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
       [`parsedHeader.${proposed.field}`]: proposed.proposedValue,
       updatedAt: appliedAt,
       fieldCorrectionLog: nextLog,
+      parseWarnings: reconciled.parseWarnings,
+      autoImportEligible: reconciled.autoImportEligible,
+      autoImportConfidence: reconciled.autoImportConfidence,
+      autoImportReasons: reconciled.autoImportReasons,
+      reviewRequiredReasons: reconciled.reviewRequiredReasons,
+      importDecisionMode: reconciled.importDecisionMode,
+      suggestedAction: reconciled.suggestedAction,
     };
     if (!freshDoc.originalParsedHeader) {
       updatePayload.originalParsedHeader = { ...freshHeader };
+    }
+    if (!Array.isArray(freshDoc.originalParseWarnings)) {
+      updatePayload.originalParseWarnings = Array.isArray(freshDoc.parseWarnings)
+        ? [...(freshDoc.parseWarnings as string[])]
+        : [];
     }
 
     tx.update(importRef, updatePayload);
@@ -562,8 +665,15 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
       applied: true,
       alreadyApplied: false,
       correctionId,
-      parsedHeader: nextHeader,
+      parsedHeader: reconciled.parsedHeader,
       reviewStatus: freshReview,
+      parseWarnings: reconciled.parseWarnings,
+      autoImportEligible: reconciled.autoImportEligible,
+      autoImportConfidence: reconciled.autoImportConfidence,
+      autoImportReasons: reconciled.autoImportReasons,
+      reviewRequiredReasons: reconciled.reviewRequiredReasons,
+      importDecisionMode: reconciled.importDecisionMode,
+      suggestedAction: reconciled.suggestedAction,
     };
   });
 
