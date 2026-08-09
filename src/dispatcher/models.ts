@@ -1470,7 +1470,7 @@ export interface SaveInvoiceTrainingLessonResult {
   reviewStatus?: string;
 }
 
-/** Lane C C1 — Invoice Review Chat (read/explain only; no field mutation). */
+/** Lane C C1/C2 — Invoice Review Chat (C2 may propose; apply is a separate CF). */
 export type InvoiceReviewChatCitationSource =
   | "document_evidence"
   | "parser_value"
@@ -1483,6 +1483,29 @@ export type InvoiceReviewChatActionType =
   | "explain_parser"
   | "identify_mismatch"
   | "suggest_correction_may_be_needed";
+
+export type InvoiceCorrectableFieldKey =
+  | "customerPoOrReference"
+  | "vendorOrderNumber"
+  | "vendorInvoiceNumber";
+
+export type InvoiceReviewCorrectionSourceType =
+  | "document_evidence"
+  | "dispatcher_assertion"
+  | "agent_interpretation";
+
+export type InvoiceReviewCorrectionStatus =
+  | "proposed"
+  | "applied"
+  | "superseded"
+  | "unresolvable";
+
+export interface InvoiceReviewProposedCorrection {
+  field: InvoiceCorrectableFieldKey;
+  currentValue: string;
+  proposedValue: string;
+  sourceType: InvoiceReviewCorrectionSourceType;
+}
 
 export interface InvoiceReviewChatCitation {
   sourceType: InvoiceReviewChatCitationSource;
@@ -1503,11 +1526,28 @@ export interface InvoiceReviewChatMessage {
   modelUsed?: string;
   droppedActionTypes?: string[];
   error?: string;
+  proposedCorrection?: InvoiceReviewProposedCorrection;
+  correctionStatus?: InvoiceReviewCorrectionStatus;
 }
 
 export interface ReviewAgentTurnResult {
   messageId: string;
   agentMessage: InvoiceReviewChatMessage;
+  autoApplyEligible?: boolean;
+  autoApplyMessageId?: string;
+  autoApplyTriggerMode?: "chat_direct_command" | "chat_confirmation";
+}
+
+export interface ApplyInvoiceReviewFieldCorrectionResult {
+  vendorInvoiceImportId: string;
+  field: InvoiceCorrectableFieldKey;
+  previousValue: string;
+  newValue: string;
+  applied: boolean;
+  alreadyApplied: boolean;
+  correctionId: string;
+  parsedHeader: Record<string, unknown>;
+  reviewStatus: string;
 }
 
 /** Firestore vendorInvoiceIgnoreRules — CF-managed fingerprint rules. */

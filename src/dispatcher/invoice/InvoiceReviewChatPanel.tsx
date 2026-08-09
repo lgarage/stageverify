@@ -1,17 +1,27 @@
 /**
- * Lane C C1 — Invoice Review Chat (read/explain only).
- * Persistent per-import thread; no field mutation / ignore / approve side effects.
+ * Lane C C1/C2 — Invoice Review Chat.
+ * Persistent per-import thread; C2 may propose + apply current-import field corrections.
  */
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useAdminAppearance } from "../../adminAppearance";
 import {
+  applyInvoiceReviewFieldCorrection,
   reviewAgentTurn,
   subscribeInvoiceReviewChatMessages,
 } from "../firestoreService";
-import type { InvoiceReviewChatMessage } from "../models";
+import type {
+  InvoiceCorrectableFieldKey,
+  InvoiceReviewChatMessage,
+} from "../models";
 
 const FONT =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+const FIELD_LABEL: Record<InvoiceCorrectableFieldKey, string> = {
+  customerPoOrReference: "Customer PO",
+  vendorOrderNumber: "Vendor order #",
+  vendorInvoiceNumber: "Invoice #",
+};
 
 function citationLabel(sourceType: string): string {
   switch (sourceType) {
@@ -28,12 +38,21 @@ function citationLabel(sourceType: string): string {
   }
 }
 
+function newIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `idem-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function InvoiceReviewChatPanel({
   importId,
   readOnly,
+  onCorrectionApplied,
 }: {
   importId: string;
   readOnly?: boolean;
+  onCorrectionApplied?: (parsedHeader: Record<string, unknown>) => void;
 }) {
   const { appearance } = useAdminAppearance();
   const [messages, setMessages] = useState<InvoiceReviewChatMessage[]>([]);
@@ -41,12 +60,22 @@ export function InvoiceReviewChatPanel({
   const [sending, setSending] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [applyingMessageId, setApplyingMessageId] = useState<string | null>(
+    null,
+  );
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [localAppliedIds, setLocalAppliedIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const listRef = useRef<HTMLDivElement | null>(null);
   const stickToBottomRef = useRef(true);
+  const autoApplyInFlight = useRef<string | null>(null);
 
   useEffect(() => {
     setLoadError(null);
     setMessages([]);
+    setLocalAppliedIds(new Set());
+    setApplyError(null);
     const unsub = subscribeInvoiceReviewChatMessages(
       importId,
       (next) => {
@@ -70,7 +99,7 @@ export function InvoiceReviewChatPanel({
   useEffect(() => {
     if (!stickToBottomRef.current || !listRef.current) return;
     listRef.current.scrollTop = listRef.current.scrollHeight;
-  }, [messages, sending]);
+  }, [messages, sending, applyingMessageId]);
 
   function onListScroll() {
     const el = listRef.current;
@@ -79,18 +108,67 @@ export function InvoiceReviewChatPanel({
     stickToBottomRef.current = distance < 48;
   }
 
+  async function runApply(input: {
+    sourceMessageId: string;
+    triggerMode: "apply_button" | "chat_direct_command" | "chat_confirmation";
+  }) {
+    if (readOnly) return;
+    if (autoApplyInFlight.current === input.sourceMessageId) return;
+    autoApplyInFlight.current = input.sourceMessageId;
+    setApplyingMessageId(input.sourceMessageId);
+    setApplyError(null);
+    try {
+      const result = await applyInvoiceReviewFieldCorrection({
+        vendorInvoiceImportId: importId,
+        sourceMessageId: input.sourceMessageId,
+        idempotencyKey: newIdempotencyKey(),
+        triggerMode: input.triggerMode,
+      });
+      setLocalAppliedIds((prev) => {
+        const next = new Set(prev);
+        next.add(input.sourceMessageId);
+        return next;
+      });
+      onCorrectionApplied?.(result.parsedHeader);
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Could not apply the correction right now.";
+      setApplyError(msg);
+    } finally {
+      if (autoApplyInFlight.current === input.sourceMessageId) {
+        autoApplyInFlight.current = null;
+      }
+      setApplyingMessageId((cur) =>
+        cur === input.sourceMessageId ? null : cur,
+      );
+    }
+  }
+
   async function handleSend() {
     const text = draft.trim();
     if (!text || sending || readOnly) return;
     setSending(true);
     setSendError(null);
+    setApplyError(null);
     stickToBottomRef.current = true;
     setDraft("");
     try {
-      await reviewAgentTurn({
+      const turn = await reviewAgentTurn({
         vendorInvoiceImportId: importId,
         message: text,
       });
+      if (
+        turn.autoApplyEligible &&
+        turn.autoApplyMessageId &&
+        turn.autoApplyTriggerMode
+      ) {
+        await runApply({
+          sourceMessageId: turn.autoApplyMessageId,
+          triggerMode: turn.autoApplyTriggerMode,
+        });
+      }
     } catch (err) {
       setDraft(text);
       const msg =
@@ -154,8 +232,8 @@ export function InvoiceReviewChatPanel({
             fontWeight: 500,
           }}
         >
-          Ask about this invoice. The agent re-checks parsed fields and invoice
-          evidence. It cannot approve, reject, or change fields.
+          Ask about this invoice. The agent can propose safe field corrections
+          for this import only — never invoice Approve/Reject.
         </p>
       </header>
 
@@ -211,6 +289,16 @@ export function InvoiceReviewChatPanel({
 
         {messages.map((m) => {
           const isUser = m.role === "dispatcher";
+          const pc = m.proposedCorrection;
+          const isProposed =
+            Boolean(pc) &&
+            m.correctionStatus === "proposed" &&
+            !localAppliedIds.has(m.id);
+          const isApplied =
+            Boolean(pc) &&
+            (m.correctionStatus === "applied" || localAppliedIds.has(m.id));
+          const applying = applyingMessageId === m.id;
+
           return (
             <div
               key={m.id}
@@ -288,6 +376,124 @@ export function InvoiceReviewChatPanel({
                   ))}
                 </ul>
               )}
+
+              {pc && isProposed && (
+                <div
+                  data-testid="invoice-review-chat-correction-card"
+                  style={{
+                    marginTop: 2,
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    border: "1px solid var(--admin-border)",
+                    backgroundColor: "var(--admin-surface-2)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "var(--admin-text-label)",
+                    }}
+                  >
+                    Proposed correction
+                  </div>
+                  <div
+                    data-testid="invoice-review-chat-correction-summary"
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--admin-text-data)",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {FIELD_LABEL[pc.field]}
+                    <br />
+                    <span style={{ color: "var(--admin-text-secondary)" }}>
+                      {pc.currentValue || "Blank"}
+                    </span>
+                    {" → "}
+                    <span>{pc.proposedValue}</span>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "var(--admin-text-muted)",
+                    }}
+                  >
+                    Source:{" "}
+                    {pc.sourceType === "document_evidence"
+                      ? "Document evidence"
+                      : pc.sourceType === "dispatcher_assertion"
+                        ? "Your message"
+                        : "Needs confirmation"}
+                  </div>
+                  <button
+                    type="button"
+                    data-testid="invoice-review-chat-apply-correction"
+                    disabled={applying || Boolean(readOnly)}
+                    onClick={() =>
+                      void runApply({
+                        sourceMessageId: m.id,
+                        triggerMode: "apply_button",
+                      })
+                    }
+                    style={{
+                      alignSelf: "flex-start",
+                      height: 34,
+                      padding: "0 14px",
+                      borderRadius: 8,
+                      border: "1px solid var(--admin-border)",
+                      backgroundColor: "var(--admin-surface)",
+                      color: "var(--admin-text-data)",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor:
+                        applying || Boolean(readOnly)
+                          ? "not-allowed"
+                          : "pointer",
+                      opacity: applying || Boolean(readOnly) ? 0.55 : 1,
+                      fontFamily: FONT,
+                    }}
+                  >
+                    {applying ? "Applying…" : "Apply correction"}
+                  </button>
+                  {applying && (
+                    <div
+                      data-testid="invoice-review-chat-applying"
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--admin-text-secondary)",
+                      }}
+                    >
+                      Applying correction…
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {pc && isApplied && (
+                <div
+                  data-testid="invoice-review-chat-correction-applied"
+                  style={{
+                    marginTop: 2,
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: "1px solid var(--admin-success-border, var(--admin-border))",
+                    backgroundColor: "var(--admin-success-bg)",
+                    color: "var(--admin-success-text)",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  Applied — {FIELD_LABEL[pc.field]}: {pc.proposedValue}
+                </div>
+              )}
             </div>
           );
         })}
@@ -308,6 +514,23 @@ export function InvoiceReviewChatPanel({
             Agent is checking the invoice…
           </div>
         )}
+
+        {applyingMessageId && !sending && (
+          <div
+            data-testid="invoice-review-chat-auto-applying"
+            style={{
+              alignSelf: "flex-start",
+              padding: "8px 12px",
+              borderRadius: 8,
+              border: "1px dashed var(--admin-border)",
+              color: "var(--admin-text-secondary)",
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            Applying confirmed correction…
+          </div>
+        )}
       </div>
 
       <div
@@ -321,9 +544,13 @@ export function InvoiceReviewChatPanel({
           gap: 8,
         }}
       >
-        {sendError && (
+        {(sendError || applyError) && (
           <div
-            data-testid="invoice-review-chat-send-error"
+            data-testid={
+              applyError
+                ? "invoice-review-chat-apply-error"
+                : "invoice-review-chat-send-error"
+            }
             style={{
               padding: "8px 10px",
               borderRadius: 8,
@@ -334,7 +561,7 @@ export function InvoiceReviewChatPanel({
               fontWeight: 600,
             }}
           >
-            {sendError}
+            {applyError || sendError}
           </div>
         )}
         <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
@@ -345,7 +572,7 @@ export function InvoiceReviewChatPanel({
             onKeyDown={onKeyDown}
             rows={2}
             disabled={sending || Boolean(readOnly)}
-            placeholder='Example: I see the PO and it is 2205 EARLY. Check the invoice again.'
+            placeholder='Example: Reparse it and capture that PO.'
             style={{
               flex: 1,
               boxSizing: "border-box",

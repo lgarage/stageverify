@@ -1,17 +1,18 @@
 /**
- * Lane C C1 — optional in-browser chat store for verify / undeployed rules.
- * Production path uses Firestore subscribe + reviewAgentTurn CF.
- * When mock is enabled (Playwright), messages persist in sessionStorage and
- * reviewAgentTurn is answered with the production response schema.
+ * Lane C C1/C2 — optional in-browser chat store for verify / undeployed rules.
+ * Production path uses Firestore subscribe + reviewAgentTurn / apply CFs.
  */
 import type {
+  ApplyInvoiceReviewFieldCorrectionResult,
   InvoiceReviewChatCitation,
   InvoiceReviewChatMessage,
+  InvoiceReviewProposedCorrection,
   ReviewAgentTurnResult,
 } from "../models";
 
 const MOCK_FLAG = "__STAGEVERIFY_REVIEW_CHAT_MOCK__";
 const STORAGE_PREFIX = "stageverify-review-chat:";
+const HEADER_PREFIX = "stageverify-review-chat-header:";
 
 type Listener = (messages: InvoiceReviewChatMessage[]) => void;
 
@@ -19,16 +20,31 @@ type MockApi = {
   enabled: true;
   getMessages: (importId: string) => InvoiceReviewChatMessage[];
   setMessages: (importId: string, messages: InvoiceReviewChatMessage[]) => void;
+  getParsedHeader: (importId: string) => Record<string, unknown>;
+  setParsedHeader: (
+    importId: string,
+    header: Record<string, unknown>,
+  ) => void;
   appendTurn: (
     importId: string,
     dispatcherText: string,
     agent: InvoiceReviewChatMessage,
+    extras?: Partial<
+      Pick<
+        ReviewAgentTurnResult,
+        "autoApplyEligible" | "autoApplyMessageId" | "autoApplyTriggerMode"
+      >
+    >,
   ) => ReviewAgentTurnResult;
   subscribe: (importId: string, cb: Listener) => () => void;
 };
 
 function storageKey(importId: string): string {
   return `${STORAGE_PREFIX}${importId}`;
+}
+
+function headerKey(importId: string): string {
+  return `${HEADER_PREFIX}${importId}`;
 }
 
 function readStored(importId: string): InvoiceReviewChatMessage[] {
@@ -52,6 +68,41 @@ function writeStored(importId: string, messages: InvoiceReviewChatMessage[]) {
   }
 }
 
+function readHeader(importId: string): Record<string, unknown> {
+  try {
+    const raw = sessionStorage.getItem(headerKey(importId));
+    if (!raw) {
+      return {
+        vendorInvoiceNumber: "6168733",
+        customerPoOrReference: "",
+        vendorOrderNumber: "SO9",
+      };
+    }
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {
+          vendorInvoiceNumber: "6168733",
+          customerPoOrReference: "",
+          vendorOrderNumber: "SO9",
+        };
+  } catch {
+    return {
+      vendorInvoiceNumber: "6168733",
+      customerPoOrReference: "",
+      vendorOrderNumber: "SO9",
+    };
+  }
+}
+
+function writeHeader(importId: string, header: Record<string, unknown>) {
+  try {
+    sessionStorage.setItem(headerKey(importId), JSON.stringify(header));
+  } catch {
+    /* ignore */
+  }
+}
+
 const listeners = new Map<string, Set<Listener>>();
 
 function notify(importId: string) {
@@ -61,13 +112,120 @@ function notify(importId: string) {
   for (const cb of set) cb(msgs);
 }
 
-function buildAgentReply(dispatcherText: string): InvoiceReviewChatMessage {
+function isConfirmation(text: string): boolean {
+  return /\b(yes|apply( it)?|use that|that'?s (the )?right|fix it)\b/i.test(
+    text,
+  );
+}
+
+function isDirectPoCommand(text: string): boolean {
+  return /\b(update|set|change|correct|fix|capture)\b[\s\S]{0,80}?\b(to|as)\s*[“"']?2205\s+EARLY/i.test(
+    text,
+  );
+}
+
+function buildPoProposal(
+  currentValue: string,
+): InvoiceReviewProposedCorrection {
+  return {
+    field: "customerPoOrReference",
+    currentValue,
+    proposedValue: "2205 EARLY",
+    sourceType: "document_evidence",
+  };
+}
+
+function buildAgentReply(
+  dispatcherText: string,
+  importId: string,
+  prior: InvoiceReviewChatMessage[],
+): {
+  agent: InvoiceReviewChatMessage;
+  autoApplyEligible?: boolean;
+  autoApplyMessageId?: string;
+  autoApplyTriggerMode?: "chat_direct_command" | "chat_confirmation";
+} {
   const upper = dispatcherText.toUpperCase();
+  const header = readHeader(importId);
+  const currentPo =
+    typeof header.customerPoOrReference === "string"
+      ? header.customerPoOrReference
+      : "";
+
+  const pendingAll = [...prior]
+    .reverse()
+    .filter(
+      (m) =>
+        m.role === "agent" &&
+        m.correctionStatus === "proposed" &&
+        Boolean(m.proposedCorrection),
+    );
+  // Ambiguity safety: vague confirmation only when exactly one pending proposal.
+  const pending = pendingAll.length === 1 ? pendingAll[0] : undefined;
+
+  if (isDirectPoCommand(dispatcherText)) {
+    const proposed = buildPoProposal(currentPo);
+    const id = `agent-${Date.now()}`;
+    return {
+      agent: {
+        id,
+        role: "agent",
+        text: `I found “2205 EARLY” in the Customer P/O field. The current parsed value is ${currentPo || "blank"}. I can update Customer PO to 2205 EARLY.`,
+        createdAt: new Date().toISOString(),
+        createdByUid: "system",
+        actionType: "suggest_correction_may_be_needed",
+        modelUsed: "gemini-3.5-flash-lite",
+        proposedCorrection: proposed,
+        correctionStatus: "proposed",
+        citations: [
+          {
+            sourceType: "document_evidence",
+            text: "2205 EARLY",
+            spanStart: 46,
+            spanEnd: 56,
+          },
+          {
+            sourceType: "parser_value",
+            text: currentPo || "(empty)",
+            field: "parsedHeader.customerPoOrReference",
+          },
+        ],
+      },
+      autoApplyEligible: true,
+      autoApplyMessageId: id,
+      autoApplyTriggerMode: "chat_direct_command",
+    };
+  }
+
+  if (isConfirmation(dispatcherText) && pending?.proposedCorrection) {
+    return {
+      agent: {
+        id: `agent-${Date.now()}`,
+        role: "agent",
+        text: `Confirming — I can apply Customer PO → ${pending.proposedCorrection.proposedValue}.`,
+        createdAt: new Date().toISOString(),
+        createdByUid: "system",
+        actionType: "answer",
+        modelUsed: "gemini-3.5-flash-lite",
+        citations: [
+          {
+            sourceType: "dispatcher_assertion",
+            text: dispatcherText.trim().slice(0, 120),
+          },
+        ],
+      },
+      autoApplyEligible: true,
+      autoApplyMessageId: pending.id,
+      autoApplyTriggerMode: "chat_confirmation",
+    };
+  }
+
   const looksLikePo =
     upper.includes("2205 EARLY") ||
-    (upper.includes("PO") && upper.includes("CHECK"));
+    (upper.includes("PO") && (upper.includes("CHECK") || upper.includes("CAPTURE")));
 
-  if (looksLikePo && upper.includes("2205 EARLY")) {
+  if (looksLikePo) {
+    const proposed = buildPoProposal(currentPo);
     const citations: InvoiceReviewChatCitation[] = [
       {
         sourceType: "document_evidence",
@@ -77,63 +235,44 @@ function buildAgentReply(dispatcherText: string): InvoiceReviewChatMessage {
       },
       {
         sourceType: "parser_value",
-        text: "(empty)",
+        text: currentPo || "(empty)",
         field: "parsedHeader.customerPoOrReference",
       },
     ];
     return {
-      id: `agent-${Date.now()}`,
-      role: "agent",
-      text:
-        'I found “2205 EARLY” in the invoice evidence near CUSTOMER P/O. The current parser value for customerPoOrReference is empty, so the parser missed it.',
-      createdAt: new Date().toISOString(),
-      createdByUid: "system",
-      actionType: "identify_mismatch",
-      modelUsed: "gemini-3.5-flash-lite",
-      citations,
+      agent: {
+        id: `agent-${Date.now()}`,
+        role: "agent",
+        text:
+          'I found “2205 EARLY” in the invoice evidence near CUSTOMER P/O. The current parser value for customerPoOrReference is empty, so the parser missed it. I can update Customer PO to 2205 EARLY — use Apply correction or reply “Yes, apply it.”',
+        createdAt: new Date().toISOString(),
+        createdByUid: "system",
+        actionType: "suggest_correction_may_be_needed",
+        modelUsed: "gemini-3.5-flash-lite",
+        citations,
+        proposedCorrection: proposed,
+        correctionStatus: "proposed",
+      },
     };
   }
 
-  if (upper.includes("YES") && upper.includes("PO")) {
-    return {
+  return {
+    agent: {
       id: `agent-${Date.now()}`,
       role: "agent",
       text:
-        "Understood — treating that as your confirmation that 2205 EARLY is the customer PO. I can only explain in this chat; I cannot change the parsed field.",
+        "I checked the parsed fields and invoice evidence windows for this import. Ask about a specific field (PO, order #, or a warning) for a tighter answer.",
       createdAt: new Date().toISOString(),
       createdByUid: "system",
       actionType: "answer",
       modelUsed: "gemini-3.5-flash-lite",
       citations: [
         {
-          sourceType: "dispatcher_assertion",
-          text: dispatcherText.trim().slice(0, 120),
-        },
-        {
-          sourceType: "document_evidence",
-          text: "CUSTOMER P/O",
-          spanStart: 33,
-          spanEnd: 45,
+          sourceType: "agent_interpretation",
+          text: "General review reply (mock verify path)",
         },
       ],
-    };
-  }
-
-  return {
-    id: `agent-${Date.now()}`,
-    role: "agent",
-    text:
-      "I checked the parsed fields and invoice evidence windows for this import. Ask about a specific field (PO, order #, or a warning) for a tighter answer.",
-    createdAt: new Date().toISOString(),
-    createdByUid: "system",
-    actionType: "answer",
-    modelUsed: "gemini-3.5-flash-lite",
-    citations: [
-      {
-        sourceType: "agent_interpretation",
-        text: "General review reply (mock verify path)",
-      },
-    ],
+    },
   };
 }
 
@@ -148,7 +287,9 @@ function ensureMock(): MockApi {
       writeStored(importId, messages);
       notify(importId);
     },
-    appendTurn: (importId, dispatcherText, agent) => {
+    getParsedHeader: readHeader,
+    setParsedHeader: writeHeader,
+    appendTurn: (importId, dispatcherText, agent, extras) => {
       const prior = readStored(importId);
       const dispatcherMsg: InvoiceReviewChatMessage = {
         id: `dispatcher-${Date.now()}`,
@@ -163,6 +304,13 @@ function ensureMock(): MockApi {
       return {
         messageId: agent.id,
         agentMessage: agent,
+        ...(extras?.autoApplyEligible
+          ? {
+              autoApplyEligible: true,
+              autoApplyMessageId: extras.autoApplyMessageId,
+              autoApplyTriggerMode: extras.autoApplyTriggerMode,
+            }
+          : {}),
       };
     },
     subscribe: (importId, cb) => {
@@ -222,10 +370,91 @@ export async function reviewAgentTurnMock(input: {
   message: string;
 }): Promise<ReviewAgentTurnResult> {
   const api = ensureMock();
-  // Simulate network latency so loading state is visible.
   await new Promise((r) => setTimeout(r, 350));
-  const agent = buildAgentReply(input.message);
-  return api.appendTurn(input.vendorInvoiceImportId, input.message, agent);
+  const prior = api.getMessages(input.vendorInvoiceImportId);
+  const built = buildAgentReply(
+    input.message,
+    input.vendorInvoiceImportId,
+    prior,
+  );
+  return api.appendTurn(
+    input.vendorInvoiceImportId,
+    input.message,
+    built.agent,
+    {
+      autoApplyEligible: built.autoApplyEligible,
+      autoApplyMessageId: built.autoApplyMessageId,
+      autoApplyTriggerMode: built.autoApplyTriggerMode,
+    },
+  );
+}
+
+export async function applyInvoiceReviewFieldCorrectionMock(input: {
+  vendorInvoiceImportId: string;
+  sourceMessageId: string;
+  idempotencyKey: string;
+  triggerMode?: "apply_button" | "chat_direct_command" | "chat_confirmation";
+}): Promise<ApplyInvoiceReviewFieldCorrectionResult> {
+  const api = ensureMock();
+  await new Promise((r) => setTimeout(r, 200));
+  const messages = api.getMessages(input.vendorInvoiceImportId);
+  const source = messages.find((m) => m.id === input.sourceMessageId);
+  if (!source?.proposedCorrection) {
+    throw new Error("Message has no valid proposedCorrection.");
+  }
+  const pc = source.proposedCorrection;
+  const header = { ...api.getParsedHeader(input.vendorInvoiceImportId) };
+  const live =
+    typeof header[pc.field] === "string" ? String(header[pc.field]) : "";
+  const correctionId = `${input.vendorInvoiceImportId}__${pc.field}__${input.sourceMessageId}`;
+
+  if (source.correctionStatus === "applied" || live === pc.proposedValue) {
+    return {
+      vendorInvoiceImportId: input.vendorInvoiceImportId,
+      field: pc.field,
+      previousValue: pc.currentValue,
+      newValue: pc.proposedValue,
+      applied: false,
+      alreadyApplied: true,
+      correctionId,
+      parsedHeader: { ...header, [pc.field]: pc.proposedValue },
+      reviewStatus: "pending_review",
+    };
+  }
+
+  if (live !== pc.currentValue) {
+    throw new Error("expected_current_value_stale");
+  }
+
+  header[pc.field] = pc.proposedValue;
+  api.setParsedHeader(input.vendorInvoiceImportId, header);
+
+  const next = messages.map((m) =>
+    m.id === input.sourceMessageId
+      ? { ...m, correctionStatus: "applied" as const }
+      : m,
+  );
+  next.push({
+    id: `agent-applied-${Date.now()}`,
+    role: "agent",
+    text: `Applied. Customer PO changed from ${pc.currentValue || "blank"} to ${pc.proposedValue}.`,
+    createdAt: new Date().toISOString(),
+    createdByUid: "system",
+    actionType: "answer",
+  });
+  api.setMessages(input.vendorInvoiceImportId, next);
+
+  return {
+    vendorInvoiceImportId: input.vendorInvoiceImportId,
+    field: pc.field,
+    previousValue: pc.currentValue,
+    newValue: pc.proposedValue,
+    applied: true,
+    alreadyApplied: false,
+    correctionId,
+    parsedHeader: header,
+    reviewStatus: "pending_review",
+  };
 }
 
 /** Seed filler messages so scroll/history can be demonstrated in verify. */
@@ -262,7 +491,6 @@ export function seedReviewChatMockHistory(
   api.setMessages(importId, msgs);
 }
 
-// Playwright evaluate helper (no Vite path imports required).
 if (typeof window !== "undefined") {
   (
     window as Window & {

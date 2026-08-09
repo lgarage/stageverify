@@ -8,6 +8,7 @@ exports.findEvidenceSpan = findEvidenceSpan;
  * Amendment 2: not extracted text alone — parsed fields + warnings + windows + chat.
  */
 const constants_1 = require("../aiShadow/constants");
+const correctionAllowlist_1 = require("./correctionAllowlist");
 const HEADER_KEYS = [
     "vendorInvoiceNumber",
     "vendorOrderNumber",
@@ -136,6 +137,7 @@ function buildReviewAgentContextPacket(input) {
         recentTurns,
         rollingSummary: (input.rollingSummary || "").slice(0, 1_500),
         sourceTextAvailable: Boolean(input.combinedExtractedText?.trim()),
+        correctableFields: [...correctionAllowlist_1.INVOICE_CORRECTABLE_FIELD_KEYS],
     };
     // Soft-trim if serialized packet is oversized.
     let serialized = JSON.stringify(packet);

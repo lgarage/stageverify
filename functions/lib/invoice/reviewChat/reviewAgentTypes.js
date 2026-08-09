@@ -1,7 +1,8 @@
 "use strict";
 /**
- * Lane C C1 — Invoice Review Chat types (read/explain only).
- * No field mutation, knowledge writes, or ignore-rule effects.
+ * Lane C C1/C2 — Invoice Review Chat types.
+ * C1: read/explain + assertion/evidence consistency.
+ * C2: propose corrections only (apply is a separate callable).
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CITATION_SOURCE_TYPES = exports.ALLOWED_REVIEW_ACTION_TYPES = exports.REVIEW_CHAT_RATE_LIMIT_COLLECTION = exports.REVIEW_CHAT_MESSAGES_SUB = exports.REVIEW_CHAT_COLLECTION = void 0;

@@ -6,6 +6,9 @@ exports.runReviewAgentTurnCore = runReviewAgentTurnCore;
 const firestore_1 = require("firebase-admin/firestore");
 const constants_1 = require("../aiShadow/constants");
 const vertexGenerate_1 = require("../aiShadow/vertexGenerate");
+const classifyCorrectionEvidence_1 = require("./classifyCorrectionEvidence");
+const correctionIntentClassifier_1 = require("./correctionIntentClassifier");
+const correctionAllowlist_1 = require("./correctionAllowlist");
 const reviewAgentContext_1 = require("./reviewAgentContext");
 const reviewAgentPrompt_1 = require("./reviewAgentPrompt");
 const reviewAgentTypes_1 = require("./reviewAgentTypes");
@@ -48,10 +51,42 @@ async function loadRecentTurns(db, importId) {
         const data = doc.data();
         if ((data.role === "dispatcher" || data.role === "agent") &&
             typeof data.text === "string") {
-            turns.push({ role: data.role, text: data.text });
+            turns.push({ role: data.role, text: data.text, id: doc.id });
         }
     }
     return turns;
+}
+async function findPendingProposalMessageId(db, importId, fieldFilter, excludeMessageId) {
+    const snap = await db
+        .collection(reviewAgentTypes_1.REVIEW_CHAT_COLLECTION)
+        .doc(importId)
+        .collection(reviewAgentTypes_1.REVIEW_CHAT_MESSAGES_SUB)
+        .orderBy("createdAt", "desc")
+        .limit(40)
+        .get();
+    const matches = [];
+    for (const doc of snap.docs) {
+        if (excludeMessageId && doc.id === excludeMessageId)
+            continue;
+        const data = doc.data();
+        if (data.role !== "agent")
+            continue;
+        if (data.correctionStatus !== "proposed")
+            continue;
+        const pc = data.proposedCorrection;
+        if (!pc || typeof pc !== "object" || Array.isArray(pc))
+            continue;
+        const field = pc.field;
+        if (!(0, correctionAllowlist_1.isCorrectableFieldKey)(field))
+            continue;
+        if (fieldFilter && field !== fieldFilter)
+            continue;
+        matches.push(doc.id);
+    }
+    // Exactly one pending proposal — never guess when ambiguous.
+    if (matches.length === 1)
+        return matches[0];
+    return null;
 }
 function updateRollingSummary(previous, dispatcherText, agentText, turnCount) {
     if (turnCount % constants_1.REVIEW_CHAT_SUMMARY_EVERY_N_TURNS !== 0)
@@ -73,7 +108,6 @@ async function callModelWithEscalation(generateJson, userText) {
             systemInstruction: reviewAgentPrompt_1.REVIEW_AGENT_SYSTEM_INSTRUCTION,
             userText,
         });
-        // Validate structure without citation resolution first (empty text ok for gate).
         const liteParsed = (0, reviewAgentPrompt_1.parseAndValidateReviewAgentResponse)(liteRaw, " ");
         if (!("ok" in liteParsed && liteParsed.ok === false)) {
             return { raw: liteRaw, modelUsed: constants_1.MODEL_FLASH_LITE };
@@ -89,6 +123,31 @@ async function callModelWithEscalation(generateJson, userText) {
         userText,
     });
     return { raw: flashRaw, modelUsed: constants_1.MODEL_FLASH };
+}
+function buildPersistedProposal(input) {
+    if (!(0, correctionAllowlist_1.isCorrectableFieldKey)(input.raw.field))
+        return null;
+    const proposedValue = input.raw.proposedValue.trim();
+    if (!proposedValue)
+        return null;
+    const currentValue = typeof input.raw.currentValue === "string"
+        ? input.raw.currentValue.trim()
+        : (0, correctionAllowlist_1.headerFieldAsString)(input.parsedHeader, input.raw.field);
+    const evidence = (0, classifyCorrectionEvidence_1.classifyCorrectionEvidence)({
+        proposedValue,
+        combinedExtractedText: input.combinedExtractedText,
+        recentDispatcherTexts: input.recentDispatcherTexts,
+    });
+    // Inherit C1 hallucination resistance: no document/dispatcher evidence ⇒ no
+    // persisted proposal (Apply also refuses not_independently_verifiable).
+    if (!evidence.sourceType)
+        return null;
+    return {
+        field: input.raw.field,
+        currentValue,
+        proposedValue,
+        sourceType: evidence.sourceType,
+    };
 }
 async function runReviewAgentTurnCore(input) {
     const generateJson = input.generateJson ?? vertexGenerate_1.vertexGenerateJson;
@@ -133,6 +192,11 @@ async function runReviewAgentTurnCore(input) {
     const priorSummary = typeof chatData.rollingSummary === "string" ? chatData.rollingSummary : "";
     const priorTurnCount = typeof chatData.turnCount === "number" ? chatData.turnCount : 0;
     const recentTurns = await loadRecentTurns(input.db, importId);
+    const recentDispatcherTexts = recentTurns
+        .filter((t) => t.role === "dispatcher")
+        .map((t) => t.text);
+    // Include the message about to be persisted for evidence classification.
+    recentDispatcherTexts.push(message);
     const dispatcherMsgRef = chatRef.collection(reviewAgentTypes_1.REVIEW_CHAT_MESSAGES_SUB).doc();
     await dispatcherMsgRef.set({
         role: "dispatcher",
@@ -158,7 +222,7 @@ async function runReviewAgentTurnCore(input) {
         reviewRequiredReasons: importDoc.reviewRequiredReasons,
         error: importDoc.error,
         combinedExtractedText,
-        recentTurns,
+        recentTurns: recentTurns.map(({ role, text }) => ({ role, text })),
         rollingSummary: priorSummary,
         dispatcherMessage: message,
     });
@@ -168,6 +232,7 @@ async function runReviewAgentTurnCore(input) {
     let modelUsed;
     let droppedActionTypes;
     let error = "model_unavailable";
+    let proposedCorrection;
     try {
         const userText = (0, reviewAgentPrompt_1.formatReviewAgentUserText)(packet, message);
         const modelResult = await callModelWithEscalation(generateJson, userText);
@@ -190,9 +255,51 @@ async function runReviewAgentTurnCore(input) {
             ? ok.droppedActionTypes
             : undefined;
         error = undefined;
+        if (ok.proposedCorrection) {
+            proposedCorrection =
+                buildPersistedProposal({
+                    raw: ok.proposedCorrection,
+                    parsedHeader: importDoc.parsedHeader,
+                    combinedExtractedText,
+                    recentDispatcherTexts,
+                }) ?? undefined;
+        }
     }
     catch (err) {
         console.error("reviewAgentTurn model/parse failed:", err);
+    }
+    const intent = (0, correctionIntentClassifier_1.classifyCorrectionIntent)(message);
+    // Confirmation turns apply an *existing* proposal — never persist a new one
+    // from the model on this turn (prevents arbitrary/extra pending cards).
+    if (intent.kind === "confirmation") {
+        proposedCorrection = undefined;
+    }
+    // If dispatcher issued a direct command with a value but the model omitted
+    // proposedCorrection, synthesize a proposal when evidence/classifier agree.
+    if (!proposedCorrection &&
+        intent.kind === "direct_command" &&
+        intent.field &&
+        intent.proposedValue) {
+        proposedCorrection =
+            buildPersistedProposal({
+                raw: {
+                    field: intent.field,
+                    proposedValue: intent.proposedValue,
+                },
+                parsedHeader: importDoc.parsedHeader,
+                combinedExtractedText,
+                recentDispatcherTexts,
+            }) ?? undefined;
+        if (proposedCorrection && !error) {
+            actionType = "suggest_correction_may_be_needed";
+            const display = intent.field === "customerPoOrReference"
+                ? "Customer PO"
+                : intent.field === "vendorOrderNumber"
+                    ? "Vendor order #"
+                    : "Invoice #";
+            const cur = proposedCorrection.currentValue || "blank";
+            agentText = `I can update ${display} from ${cur} to ${proposedCorrection.proposedValue}. Confirm with Apply correction or reply “Yes, apply it.”`;
+        }
     }
     const agentMsgRef = chatRef.collection(reviewAgentTypes_1.REVIEW_CHAT_MESSAGES_SUB).doc();
     await agentMsgRef.set({
@@ -205,7 +312,33 @@ async function runReviewAgentTurnCore(input) {
         ...(modelUsed ? { modelUsed } : {}),
         ...(droppedActionTypes ? { droppedActionTypes } : {}),
         ...(error ? { error } : {}),
+        ...(proposedCorrection
+            ? {
+                proposedCorrection,
+                correctionStatus: "proposed",
+            }
+            : {}),
     });
+    let autoApplyEligible = false;
+    let autoApplyMessageId;
+    let autoApplyTriggerMode;
+    if (intent.kind === "direct_command" &&
+        proposedCorrection &&
+        intent.field === proposedCorrection.field) {
+        autoApplyEligible = true;
+        autoApplyMessageId = agentMsgRef.id;
+        autoApplyTriggerMode = "chat_direct_command";
+    }
+    else if (intent.kind === "confirmation") {
+        // Confirmation must target the sole *existing* pending proposal — never a
+        // newly synthesized proposal on this turn (avoids arbitrary mutation).
+        const pendingId = await findPendingProposalMessageId(input.db, importId, intent.field, agentMsgRef.id);
+        if (pendingId) {
+            autoApplyEligible = true;
+            autoApplyMessageId = pendingId;
+            autoApplyTriggerMode = "chat_confirmation";
+        }
+    }
     const turnCountAfterAgent = turnCountAfterUser + 1;
     const nextSummary = updateRollingSummary(priorSummary, message, agentText, turnCountAfterAgent);
     await chatRef.set({
@@ -231,7 +364,20 @@ async function runReviewAgentTurnCore(input) {
             ...(modelUsed ? { modelUsed } : {}),
             ...(droppedActionTypes ? { droppedActionTypes } : {}),
             ...(error ? { error } : {}),
+            ...(proposedCorrection
+                ? {
+                    proposedCorrection,
+                    correctionStatus: "proposed",
+                }
+                : {}),
         },
+        ...(autoApplyEligible
+            ? {
+                autoApplyEligible: true,
+                autoApplyMessageId,
+                autoApplyTriggerMode,
+            }
+            : {}),
     };
 }
 //# sourceMappingURL=runReviewAgentTurn.js.map

@@ -6,11 +6,19 @@ exports.parseAndValidateReviewAgentResponse = parseAndValidateReviewAgentRespons
 const reviewAgentTypes_1 = require("./reviewAgentTypes");
 const assertionSupport_1 = require("./assertionSupport");
 const reviewAgentContext_1 = require("./reviewAgentContext");
-exports.REVIEW_AGENT_SYSTEM_INSTRUCTION = `You are StageVerify Invoice Review Chat — a read-only assistant for one vendor invoice import.
+const correctionAllowlist_1 = require("./correctionAllowlist");
+exports.REVIEW_AGENT_SYSTEM_INSTRUCTION = `You are StageVerify Invoice Review Chat for one vendor invoice import.
 
 You answer questions about the provided review context packet only.
-You never approve, reject, reopen, mutate fields, create deliveries, change staging, send email, activate ignore rules, or save reusable learning.
-You never claim to have taken an action or that a correction was applied.
+You never approve, reject, reopen, create deliveries, change staging, send email, activate ignore rules, or save reusable learning.
+You never claim to have applied a correction or mutated a field.
+
+When the dispatcher asks to capture/fix/update an allowlisted parsed field and you have a clear proposed value:
+- Use actionType "suggest_correction_may_be_needed"
+- Include proposedCorrection: { field, currentValue, proposedValue }
+- field MUST be one of correctableFields from the packet
+- Say you can update the field after they confirm (Apply correction / "Yes, apply it")
+- Do NOT say the value was already changed
 
 Source distinctions (required):
 - document_evidence: a real quoted span from the provided invoice text windows
@@ -22,7 +30,7 @@ Rules:
 - Every factual claim about the document must cite document_evidence or parser_value.
 - If the dispatcher asserts a value and you cannot find it in text windows, say you cannot find it, treat it as a dispatcher assertion, and do not pretend you verified it.
 - If a dispatcher assertion appears as a contiguous substring in the provided text windows or document evidence, treat it as supported — do not say unsupported while citing supporting document_evidence. Still do not invent evidence.
-- Use actionType suggest_correction_may_be_needed only to flag a possible mismatch — never say a correction was made.
+- Use actionType suggest_correction_may_be_needed only to flag a possible mismatch or propose an allowlisted correction — never say a correction was made.
 - Return ONLY JSON matching the schema. No markdown fences, no extra keys, no reasoning/thinking field.
 
 JSON schema:
@@ -35,7 +43,12 @@ JSON schema:
       "text": "string",
       "field": "optional dotted path for parser_value"
     }
-  ]
+  ],
+  "proposedCorrection": {
+    "field": "customerPoOrReference | vendorOrderNumber | vendorInvoiceNumber",
+    "currentValue": "string",
+    "proposedValue": "string"
+  }
 }`;
 function formatReviewAgentUserText(packet, dispatcherMessage) {
     return [
@@ -57,6 +70,8 @@ function isCitationSource(value) {
 /**
  * Parse model JSON, drop unknown action types, resolve document_evidence citations.
  * Unresolvable document_evidence citations downgrade to agent_interpretation.
+ * Invalid proposedCorrection is dropped (turn still returns answerText).
+ * Assertion/evidence contradictions are reconciled deterministically (C1 #72).
  */
 function parseAndValidateReviewAgentResponse(raw, combinedExtractedText, options) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
@@ -113,6 +128,28 @@ function parseAndValidateReviewAgentResponse(raw, combinedExtractedText, options
             ...(field ? { field } : {}),
         });
     }
+    let proposedCorrection;
+    const pcRaw = obj.proposedCorrection;
+    if (pcRaw && typeof pcRaw === "object" && !Array.isArray(pcRaw)) {
+        const pc = pcRaw;
+        const fieldRaw = typeof pc.field === "string" ? pc.field.trim() : "";
+        // Accept dotted path from model: parsedHeader.customerPoOrReference
+        const field = fieldRaw.includes(".")
+            ? fieldRaw.split(".").pop().trim()
+            : fieldRaw;
+        const proposedValue = typeof pc.proposedValue === "string" ? pc.proposedValue.trim() : "";
+        const currentValue = typeof pc.currentValue === "string" ? pc.currentValue.trim() : "";
+        if ((0, correctionAllowlist_1.isCorrectableFieldKey)(field) && proposedValue) {
+            proposedCorrection = {
+                field,
+                ...(currentValue ? { currentValue } : {}),
+                proposedValue,
+            };
+            if (actionType !== "suggest_correction_may_be_needed") {
+                actionType = "suggest_correction_may_be_needed";
+            }
+        }
+    }
     let finalActionType = actionType;
     let finalAnswerText = answerText.slice(0, 4_000);
     let finalCitations = citations;
@@ -137,6 +174,7 @@ function parseAndValidateReviewAgentResponse(raw, combinedExtractedText, options
         citations: finalCitations,
         droppedActionTypes,
         ...(consistencyCorrected ? { consistencyCorrected: true } : {}),
+        ...(proposedCorrection ? { proposedCorrection } : {}),
     };
 }
 exports.FAIL_CLOSED_AGENT_TEXT = "I couldn't process that turn safely. Try rephrasing or ask a narrower question about this invoice.";
