@@ -8,6 +8,7 @@ const correctionAllowlist_1 = require("./correctionAllowlist");
 const reviewAgentTypes_1 = require("./reviewAgentTypes");
 const constants_1 = require("../aiShadow/constants");
 const reconcileAfterFieldCorrection_1 = require("./reconcileAfterFieldCorrection");
+const indexFieldLessonExample_1 = require("./indexFieldLessonExample");
 class ApplyCorrectionInputError extends Error {
     code;
     constructor(code, message) {
@@ -514,6 +515,29 @@ async function runApplyInvoiceReviewFieldCorrectionCore(input) {
         };
     });
     void markSiblingProposalsSuperseded(input.db, importId, proposed.field, sourceMessageId);
+    // C3-C.1 — inert evidence index ONLY after real applied===true commit.
+    // Best-effort: never fail C2 Apply if indexing fails (see writeFieldLessonExampleIfEligible).
+    // Do NOT relocate this call into alreadyMatched / audit-exists paths.
+    if (result.applied && evidence.sourceType) {
+        void (0, indexFieldLessonExample_1.writeFieldLessonExampleIfEligible)({
+            db: input.db,
+            correctionId: result.correctionId,
+            vendorInvoiceImportId: importId,
+            sourceChatMessageId: sourceMessageId,
+            field: proposed.field,
+            originalValue: result.previousValue,
+            correctedValue: result.newValue,
+            evidenceType: evidence.sourceType,
+            evidenceCitationText: evidence.evidenceCitationText,
+            evidenceSpanStart: evidence.evidenceSpanStart,
+            evidenceSpanEnd: evidence.evidenceSpanEnd,
+            actorUid: input.uid,
+            detectedVendorName: importDoc.detectedVendorName,
+            parserFormatId: importDoc.parserFormatId,
+            inboundEmailProcessingId: importDoc.inboundEmailProcessingId,
+            verifiedAt: appliedAt,
+        });
+    }
     return result;
 }
 //# sourceMappingURL=applyInvoiceReviewFieldCorrection.js.map

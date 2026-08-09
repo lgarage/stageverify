@@ -283,6 +283,12 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Lane C C3-C.1 — reusable field-learning EXAMPLES (inert evidence; CF Admin SDK only).
+    // No browser read/write. Manager/Admin list callable deferred to C3-C.2.
+    match /vendorInvoiceFieldLessonExamples/{exampleId} {
+      allow read, write: if false;
+    }
+
     match /emailOAuthStates/{stateId} {
       allow read, write: if false;
     }

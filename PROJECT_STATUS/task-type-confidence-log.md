@@ -26,5 +26,5 @@ Append-only session log (Dan standing preference). Not a planning SSOT.
 | 2026-08-09 | ship-op merge+deploy PR #113 PIN # updated badge | ship-op / prod-verify | T1 | Composer 2.5 Fast | 99 | 99 | merge `64197430`; gh-pages `index-DZiw9ihY.js`; verify:settings-technicians:prod PASS |
 | 2026-08-09 | Staging Map zoom + logical canvas size | ui-component / spatial-design | T1 | Sol High (design+visual) + Composer 2.5 Fast (implement) | 97 | 99 | v0.0.273 LIVE index-BFt4Qudd.js; verify:shop-map-zoom:prod PASS |
 | 2026-08-09 | Staging Map header toolbar relocate + future warehouse nav doc | ui-component / css-restyle | T1 | Sol High + Composer 2.5 Fast | 98 | 99 | FE-only v0.0.276; zoom unchanged; roadmap POST-MVP recorded |
-
 | 2026-08-09 | ui-component / delivery-details-staging-needed-card | T1 | composer-2.5-fast (+ Sol UX) | confStart 98 → confAfter 99 | FE resolvable active staging SSOT; v0.0.277 LIVE |
+| 2026-08-09 | C3-C.1 evidence-store implement (distinct sourceDocumentKey) | backend-write-critical | T3 | Composer 2.5 Fast + Sonnet D-60 + Grok adversarial | 98 | 99 | C3-C.1 only; no deploy |
