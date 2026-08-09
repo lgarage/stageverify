@@ -2,6 +2,7 @@ import {
   THRESHOLDS_MS,
   THRASH_FAIL_LIMIT,
   WAIT_POLL_SOFT_LIMIT,
+  SHELL_HOOK_DEDUPE_MS,
   elapsedMs,
   formatElapsed,
 } from "./state.mjs";
@@ -103,7 +104,7 @@ export function stampGreenEvidence(state, command, output) {
  * Update signature bookkeeping.
  * @returns {{ sig: string, entry: object }}
  */
-export function touchSignature(state, command, outcome, now) {
+export function touchSignature(state, command, outcome, now, hook = "") {
   const sig = normalizeCommandSignature(command);
   if (!sig) return { sig: "", entry: null };
   const entry = state.signatures[sig] || {
@@ -111,13 +112,25 @@ export function touchSignature(state, command, outcome, now) {
     failCount: 0,
     lastAt: 0,
     lastOutcome: "unknown",
+    lastHook: "",
   };
   entry.count += 1;
   entry.lastAt = now;
   entry.lastOutcome = outcome;
+  entry.lastHook = hook || entry.lastHook || "";
   if (outcome === "fail") entry.failCount += 1;
   state.signatures[sig] = entry;
   return { sig, entry };
+}
+
+/** True when Cursor double-fires shell hooks for one underlying command. */
+function isDuplicateShellHookObservation(prev, hook, now) {
+  if (!prev || typeof prev.lastAt !== "number" || !prev.lastHook) return false;
+  if (now - prev.lastAt >= SHELL_HOOK_DEDUPE_MS) return false;
+  // Same hook again = a real second invocation (or wait poll), not a dual-hook echo.
+  if (prev.lastHook === hook) return false;
+  const pair = new Set(["afterShellExecution", "postToolUseFailure", "postToolUse"]);
+  return pair.has(prev.lastHook) && pair.has(hook);
 }
 
 /**
@@ -158,10 +171,20 @@ export function evaluate(state, event, now = Date.now()) {
     hook === "postToolUse" ||
     hook === "postToolUseFailure"
   ) {
+    const isShellTool =
+      hook === "afterShellExecution" ||
+      event.tool_name === "Shell" ||
+      (hook === "postToolUseFailure" && Boolean(command));
+
+    // postToolUse(Shell) is redundant with afterShellExecution — skip count path.
+    // postToolUseFailure(Shell) may still arrive; dedupe window below handles doubles.
+    if (hook === "postToolUse" && event.tool_name === "Shell") {
+      // fall through to timed checkpoints only
+    } else {
     let outcome = "unknown";
     if (hook === "postToolUseFailure") {
       outcome = "fail";
-    } else if (event.tool_name === "Shell" || hook === "afterShellExecution") {
+    } else if (isShellTool || hook === "afterShellExecution") {
       outcome = classifyOutputOutcome(output);
       if (failureType) outcome = "fail";
     } else if (event.tool_name === "Write" || event.tool_name === "StrReplace") {
@@ -170,7 +193,14 @@ export function evaluate(state, event, now = Date.now()) {
     }
 
     if (command) {
-      const { sig, entry } = touchSignature(state, command, outcome, now);
+      const sigPreview = normalizeCommandSignature(command);
+      const prev = sigPreview ? state.signatures[sigPreview] : null;
+      const duplicateShellHook =
+        isShellTool && isDuplicateShellHookObservation(prev, hook, now);
+      if (duplicateShellHook) {
+        // Same underlying shell call observed twice — do not increment fail/pass counts.
+      } else {
+      const { sig, entry } = touchSignature(state, command, outcome, now, hook);
       stampGreenEvidence(state, command, output);
 
       const waitKind = classifyWaitCommand(command);
@@ -259,7 +289,9 @@ export function evaluate(state, event, now = Date.now()) {
         markProgress(state, now, `pass: ${extractNpmScript(command) || sig.slice(0, 60)}`);
         progress = true;
       }
+      } // end !duplicateShellHook
     }
+    } // end !postToolUse(Shell) skip
   }
 
   // --- beforeShell: observe only (advise via later hooks / checkpoints); never deny ---

@@ -15,6 +15,12 @@ export const THRASH_FAIL_LIMIT = 2;
 export const WAIT_POLL_SOFT_LIMIT = 3;
 
 /**
+ * Cursor may fire both afterShellExecution and postToolUse(Failure) for one Shell call.
+ * Ignore duplicate signature counts inside this window.
+ */
+export const SHELL_HOOK_DEDUPE_MS = 3000;
+
+/**
  * @param {string[]} workspaceRoots
  * @returns {string}
  */

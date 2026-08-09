@@ -41,6 +41,49 @@ function decisionText(interventions) {
 }
 
 // --- Unit helpers ---
+test("dual shell hooks for one failure do not false-thrash", () => {
+  const state = fresh();
+  const cmd = "npm run verify:pickup";
+  const out = "Error: Timeout 30000ms exceeded";
+  evaluate(
+    state,
+    {
+      hook_event_name: "afterShellExecution",
+      command: cmd,
+      output: out,
+      duration: 30000,
+    },
+    1_000_000
+  );
+  const r = evaluate(
+    state,
+    {
+      hook_event_name: "postToolUseFailure",
+      tool_name: "Shell",
+      tool_input: { command: cmd },
+      command: cmd,
+      error_message: out,
+      failure_type: "timeout",
+      duration: 30000,
+    },
+    1_000_050
+  );
+  assert.equal(Object.values(state.signatures)[0].failCount, 1);
+  assert.equal(hasKind(r.interventions, "thrash"), false);
+  // Second genuine failure still thrashes
+  const r2 = evaluate(
+    state,
+    {
+      hook_event_name: "afterShellExecution",
+      command: cmd,
+      output: out,
+      duration: 30000,
+    },
+    1_010_000
+  );
+  assert.ok(hasKind(r2.interventions, "thrash"));
+});
+
 test("signature normalization strips paths/timestamps", () => {
   const a = normalizeCommandSignature(
     "node /workspace/scripts/verify-x.mjs --at 2026-08-09T04:00:00Z abcdef1234567890"
