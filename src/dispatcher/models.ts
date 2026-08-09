@@ -1521,6 +1521,15 @@ export interface VendorInvoiceImportReview {
   reviewRequiredReasons?: string[];
   importDecisionMode?: "suggested_import" | "review_required" | "blocked";
   suggestedAction?: string;
+  /** Lane C C2 — verified current-import field corrections (allowlisted). */
+  fieldCorrectionLog?: Array<{
+    field: string;
+    previousValue?: string;
+    newValue: string;
+    at?: string;
+    by?: string;
+    correctionId?: string;
+  }>;
   importDecisionLog?: Array<{
     action: "approve" | "reject" | "link" | "create_shell" | "reopen" | "relink_to_shell";
     at: string;

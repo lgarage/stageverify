@@ -556,6 +556,7 @@ async function writeReviewRecords(
         pageId: row.pageId,
         parserFormatId: proc.parserFormatId,
         orderNotes: proc.parsed.orderNotes,
+        fieldCorrectionLog: freshLog,
       });
       const freshReviewDoc = buildReviewDoc({
         parsedHeader: freshCorrectedHeader,

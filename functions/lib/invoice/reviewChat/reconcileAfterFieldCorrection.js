@@ -97,6 +97,7 @@ function reconcileImportStateAfterCorrection(input) {
         orderNotes: Array.isArray(input.orderNotes)
             ? input.orderNotes.filter((n) => typeof n === "string")
             : undefined,
+        fieldCorrectionLog: input.fieldCorrectionLog,
     });
     return {
         parsedHeader,

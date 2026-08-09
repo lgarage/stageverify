@@ -414,6 +414,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 pageId: row.pageId,
                 parserFormatId: proc.parserFormatId,
                 orderNotes: proc.parsed.orderNotes,
+                fieldCorrectionLog: freshLog,
             });
             const freshReviewDoc = buildReviewDoc({
                 parsedHeader: freshCorrectedHeader,

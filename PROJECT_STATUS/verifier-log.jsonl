@@ -180,3 +180,6 @@
 {"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-949e367f-8890-5e58-b7e2-39838ce24c45","model":"cursor-grok-4.5-high-fast","real":"na","note":"PR81 CF deploy prod verify"}
 {"date":"2026-08-09","role":"security","verdict":"PASS","taskId":"bc-d7224534-3a70-5251-9244-5b84e48b85aa","model":"claude-sonnet-5-thinking-high","real":"na","note":"D-74 resolveLocationScanPin"}
 {"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-8ab3dd45-f6de-50ff-8105-8c629e9edc48","model":"cursor-grok-4.5-high-fast","real":"na","note":"PR83 D-74 v0.0.255"}
+{"date":"2026-08-09","role":"security","verdict":"PASS","taskId":"da9865a9-5a4c-5b9e-86a1-ebfb26f245bf","model":"claude-sonnet-5-thinking-high","real":"na","note":"D-75 Phase1 stale-veto PR85"}
+{"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-a45b8ae9-19e2-5ecd-adfb-e9e730aa2df6","model":"cursor-grok-4.5-high-fast","real":"na","note":"D-75 Phase1 PR85 SAFE TO MERGE no CF deploy"}
+{"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-53323a08-c7d7-5c31-a1df-5b87a6ae02b0","model":"cursor-grok-4.5-high-fast","real":"na","note":"PR85 D-75 LIVE v0.0.257"}
