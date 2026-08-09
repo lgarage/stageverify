@@ -21,6 +21,7 @@ const saveTrainingLessonCore_1 = require("./invoice/aiShadow/saveTrainingLessonC
 const reopenIgnoreSkippedImport_1 = require("./invoice/aiShadow/reopenIgnoreSkippedImport");
 const adminConfig_1 = require("./invoice/aiShadow/adminConfig");
 const creditReturnSkip_1 = require("./invoice/creditReturnSkip");
+const sharedStagingIdSanitize_1 = require("./invoice/fulfillmentOverride/sharedStagingIdSanitize");
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const MAX_DECISION_LOG = 20;
 function getDb() {
@@ -60,18 +61,6 @@ function assertDeliveryAllowedForImport(doc) {
         throw new https_1.HttpsError("failed-precondition", creditReturnSkip_1.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
     }
 }
-const MAX_PLANNED_STAGING_IDS = 20;
-/** Sanitize client staging ids — approve path only; will-call ignores via approvePlannedStagingPatch. */
-function sanitizePlannedStagingLocationIds(raw) {
-    if (!Array.isArray(raw))
-        return [];
-    return [
-        ...new Set(raw
-            .filter((id) => typeof id === "string")
-            .map((id) => id.trim())
-            .filter((id) => id.length > 0 && id.length <= 128)),
-    ].slice(0, MAX_PLANNED_STAGING_IDS);
-}
 function approvePlannedStagingPatch(stagingSkipped, ids) {
     if (stagingSkipped || ids.length === 0)
         return {};
@@ -86,7 +75,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     const action = typeof data.action === "string" ? data.action.trim() : "";
     const deliveryOrderId = typeof data.deliveryOrderId === "string" ? data.deliveryOrderId.trim() : "";
     const correctionNoteRaw = typeof data.correctionNote === "string" ? data.correctionNote : "";
-    const plannedStagingLocationIds = sanitizePlannedStagingLocationIds(data.plannedStagingLocationIds);
+    const plannedStagingLocationIds = (0, sharedStagingIdSanitize_1.sanitizePlannedStagingLocationIds)(data.plannedStagingLocationIds);
     if (!importId || importId.length > 256) {
         throw new https_1.HttpsError("invalid-argument", "vendorInvoiceImportId is required.");
     }

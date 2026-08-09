@@ -49,7 +49,16 @@ import {
   type InvoiceRejectReasonId,
 } from "./invoiceRejectReasons";
 import { InvoiceRejectReasonDialog } from "./InvoiceRejectReasonDialog";
+import { InvoiceFulfillmentOverrideConfirmDialog } from "./InvoiceFulfillmentOverrideConfirmDialog";
 import { InvoiceStagingLocationPicker } from "./InvoiceStagingLocationPicker";
+import {
+  setInvoiceReviewDraftStagingLocations,
+  setInvoiceReviewFulfillmentOverride,
+} from "../firestoreService";
+import type {
+  SetInvoiceReviewDraftStagingLocationsResult,
+  SetInvoiceReviewFulfillmentOverrideResult,
+} from "../models";
 import {
   extractDeliverToSiteLabel,
   fulfillmentDisplayLabel,
@@ -117,6 +126,7 @@ export function InvoiceParsedInspectModal({
   deliverToSiteConfirmed = false,
   onImportDismissed,
   onCorrectionApplied,
+  onImportRowMerged,
 }: {
   importRow: VendorInvoiceImportReview;
   onClose: () => void;
@@ -145,9 +155,23 @@ export function InvoiceParsedInspectModal({
   onImportDismissed?: () => void;
   /** Lane C C2 — live refresh after chat field correction apply. */
   onCorrectionApplied?: (result: ApplyInvoiceReviewFieldCorrectionResult) => void;
+  onImportRowMerged?: (
+    patch: Partial<VendorInvoiceImportReview> &
+      Pick<
+        VendorInvoiceImportReview,
+        | "parsedHeader"
+        | "importStatus"
+        | "fulfillmentOverride"
+        | "draftPlannedStagingLocationIds"
+      >,
+  ) => void;
 }) {
   const [correctionNote, setCorrectionNote] = useState("");
   const [selectedStagingIds, setSelectedStagingIds] = useState<string[]>([]);
+  const [stagingPickerOpen, setStagingPickerOpen] = useState(false);
+  const [fulfillmentConfirmOpen, setFulfillmentConfirmOpen] = useState(false);
+  const [assignLocationLoading, setAssignLocationLoading] = useState(false);
+  const [draftPersistLoading, setDraftPersistLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [saveLessonLoading, setSaveLessonLoading] = useState(false);
   const [teachPhase, setTeachPhase] = useState<TeachChatPhase>("idle");
@@ -461,8 +485,14 @@ export function InvoiceParsedInspectModal({
   });
 
   useEffect(() => {
+    const draft = importRow.draftPlannedStagingLocationIds ?? [];
+    setSelectedStagingIds(draft);
+  }, [importRow.id, importRow.draftPlannedStagingLocationIds]);
+
+  useEffect(() => {
     if (stagingSkipped) {
       setSelectedStagingIds([]);
+      setStagingPickerOpen(false);
     }
   }, [stagingSkipped, importRow.id]);
 
@@ -489,6 +519,93 @@ export function InvoiceParsedInspectModal({
     setRejectDetailText("");
     onReject?.(lessonNote);
   };
+
+  const fulfillmentOverrideActive = importRow.fulfillmentOverride?.active === true;
+  const isNativeWillCall =
+    normalizedHeader.fulfillmentMethod === "will_call_pickup" && !fulfillmentOverrideActive;
+
+  const mergeOverrideResult = (result: SetInvoiceReviewFulfillmentOverrideResult) => {
+    onImportRowMerged?.({
+      parsedHeader: result.parsedHeader,
+      importStatus: result.importStatus,
+      fulfillmentOverride: result.fulfillmentOverride,
+      draftPlannedStagingLocationIds: importRow.draftPlannedStagingLocationIds ?? [],
+      parseWarnings: result.parseWarnings,
+      autoImportEligible: result.autoImportEligible,
+      autoImportConfidence: result.autoImportConfidence,
+      autoImportReasons: result.autoImportReasons,
+      reviewRequiredReasons: result.reviewRequiredReasons,
+      importDecisionMode: result.importDecisionMode,
+      suggestedAction: result.suggestedAction,
+    });
+  };
+
+  const mergeDraftResult = (result: SetInvoiceReviewDraftStagingLocationsResult) => {
+    onImportRowMerged?.({
+      parsedHeader: importRow.parsedHeader ?? {},
+      importStatus: importRow.importStatus,
+      fulfillmentOverride: importRow.fulfillmentOverride,
+      draftPlannedStagingLocationIds: result.draftPlannedStagingLocationIds,
+    });
+  };
+
+  const persistDraftStaging = async (ids: string[]) => {
+    setDraftPersistLoading(true);
+    try {
+      const result = await setInvoiceReviewDraftStagingLocations({
+        vendorInvoiceImportId: importRow.id,
+        stagingLocationIds: ids,
+      });
+      mergeDraftResult(result);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Could not save staging draft.");
+    } finally {
+      setDraftPersistLoading(false);
+    }
+  };
+
+  const handleStagingDone = (ids: string[]) => {
+    setSelectedStagingIds(ids);
+    void persistDraftStaging(ids);
+  };
+
+  const handleAssignLocationClick = () => {
+    if (isNativeWillCall) {
+      setFulfillmentConfirmOpen(true);
+      return;
+    }
+    setStagingPickerOpen(true);
+  };
+
+  const handleFulfillmentOverrideConfirm = async () => {
+    setAssignLocationLoading(true);
+    try {
+      const result = await setInvoiceReviewFulfillmentOverride({
+        vendorInvoiceImportId: importRow.id,
+        toFulfillmentMethod: "delivery",
+        idempotencyKey: `assign-loc-${importRow.id}-${Date.now()}`,
+      });
+      mergeOverrideResult(result);
+      setFulfillmentConfirmOpen(false);
+      setStagingPickerOpen(true);
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Could not apply fulfillment override.",
+      );
+    } finally {
+      setAssignLocationLoading(false);
+    }
+  };
+
+  const showAssignLocation = isPending && Boolean(onApprove) && !readOnly;
+  const assignLocationBusy =
+    actionLoading || assignLocationLoading || draftPersistLoading;
+  const assignLocationLabel =
+    selectedStagingIds.length > 0 ||
+    (importRow.draftPlannedStagingLocationIds?.length ?? 0) > 0
+      ? "Change Location"
+      : "Assign Location";
+
   const showDeliveryInfo = !readOnly && (isPending || isRejected);
   const showActions =
     !readOnly &&
@@ -1307,6 +1424,22 @@ export function InvoiceParsedInspectModal({
                   </p>
                 ) : (
                   <>
+                    {fulfillmentOverrideActive && (
+                      <p
+                        data-testid="invoice-parsed-inspect-fulfillment-override-note"
+                        style={{
+                          margin: "0 0 10px",
+                          fontSize: 12,
+                          lineHeight: 1.45,
+                          color: "var(--admin-text-secondary)",
+                          fontWeight: 500,
+                          fontFamily: FONT,
+                        }}
+                      >
+                        Fulfillment changed from Will-Call to Vendor Drop-Off for staging
+                        assignment.
+                      </p>
+                    )}
                     <p
                       data-testid="invoice-parsed-inspect-staging-required-note"
                       style={{
@@ -1324,8 +1457,11 @@ export function InvoiceParsedInspectModal({
                     <InvoiceStagingLocationPicker
                       selectedIds={selectedStagingIds}
                       onChange={setSelectedStagingIds}
-                      disabled={actionLoading}
+                      disabled={actionLoading || draftPersistLoading}
                       font={FONT}
+                      open={stagingPickerOpen}
+                      onOpenChange={setStagingPickerOpen}
+                      onDone={handleStagingDone}
                     />
                   </>
                 )}
@@ -1334,12 +1470,38 @@ export function InvoiceParsedInspectModal({
             <div
               style={{
                 display: "flex",
-                justifyContent: "flex-end",
+                justifyContent: "space-between",
                 alignItems: "center",
                 gap: 10,
                 flexWrap: "wrap",
               }}
             >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {showAssignLocation && (
+                  <button
+                    type="button"
+                    data-testid="invoice-parsed-inspect-assign-location"
+                    disabled={assignLocationBusy}
+                    onClick={handleAssignLocationClick}
+                    style={{
+                      ...HEADER_BTN,
+                      cursor: assignLocationBusy ? "not-allowed" : "pointer",
+                      opacity: assignLocationBusy ? 0.55 : 1,
+                    }}
+                  >
+                    {assignLocationLabel}
+                  </button>
+                )}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  alignItems: "center",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
               {onReject && isPending && (
                 <button
                   type="button"
@@ -1444,10 +1606,20 @@ export function InvoiceParsedInspectModal({
                   Approve
                 </button>
               )}
+              </div>
             </div>
           </div>
         )}
       </div>
+
+      <InvoiceFulfillmentOverrideConfirmDialog
+        open={fulfillmentConfirmOpen}
+        loading={assignLocationLoading}
+        onCancel={() => {
+          if (!assignLocationLoading) setFulfillmentConfirmOpen(false);
+        }}
+        onConfirm={() => void handleFulfillmentOverrideConfirm()}
+      />
 
       <InvoiceRejectReasonDialog
         open={rejectDialogOpen}

@@ -74,6 +74,11 @@ export function sanitizeVendorInvoiceImportForClient(
       ? String(doc.suggestedAction).slice(0, 500)
       : undefined,
     importDecisionLog: (doc.importDecisionLog ?? []).slice(-10),
+    fieldCorrectionLog: (doc.fieldCorrectionLog ?? []).slice(-20),
+    originalParsedHeader: doc.originalParsedHeader,
+    originalParseWarnings: doc.originalParseWarnings,
+    fulfillmentOverride: doc.fulfillmentOverride,
+    draftPlannedStagingLocationIds: doc.draftPlannedStagingLocationIds,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };

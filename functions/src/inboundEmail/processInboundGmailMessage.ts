@@ -23,9 +23,13 @@ import { normalizeExtractedPageText } from "../invoice/pdfTextAdapter";
 import { recoverFieldCorrectionLogFromAudit } from "../invoice/reviewChat/correctionAuditRecovery";
 import {
   applyFieldCorrectionLogToHeader,
+  applyFulfillmentOverrideToHeader,
   reconcileImportStateAfterCorrection,
   type FieldCorrectionLogEntry,
 } from "../invoice/reviewChat/reconcileAfterFieldCorrection";
+import { deriveImportStatus } from "../invoice/inferImportStatus";
+import { asParsedHeaderForImport } from "../invoice/parsedHeaderValidation";
+import type { ParsedJohnstoneInvoice } from "../invoice/types";
 import {
   isCreditReturnInvoice,
   documentIgnoreSkipFields,
@@ -452,10 +456,15 @@ async function writeReviewRecords(
       fieldCorrectionLog: FieldCorrectionLogEntry[];
       originalParsedHeader?: Record<string, unknown>;
       originalParseWarnings?: string[];
+      importStatus: string;
+      fulfillmentOverride?: VendorInvoiceImportDoc["fulfillmentOverride"];
+      draftPlannedStagingLocationIds?: string[];
     }): VendorInvoiceImportDoc & {
       fieldCorrectionLog?: FieldCorrectionLogEntry[];
       originalParsedHeader?: Record<string, unknown>;
       originalParseWarnings?: string[];
+      fulfillmentOverride?: VendorInvoiceImportDoc["fulfillmentOverride"];
+      draftPlannedStagingLocationIds?: string[];
     } => ({
       id: reviewId,
       inboundEmailProcessingId: inboundDoc.id,
@@ -464,7 +473,7 @@ async function writeReviewRecords(
       pageId: row.pageId,
       pageIndexInBatch: row.pageIndexInBatch,
       reviewStatus: skipFields ? skipFields.reviewStatus : "pending_review",
-      importStatus: proc.importStatus,
+      importStatus: input.importStatus,
       confidenceTier: proc.confidenceTier,
       confidenceScore: proc.confidenceScore,
       humanReviewRequired: skipFields
@@ -498,6 +507,12 @@ async function writeReviewRecords(
         : {}),
       ...(Array.isArray(input.originalParseWarnings)
         ? { originalParseWarnings: input.originalParseWarnings }
+        : {}),
+      ...(input.fulfillmentOverride
+        ? { fulfillmentOverride: input.fulfillmentOverride }
+        : {}),
+      ...(Array.isArray(input.draftPlannedStagingLocationIds)
+        ? { draftPlannedStagingLocationIds: input.draftPlannedStagingLocationIds }
         : {}),
       ...(skipFields
         ? {
@@ -544,10 +559,43 @@ async function writeReviewRecords(
         parserHeader,
         freshLog,
       );
+      const freshOverrideHeader = applyFulfillmentOverrideToHeader(
+        freshCorrectedHeader,
+        freshData?.fulfillmentOverride,
+      );
+      let effectiveImportStatus = proc.importStatus;
+      const overrideActive = freshData?.fulfillmentOverride?.active === true;
+      if (overrideActive && proc.importStatus === "pickup_at_vendor") {
+        const formatId =
+          proc.parserFormatId === "johnstone" ||
+          proc.parserFormatId === "first_supply" ||
+          proc.parserFormatId === "generic" ||
+          proc.parserFormatId === "unknown"
+            ? proc.parserFormatId
+            : "johnstone";
+        let headerForDerive: ParsedJohnstoneInvoice["header"];
+        try {
+          headerForDerive = asParsedHeaderForImport(freshOverrideHeader);
+        } catch {
+          headerForDerive = {
+            ...(freshOverrideHeader as unknown as ParsedJohnstoneInvoice["header"]),
+            fulfillmentMethod: "delivery",
+          };
+        }
+        effectiveImportStatus = deriveImportStatus(
+          {
+            header: headerForDerive,
+            lines: parsedLines as ParsedJohnstoneInvoice["lines"],
+            parseWarnings: proc.parsed.parseWarnings,
+            orderNotes: proc.parsed.orderNotes,
+          },
+          formatId,
+        );
+      }
       const freshReconciled = reconcileImportStateAfterCorrection({
-        parsedHeader: freshCorrectedHeader,
+        parsedHeader: freshOverrideHeader,
         parseWarnings: proc.parsed.parseWarnings,
-        importStatus: proc.importStatus,
+        importStatus: effectiveImportStatus,
         confidenceScore: proc.confidenceScore,
         humanReviewRequired: proc.humanReviewRequired,
         duplicate: proc.duplicate,
@@ -559,7 +607,7 @@ async function writeReviewRecords(
         fieldCorrectionLog: freshLog,
       });
       const freshReviewDoc = buildReviewDoc({
-        parsedHeader: freshCorrectedHeader,
+        parsedHeader: freshOverrideHeader,
         parseWarnings: freshReconciled.parseWarnings,
         autoImportEligible: freshReconciled.autoImportEligible,
         autoImportConfidence: freshReconciled.autoImportConfidence,
@@ -570,6 +618,9 @@ async function writeReviewRecords(
         fieldCorrectionLog: freshLog,
         originalParsedHeader: freshOriginalHeader,
         originalParseWarnings: freshOriginalWarnings,
+        importStatus: effectiveImportStatus,
+        fulfillmentOverride: freshData?.fulfillmentOverride,
+        draftPlannedStagingLocationIds: freshData?.draftPlannedStagingLocationIds,
       });
 
       // User re-opened a system skip (pending, no skipReason) — do not re-auto-skip.

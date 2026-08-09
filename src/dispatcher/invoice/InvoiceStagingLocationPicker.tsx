@@ -13,6 +13,11 @@ type Props = {
   onChange: (ids: string[]) => void;
   disabled?: boolean;
   font?: string;
+  /** Controlled picker open state (Assign Location footer flow). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Fired when user taps Done with a non-empty selection. */
+  onDone?: (ids: string[]) => void;
 };
 
 /**
@@ -25,8 +30,16 @@ export function InvoiceStagingLocationPicker({
   onChange,
   disabled = false,
   font = FONT,
+  open: controlledOpen,
+  onOpenChange,
+  onDone,
 }: Props) {
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const pickerOpen = controlledOpen ?? internalOpen;
+  const setPickerOpen = (next: boolean) => {
+    if (onOpenChange) onOpenChange(next);
+    else setInternalOpen(next);
+  };
   const live = useLiveZoneOccupancy(true);
 
   const activeZones = useMemo(
@@ -230,7 +243,10 @@ export function InvoiceStagingLocationPicker({
               type="button"
               data-testid="invoice-staging-done"
               disabled={disabled}
-              onClick={() => setPickerOpen(false)}
+              onClick={() => {
+                onDone?.(selectedIds);
+                setPickerOpen(false);
+              }}
               style={{
                 marginTop: 12,
                 backgroundColor: "#0a3161",
