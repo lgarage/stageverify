@@ -192,3 +192,8 @@
 {"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-6b1e1514-f674-57d3-befd-5e870d7920f5","model":"cursor-grok-4.5-high-fast","real":"na","note":"v0.0.263 unplanned drawer FE"}
 {"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-ca47a4c6-504a-538f-b3ad-f6ae5a2f5904","model":"cursor-grok-4.5-high-fast","real":"na","note":"v0.0.265 deliveries legend; fix-verified ui-readability N/A"}
 {"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-52ddd03e-0ace-564c-be5f-51c138888df3","model":"cursor-grok-4.5-high-fast","real":"na","note":"v0.0.266 unplanned single badge + U1 cleanup"}
+{"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-ca9b11f7-b6c2-5896-b002-1f6b9f154636","model":"cursor-grok-4.5-high-fast","real":"na","note":"PR103 Settings PIN Save FE"}
+{"date":"2026-08-09","role":"security","verdict":"PASS","taskId":"10d1b42a-c512-577a-b8e4-d4d007003d72","model":"claude-sonnet-5-thinking-high","real":"na","note":"PR103 D-38 Settings PIN Save"}
+
+{"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-9241a353-2375-5d87-a9fd-cd67e03a0d73","model":"cursor-grok-4.5-high-fast","real":"na","note":"PR103 post-sync SAFE TO MERGE"}
+{"date":"2026-08-09","role":"security","verdict":"PASS","taskId":"015d4521-4354-5b93-81a5-ba225ea4cddd","model":"claude-sonnet-5-thinking-high","real":"na","note":"PR103 post-sync D-38"}
