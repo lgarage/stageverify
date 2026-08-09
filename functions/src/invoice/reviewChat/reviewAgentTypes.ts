@@ -41,6 +41,7 @@ export interface ReviewAgentModelResponse {
   answerText: string;
   citations: ReviewChatCitation[];
   droppedActionTypes: string[];
+  consistencyCorrected?: boolean;
 }
 
 export interface ReviewAgentContextPacket {

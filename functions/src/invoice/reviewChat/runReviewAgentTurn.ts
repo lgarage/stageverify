@@ -237,9 +237,20 @@ export async function runReviewAgentTurnCore(input: {
   try {
     const userText = formatReviewAgentUserText(packet, message);
     const modelResult = await callModelWithEscalation(generateJson, userText);
+    const parsedHeader = importDoc.parsedHeader as
+      | Record<string, unknown>
+      | undefined;
+    const rawParserPo = parsedHeader?.customerPoOrReference;
+    const parserCustomerPo =
+      typeof rawParserPo === "string" ? rawParserPo : null;
+
     const parsed = parseAndValidateReviewAgentResponse(
       modelResult.raw,
       combinedExtractedText,
+      {
+        dispatcherMessage: message,
+        parserCustomerPo,
+      },
     );
     if ("ok" in parsed && parsed.ok === false) {
       throw new Error(parsed.reason);

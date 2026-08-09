@@ -4,6 +4,7 @@ exports.FAIL_CLOSED_AGENT_TEXT = exports.REVIEW_AGENT_SYSTEM_INSTRUCTION = void 
 exports.formatReviewAgentUserText = formatReviewAgentUserText;
 exports.parseAndValidateReviewAgentResponse = parseAndValidateReviewAgentResponse;
 const reviewAgentTypes_1 = require("./reviewAgentTypes");
+const assertionSupport_1 = require("./assertionSupport");
 const reviewAgentContext_1 = require("./reviewAgentContext");
 exports.REVIEW_AGENT_SYSTEM_INSTRUCTION = `You are StageVerify Invoice Review Chat — a read-only assistant for one vendor invoice import.
 
@@ -20,6 +21,7 @@ Source distinctions (required):
 Rules:
 - Every factual claim about the document must cite document_evidence or parser_value.
 - If the dispatcher asserts a value and you cannot find it in text windows, say you cannot find it, treat it as a dispatcher assertion, and do not pretend you verified it.
+- If a dispatcher assertion appears as a contiguous substring in the provided text windows or document evidence, treat it as supported — do not say unsupported while citing supporting document_evidence. Still do not invent evidence.
 - Use actionType suggest_correction_may_be_needed only to flag a possible mismatch — never say a correction was made.
 - Return ONLY JSON matching the schema. No markdown fences, no extra keys, no reasoning/thinking field.
 
@@ -56,7 +58,7 @@ function isCitationSource(value) {
  * Parse model JSON, drop unknown action types, resolve document_evidence citations.
  * Unresolvable document_evidence citations downgrade to agent_interpretation.
  */
-function parseAndValidateReviewAgentResponse(raw, combinedExtractedText) {
+function parseAndValidateReviewAgentResponse(raw, combinedExtractedText, options) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
         return { ok: false, reason: "response_not_object" };
     }
@@ -111,11 +113,30 @@ function parseAndValidateReviewAgentResponse(raw, combinedExtractedText) {
             ...(field ? { field } : {}),
         });
     }
+    let finalActionType = actionType;
+    let finalAnswerText = answerText.slice(0, 4_000);
+    let finalCitations = citations;
+    let consistencyCorrected = false;
+    if (options?.dispatcherMessage?.trim()) {
+        const reconciled = (0, assertionSupport_1.reconcileAssertionConsistency)({
+            dispatcherMessage: options.dispatcherMessage,
+            answerText: finalAnswerText,
+            citations: finalCitations,
+            actionType: finalActionType,
+            combinedExtractedText,
+            parserCustomerPo: options.parserCustomerPo,
+        });
+        finalActionType = reconciled.actionType;
+        finalAnswerText = reconciled.answerText.slice(0, 4_000);
+        finalCitations = reconciled.citations;
+        consistencyCorrected = reconciled.consistencyCorrected;
+    }
     return {
-        actionType,
-        answerText: answerText.slice(0, 4_000),
-        citations,
+        actionType: finalActionType,
+        answerText: finalAnswerText,
+        citations: finalCitations,
         droppedActionTypes,
+        ...(consistencyCorrected ? { consistencyCorrected: true } : {}),
     };
 }
 exports.FAIL_CLOSED_AGENT_TEXT = "I couldn't process that turn safely. Try rephrasing or ask a narrower question about this invoice.";
