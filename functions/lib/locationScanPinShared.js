@@ -11,6 +11,7 @@ exports.getManagementSessionMinutes = getManagementSessionMinutes;
 exports.vendorDisplayName = vendorDisplayName;
 exports.findTechnicianByPin = findTechnicianByPin;
 exports.findJobByPin = findJobByPin;
+exports.jobPinMatchExistsInTransaction = jobPinMatchExistsInTransaction;
 exports.findVendorByCompanyPin = findVendorByCompanyPin;
 exports.anchorDeliveryForVendor = anchorDeliveryForVendor;
 exports.primaryVendorForJob = primaryVendorForJob;
@@ -187,6 +188,25 @@ async function findJobByPin(pin) {
         }
     }
     return null;
+}
+/**
+ * Transaction-safe check: does any job's pinCode/pinHash match this PIN?
+ * Used by the access-PIN uniqueness write path so a newly set
+ * technician/vendor/management PIN cannot collide with a job PIN.
+ * Matching semantics mirror findJobByPin (no status filter).
+ */
+async function jobPinMatchExistsInTransaction(tx, pin) {
+    const db = getDb();
+    const pinCodeSnap = await tx.get(db.collection("jobs").where("pinCode", "==", pin).limit(1));
+    if (!pinCodeSnap.empty)
+        return true;
+    const allJobsSnap = await tx.get(db.collection("jobs").limit(500));
+    for (const doc of allJobsSnap.docs) {
+        const job = doc.data();
+        if ((0, pinMatching_1.pinMatches)(job, pin))
+            return true;
+    }
+    return false;
 }
 async function findVendorByCompanyPin(pin) {
     const fromSecrets = await (0, accessPinLookup_1.findVendorByAccessPinSecrets)(pin);

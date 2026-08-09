@@ -13,6 +13,7 @@ Object.defineProperty(exports, "uniquenessBelongsToOtherTarget", { enumerable: t
 const accessPinTargetHelpers_1 = require("./accessPinTargetHelpers");
 const managementPinRegistry_1 = require("./managementPinRegistry");
 const pinHashing_1 = require("./pinHashing");
+const locationScanPinShared_1 = require("./locationScanPinShared");
 function managementEntityPinPatch(now) {
     return {
         pinHash: firestore_1.FieldValue.delete(),
@@ -61,6 +62,10 @@ async function applyAccessPinSecretWriteInTransaction(tx, db, input) {
         if ((0, accessPinSecretsShared_1.uniquenessBelongsToOtherTarget)(legacySnap.data(), targetType, targetId)) {
             throw new https_1.HttpsError("already-exists", "Could not set PIN.");
         }
+    }
+    // All reads before writes — reject access PINs that collide with job PINs.
+    if (await (0, locationScanPinShared_1.jobPinMatchExistsInTransaction)(tx, pin)) {
+        throw new https_1.HttpsError("already-exists", "Could not set PIN.");
     }
     if (input.existingSecretSnap.exists) {
         const oldSecret = input.existingSecretSnap.data();

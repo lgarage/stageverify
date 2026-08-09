@@ -378,6 +378,62 @@ try {
     fail("legacy vendor company PIN should succeed", err);
   }
 
+  // Job PIN + company vendor PIN collision → fail closed (no silent precedence)
+  await seed(async (db) => {
+    await setDoc(doc(db, "technicians", "tech-resolve-1"), {
+      id: "tech-resolve-1",
+      pinCode: "0000",
+      active: true,
+    });
+    await setDoc(doc(db, "jobs", "job-resolve-1"), {
+      id: "job-resolve-1",
+      name: "Job Dual Match",
+      pinCode: "6060",
+    });
+    await setDoc(doc(db, "vendors", "vendor-resolve-1"), {
+      id: "vendor-resolve-1",
+      name: "Vendor Dual Match",
+      active: true,
+      companyWideSessionEnabled: true,
+      pinCode: "6060",
+    });
+    await setDoc(doc(db, "deliveries", "del-resolve-1"), {
+      id: "del-resolve-1",
+      vendorId: "vendor-resolve-1",
+      jobId: "job-resolve-1",
+      orderNumber: "ORD-DUAL",
+    });
+    await setDoc(doc(db, "managementPins", "mgmt-resolve-full"), {
+      pinHash: hashPinForStorage("0000"),
+    });
+  });
+
+  const vendorBeforeDual = await sessionCount("vendorSessions");
+  await sleep(800);
+  try {
+    const { data } = await resolvePin({
+      pin: "6060",
+      stagingLocationCode: STAGING_CODE,
+    });
+    const vendorAfterDual = await sessionCount("vendorSessions");
+    if (
+      data?.success === false &&
+      data.message === "Invalid code." &&
+      vendorAfterDual === vendorBeforeDual
+    ) {
+      pass("job+company PIN collision → Invalid code., no session");
+    } else {
+      fail(
+        "job+company dual-match fail-closed",
+        new Error(
+          JSON.stringify({ data, vendorBeforeDual, vendorAfterDual }),
+        ),
+      );
+    }
+  } catch (err) {
+    fail("job+company dual-match should return failure object", err);
+  }
+
   // Same PIN without companyWide → Invalid (D-09 gate)
   await seed(async (db) => {
     await setDoc(doc(db, "vendors", "vendor-resolve-1"), {
