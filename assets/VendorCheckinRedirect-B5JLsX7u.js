@@ -1,0 +1,1 @@
+import{Wn as e,aa as t,ca as n}from"./index-AbPthscY.js";var r=e();function i(){let{orderId:e}=n(),i=e?.trim()??``;return(0,r.jsx)(t,{to:i?`/receive?id=${encodeURIComponent(i)}`:`/receive`,replace:!0})}export{i as CheckinToReceiveRedirect};
