@@ -40,6 +40,7 @@ import {
   shouldApplyNowDismissCreditImport,
 } from "./invoice/creditReturnSkip";
 import { sanitizePlannedStagingLocationIds } from "./invoice/fulfillmentOverride/sharedStagingIdSanitize";
+import { buildWillCallActiveStagingClearPatch } from "./invoice/clearActiveStagingOnWillCall";
 
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const MAX_DECISION_LOG = 20;
@@ -92,8 +93,24 @@ function approvePlannedStagingPatch(
   stagingSkipped: boolean,
   ids: string[],
 ): Record<string, unknown> {
+  // Will-Call clear is applied inside the transaction from live delivery data.
   if (stagingSkipped || ids.length === 0) return {};
   return { plannedStagingLocationIds: ids };
+}
+
+/** Clear active shop staging when approving a Will-Call / no-shop-staging import. */
+function willCallStagingClearPatchFromDelivery(
+  existing: Record<string, unknown> | undefined,
+  meta: { releasedBy: string; releasedAt: string },
+): Record<string, unknown> {
+  const clear = buildWillCallActiveStagingClearPatch(existing ?? {}, meta);
+  const patch: Record<string, unknown> = { ...clear.fields };
+  if (clear.releaseEntries.length > 0) {
+    patch.plannedLocationReleases = FieldValue.arrayUnion(
+      ...clear.releaseEntries,
+    );
+  }
+  return patch;
 }
 
 export const approveVendorInvoiceImport = onCall(
@@ -790,6 +807,10 @@ export const approveVendorInvoiceImport = onCall(
     );
 
     const deliveryRef = getDb().collection("deliveries").doc(targetId);
+    const willCallClearMeta = {
+      releasedBy: uid,
+      releasedAt: now,
+    };
 
     await getDb().runTransaction(async (tx) => {
       const freshImport = await tx.get(importRef);
@@ -835,6 +856,12 @@ export const approveVendorInvoiceImport = onCall(
             "Matched delivery is already linked to another invoice import. Reload and try again.",
           );
         }
+        const activeStagingPatch = stagingSkipped
+          ? willCallStagingClearPatchFromDelivery(
+              liveDelivery as Record<string, unknown>,
+              willCallClearMeta,
+            )
+          : stagingPatch;
         tx.update(deliveryRef, {
           ...buildInvoiceMatchedDeliveryPatchDocument(
             shell,
@@ -843,16 +870,28 @@ export const approveVendorInvoiceImport = onCall(
             now,
             liveDelivery,
           ),
-          ...stagingPatch,
+          ...activeStagingPatch,
         });
       } else if (!existingDelivery.exists) {
         // Shell path: create delivery-vii-{importId}.
         const shellForWrite = { ...shell, deliveryOrderId: shellId };
+        const activeStagingPatch = stagingSkipped
+          ? willCallStagingClearPatchFromDelivery({}, willCallClearMeta)
+          : stagingPatch;
         tx.set(deliveryRef, {
           ...buildDeliveryShellDocument(shellForWrite, importId, fresh, now),
-          ...stagingPatch,
+          ...activeStagingPatch,
         });
       } else {
+        const liveShellData =
+          (existingDelivery.data() as Record<string, unknown> | undefined) ??
+          {};
+        const activeStagingPatch = stagingSkipped
+          ? willCallStagingClearPatchFromDelivery(
+              liveShellData,
+              willCallClearMeta,
+            )
+          : stagingPatch;
         tx.update(deliveryRef, {
           ...buildInvoiceShellPatchDocument(
             { ...shell, deliveryOrderId: shellId },
@@ -861,7 +900,7 @@ export const approveVendorInvoiceImport = onCall(
             now,
             existingDelivery.data(),
           ),
-          ...stagingPatch,
+          ...activeStagingPatch,
         });
       }
       for (const item of expectedItems) {
@@ -912,8 +951,10 @@ export const approveVendorInvoiceImport = onCall(
       }
     }
 
-    const appliedPlanned =
-      (stagingPatch.plannedStagingLocationIds as string[] | undefined) ?? [];
+    const appliedPlanned = stagingSkipped
+      ? []
+      : ((stagingPatch.plannedStagingLocationIds as string[] | undefined) ??
+        []);
     return {
       vendorInvoiceImportId: importId,
       reviewStatus: "approved",

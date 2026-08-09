@@ -42,6 +42,7 @@ import {
   invoiceShellBackfillCandidate,
   scheduleInvoiceShellBackfill as scheduleInvoiceShellBackfillCore,
 } from "./invoiceShellBackfillSchedule";
+import { buildWillCallActiveStagingClearPatch } from "./willCallStagingRelease";
 import type {
   DeliveryDetails,
   DeliveryListRow,
@@ -923,6 +924,16 @@ export class FirestoreDataService implements DispatcherDataService {
     // Pair fulfillment with import-status skip-staging gates (same pairing as Handle Arrival).
     if (method === "will_call_pickup") {
       patch.invoiceImportStatus = "pickup_at_vendor";
+      // Active shop staging must release with Will-Call (same atomic write).
+      // Reverse → Vendor Drop-Off does not restore prior spots.
+      const clear = buildWillCallActiveStagingClearPatch(existing, {
+        releasedBy: "dispatcher",
+        releasedAt: now,
+      });
+      Object.assign(patch, clear.fields);
+      if (clear.releaseEntries.length > 0) {
+        patch.plannedLocationReleases = arrayUnion(...clear.releaseEntries);
+      }
     } else if (
       method === "delivery" &&
       existing.invoiceImportStatus === "pickup_at_vendor"

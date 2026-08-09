@@ -22,6 +22,7 @@ const reopenIgnoreSkippedImport_1 = require("./invoice/aiShadow/reopenIgnoreSkip
 const adminConfig_1 = require("./invoice/aiShadow/adminConfig");
 const creditReturnSkip_1 = require("./invoice/creditReturnSkip");
 const sharedStagingIdSanitize_1 = require("./invoice/fulfillmentOverride/sharedStagingIdSanitize");
+const clearActiveStagingOnWillCall_1 = require("./invoice/clearActiveStagingOnWillCall");
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const MAX_DECISION_LOG = 20;
 function getDb() {
@@ -62,9 +63,19 @@ function assertDeliveryAllowedForImport(doc) {
     }
 }
 function approvePlannedStagingPatch(stagingSkipped, ids) {
+    // Will-Call clear is applied inside the transaction from live delivery data.
     if (stagingSkipped || ids.length === 0)
         return {};
     return { plannedStagingLocationIds: ids };
+}
+/** Clear active shop staging when approving a Will-Call / no-shop-staging import. */
+function willCallStagingClearPatchFromDelivery(existing, meta) {
+    const clear = (0, clearActiveStagingOnWillCall_1.buildWillCallActiveStagingClearPatch)(existing ?? {}, meta);
+    const patch = { ...clear.fields };
+    if (clear.releaseEntries.length > 0) {
+        patch.plannedLocationReleases = firestore_1.FieldValue.arrayUnion(...clear.releaseEntries);
+    }
+    return patch;
 }
 exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
     const uid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
@@ -543,6 +554,10 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     }
     const stagingPatch = approvePlannedStagingPatch(stagingSkipped, plannedStagingLocationIds);
     const deliveryRef = getDb().collection("deliveries").doc(targetId);
+    const willCallClearMeta = {
+        releasedBy: uid,
+        releasedAt: now,
+    };
     await getDb().runTransaction(async (tx) => {
         const freshImport = await tx.get(importRef);
         if (!freshImport.exists) {
@@ -570,23 +585,34 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             if (!(0, matchInvoiceToRecords_1.isDeliveryOwnedByImportOrUnclaimed)(liveDelivery, importId)) {
                 throw new https_1.HttpsError("failed-precondition", "Matched delivery is already linked to another invoice import. Reload and try again.");
             }
+            const activeStagingPatch = stagingSkipped
+                ? willCallStagingClearPatchFromDelivery(liveDelivery, willCallClearMeta)
+                : stagingPatch;
             tx.update(deliveryRef, {
                 ...(0, createDeliveryShellFromImport_1.buildInvoiceMatchedDeliveryPatchDocument)(shell, importId, fresh, now, liveDelivery),
-                ...stagingPatch,
+                ...activeStagingPatch,
             });
         }
         else if (!existingDelivery.exists) {
             // Shell path: create delivery-vii-{importId}.
             const shellForWrite = { ...shell, deliveryOrderId: shellId };
+            const activeStagingPatch = stagingSkipped
+                ? willCallStagingClearPatchFromDelivery({}, willCallClearMeta)
+                : stagingPatch;
             tx.set(deliveryRef, {
                 ...(0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shellForWrite, importId, fresh, now),
-                ...stagingPatch,
+                ...activeStagingPatch,
             });
         }
         else {
+            const liveShellData = existingDelivery.data() ??
+                {};
+            const activeStagingPatch = stagingSkipped
+                ? willCallStagingClearPatchFromDelivery(liveShellData, willCallClearMeta)
+                : stagingPatch;
             tx.update(deliveryRef, {
                 ...(0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)({ ...shell, deliveryOrderId: shellId }, importId, fresh, now, existingDelivery.data()),
-                ...stagingPatch,
+                ...activeStagingPatch,
             });
         }
         for (const item of expectedItems) {
@@ -625,7 +651,10 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             });
         }
     }
-    const appliedPlanned = stagingPatch.plannedStagingLocationIds ?? [];
+    const appliedPlanned = stagingSkipped
+        ? []
+        : (stagingPatch.plannedStagingLocationIds ??
+            []);
     return {
         vendorInvoiceImportId: importId,
         reviewStatus: "approved",

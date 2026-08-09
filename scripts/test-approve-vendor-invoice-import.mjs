@@ -366,14 +366,22 @@ if (
 
 const shellDeliverySnap = await getDoc(doc(db, "deliveries", shellDeliveryId));
 const shellDelivery = shellDeliverySnap.data() ?? {};
+const shellPlanned = shellDelivery.plannedStagingLocationIds;
+const shellActualEmpty =
+  shellDelivery.stagingLocationId === undefined ||
+  shellDelivery.stagingLocationId === "";
+const shellPlannedEmpty =
+  shellPlanned === undefined ||
+  (Array.isArray(shellPlanned) && shellPlanned.length === 0);
 if (
   shellDelivery.vendorInvoiceImportId === "vii-review-only-test" &&
   shellDelivery.invoiceImportStatus === "pickup_at_vendor" &&
   shellDelivery.status === "ready_for_pickup" &&
-  shellDelivery.stagingLocationId === undefined &&
+  shellActualEmpty &&
+  shellPlannedEmpty &&
   shellDelivery.readinessStatus === undefined
 ) {
-  pass("shell delivery created with will-call status, no staging/readiness");
+  pass("shell delivery created with will-call status, no active staging/readiness");
 } else {
   fail("shell delivery fields", shellDelivery);
 }
@@ -576,12 +584,15 @@ if (deliverySnap.data()?.vendorInvoiceImportId === "vii-approve-test") {
   fail("shell delivery link missing", deliverySnap.data());
 }
 
+const approveShellPlanned = deliverySnap.data()?.plannedStagingLocationIds;
 if (
-  deliverySnap.data()?.stagingLocationId === undefined &&
+  (deliverySnap.data()?.stagingLocationId === undefined ||
+    deliverySnap.data()?.stagingLocationId === "") &&
   deliverySnap.data()?.readinessStatus === undefined &&
-  deliverySnap.data()?.plannedStagingLocationIds === undefined
+  (approveShellPlanned === undefined ||
+    (Array.isArray(approveShellPlanned) && approveShellPlanned.length === 0))
 ) {
-  pass("shell staging/readiness untouched (will-call — no planned staging)");
+  pass("shell staging/readiness empty for will-call (no active shop staging)");
 } else {
   fail("unexpected staging/readiness on shell", deliverySnap.data());
 }
@@ -1667,15 +1678,19 @@ try {
 }
 const willStaleShell = shellDeliveryIdForImport("vii-willcall-stale-staging");
 const willStaleSnap = await getDoc(doc(db, "deliveries", willStaleShell));
+const willStaleDocPlanned = willStaleSnap.data()?.plannedStagingLocationIds;
 if (
   willStale?.data?.reviewStatus === "approved" &&
-  willStaleSnap.data()?.plannedStagingLocationIds === undefined &&
   Array.isArray(willStale?.data?.plannedStagingLocationIds) &&
-  willStale.data.plannedStagingLocationIds.length === 0
+  willStale.data.plannedStagingLocationIds.length === 0 &&
+  Array.isArray(willStaleDocPlanned) &&
+  willStaleDocPlanned.length === 0 &&
+  (willStaleSnap.data()?.stagingLocationId === "" ||
+    willStaleSnap.data()?.stagingLocationId === undefined)
 ) {
-  pass("will-call ignores stale plannedStagingLocationIds (not written)");
+  pass("will-call clears active staging (stale client ids not applied)");
 } else {
-  fail("will-call stale staging should not write planned ids", {
+  fail("will-call stale staging should clear active refs", {
     response: willStale?.data,
     doc: willStaleSnap.data()?.plannedStagingLocationIds,
   });
@@ -1821,6 +1836,12 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     poNumber: "PO-80004",
     fulfillmentMethod: "will_call_pickup",
     importStatus: "pickup_at_vendor",
+    deliveryExtras: {
+      plannedStagingLocationIds: ["staging-g1"],
+      stagingLocationId: "staging-g1",
+      combinationStagingGroupId: "combo-wc",
+      combinationMemberLocationIds: ["staging-g1"],
+    },
   });
   await seedHighConfidenceMatchCase(adminDb, {
     importId: "vii-matched-malicious-id",
@@ -1979,15 +2000,30 @@ try {
 }
 const willId = "delivery-for-vii-matched-willcall";
 const willSnap = await getDoc(doc(db, "deliveries", willId));
+const matchedWillPlanned = willSnap.data()?.plannedStagingLocationIds ?? [];
+const matchedWillActual = willSnap.data()?.stagingLocationId ?? "";
+const matchedWillCombo = willSnap.data()?.combinationStagingGroupId ?? "";
 if (
   matchedWill?.data?.deliveryMatched === true &&
-  willSnap.data()?.plannedStagingLocationIds === undefined
+  Array.isArray(matchedWillPlanned) &&
+  matchedWillPlanned.length === 0 &&
+  matchedWillActual === "" &&
+  matchedWillCombo === "" &&
+  Array.isArray(willSnap.data()?.plannedLocationReleases) &&
+  willSnap.data().plannedLocationReleases.some(
+    (r) =>
+      r?.locationId === "staging-g1" &&
+      r?.reason === "fulfillment_switched_to_will_call",
+  )
 ) {
-  pass("matched will-call ignores stale staging ids");
+  pass("matched will-call clears prior active staging + audit release");
 } else {
-  fail("matched will-call staging", {
+  fail("matched will-call staging clear", {
     response: matchedWill?.data,
-    planned: willSnap.data()?.plannedStagingLocationIds,
+    planned: matchedWillPlanned,
+    actual: matchedWillActual,
+    combo: matchedWillCombo,
+    releases: willSnap.data()?.plannedLocationReleases,
   });
 }
 

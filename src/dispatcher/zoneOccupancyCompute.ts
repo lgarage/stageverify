@@ -4,6 +4,7 @@ import {
   effectiveReadinessStatus,
   getAllStagingLocationIds,
 } from "./models";
+import { skipsShopStaging } from "./invoice/invoiceShellDisplayHelpers";
 import { normalizeStagingCodeKey } from "./stagingCode";
 import { CATCH_ALL_ZONE_CODE } from "./shopMapLayout";
 import type { ZoneOccupancySummary } from "./firestoreService";
@@ -35,7 +36,9 @@ export function isSeedDemoDelivery(delivery: DeliveryOrder): boolean {
 export function filterDeliveriesForBoardStagingOccupancy(
   deliveries: DeliveryOrder[],
 ): DeliveryOrder[] {
-  if (!import.meta.env.PROD) return deliveries;
+  // Vite injects import.meta.env; unit tests under Node may lack it — treat as non-prod.
+  const isProd = Boolean(import.meta.env?.PROD);
+  if (!isProd) return deliveries;
   return deliveries.filter((delivery) => {
     if (isSeedDemoDelivery(delivery)) return false;
     if (!delivery.vendorInvoiceImportId?.trim()) return false;
@@ -79,6 +82,9 @@ export function computeZoneOccupancyByCode(
 
   for (const delivery of stagingDeliveries) {
     if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
+    // Will-Call / no-shop-staging must never reserve map spots (defense-in-depth
+    // if active refs were left stale by a partial write).
+    if (skipsShopStaging(delivery)) continue;
     const actualIds = new Set(getAllStagingLocationIds(delivery));
     const readyForPickup =
       effectiveReadinessStatus(delivery) === "ready_for_pickup";
