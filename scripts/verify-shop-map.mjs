@@ -580,6 +580,8 @@ async function main() {
     }
     // F: refresh must stay in normal browse (no assign mode).
     await page.reload({ waitUntil: "domcontentloaded" });
+    await ensureAuthenticated(page, appBase);
+    await page.goto(`${appBase}/#/zones`, { waitUntil: "domcontentloaded" });
     await page.getByTestId("shop-floor-map").waitFor({
       state: "visible",
       timeout: 15_000,
@@ -1103,12 +1105,30 @@ async function main() {
       `Done-editing test: nudge should increase offset. before=${offsetBeforeDoneEdit} after=${offsetAfterDoneNudge}`,
     );
   }
+  // Explicit Save then Done — guarantees offset flush before leave-edit.
+  await page.getByTestId("shop-map-edit-save").click();
+  await page.getByTestId("shop-map-edit-panel").waitFor({
+    state: "hidden",
+    timeout: 15000,
+  });
+  await page.waitForFunction(
+    ({ testId, expected }) => {
+      const el = document.querySelector(`[data-testid="${testId}"]`);
+      if (!el) return false;
+      return Number(el.getAttribute("data-map-offset-x") ?? "0") === expected;
+    },
+    { testId: "shop-spot-G1", expected: offsetAfterDoneNudge },
+    { timeout: 15000 },
+  );
   await editToggle.click();
   await page.getByTestId("shop-map-edit-mode-banner").waitFor({
     state: "hidden",
     timeout: 10000,
   });
-  await page.reload({ waitUntil: "domcontentloaded" });
+  // Soft remount (HashRouter hard-reload often drops to #/dispatcher in preview).
+  await ensureAuthenticated(page, appBase);
+  await page.goto(`${appBase}/#/dispatcher`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${appBase}/#/zones`, { waitUntil: "domcontentloaded" });
   await page.getByTestId("shop-floor-map").waitFor({
     state: "visible",
     timeout: 30000,
@@ -1614,6 +1634,8 @@ async function main() {
   if (!(await resizeHandle.isVisible())) {
     throw new Error("YOU ARE HERE resize handle must show in Edit + Vendor view");
   }
+  await yahEdit.scrollIntoViewIfNeeded();
+  await resizeHandle.scrollIntoViewIfNeeded();
   const yahSizeBefore = Number((await yahEdit.getAttribute("data-map-size")) ?? "0");
   if (yahSizeBefore < 48) {
     throw new Error(`YOU ARE HERE sizePx unexpected: ${yahSizeBefore}`);

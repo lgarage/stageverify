@@ -1109,6 +1109,9 @@ export interface AppSettings {
     doorOffset?: { ox: number; oy: number };
     /** Catch-all intake box — offset + size from map canvas origin. */
     catchAll?: { ox: number; oy: number; width: number; height: number };
+    /** Logical shop-floor canvas size (px); view zoom is not persisted. */
+    canvasWidth?: number;
+    canvasHeight?: number;
   };
 }
 
