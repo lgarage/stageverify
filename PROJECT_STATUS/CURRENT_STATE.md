@@ -93,11 +93,12 @@
 ## Queued product (deferred)
 - **away-138** — durable StageVerify PDF storage (D-64 TARGET); blocked until Dan queues post–Monday MVP.
 - **After D-59 phases P1–P7 deploy:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client; high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).
-- **Lane C C3 (not started):** before structured field-learning, amend D-59 #7/#8 so reusable learning may cover `customerPoOrReference`, `vendorOrderNumber`, and other explicitly approved fields; P8 `fulfillment_mapping` stays separate. C1 chat is not blocked by this.
+- **Lane C C3 (not started):** architecture handoff SSOT `docs/c3-reusable-field-learning-plan.md` — next job **C3-A** (D-59 #7/#8 amend still PENDING APPROVAL / not yet in DECISIONS.md). Then C3-B Johnstone parser harden before any lesson store. P8 `fulfillment_mapping` stays separate. C1/C2 not blocked.
 - **Phase 5 Slice B:** pickup verification v2 polish (per-location confirms, exception flags).
 
 ## Canonical references
 - **Decisions:** `PROJECT_STATUS/DECISIONS.md` (+ `DECISIONS_ARCHIVE.md` when superseded)
+- **Lane C C3 plan:** `docs/c3-reusable-field-learning-plan.md` (read before any C3 work; newer DECISIONS.md wins on conflict)
 - Handoff: `PROJECT_STATUS/archives/MINI_LIBRARIAN_HANDOFF.md` | Queue: `away-list.json` + `NEXT.md` | Validate: `npm run away:validate`
 
 ## Update Protocol
