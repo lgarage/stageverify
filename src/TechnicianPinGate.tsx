@@ -16,6 +16,9 @@ const KEYPAD = [
 const MAX_PIN_LENGTH = 6;
 const MIN_PIN_LENGTH = 4;
 
+const KEY_BTN =
+  "tap-target mx-auto flex size-[clamp(3.25rem,8svh,4.25rem)] [@media(min-height:800px)]:size-[clamp(4.05rem,8svh,4.25rem)] items-center justify-center rounded-full border border-white/10 bg-bg-surface/70 text-2xl font-medium tabular-nums text-text-primary shadow-sm transition-[background-color,border-color,transform] hover:border-white/20 hover:bg-bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary active:scale-95 disabled:opacity-40";
+
 export interface TechnicianPinVerifiedPayload {
   technicianId: string;
   technicianName: string;
@@ -157,34 +160,44 @@ export function TechnicianPinGate({
     setDigits([]);
   };
 
+  // Approach A: compact embedded shell (no justify-center dead zone).
+  // Short-height clamps keep Verify in-viewport under the location header.
   return (
-    <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-3">
+    <div
+      className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-3"
+      data-testid="technician-pin-shell"
+      style={{
+        paddingTop: "clamp(0.125rem, 0.5svh, 0.5rem)",
+        paddingBottom:
+          "max(env(safe-area-inset-bottom, 0px), clamp(0.125rem, 0.5svh, 0.5rem))",
+      }}
+    >
       <div
         className="w-full max-w-[22rem] rounded-3xl border border-white/10 bg-bg-secondary shadow-xl shadow-black/20"
-        style={{ padding: "clamp(0.875rem, 2.6svh, 1.5rem)" }}
-        data-testid="technician-pin-gate"
+        style={{ padding: "clamp(0.5rem, 1.6svh, 1.25rem)" }}
+        data-testid="technician-pin-card"
       >
-        <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">
+        <div className="text-center" data-testid="technician-pin-gate">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-secondary">
             Technician Pickup
           </p>
           <h1
-            className="text-[clamp(1.35rem,3.2svh,1.75rem)] font-bold tracking-tight text-text-primary"
-            style={{ marginTop: "0.25rem" }}
+            className="text-[clamp(1.25rem,3svh,1.6rem)] font-bold leading-tight tracking-tight text-text-primary"
+            style={{ marginTop: "0.125rem" }}
           >
             Enter Technician PIN
           </h1>
           <p
-            className="mx-auto max-w-[18rem] text-sm leading-5 text-text-secondary"
-            style={{ marginTop: "0.25rem" }}
+            className="mx-auto max-w-[18rem] text-[13px] leading-[1.125rem] text-[#cbd5e1]"
+            style={{ marginTop: "0.125rem" }}
           >
             Your personal PIN opens jobs dispatch released for you today.
           </p>
         </div>
 
         <div
-          className="flex min-h-8 items-center justify-center"
-          style={{ marginTop: "clamp(0.75rem, 2.1svh, 1.25rem)" }}
+          className="flex min-h-7 items-center justify-center"
+          style={{ marginTop: "clamp(0.375rem, 1.2svh, 0.875rem)" }}
           aria-label={`PIN entry: ${pinLength} ${
             pinLength === 1 ? "digit" : "digits"
           } entered`}
@@ -192,7 +205,7 @@ export function TechnicianPinGate({
           role="status"
         >
           <div
-            className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-bg-primary/55 px-3 text-xs font-medium text-text-primary"
+            className="inline-flex h-7 items-center gap-2 rounded-full border border-white/10 bg-bg-primary/55 px-3 text-xs font-medium text-text-primary"
             data-testid="technician-pin-status"
           >
             {pinLength === 0 ? (
@@ -238,7 +251,7 @@ export function TechnicianPinGate({
 
         <div
           className="flex min-h-5 items-center justify-center"
-          style={{ marginTop: "0.375rem", paddingInline: "0.5rem" }}
+          style={{ marginTop: "0.25rem", paddingInline: "0.5rem" }}
         >
           {error ? (
             <p className="text-center text-sm leading-5 text-accent-red" role="alert">
@@ -247,26 +260,28 @@ export function TechnicianPinGate({
           ) : locked ? (
             <p
               className="text-center text-sm font-medium leading-5 text-text-primary"
-              data-testid="technician-pin-working"
+              data-testid="technician-pin-verifying"
             >
-              {verified ? "Loading your pickup list…" : "Checking your PIN securely…"}
+              {verified
+                ? "Loading your pickup list…"
+                : "Checking your PIN securely…"}
             </p>
           ) : pinLength > 0 ? (
             <div className="flex items-center justify-center gap-2 text-xs leading-5">
-              <p className="text-center text-text-secondary">PIN stays hidden</p>
+              <p className="text-center text-[#cbd5e1]">PIN stays hidden</p>
               <span className="text-text-secondary" aria-hidden="true">
                 ·
               </span>
               <button
                 type="button"
                 onClick={clearAll}
-                className="rounded font-semibold text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="rounded font-semibold text-[#cbd5e1] transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 Clear
               </button>
             </div>
           ) : (
-            <p className="text-center text-xs leading-5 text-text-secondary">
+            <p className="text-center text-xs leading-5 text-[#cbd5e1]">
               Enter your 4–6 digit PIN
             </p>
           )}
@@ -274,9 +289,10 @@ export function TechnicianPinGate({
 
         <div
           className="w-full max-w-[17.5rem]"
-          style={{ margin: "clamp(0.625rem, 1.8svh, 1rem) auto 0" }}
+          data-testid="technician-pin-keypad"
+          style={{ margin: "clamp(0.375rem, 1.2svh, 0.75rem) auto 0" }}
         >
-          <div className="grid grid-cols-3 place-items-center gap-[clamp(0.5rem,1.4svh,0.75rem)]">
+          <div className="grid grid-cols-3 place-items-center gap-[clamp(0.375rem,1.2svh,0.75rem)]">
             {KEYPAD.slice(0, 3)
               .flat()
               .map((key) => (
@@ -285,21 +301,21 @@ export function TechnicianPinGate({
                   type="button"
                   onClick={() => pushDigit(key)}
                   disabled={locked || digits.length >= MAX_PIN_LENGTH}
-                  className="tap-target mx-auto flex size-[clamp(3.25rem,8svh,4.25rem)] items-center justify-center rounded-full border border-white/10 bg-bg-surface/70 text-2xl font-medium tabular-nums text-text-primary shadow-sm transition-[background-color,border-color,transform] hover:border-white/20 hover:bg-bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary active:scale-95 disabled:opacity-40"
+                  className={KEY_BTN}
                 >
                   {key}
                 </button>
               ))}
           </div>
           <div
-            className="flex items-center justify-center gap-[clamp(0.875rem,2.5svh,1.25rem)]"
-            style={{ marginTop: "clamp(0.5rem, 1.4svh, 0.75rem)" }}
+            className="flex items-center justify-center gap-[clamp(0.75rem,2svh,1.25rem)]"
+            style={{ marginTop: "clamp(0.375rem, 1.2svh, 0.75rem)" }}
           >
             <button
               type="button"
               onClick={() => pushDigit("0")}
               disabled={locked || digits.length >= MAX_PIN_LENGTH}
-              className="tap-target flex size-[clamp(3.25rem,8svh,4.25rem)] items-center justify-center rounded-full border border-white/10 bg-bg-surface/70 text-2xl font-medium tabular-nums text-text-primary shadow-sm transition-[background-color,border-color,transform] hover:border-white/20 hover:bg-bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary active:scale-95 disabled:opacity-40"
+              className={KEY_BTN}
             >
               0
             </button>
@@ -307,7 +323,7 @@ export function TechnicianPinGate({
               type="button"
               onClick={backspace}
               disabled={locked || digits.length === 0}
-              className="tap-target flex size-[clamp(3.25rem,8svh,4.25rem)] items-center justify-center rounded-full border border-white/10 bg-bg-surface/70 text-text-primary shadow-sm transition-[background-color,border-color,transform] hover:border-white/20 hover:bg-bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary active:scale-95 disabled:opacity-40"
+              className={`${KEY_BTN} text-text-primary`}
               aria-label="Backspace"
             >
               <svg
@@ -335,8 +351,8 @@ export function TechnicianPinGate({
           data-testid="technician-pin-verify"
           className="tap-target flex min-h-11 w-full items-center justify-center rounded-xl border border-transparent text-base font-bold text-white shadow-sm transition-[background-color,border-color,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-green focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary active:scale-[0.99]"
           style={{
-            marginTop: "clamp(0.75rem, 2svh, 1.125rem)",
-            padding: "0.625rem 1rem",
+            marginTop: "clamp(0.5rem, 1.4svh, 0.875rem)",
+            padding: "0.5rem 1rem",
             backgroundColor: canVerify || submitting ? "#047857" : "#334155",
             color: "#f8fafc",
           }}
@@ -345,8 +361,8 @@ export function TechnicianPinGate({
         </button>
 
         <p
-          className="text-center text-xs leading-5 text-text-secondary"
-          style={{ marginTop: "0.5rem" }}
+          className="hidden text-center text-xs leading-4 text-[#cbd5e1] [@media(min-height:601px)]:block"
+          style={{ marginTop: "0.25rem" }}
         >
           Need help? Call dispatch.
         </p>
@@ -357,8 +373,8 @@ export function TechnicianPinGate({
           type="button"
           onClick={onBack}
           disabled={locked}
-          className="rounded-lg text-sm font-medium text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
-          style={{ marginTop: "0.5rem", padding: "0.5rem 1rem" }}
+          className="rounded-lg text-sm font-medium text-[#cbd5e1] transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40 [@media(max-height:600px)]:hidden"
+          style={{ marginTop: "0.375rem", padding: "0.375rem 0.75rem" }}
         >
           ← Vendor PIN
         </button>

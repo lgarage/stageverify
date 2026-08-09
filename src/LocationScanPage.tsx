@@ -750,48 +750,66 @@ export function LocationScanPage() {
 
   if (step === "pin" && branding && locationCode) {
     return (
-      <div className="flex flex-col h-screen h-dvh">
-        <div className="shrink-0 px-6 py-5 border-b border-border bg-bg-surface text-center">
-          <p className="text-xs uppercase tracking-widest text-text-secondary mb-1">
+      <div className="app-container flex h-[100svh] max-h-[100dvh] min-h-[100svh] flex-col bg-bg-primary">
+        <div
+          className="shrink-0 border-b border-border bg-bg-surface px-3 text-center"
+          style={{ paddingBlock: "clamp(0px, 0.25svh, 2px)" }}
+        >
+          <p className="text-[10px] font-semibold uppercase leading-3 tracking-[0.18em] text-text-secondary [@media(max-height:600px)]:hidden">
             Staging location
           </p>
-          <p className="text-3xl font-bold font-mono text-text-primary">
+          <p
+            className="font-mono text-2xl font-bold leading-none text-text-primary"
+            style={{ marginTop: "clamp(2px, 0.4svh, 4px)" }}
+          >
             {branding.code}
           </p>
-          <p className="text-sm text-text-secondary mt-1">{branding.label}</p>
-          <div className="mt-4 inline-flex rounded-lg border border-border overflow-hidden">
+          <p
+            className="text-xs leading-4 text-text-secondary"
+            style={{ marginTop: "clamp(2px, 0.4svh, 4px)" }}
+          >
+            {branding.label}
+          </p>
+          <div
+            className="mx-auto flex w-full max-w-sm gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-0.5"
+            data-testid="pin-role-selector"
+            style={{ marginTop: "clamp(3px, 0.7svh, 6px)" }}
+          >
             <button
               type="button"
-              className={`px-4 py-2 text-sm font-medium ${
+              className={`min-h-8 min-w-0 flex-1 rounded-lg px-2 py-1 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                 pinRole === "vendor"
-                  ? "bg-accent-blue text-white"
-                  : "bg-bg-card text-text-secondary"
+                  ? "bg-[#1d4ed8] text-white shadow-sm"
+                  : "bg-transparent text-[#cbd5e1] hover:bg-white/5 hover:text-white"
               }`}
               onClick={() => setPinRole("vendor")}
+              aria-pressed={pinRole === "vendor"}
             >
               Vendor
             </button>
             <button
               type="button"
-              className={`px-4 py-2 text-sm font-medium ${
+              className={`min-h-8 min-w-0 flex-1 rounded-lg px-2 py-1 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                 pinRole === "technician"
-                  ? "bg-accent-blue text-white"
-                  : "bg-bg-card text-text-secondary"
+                  ? "bg-[#1d4ed8] text-white shadow-sm"
+                  : "bg-transparent text-[#cbd5e1] hover:bg-white/5 hover:text-white"
               }`}
               onClick={() => setPinRole("technician")}
+              aria-pressed={pinRole === "technician"}
             >
               Technician
             </button>
             {parcelIntakeEnabled && (
               <button
                 type="button"
-                className={`px-4 py-2 text-sm font-medium ${
+                className={`min-h-8 min-w-0 flex-1 rounded-lg px-2 py-1 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                   pinRole === "management"
-                    ? "bg-accent-blue text-white"
-                    : "bg-bg-card text-text-secondary"
+                    ? "bg-[#1d4ed8] text-white shadow-sm"
+                    : "bg-transparent text-[#cbd5e1] hover:bg-white/5 hover:text-white"
                 }`}
                 onClick={() => setPinRole("management")}
                 data-testid="pin-role-management"
+                aria-pressed={pinRole === "management"}
               >
                 Office
               </button>
@@ -809,6 +827,7 @@ export function LocationScanPage() {
             title="Enter Job or Company PIN"
             subtitle="Job PIN for one job, or company PIN when dispatch enabled multi-site run."
             onVerified={handlePinVerified}
+            embedded
           />
         ) : (
           <TechnicianPinGate
