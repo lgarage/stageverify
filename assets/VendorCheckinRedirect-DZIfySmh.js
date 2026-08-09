@@ -1,1 +1,0 @@
-import{Da as e,Xn as t,wa as n}from"./index-CyQEITjs.js";var r=t();function i(){let{orderId:t}=e(),i=t?.trim()??``;return(0,r.jsx)(n,{to:i?`/receive?id=${encodeURIComponent(i)}`:`/receive`,replace:!0})}export{i as CheckinToReceiveRedirect};
