@@ -18,7 +18,7 @@ alwaysApply: true
 | T0 non-UI | `docs-update`, scout/inventory | **Composer 2.5 Fast** (inline) |
 | T1 | `multi-file-feature`, `type-refactor`, `service-logic` | **Composer 2.5 Fast** (inline) — visual-judgment UI slices → Sol |
 | T2 | multi-file with auth/routing/Firestore reads | **Composer 2.5 Fast** (inline; escalate if uncertain) |
-| T3 | `backend-write-critical` (rules, CF writes, schema) | **Composer 2.5 Fast** (inline, trial) — **PROTECTED** D-60 + D-38 unchanged |
+| T3 | `backend-write-critical` (rules, CF writes, schema, auth/PIN/security-sensitive) | **Composer 2.5 Fast** (inline, trial) — **PROTECTED** D-60 (Sonnet pre → builder → Grok adversarial → Sonnet final) + D-38 unchanged |
 
 ## UI/UX model routing (D-63, amended D-65)
 
@@ -34,7 +34,7 @@ alwaysApply: true
 
 ## Risk-based routing (D-65 — Balanced cost trim)
 
-**PROTECTED (unchanged strength):** D-60 instruct + verify; D-38 security gate; mechanical `npm run build` / `verify:*` / `test:*` / `gate:check`; prod `:prod` for high-risk and production-sensitive deploys; stall-advisor + D-50/D-55/D-62; **D-51 + D-42** for visible UI.
+**PROTECTED (unchanged strength):** D-60 Sonnet pre-review + Grok adversarial + Sonnet final verify; D-38 security gate; mechanical `npm run build` / `verify:*` / `test:*` / `gate:check`; prod `:prod` for high-risk and production-sensitive deploys; stall-advisor + D-50/D-55/D-62; **D-51 + D-42** for visible UI. D-65 must **not** N/A the D-60 sequence on T3/high-risk.
 
 **Tiny fast-safe predicate (mechanical — all must hold):** ≤2 product files in `src/`/`public/` (or verify-script-only); presentation-only or docs/config copy; no `functions/`, `firestore.rules`, auth/session/token/route-guard, root `package.json` scripts/deploy wiring, `firebase.json`; no new verify surface; not high-risk class. Else not tiny.
 
@@ -47,7 +47,7 @@ alwaysApply: true
 | T1 UI simple | Composer | D-51 + D-42 + route verify | **none** if worker verify PASS; else **UI judgment-from-log** (no auto re-run) | N/A if tiny; else Ship if production-sensitive |
 | T1 UI visual-judgment | Sol (Task→high) | D-51 + D-42 + verify + `ui-readability` | **UI Playwright judgment** (prefer log; live re-run only if § D-45 criteria) | Ship if not tiny |
 | T2 moderate/multi-file | Composer | build + verify | **Solution** if branching/unclear SoT; else **Build Checker** | Ship when production-sensitive |
-| T3 high-risk | **PROTECTED path** | D-60 → Composer → D-60 verify → build/tests → D-38 → push | Ship **required** | **required** |
+| T3 high-risk | **PROTECTED path** | D-60 Sonnet pre → D-65 builder → Grok adversarial → Sonnet final → D-38 → push (CF/rules deploy still need Dan approval) | Ship **required** | **required** |
 
 **Hard STOP:** never weaken T3 / D-38 / D-60 via D-65 N/A language.
 
@@ -99,7 +99,7 @@ Two consecutive fails on the same task scope share a fingerprint when the **norm
 | `verify:*` / `scripts/verify-*.mjs` | script name (or npm script) + first failed assertion or error message (whitespace-normalized; strip timestamps/paths that drift per run) |
 | `npm run build` / `tsc` | error code + file + line (e.g. `TS2322:src/foo.ts:42`) |
 | Playwright / runtime | test or step name + error class + stable message substring (first 120 chars, normalized) |
-| Ship Verifier (Grok post-push) | `ship-verifier` + finding class — for mandatory **evidence gaps** use `ship-verifier + missing:<token>` where `<token>` is one of `ui-readability`, `ui-playwright`, `build-checker`, `ui-before-after`, `security-gate`, `solution-verifier` (include all missing tokens, **sorted**); optional suffix `+commits:<short-range>` when the same ship scope spans multiple pushes in one conversation; whitespace-normalized; strip drifting paths/timestamps/task-ids from the key |
+| Ship Verifier (Grok post-push) | `ship-verifier` + finding class — for mandatory **evidence gaps** use `ship-verifier + missing:<token>` where `<token>` is one of `ui-readability`, `ui-playwright`, `build-checker`, `ui-before-after`, `security-gate`, `solution-verifier`, `sonnet-instruct`, `high-risk-adversarial`, `sonnet-verify` (include all missing tokens, **sorted**); optional suffix `+commits:<short-range>` when the same ship scope spans multiple pushes in one conversation; whitespace-normalized; strip drifting paths/timestamps/task-ids from the key |
 
 **Different fingerprint** on 2nd fail → skip Grok stall-advisor; **Sonnet diagnose-only** on 2nd fail (implement+verify path) — **2nd fail always counts** toward D-55. Ship Verifier: **2nd same fingerprint** → mandatory stall-advisor (**D-54**); **2nd different fingerprint** still counts as the 2nd consecutive fail; **3rd try** on scope = **D-50** regardless of fingerprint (**D-55**).
 
@@ -120,7 +120,7 @@ Other Sonnet triggers: security verifier before push; architecture unclear after
 
 **Phase B — Implement (Grok carve-out):** **Grok** (Task `generalPurpose`, `cursor-grok-4.5-high-fast` or orchestrating Grok parent **only for this stuck scope**) writes product code per agreed plan — **overrides D-43/D-37 Composer-only implementer lock for this stuck task only**. Grok **still never** commits, pushes, or deploys (ship lock unchanged). **Evidence:** `stuck-implementer: grok (<task-id or inline session>)`.
 
-**Phase C — Close stuck ship:** Run normal post-implement ladder on the agreed diff: UI Playwright Verifier when visible UI; Build Checker before commit; **Composer/orchestrator** commit + push + deploy; Sonnet **security gate** before push when high-risk; Ship Verifier after push. Stuck-task ship **done** → **Sol (UI-class) / Composer (non-UI)** is default implementer again for new work (D-43 lock restored).
+**Phase C — Close stuck ship:** Run normal post-implement ladder on the agreed diff. **High-risk/T3 stuck ships:** close via **D-60 Phases 3–5** (`high-risk-adversarial:` → `sonnet-verify:` → D-38) — do **not** substitute Build Checker / UI Playwright as if D-60 were absent. Non-high-risk: UI Playwright when visible UI; Build Checker when judgment needed; **Composer/orchestrator** commit + push + deploy; Sonnet **security gate** before push when high-risk; Ship Verifier after push. Stuck-task ship **done** → **Sol (UI-class) / Composer (non-UI)** is default implementer again for new work (D-43 lock restored).
 
 **D-62 — Post-D-50 retry rounds (Dan 2026-08-05):** If after a completed **D-50 Phase A Agree → Phase B Grok implement** the **same task/ship scope** still fails under the same counted-fail classes as D-50 (implement+verify / build / Playwright / Ship Verifier — security-gate runs excluded), do **not** resume Composer-only implement+verify and do **not** open unbounded retries. Allow at most **2 additional retry rounds**, each = full **Phase A** (Grok↔Sonnet peer Agree on revised root cause + exact fix plan; Max 3 Agree peer iterations per round unchanged) → **Phase B** (Grok implements; still never commits/pushes/deploys) → Phase C ladder. **Grok remains stuck-scope implementer** across D-50 + D-62 rounds until ship closes or Dan escalate. Evidence each round: `stuck-task-agree: … (d62-round N/2)` + `stuck-implementer: grok …`. After **2** D-62 rounds still failing → **STOP** — escalate to Dan with clarifying questions (what's still broken, acceptance, scope); no 3rd D-62 round, no Composer spin. Amends D-50/D-55. Platform parity D-32.
 
@@ -146,7 +146,7 @@ Task({
 
 **When NOT to invoke:** 1st fail only (including 1st Ship Verifier FAIL); 2nd fail with different fingerprint on implement+verify (→ Sonnet diagnose per § 2-fail); security-gate Sonnet; Repair Verifier on Dan repair intent; Planning Verifier on planning questions (§ Planning verify loop); Q&A Verifier on non-trivial Q&A (§ Q&A verify loop); Critical Reviewer pre-decision; Dan says skip. **One run per fingerprint per task/ship scope** — after **two consecutive fails**, **3rd try = D-50** § 3-fail (**D-55** — not a second stall-advisor; not another Composer-only retry; no 4th retrospective Ship Verifier close without Agree — **D-54**).
 
-**vs Ship Verifier / Repair Verifier / Planning Verifier / Q&A Verifier:** orthogonal roles — Ship Verifier = post-ship scope check (its **same-fingerprint FAIL ladder** feeds § 2-fail/D-50 per D-54, distinct Task from stall-advisor); Repair Verifier = Dan repair-intent pre-close (§ Repair loop); Planning Verifier = pre-present planning accuracy (§ Planning verify loop); Q&A Verifier = pre-present Q&A accuracy (§ Q&A verify loop); stall-advisor = mid-task same-failure pivot. Same model slug; never satisfy repair + ship + stall with one Task unless explicitly same scope/event.
+**vs Ship Verifier / Repair Verifier / Planning Verifier / Q&A Verifier / Critical Reviewer / high-risk-adversarial:** orthogonal roles — Ship Verifier = post-ship scope check (its **same-fingerprint FAIL ladder** feeds § 2-fail/D-50 per D-54, distinct Task from stall-advisor); Repair Verifier = Dan repair-intent pre-close (§ Repair loop); Planning Verifier = pre-present planning accuracy (§ Planning verify loop); Q&A Verifier = pre-present Q&A accuracy (§ Q&A verify loop); Critical Reviewer = pre-finalize harness/architecture decisions; **`high-risk-adversarial:`** = D-60 Phase 3 product T3 diff review (`high-risk-sonnet-loop.mdc`); stall-advisor = mid-task same-failure pivot. Same model slug; never satisfy repair + ship + stall + Critical Reviewer + high-risk-adversarial with one Task unless explicitly same scope/event.
 
 ## Security gate
 
@@ -186,7 +186,7 @@ Complete ship loop (`ship-loop.mdc`) before declaring done for code/config chang
 | 1f (cheap) | Grok 4.5 Fast — **Solution Verifier** | Pre-implementation approach agreement | Only when multiple paths / unclear SoT / ambiguous data model / multi-file diverge risk (§ D-36; D-65) |
 | 1g (cheap) | Grok 4.5 Fast — **Build Checker** | Judgment on uncommitted diff vs scope | When interpretation/diagnosis/moderate-high/cross-boundary — **not** to re-run green mechanical build (§ D-65) |
 | 1h (cheap) | Grok 4.5 Fast — **UI Playwright Verifier** | UI judgment from logs/screenshots; live re-run only when criteria met | Visual-judgment UI or incomplete evidence — **not** auto re-run after worker verify PASS (§ D-45; D-65). High-risk → N/A (D-60) |
-| 2a (security) | Sonnet 5 — **High-risk instruct + verify (D-60)** | Pre-edit instruction packet Agree + pre-commit verify loop (packet compliance + acceptance scripts) | High-risk ships per `high-risk-sonnet-loop.mdc`; evidence `sonnet-instruct:` + `sonnet-verify:` |
+| 2a (security) | Sonnet 5 + Grok — **High-risk iterative review (D-60)** | Sonnet pre-review Agree → builder → Grok adversarial (iterate) → Sonnet final PASS\|FAIL\|PARTIAL | High-risk/T3 per `high-risk-sonnet-loop.mdc`; evidence `sonnet-instruct:` + `high-risk-adversarial:` + `sonnet-verify:` |
 | 2 (security) | Sonnet 5 | **D-38 security gate** pre-push diff verdict per `security-review-gate.mdc` | Existing triggers, PLUS Ship Verifier flags security-relevant diff without `security-gate-id` |
 | 3 (rare) | Fable 5 — **Work Verifier** | Deep verification: spec phase boundaries, escalations, Dan-invoked | Fable-spec phase boundary; Ship Verifier escalates ambiguity/architecture; Dan says "fable verify" |
 
@@ -196,7 +196,7 @@ Evidence standard (every tier): Task id + model line in the report, else **NOT R
 
 ## Fix-closure rule (universal — Dan 2026-07-08)
 
-When any verifier/reviewer model (Repair Verifier/Grok, Planning Verifier/Grok, Q&A Verifier/Grok, Ship Verifier/Grok, Solution Verifier/Grok, **UI Playwright Verifier/Grok**, **Sonnet high-risk verify (D-60)**, security gate/Sonnet, Work Verifier/Fable, Critical Reviewer/Grok on blocking findings) reports an issue and Composer applies fixes, the **SAME model re-verifies before the finding closes** — in every context (interactive, away, overnight). One re-verify cycle per existing loop bounds; still failing → escalate per that role's rule. Composer self-attesting "fixed" NEVER closes a finding. Evidence: the completion report must include `fix-verified: <re-verify task-id>` (same-model) for every closed finding; a finding without it stays OPEN and blocks the next ship per the Ship Verifier blocking rule.
+When any verifier/reviewer model (Repair Verifier/Grok, Planning Verifier/Grok, Q&A Verifier/Grok, Ship Verifier/Grok, Solution Verifier/Grok, **UI Playwright Verifier/Grok**, **D-60 high-risk-adversarial Grok**, **Sonnet high-risk final verify (D-60)**, security gate/Sonnet, Work Verifier/Fable, Critical Reviewer/Grok on blocking findings) reports an issue and Composer applies fixes, the **SAME model re-verifies before the finding closes** — in every context (interactive, away, overnight). One re-verify cycle per existing loop bounds; still failing → escalate per that role's rule. Composer self-attesting "fixed" NEVER closes a finding. Evidence: the completion report must include `fix-verified: <re-verify task-id>` (same-model) for every closed finding; a finding without it stays OPEN and blocks the next ship per the Ship Verifier blocking rule.
 
 ### Peer deliberation (D-30 — Dan 2026-07-12)
 
@@ -397,7 +397,7 @@ Dispatch exactly ONE read-only Task (`subagent_type: "generalPurpose"`, `model: 
 - An architecture decision with ≥2 competing options is being put to Dan
 - Dan says "grok review" or "devil's advocate"
 
-Never auto-invoke for: routine code/UI edits, bug fixes, deploys, security review (Sonnet owns it), rule tweaks ≤10 lines, or executing an already-reviewed plan. One run per decision — rerun only on material plan change. Evidence: completion report must cite the Task id + model line (same standard as security gate) or the review = NOT RUN. Full role spec: `MODEL_DOSSIER.md` tag `critical-reviewer`.
+Never auto-invoke for: routine code/UI edits, bug fixes, deploys, security review (Sonnet owns it), rule tweaks ≤10 lines, or executing an already-reviewed plan. One run per decision — rerun only on material plan change. Evidence: completion report must cite the Task id + model line (same standard as security gate) or the review = NOT RUN. Full role spec: `MODEL_DOSSIER.md` tag `critical-reviewer`. **Orthogonal to D-60:** one Task never satisfies both Critical Reviewer and product `high-risk-adversarial:`.
 
 **Freeze check (D-16):** before approving any new gate, role, workflow, or abstraction, verify the proposal against `PROJECT_STATUS/HARNESS_V1_FREEZE.md` reopening criteria and apply the D-14 evidence-pairing and D-15 deletion/80-20 tests.
 
