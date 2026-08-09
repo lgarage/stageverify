@@ -62,7 +62,7 @@ async function ensureAuthenticated(page) {
   });
 }
 
-async function openInspectModal(page) {
+async function waitForInvoiceReviewRows(page) {
   await page.getByTestId("invoice-review-panel").waitFor({ timeout: 20_000 });
   await page.waitForFunction(
     () => {
@@ -77,17 +77,65 @@ async function openInspectModal(page) {
     },
     { timeout: 30_000 },
   );
-  const rowContent = page
-    .locator('[data-testid^="invoice-review-row-content-"]')
-    .first();
+}
+
+/**
+ * Open Parsed Inspect for a specific row (or the first row).
+ * Returns the row content data-testid so reopen can pin the same import.
+ */
+async function openInspectModal(page, rowTestId) {
+  await waitForInvoiceReviewRows(page);
+  const rowContent = rowTestId
+    ? page.locator(`[data-testid="${rowTestId}"]`)
+    : page.locator('[data-testid^="invoice-review-row-content-"]').first();
   if (!(await rowContent.isVisible().catch(() => false))) {
     throw new Error(
-      "No invoice import rows available for Invoice Review Chat verify",
+      rowTestId
+        ? `Invoice import row not found for reopen: ${rowTestId}`
+        : "No invoice import rows available for Invoice Review Chat verify",
     );
   }
+  const resolvedTestId =
+    rowTestId ?? (await rowContent.getAttribute("data-testid"));
   await rowContent.click();
   await page.getByTestId("invoice-parsed-inspect-modal").waitFor({
     timeout: 10_000,
+  });
+  return resolvedTestId;
+}
+
+/** Wait until chat history has painted (avoids first-paint empty race). */
+async function waitForChatAgentCount(page, minAgents, { timeout = 10_000 } = {}) {
+  await page.getByTestId("invoice-review-chat-panel").waitFor({ timeout: 10_000 });
+  await page.waitForFunction(
+    (n) =>
+      document.querySelectorAll(
+        '[data-testid="invoice-review-chat-msg-agent"]',
+      ).length >= n,
+    minAgents,
+    { timeout },
+  );
+}
+
+async function readMockChatStorage(page) {
+  return page.evaluate(() => {
+    const out = {};
+    for (let i = 0; i < sessionStorage.length; i += 1) {
+      const k = sessionStorage.key(i);
+      if (!k || !k.startsWith("stageverify-review-chat:")) continue;
+      try {
+        const msgs = JSON.parse(sessionStorage.getItem(k) || "[]");
+        if (!Array.isArray(msgs)) continue;
+        out[k.slice("stageverify-review-chat:".length)] = {
+          total: msgs.length,
+          agents: msgs.filter((m) => m?.role === "agent").length,
+          dispatchers: msgs.filter((m) => m?.role === "dispatcher").length,
+        };
+      } catch {
+        /* ignore */
+      }
+    }
+    return out;
   });
 }
 
@@ -188,7 +236,10 @@ const page = await context.newPage();
 try {
   await ensureAuthenticated(page);
   await page.waitForTimeout(1200);
-  await openInspectModal(page);
+  const primaryRowTestId = await openInspectModal(page);
+  if (!primaryRowTestId) {
+    throw new Error("Could not resolve primary invoice import row test id");
+  }
 
   const chat = page.getByTestId("invoice-review-chat-panel");
   await chat.scrollIntoViewIfNeeded();
@@ -413,7 +464,7 @@ try {
   // Close/reopen without Refresh — corrected PO must remain from updated import state.
   await page.getByTestId("invoice-parsed-inspect-close").click();
   await page.waitForTimeout(300);
-  await openInspectModal(page);
+  await openInspectModal(page, primaryRowTestId);
   await page.getByTestId("invoice-parsed-inspect-header").scrollIntoViewIfNeeded();
   const poReopen = await page
     .locator('[data-testid="invoice-parsed-header-row-customerPoOrReference"] [data-testid="invoice-parsed-header-value"]')
@@ -516,19 +567,46 @@ try {
   );
 
   // Close / reopen — sessionStorage mock persistence
+  // Root cause of prior history-on-reopen FAIL: counting agents on first paint
+  // (messages=[] before useEffect subscribe hydrates). Storage was intact.
   const priorAgents = await page
     .locator('[data-testid="invoice-review-chat-msg-agent"]')
     .count();
+  const priorDispatchers = await page
+    .locator('[data-testid="invoice-review-chat-msg-dispatcher"]')
+    .count();
+  const storageBeforeClose = await readMockChatStorage(page);
   await page.getByTestId("invoice-parsed-inspect-close").click();
   await page.waitForTimeout(400);
-  await openInspectModal(page);
-  await page.getByTestId("invoice-review-chat-panel").waitFor({ timeout: 10_000 });
+  await openInspectModal(page, primaryRowTestId);
+  await waitForChatAgentCount(page, priorAgents, { timeout: 10_000 });
   const afterReopenAgents = await page
     .locator('[data-testid="invoice-review-chat-msg-agent"]')
     .count();
+  const afterReopenDispatchers = await page
+    .locator('[data-testid="invoice-review-chat-msg-dispatcher"]')
+    .count();
+  const storageAfterReopen = await readMockChatStorage(page);
   if (afterReopenAgents < priorAgents) {
     throw new Error(
-      `History not persisted on reopen: before=${priorAgents} after=${afterReopenAgents}`,
+      `History not persisted on reopen: before=${priorAgents} after=${afterReopenAgents} storageBefore=${JSON.stringify(storageBeforeClose)} storageAfter=${JSON.stringify(storageAfterReopen)}`,
+    );
+  }
+  if (afterReopenDispatchers < priorDispatchers) {
+    throw new Error(
+      `Dispatcher history lost on reopen: before=${priorDispatchers} after=${afterReopenDispatchers}`,
+    );
+  }
+  // Order: first dispatcher message text must still be the original PO turn.
+  const firstDispatcher = (
+    await page
+      .locator('[data-testid="invoice-review-chat-msg-dispatcher"]')
+      .first()
+      .innerText()
+  ).trim();
+  if (!/2205\s*EARLY/i.test(firstDispatcher)) {
+    throw new Error(
+      `Chat order broken on reopen — first dispatcher msg missing PO turn: ${firstDispatcher.slice(0, 160)}`,
     );
   }
   await page.screenshot({
@@ -538,12 +616,66 @@ try {
   await page.getByTestId("invoice-review-chat-panel").screenshot({
     path: resolve(screenshotDir, "c1-inmodal-reopen-panel.png"),
   });
-  console.log("PASS: close/reopen preserves in-modal history");
+  console.log(
+    `PASS: close/reopen preserves in-modal history (agents=${afterReopenAgents})`,
+  );
 
-  // Refresh — same sessionStorage
+  // Page isolation — primary history must not appear on a different import row.
+  const otherRowTestId = await page.evaluate((primary) => {
+    const nodes = [
+      ...document.querySelectorAll(
+        '[data-testid^="invoice-review-row-content-"]',
+      ),
+    ];
+    const other = nodes.find((el) => el.getAttribute("data-testid") !== primary);
+    return other?.getAttribute("data-testid") ?? null;
+  }, primaryRowTestId);
+  if (otherRowTestId) {
+    await page.getByTestId("invoice-parsed-inspect-close").click();
+    await page.waitForTimeout(300);
+    await openInspectModal(page, otherRowTestId);
+    await page.getByTestId("invoice-review-chat-panel").waitFor({ timeout: 10_000 });
+    // Allow brief hydrate; other import should stay empty (or not contain primary PO turn).
+    await page.waitForTimeout(200);
+    const otherHistory = await page
+      .getByTestId("invoice-review-chat-history")
+      .innerText()
+      .catch(() => "");
+    const otherAgents = await page
+      .locator('[data-testid="invoice-review-chat-msg-agent"]')
+      .count();
+    if (/2205\s*EARLY/i.test(otherHistory)) {
+      throw new Error(
+        `Cross-import history leak: primary PO turn visible on ${otherRowTestId}`,
+      );
+    }
+    // Reopen primary — history must still be intact (page-2 must not wipe page-1).
+    await page.getByTestId("invoice-parsed-inspect-close").click();
+    await page.waitForTimeout(300);
+    await openInspectModal(page, primaryRowTestId);
+    await waitForChatAgentCount(page, priorAgents, { timeout: 10_000 });
+    const backAgents = await page
+      .locator('[data-testid="invoice-review-chat-msg-agent"]')
+      .count();
+    if (backAgents < priorAgents) {
+      throw new Error(
+        `Primary history lost after visiting other import: before=${priorAgents} after=${backAgents}`,
+      );
+    }
+    console.log(
+      `PASS: page isolation (other=${otherRowTestId} agents=${otherAgents}; primary restored=${backAgents})`,
+    );
+  } else {
+    console.log(
+      "SKIP: page isolation — only one invoice import row available in this env",
+    );
+  }
+
+  // Refresh — same sessionStorage (wait for hydrate after first paint)
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.waitForTimeout(1500);
-  await openInspectModal(page);
+  await openInspectModal(page, primaryRowTestId);
+  await waitForChatAgentCount(page, 2, { timeout: 10_000 });
   const afterRefreshAgents = await page
     .locator('[data-testid="invoice-review-chat-msg-agent"]')
     .count();
@@ -552,7 +684,16 @@ try {
       `History not persisted on refresh: agents=${afterRefreshAgents}`,
     );
   }
-  console.log("PASS: refresh preserves in-modal history (mock session store)");
+  // C2 applied badge / PO turn must survive refresh with chat history.
+  const refreshHistory = await page
+    .getByTestId("invoice-review-chat-history")
+    .innerText();
+  if (!/2205\s*EARLY/i.test(refreshHistory)) {
+    throw new Error("Refresh lost C2/PO chat content");
+  }
+  console.log(
+    `PASS: refresh preserves in-modal history (mock session store; agents=${afterRefreshAgents})`,
+  );
 
   // --- Dark mode (true panel theme) ---
   await setAdminTheme(page, "dark");
@@ -607,7 +748,7 @@ try {
   });
   await page.getByTestId("invoice-parsed-inspect-close").click();
   await page.waitForTimeout(400);
-  await openInspectModal(page);
+  await openInspectModal(page, primaryRowTestId);
   await setAdminTheme(page, "dark");
   const chatDark2 = page.getByTestId("invoice-review-chat-panel");
   await chatDark2.scrollIntoViewIfNeeded();

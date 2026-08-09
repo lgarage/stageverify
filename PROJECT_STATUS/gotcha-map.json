@@ -1315,6 +1315,35 @@
       "warning": "security-review Task prompt Diff field must be literally `uncommitted changes` or `branch changes` only — not a prose summary, not a file list, not a natural-language diff description. Wrong Diff literal can cause gate NOT RUN or scope mismatch. See security-review-gate.mdc mandatory invocation block."
     },
     {
+      "id": "invoice-review-chat-history-reopen-first-paint",
+      "match": [
+        "history-on-reopen",
+        "History not persisted on reopen",
+        "verify:invoice-review-chat",
+        "invoice review chat reopen",
+        "stageverify-review-chat-mock"
+      ],
+      "orchestratorSteps": [7],
+      "dossierTags": [],
+      "lessonsSection": "ship-verify",
+      "files": [
+        "scripts/verify-invoice-review-chat.mjs",
+        "src/dispatcher/invoice/InvoiceReviewChatPanel.tsx",
+        "src/dispatcher/invoice/reviewChatClientStore.ts"
+      ],
+      "rules": ["composer-orchestrator.mdc § UI Verification Protocol"],
+      "commands": [
+        "npm run verify:invoice-review-chat",
+        "npm run verify:invoice-review-chat:prod"
+      ],
+      "gateCandidate": false,
+      "injectBefore": [
+        "verify:invoice-review-chat history reopen",
+        "Invoice Review Chat close/reopen"
+      ],
+      "warning": "InvoiceReviewChatPanel mounts with messages=[] then useEffect subscribe hydrates (mock sync→next paint; live Firestore async). Counting agent bubbles immediately after panel waitFor is a false FAIL — sessionStorage/Firestore usually still intact. Wait for agent count (waitForFunction) and pin the same import row testid on reopen. Do not redeploy CF/rules for this fingerprint alone. Live path: scripts/verify-invoice-review-chat-live.mjs."
+    },
+    {
       "id": "verify-invoice-credit-chip-skip",
       "match": [
         "verify invoice credit chip",
