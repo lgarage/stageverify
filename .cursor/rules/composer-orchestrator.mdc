@@ -227,11 +227,35 @@ Non-calibration commentary (e.g. `~25 min estimated`) may appear in prose only �
 
 **Learning capture (automatic):** When a task hit failure, regression, or a security finding worth remembering, ship with `npm run away:ship -- --id away-NNN --note "…" --learned "…"` (or `--failure` + `--fix`) — **do not** run manual `npm run indexer:ingest`. Auto-parse of `--note` (`root cause:`, `fix:`, `prod verify fail`, `stale gh-pages`) also triggers capture. **`verify:*` failures** auto-queue to `learning-pending.json` (wrapper in package.json); `away:ship` merges pending on ship — review `learning-pending.json` if verify failed mid-task. Future similar work: `npm run away:next -- --packet` injects `gateWarnings` + lessons § + indexer matches (see `docs/aecs/librarian-plan.md` learning loop).
 
-**Then** the existing compact report unchanged: model audit (or low-risk line per `model-gates.mdc`), cleanup checklist (`ship-loop.mdc` § Done gate), ship/validation status, commit hash, live URL when deployed. When Dan stated a time window, append **Remaining time options** (`time-awareness.mdc`); the **D-61/D-66 terminal status block** is always last — after Remaining time options when present.
+**Then** the existing compact report unchanged: model audit (or low-risk line per `model-gates.mdc`), cleanup checklist (`ship-loop.mdc` § Done gate), ship/validation status, commit hash, live URL when deployed. When Dan stated a time window, append **Remaining time options** (`time-awareness.mdc`).
+
+**MANUAL TEST FOR DAN (D-78 — mandatory before D-66 terminal):** on the **final** product ship / deploy / production-repair / ARCHIVE reply when **user-observable product behavior** changed or shipped (UI, public/mobile routes, settings Dan can exercise, dispatcher flows, or a concrete production path Dan can click), include a section titled exactly **`MANUAL TEST FOR DAN`** **after** Remaining time options (if any) / gotchas / decisions and **before** any cloud `ARCHIVE THIS CURSOR JOB` / `KEEP THIS CURSOR JOB OPEN` marker and **before** the D-66 terminal block. Automated `build` / `verify:*` / Playwright / security / Ship PASS does **not** waive this. Not a fifth terminal status — report content only (`done-signal.mdc` stays SSOT for DONE|BLOCKED|FAILED|PARTIAL).
+
+Required fields when the full section applies:
+
+1. **WHERE TO START** — exact page/route/screen (prod URL or `#/…` hash).
+2. **TEST STEPS** — short numbered real-user steps (scan QR, enter PIN, click delivery, change setting, Assign Location, pick a spot). No internal implementation unless necessary. Vendor/mobile phone surfaces: **reuse** `product-guardrails.mdc` § Vendor phone test (link/PIN/QR) inside these steps — do not invent a second vendor block.
+3. **EXPECTED RESULT** — what Dan should see after important steps.
+4. **WHAT WOULD MEAN IT IS STILL BROKEN** — visible failure condition.
+5. **CLEANUP / UNDO** — if the test modifies production data, how to reverse safely; else say none.
+6. **BUILD IDENTITY** — when an FE deploy was involved: StageVerify version, production bundle hash when known, and whether a hard refresh is required.
+7. **SAFETY** — prefer demo/safer fixtures over destructive production records; if a real production record is required, state what will change before asking Dan to test and how to undo.
+
+Be **specific to the change** (bad: “test the feature”; good: Will-Call → Vendor Drop-Off → yellow Assign Location → Staging Map for that delivery → pick spot → reopen drawer → location shown).
+
+**N/A form** (use instead of the six-field block when no meaningful Dan exercise path):  
+`MANUAL TEST FOR DAN: None required — <brief reason>`  
+Examples: docs-only; harness/rules-only; verify-harness-only; pure types/service with no observable UI/data delta; CF/backend with no concrete Dan click path this turn.
+
+**Status scope:** full section (or explicit N/A line) on final product ship / ARCHIVE ask. Mid-turn BLOCKED (no ship), FAILED (no deploy), or PARTIAL (agent still owning unfinished work) → omit or one-line N/A — do not force a six-field checklist.
+
+When the full section is required, DONE **`Your action`** must **not** be `Nothing needed` — point Dan at that section (e.g. `Run MANUAL TEST FOR DAN above (hard-refresh first if noted)`). N/A cases may use `Nothing needed`.
+
+Then the **D-61/D-66 terminal status block** is always last — after MANUAL TEST FOR DAN (and after ARCHIVE/KEEP when used).
 
 **Verifier lines (mandatory):** substantive ships MUST include `solution-verifier:` (or N/A), `build-checker:` PASS (or N/A) **before commit**, and `ship-verifier:` (or N/A paths excluded) after push; **high-risk ships** MUST include `sonnet-instruct:` + `sonnet-verify:` (or NOT RUN) per `high-risk-sonnet-loop.mdc` (D-60); Dan repair intent MUST include `repair-verifier:` + `model:`; planning questions MUST include `planning-verifier:` + verdict PASS; `work-verifier:` (Fable) only for Fable-spec phase ships; `fix-verified:` for every closed verifier finding. Missing line when trigger fired = NOT RUN. **Repeated Ship Verifier FAIL** on one scope → **D-54** stall-advisor at 2nd when same fingerprint; **D-55** → **D-50** on 3rd try after two consecutive fails (any fingerprint) — see `model-gates.mdc` § Ship Verifier + § 2-fail (no infinite retrospective close loops). **`ui-playwright-verifier: N/A (high-risk — D-60 sonnet-verify)`** is valid — not a D-54 `missing:ui-playwright` gap.
 
-**Gotcha line (mandatory):** every substantive task's completion report ends with `gotchas: none` OR `gotchas: recorded — <short name>` after adding any newly-encountered environment failure, tool quirk, or workaround to `PROJECT_STATUS/gotcha-map.json` (SSOT). A workaround mentioned in prose but not recorded = dropped lesson — the explicit line makes omission visible. Readonly subagent workers surface the gotcha in their final response for the parent to record.
+**Gotcha line (mandatory):** every substantive task's completion report includes `gotchas: none` OR `gotchas: recorded — <short name>` after adding any newly-encountered environment failure, tool quirk, or workaround to `PROJECT_STATUS/gotcha-map.json` (SSOT). A workaround mentioned in prose but not recorded = dropped lesson — the explicit line makes omission visible. Readonly subagent workers surface the gotcha in their final response for the parent to record.
 
 **Decisions line (mandatory):** every substantive task's completion report includes `decisions: D-NN recorded` or `decisions: none`. New decisions go into `PROJECT_STATUS/DECISIONS.md` in the same commit as the implementing change; superseded → `DECISIONS_ARCHIVE.md` with `superseded-by D-NN`.
 
@@ -289,6 +313,7 @@ stageverify workspace rules (`.cursor/rules/`) override the global agent-ops ski
 ❌ Leave main undeployed after substantive UI work when Dan expects to test on gh-pages.
 ❌ Wait for Dan to ask for parallel read-only scans when parallel-agent-strategy.mdc triggers apply.
 ❌ End substantive tasks with only verdict/commit/validation tables — lead with **What we did** in plain language.
+❌ Close a user-observable product ship/deploy/repair/ARCHIVE without **MANUAL TEST FOR DAN** (or the explicit N/A one-liner) before the D-66 terminal (D-78).
 
 ## Rule File Self-Maintenance
 If during any session you notice a contradiction between rule files (e.g. one file says Opus for T3, another says Composer), fix it immediately in a `chore: align rules` commit before starting the feature work. `composer-orchestrator.mdc` is the authoritative source for session defaults. Other rule files must align with it.

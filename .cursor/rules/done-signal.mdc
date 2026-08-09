@@ -80,4 +80,5 @@ Canonical: **`Nothing needed`** (on DONE when Dan has no next step). Do not use 
 ## Relation
 
 - Complements `composer-orchestrator.mdc` § Completion report (opening **What we did** on ships) — does **not** replace verifier evidence lines, which appear **before** this block.
+- **MANUAL TEST FOR DAN (D-78):** SSOT detail in `composer-orchestrator.mdc` § Completion report. When required (user-observable product behavior shipped/repaired), that section appears **before** this terminal block (and before any cloud ARCHIVE/KEEP marker). Missing required section = incomplete completion report — **not** a fifth status. When the full section applies, DONE **`Your action`** points at it (not `Nothing needed`). Automated verify PASS does not waive D-78.
 - Supersedes the old D-61 form `DONE — finished | blocked` (status as a DONE suffix). Statuses are mutually exclusive first lines only.
