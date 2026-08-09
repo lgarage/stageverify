@@ -9,6 +9,7 @@ import {
   countOpenBlockingIssues,
   isReservedDisplayState,
 } from "./deliveryDisplayHelpers";
+import { isWillCallPickupStagingListNa } from "./invoice/invoiceShellDisplayHelpers";
 import type {
   DeliveryReadinessResult,
   JobReadinessResult,
@@ -22,6 +23,13 @@ export const AWAITING_DELIVERY_STATUS_LABEL = "Assigned / Planned";
 
 /** Primary list/drawer status when vendor unplanned delivery needs job/PO match. */
 export const UNPLANNED_STATUS_LABEL = "Unplanned";
+
+/**
+ * Primary Dispatcher category for CURRENT Will-Call / Pickup from Vendor.
+ * Derived from fulfillment — not a new persisted DeliveryStatus.
+ * Must win over shop "Staged — Ready for Pickup" (vendor-ready ≠ shop-staged).
+ */
+export const WILL_CALL_PICKUP_STATUS_LABEL = "Will-Call / Pickup";
 
 export function deliveryNeedsUnplannedJobMatch(
   delivery: Pick<DeliveryOrder, "unplanned" | "reviewFlag">,
@@ -56,6 +64,11 @@ export function deliveryReadinessDisplayLabel(
   }
   if (countOpenBlockingIssues(delivery, materialIssues) > 0) {
     return "Issue / Review Required";
+  }
+
+  // Will-Call vendor pickup is not shop staging — never show Staged green.
+  if (isWillCallPickupStagingListNa(delivery)) {
+    return WILL_CALL_PICKUP_STATUS_LABEL;
   }
 
   const ordered = items.reduce((sum, item) => sum + item.qtyOrdered, 0);

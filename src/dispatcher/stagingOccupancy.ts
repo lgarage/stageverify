@@ -82,7 +82,7 @@ export function buildGloballyAssignedStagingLocationIds(
   const ids = new Set<string>();
   for (const delivery of allDeliveries) {
     if (delivery.id === excludeDeliveryId) continue;
-    // Will-Call deliveries do not hold shop spots for assignment blocking.
+    // Will-Call / no-shop-staging do not hold shop spots for assignment blocking.
     if (skipsShopStaging(delivery)) continue;
     for (const locId of delivery.plannedStagingLocationIds ?? []) {
       ids.add(locId);

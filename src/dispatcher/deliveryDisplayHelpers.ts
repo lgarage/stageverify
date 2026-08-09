@@ -65,6 +65,17 @@ export const UNPLANNED_BADGE = {
   dot: "var(--color-accent-orange)",
 } as const;
 
+/**
+ * Pink badge — Will-Call / Pickup (vendor pickup; not shop-staged).
+ * Theme tokens: --admin-willcall-* (light/dark). Dark text on pink fill for D-42.
+ */
+export const WILL_CALL_PICKUP_BADGE = {
+  bg: "var(--admin-willcall-bg)",
+  text: "var(--admin-willcall-text)",
+  border: "var(--admin-willcall-border)",
+  dot: "var(--admin-willcall-dot)",
+} as const;
+
 /** Planned set differs from actual staging assignment (Phase 4 divergence). */
 export function hasPlannedActualDivergence(delivery: DeliveryOrder): boolean {
   const planned = [...(delivery.plannedStagingLocationIds ?? [])].sort();
@@ -1306,11 +1317,45 @@ export function isCompleteOverviewRow(
 
 /** Filter matching for dispatcher Delivery Overview tiles/chips. */
 export function rowMatchesOverviewStatusFilter(
-  row: Pick<{ status: DeliveryStatus; statusDisplayLabel: string }, "status" | "statusDisplayLabel">,
+  row: Pick<
+    {
+      status: DeliveryStatus;
+      statusDisplayLabel: string;
+      fulfillmentDisplayLabel?: string;
+      stagingLocationListNotApplicable?: boolean;
+    },
+    | "status"
+    | "statusDisplayLabel"
+    | "fulfillmentDisplayLabel"
+    | "stagingLocationListNotApplicable"
+  >,
   filter: DeliveryOverviewFilterStatus,
 ): boolean {
   if (filter === "complete") return isCompleteOverviewRow(row);
+  // Will-Call primary category must not land in Staged / workflow chips.
+  if (isWillCallOverviewRow(row)) return false;
+  if (filter === "ready_for_pickup") {
+    return row.statusDisplayLabel === "Staged — Ready for Pickup";
+  }
   return row.status === filter;
+}
+
+/** True when list/drawer primary category is Will-Call / Pickup. */
+export function isWillCallOverviewRow(
+  row: Pick<
+    {
+      statusDisplayLabel: string;
+      fulfillmentDisplayLabel?: string;
+      stagingLocationListNotApplicable?: boolean;
+    },
+    | "statusDisplayLabel"
+    | "fulfillmentDisplayLabel"
+    | "stagingLocationListNotApplicable"
+  >,
+): boolean {
+  if (row.statusDisplayLabel === "Will-Call / Pickup") return true;
+  if (row.stagingLocationListNotApplicable === true) return true;
+  return row.fulfillmentDisplayLabel === "Will-Call / Pickup @ Vendor";
 }
 
 const {
@@ -1340,12 +1385,26 @@ export const DELIVERY_OVERVIEW_STATUS_ORDER: DeliveryOverviewFilterStatus[] = [
 export function incrementOverviewStatusCounts(
   counts: Record<DeliveryOverviewFilterStatus, number>,
   row: Pick<
-    { status: DeliveryStatus; statusDisplayLabel: string },
-    "status" | "statusDisplayLabel"
+    {
+      status: DeliveryStatus;
+      statusDisplayLabel: string;
+      fulfillmentDisplayLabel?: string;
+      stagingLocationListNotApplicable?: boolean;
+    },
+    | "status"
+    | "statusDisplayLabel"
+    | "fulfillmentDisplayLabel"
+    | "stagingLocationListNotApplicable"
   >,
 ): void {
   if (isCompleteOverviewRow(row)) {
     counts.complete = (counts.complete ?? 0) + 1;
+    return;
+  }
+  // Will-Call rows are counted separately (willCallOnly filter) — not under Staged.
+  if (isWillCallOverviewRow(row)) return;
+  if (row.statusDisplayLabel === "Staged — Ready for Pickup") {
+    counts.ready_for_pickup = (counts.ready_for_pickup ?? 0) + 1;
     return;
   }
   const primary = row.status;

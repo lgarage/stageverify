@@ -34,10 +34,12 @@ import {
   type DeliveryOverviewFilterStatus,
   isCompleteOverviewRow,
   UNPLANNED_BADGE,
+  WILL_CALL_PICKUP_BADGE,
 } from "./dispatcher/deliveryDisplayHelpers";
 import {
   AWAITING_DELIVERY_STATUS_LABEL,
   UNPLANNED_STATUS_LABEL,
+  WILL_CALL_PICKUP_STATUS_LABEL,
 } from "./dispatcher/jobReadinessDisplay";
 import { DeliveryListStagingChips } from "./dispatcher/DeliveryListStagingChips";
 import { DeliveryDetailDrawer } from "./dispatcher/drawer/DeliveryDetailDrawer";
@@ -108,12 +110,19 @@ const STATUS_LABEL = (status: DeliveryOverviewFilterStatus): string =>
 
 type ListStatusBadgeStyle =
   | (typeof STATUS_BADGE)[DeliveryOverviewFilterStatus]
-  | typeof UNPLANNED_BADGE;
+  | typeof UNPLANNED_BADGE
+  | typeof WILL_CALL_PICKUP_BADGE;
 
 function listStatusBadge(row: DeliveryListRow): ListStatusBadgeStyle {
   const label = row.statusDisplayLabel;
   if (label === UNPLANNED_STATUS_LABEL || label === "Unplanned") {
     return UNPLANNED_BADGE;
+  }
+  if (
+    label === WILL_CALL_PICKUP_STATUS_LABEL ||
+    row.stagingLocationListNotApplicable === true
+  ) {
+    return WILL_CALL_PICKUP_BADGE;
   }
   if (label === "Picked Up") return STATUS_BADGE.complete;
   if (label === "Staged — Ready for Pickup") return STATUS_BADGE.ready_for_pickup;
@@ -173,6 +182,7 @@ type ListQueryState = {
   search: string;
   statuses: DeliveryOverviewFilterStatus[];
   unplannedOnly: boolean;
+  willCallOnly: boolean;
   sortBy: DeliverySortField;
   sortDirection: SortDirection;
   page: number;
@@ -197,6 +207,7 @@ export function DispatcherDashboardPage() {
     search: "",
     statuses: [],
     unplannedOnly: false,
+    willCallOnly: false,
     sortBy: "deliveryDate",
     sortDirection: "desc",
     page: 1,
@@ -205,6 +216,7 @@ export function DispatcherDashboardPage() {
   const [paged, setPaged] =
     useState<PagedResult<DeliveryListRow>>(INITIAL_PAGED);
   const [completeOverviewCount, setCompleteOverviewCount] = useState(0);
+  const [willCallOverviewCount, setWillCallOverviewCount] = useState(0);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const [jobReleasedToEntries, setJobReleasedToEntries] = useState<
@@ -240,7 +252,8 @@ export function DispatcherDashboardPage() {
   const hasActiveFilters =
     query.statuses.length > 0 ||
     !!query.search.trim() ||
-    query.unplannedOnly;
+    query.unplannedOnly ||
+    query.willCallOnly;
 
   const techById = useMemo(
     () => new Map(technicians.map((t) => [t.id, t])),
@@ -272,24 +285,32 @@ export function DispatcherDashboardPage() {
   const fetchAllData = useCallback(async () => {
     setListLoading(true);
     try {
-      const [pagedResult, completeCountResult] = await Promise.all([
-        firestoreDataService.listDeliveries({
-          search: query.search,
-          statuses: query.statuses.length ? query.statuses : undefined,
-          unplannedOnly: query.unplannedOnly || undefined,
-          sortBy: query.sortBy,
-          sortDirection: query.sortDirection,
-          page: query.page,
-          pageSize: query.pageSize,
-        }),
-        firestoreDataService.listDeliveries({
-          statuses: ["complete"],
-          page: 1,
-          pageSize: 1,
-        }),
-      ]);
+      const [pagedResult, completeCountResult, willCallCountResult] =
+        await Promise.all([
+          firestoreDataService.listDeliveries({
+            search: query.search,
+            statuses: query.statuses.length ? query.statuses : undefined,
+            unplannedOnly: query.unplannedOnly || undefined,
+            willCallOnly: query.willCallOnly || undefined,
+            sortBy: query.sortBy,
+            sortDirection: query.sortDirection,
+            page: query.page,
+            pageSize: query.pageSize,
+          }),
+          firestoreDataService.listDeliveries({
+            statuses: ["complete"],
+            page: 1,
+            pageSize: 1,
+          }),
+          firestoreDataService.listDeliveries({
+            willCallOnly: true,
+            page: 1,
+            pageSize: 1,
+          }),
+        ]);
       setPaged(pagedResult);
       setCompleteOverviewCount(completeCountResult.totalItems);
+      setWillCallOverviewCount(willCallCountResult.totalItems);
       setLastUpdated(new Date().toLocaleString());
       setListError(null);
       await fetchReleaseMap();
@@ -640,6 +661,90 @@ export function DispatcherDashboardPage() {
                       </span>
                     );
                   })}
+                  <div
+                    style={{
+                      position: "relative",
+                      display: "inline-flex",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="admin-chip"
+                      data-testid="deliveries-will-call-filter"
+                      onClick={() =>
+                        setQuery((prev) => ({
+                          ...prev,
+                          page: 1,
+                          willCallOnly: !prev.willCallOnly,
+                        }))
+                      }
+                      style={{
+                        padding:
+                          willCallOverviewCount > 0
+                            ? "4px 22px 4px 10px"
+                            : "4px 10px",
+                        borderRadius: "var(--admin-radius-pill)",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        letterSpacing: "normal",
+                        boxSizing: "border-box",
+                        border: `2px solid ${
+                          query.willCallOnly
+                            ? WILL_CALL_PICKUP_BADGE.border
+                            : "var(--admin-border)"
+                        }`,
+                        backgroundColor: query.willCallOnly
+                          ? WILL_CALL_PICKUP_BADGE.bg
+                          : "var(--admin-surface-2)",
+                        color: query.willCallOnly
+                          ? WILL_CALL_PICKUP_BADGE.text
+                          : "var(--admin-text-label)",
+                        cursor: "pointer",
+                        fontFamily: FONT,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 5,
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          backgroundColor: query.willCallOnly
+                            ? WILL_CALL_PICKUP_BADGE.dot
+                            : "var(--admin-border)",
+                          flexShrink: 0,
+                        }}
+                      />
+                      {WILL_CALL_PICKUP_STATUS_LABEL}
+                    </button>
+                    {willCallOverviewCount > 0 ? (
+                      <span
+                        data-testid="deliveries-will-call-filter-badge"
+                        aria-label={`${willCallOverviewCount} Will-Call / Pickup deliver${willCallOverviewCount === 1 ? "y" : "ies"}`}
+                        style={{
+                          position: "absolute",
+                          top: -6,
+                          right: -4,
+                          minWidth: 18,
+                          height: 18,
+                          padding: "0 4px",
+                          borderRadius: 999,
+                          backgroundColor: COMPLETE_FILTER_BADGE_RED,
+                          color: "var(--admin-on-navy)",
+                          fontSize: 11,
+                          fontWeight: 800,
+                          lineHeight: "18px",
+                          textAlign: "center",
+                          fontFamily: FONT,
+                          pointerEvents: "none",
+                        }}
+                      >
+                        {willCallOverviewCount}
+                      </span>
+                    ) : null}
+                  </div>
                   <button
                     type="button"
                     className="admin-chip"
@@ -685,6 +790,7 @@ export function DispatcherDashboardPage() {
                         search: "",
                         statuses: [],
                         unplannedOnly: false,
+                        willCallOnly: false,
                         page: 1,
                       }))
                     }
@@ -778,6 +884,11 @@ export function DispatcherDashboardPage() {
                         testId: "staged-ready-for-pickup",
                         swatch: "#66bb6a",
                         label: "Staged — Ready for Pickup",
+                      },
+                      {
+                        testId: "will-call-pickup",
+                        swatch: "var(--admin-willcall-bg)",
+                        label: WILL_CALL_PICKUP_STATUS_LABEL,
                       },
                       {
                         testId: "unplanned",
@@ -1404,6 +1515,7 @@ export function DispatcherDashboardPage() {
                                 search: "",
                                 statuses: [],
                                 unplannedOnly: false,
+                                willCallOnly: false,
                                 page: 1,
                               }))
                             }
