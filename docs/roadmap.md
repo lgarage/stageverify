@@ -69,6 +69,8 @@
 
 **Shipped (2026-08-09):** Dispatcher Deliveries status legend + row wording/colors align (Assigned/Planned yellow, Staged green, Unplanned bright orange, Shop Stock gray) — **v0.0.265** gh-pages FE-only.
 
+**Shipped (2026-08-09):** Delivery Details **Complete Pickup** under Email Vendor (reuses `recordPickupEvent`) + WHAT NEEDS ATTENTION summary-only — **v0.0.272** gh-pages FE-only.
+
 **Shipped (2026-08-09):** Delivery Details Assign Location restore after Will-Call → Vendor Drop-Off — **v0.0.264** gh-pages FE-only.
 
 **Shipped (2026-08-09):** Dispatcher Delivery Details drawer loads D-73 unplanned shells (missing jobId/PO/0 items) — **v0.0.263** gh-pages FE-only.

@@ -20,6 +20,32 @@ import { DetailContent } from "./DeliveryDetailContent";
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
+function showPickupCompletedToast(): void {
+  const testId = "delivery-pickup-completed-toast";
+  document.querySelector(`[data-testid="${testId}"]`)?.remove();
+  const el = document.createElement("div");
+  el.setAttribute("data-testid", testId);
+  Object.assign(el.style, {
+    position: "fixed",
+    bottom: "24px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    zIndex: "9999",
+    padding: "12px 20px",
+    borderRadius: "8px",
+    backgroundColor: "var(--admin-success-bg, #ecfdf5)",
+    color: "var(--admin-success-text, #166534)",
+    border: "1px solid var(--admin-success-border, #bbf7d0)",
+    fontSize: "14px",
+    fontWeight: "700",
+    fontFamily: FONT,
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+  });
+  el.textContent = "Pickup completed";
+  document.body.appendChild(el);
+  window.setTimeout(() => el.remove(), 4000);
+}
+
 type Props = {
   deliveryId: string | null;
   onClose: () => void;
@@ -176,6 +202,7 @@ export function DeliveryDetailDrawer({
           );
           return;
         }
+        showPickupCompletedToast();
         await refreshAfter(updatedDetails);
         closeAfterSuccessfulStatusChange();
       } else setMutationError("Failed to record pickup.");

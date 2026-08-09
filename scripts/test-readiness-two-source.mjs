@@ -511,12 +511,12 @@ assert(
   "missing+BO delivery shows attention banner",
 );
 assert(
-  /missing/i.test(missingPlusBoBanner.attentionHeadline),
-  "missing+BO headline prefers missing count",
+  /still need attention/i.test(missingPlusBoBanner.attentionHeadline),
+  "missing+BO headline uses mixed attention summary",
 );
 assert(
-  missingPlusBoBanner.whyBullets.some((b) => /MISSING WIDGET/i.test(b)),
-  "banner Why lists missing item",
+  missingPlusBoBanner.whyBullets.length === 0,
+  "banner Why omits item-level lines (Order Summary owns items)",
 );
 assert(
   !missingPlusBoBanner.whyBullets.some((b) => /BO WIDGET|on backorder/i.test(b)),
@@ -526,11 +526,11 @@ assert(
   !missingPlusBoBanner.whyBullets.some((b) =>
     /One or more items are on backorder|Vendor reported delivery/i.test(b),
   ),
-  "banner Why omits backorder + vendor-mismatch prose when missing items listed",
+  "banner Why omits backorder + vendor-mismatch prose when items are summary-only",
 );
 assert(
   missingPlusBoBanner.nextStepBullets.length === 0,
-  "banner Next Step empty when Why is only missing/partial item lines",
+  "banner Next Step empty when item issues are summary-only in headline",
 );
 
 const boOnlyDelivery = {
@@ -562,8 +562,9 @@ assert(
   "BO-only delivery keeps attention banner mode",
 );
 assert(
-  /backordered/i.test(boOnlyBanner.attentionHeadline),
-  "BO-only headline names backordered count",
+  /backordered/i.test(boOnlyBanner.attentionHeadline) &&
+    /Order Summary below/i.test(boOnlyBanner.attentionHeadline),
+  "BO-only headline names backordered count with Order Summary pointer",
 );
 assert(
   boOnlyBanner.whyBullets.length === 0 && boOnlyBanner.nextStepBullets.length === 0,
