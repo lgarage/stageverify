@@ -483,4 +483,47 @@ const transcriptPath = path.join(outDir, "c1-po-transcript.json");
 writeFileSync(transcriptPath, JSON.stringify(transcript, null, 2));
 console.log("Wrote", transcriptPath);
 
+// C2 — proposedCorrection accepted for allowlisted fields; dropped for bad fields
+{
+  const withPc = prompt.parseAndValidateReviewAgentResponse(
+    {
+      actionType: "suggest_correction_may_be_needed",
+      answerText: "I can update Customer PO to 2205 EARLY after you confirm.",
+      citations: [{ sourceType: "document_evidence", text: "2205 EARLY" }],
+      proposedCorrection: {
+        field: "customerPoOrReference",
+        currentValue: "",
+        proposedValue: "2205 EARLY",
+      },
+    },
+    EXTRACTED,
+  );
+  assert.ok(!("ok" in withPc && withPc.ok === false));
+  assert.equal(withPc.proposedCorrection?.field, "customerPoOrReference");
+  assert.equal(withPc.proposedCorrection?.proposedValue, "2205 EARLY");
+
+  const badPc = prompt.parseAndValidateReviewAgentResponse(
+    {
+      actionType: "suggest_correction_may_be_needed",
+      answerText: "Cannot correct fulfillment via chat.",
+      citations: [],
+      proposedCorrection: {
+        field: "fulfillmentMethod",
+        currentValue: "delivery",
+        proposedValue: "will_call_pickup",
+      },
+    },
+    EXTRACTED,
+  );
+  assert.ok(!("ok" in badPc && badPc.ok === false));
+  assert.equal(badPc.proposedCorrection, undefined);
+}
+
+// C2 — context packet exposes correctableFields
+{
+  assert.ok(Array.isArray(packet.correctableFields));
+  assert.ok(packet.correctableFields.includes("customerPoOrReference"));
+  assert.equal(packet.correctableFields.includes("fulfillmentMethod"), false);
+}
+
 console.log("PASS: test-invoice-review-chat");

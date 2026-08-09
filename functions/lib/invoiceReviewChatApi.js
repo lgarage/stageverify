@@ -2,8 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.reviewAgentTurn = void 0;
 /**
- * Lane C C1 — Invoice Review Chat callables (read/explain only).
- * Never mutates vendorInvoiceImports parse fields, deliveries, ignore rules, or playbooks.
+ * Lane C C1/C2 — Invoice Review Chat callables.
+ * May propose corrections (C2); never mutates parsed fields here — apply is a separate callable.
+ * Never touches deliveries, ignore rules, or playbooks.
  */
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");

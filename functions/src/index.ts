@@ -54,6 +54,7 @@ import {
   updateVendorIgnoreRuleCallable,
 } from "./invoiceTrainingAdminApi";
 import { reviewAgentTurn } from "./invoiceReviewChatApi";
+import { applyInvoiceReviewFieldCorrection } from "./applyInvoiceReviewFieldCorrectionApi";
 import { reparseVendorInvoiceImportCallable } from "./reparseVendorInvoiceImportCallable";
 import { dismissVendorEmailEventCallable } from "./dismissVendorEmailEventCallable";
 import { reopenVendorEmailEventCallable } from "./reopenVendorEmailEventCallable";
@@ -297,6 +298,7 @@ export {
   saveVendorTrainingPlaybook,
   updateVendorIgnoreRuleCallable,
   reviewAgentTurn,
+  applyInvoiceReviewFieldCorrection,
   reparseVendorInvoiceImportCallable,
   dismissVendorEmailEventCallable,
   reopenVendorEmailEventCallable,

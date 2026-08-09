@@ -114,6 +114,7 @@ export function InvoiceParsedInspectModal({
   readOnly = false,
   deliverToSiteConfirmed = false,
   onImportDismissed,
+  onCorrectionApplied,
 }: {
   importRow: VendorInvoiceImportReview;
   onClose: () => void;
@@ -140,6 +141,8 @@ export function InvoiceParsedInspectModal({
   deliverToSiteConfirmed?: boolean;
   /** Called when Save lesson apply-now dismisses a CREDIT/return import. */
   onImportDismissed?: () => void;
+  /** Lane C C2 — live refresh after chat field correction apply. */
+  onCorrectionApplied?: (parsedHeader: Record<string, unknown>) => void;
 }) {
   const [correctionNote, setCorrectionNote] = useState("");
   const [selectedStagingIds, setSelectedStagingIds] = useState<string[]>([]);
@@ -904,10 +907,11 @@ export function InvoiceParsedInspectModal({
             }}
           >
             {headerRows.map((row) => (
-              <div key={row.key}>
+              <div key={row.key} data-testid={`invoice-parsed-header-row-${row.key}`}>
                 <div style={{ color: MUTED, fontWeight: 600 }}>{row.label}</div>
                 <div
                   data-testid="invoice-parsed-header-value"
+                  data-field={row.key}
                   style={{ color: "var(--admin-text-data)", fontWeight: row.key === "customerPoOrReference" ? 600 : 500 }}
                 >
                   {row.value}
@@ -1012,7 +1016,11 @@ export function InvoiceParsedInspectModal({
           </table>
         </div>
 
-        <InvoiceReviewChatPanel importId={importRow.id} readOnly={readOnly} />
+        <InvoiceReviewChatPanel
+          importId={importRow.id}
+          readOnly={readOnly}
+          onCorrectionApplied={onCorrectionApplied}
+        />
 
         <details>
           <summary

@@ -277,6 +277,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Lane C C2 — Invoice field correction audit (CF Admin SDK writes only; dispatcher read).
+    match /vendorInvoiceFieldCorrections/{correctionId} {
+      allow read: if isDispatcher();
+      allow create, update, delete: if false;
+    }
+
     match /emailOAuthStates/{stateId} {
       allow read, write: if false;
     }
