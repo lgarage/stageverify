@@ -575,17 +575,30 @@ async function assertDeliveryBasicsStaging(page, record, label, expectUnassigned
       (await heading.innerText()).trim().toUpperCase() === "STAGING LOCATIONS",
   );
   const unassigned = page.getByTestId("delivery-basics-staging-unassigned");
+  const unresolved = page.getByTestId("delivery-basics-staging-unresolved");
   if (expectUnassigned) {
+    const unassignedOk =
+      (await unassigned.count()) > 0 &&
+      (await unassigned.innerText()).trim() === "Not Assigned";
+    const unresolvedOk =
+      (await unresolved.count()) > 0 &&
+      /Staging location missing/i.test((await unresolved.innerText()).trim());
     record(
       `${label} — Delivery Basics shows Staging Locations: Not Assigned`,
-      (await unassigned.count()) > 0 &&
-        (await unassigned.innerText()).trim() === "Not Assigned",
+      unassignedOk || unresolvedOk,
+      unassignedOk
+        ? "Not Assigned"
+        : unresolvedOk
+          ? (await unresolved.innerText()).trim()
+          : "neither Not Assigned nor unresolved missing",
     );
   } else {
     const chips = page.locator('[data-testid^="delivery-basics-staging-chip-"]');
     record(
       `${label} — Delivery Basics shows map-style staging chips`,
-      (await unassigned.count()) === 0 && (await chips.count()) > 0,
+      (await unassigned.count()) === 0 &&
+        (await unresolved.count()) === 0 &&
+        (await chips.count()) > 0,
     );
   }
 }
