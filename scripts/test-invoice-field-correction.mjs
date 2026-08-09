@@ -418,6 +418,37 @@ function ok(label) {
   ok("unverifiable value refused");
 }
 
+// 5b — C1∩C2: fake ZZZX PO cannot apply even if a pending proposal was seeded
+{
+  const fake = "ZZZX-PO-DOES-NOT-EXIST-99999";
+  const { db, importId, messageId } = seedImportAndProposal({
+    importId: "imp-zzzx",
+    proposedValue: fake,
+    extracted: EXTRACTED,
+    dispatcherText: `I see the PO and it is ${fake}. Check the invoice again.`,
+  });
+  const zEvidence = evidence.classifyCorrectionEvidence({
+    proposedValue: fake,
+    combinedExtractedText: EXTRACTED,
+    recentDispatcherTexts: [
+      `I see the PO and it is ${fake}. Check the invoice again.`,
+    ],
+  });
+  assert.equal(zEvidence.sourceType, null, "ZZZX has no document evidence");
+  await assert.rejects(
+    () =>
+      applyMod.runApplyInvoiceReviewFieldCorrectionCore({
+        db,
+        uid: "u1",
+        vendorInvoiceImportId: importId,
+        sourceMessageId: messageId,
+        idempotencyKey: "k5b",
+      }),
+    (err) => err.message === "not_independently_verifiable",
+  );
+  ok("ZZZX fake PO cannot apply a valid C2 correction");
+}
+
 // 6 — unauthorized is API-layer (requireDispatcherAuth); core assumes uid present
 {
   ok("unauthorized rejected at callable auth layer (requireDispatcherAuth)");

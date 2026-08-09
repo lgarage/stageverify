@@ -519,6 +519,91 @@ console.log("Wrote", transcriptPath);
   assert.equal(badPc.proposedCorrection, undefined);
 }
 
+// C1∩C2 inheritance — supported 2205 keeps proposal; fake ZZZX cannot verify
+{
+  const msg2205 =
+    "I see the PO and it is 2205 EARLY. Check the invoice again.";
+  const reconciledWithProposal = prompt.parseAndValidateReviewAgentResponse(
+    {
+      actionType: "answer",
+      answerText:
+        'I cannot find "2205 EARLY" in the invoice evidence. Treating that as your assertion.',
+      citations: [
+        {
+          sourceType: "document_evidence",
+          text: "Customer P/O # 2205 EARLY PICKUP SAD",
+        },
+      ],
+      proposedCorrection: {
+        field: "customerPoOrReference",
+        currentValue: "truck stock",
+        proposedValue: "2205 EARLY",
+      },
+    },
+    EXTRACTED_PROD,
+    { dispatcherMessage: msg2205, parserCustomerPo: "truck stock" },
+  );
+  assert.ok(!("ok" in reconciledWithProposal && reconciledWithProposal.ok === false));
+  assert.equal(reconciledWithProposal.consistencyCorrected, true);
+  assert.equal(
+    assertionSupport.answerClaimsUnsupported(reconciledWithProposal.answerText),
+    false,
+  );
+  assert.ok(
+    /truck stock/i.test(reconciledWithProposal.answerText),
+    "parser mismatch still explained after reconcile",
+  );
+  assert.equal(
+    reconciledWithProposal.proposedCorrection?.proposedValue,
+    "2205 EARLY",
+    "supported evidence can still carry a C2 proposal through parse",
+  );
+
+  const fake = "ZZZX-PO-DOES-NOT-EXIST-99999";
+  const fakeMsg = `I see the PO and it is ${fake}. Check the invoice again.`;
+  const fakeParsed = prompt.parseAndValidateReviewAgentResponse(
+    {
+      actionType: "suggest_correction_may_be_needed",
+      answerText: `I found "${fake}" in the invoice evidence.`,
+      citations: [{ sourceType: "document_evidence", text: fake }],
+      proposedCorrection: {
+        field: "customerPoOrReference",
+        proposedValue: fake,
+      },
+    },
+    EXTRACTED_PROD,
+    { dispatcherMessage: fakeMsg, parserCustomerPo: "truck stock" },
+  );
+  assert.ok(!("ok" in fakeParsed && fakeParsed.ok === false));
+  assert.equal(fakeParsed.consistencyCorrected, true);
+  assert.ok(assertionSupport.answerClaimsUnsupported(fakeParsed.answerText));
+  assert.equal(
+    (fakeParsed.citations ?? []).some(
+      (c) =>
+        c.sourceType === "document_evidence" &&
+        String(c.text ?? "").includes("ZZZX"),
+    ),
+    false,
+    "no fabricated document_evidence for fake PO",
+  );
+  // Raw parse may still echo model proposedCorrection; apply/propose persistence
+  // must refuse via classifyCorrectionEvidence (covered in field-correction tests).
+  const fakeEvidence = (
+    await import(
+      pathToFileURL(path.join(libRoot, "classifyCorrectionEvidence.js")).href
+    )
+  ).classifyCorrectionEvidence({
+    proposedValue: fake,
+    combinedExtractedText: EXTRACTED_PROD,
+    recentDispatcherTexts: [fakeMsg],
+  });
+  assert.equal(
+    fakeEvidence.sourceType,
+    null,
+    "ZZZX cannot independently verify — no valid C2 correction",
+  );
+}
+
 // C2 — context packet exposes correctableFields
 {
   assert.ok(Array.isArray(packet.correctableFields));

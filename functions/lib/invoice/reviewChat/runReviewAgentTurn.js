@@ -138,11 +138,15 @@ function buildPersistedProposal(input) {
         combinedExtractedText: input.combinedExtractedText,
         recentDispatcherTexts: input.recentDispatcherTexts,
     });
+    // Inherit C1 hallucination resistance: no document/dispatcher evidence ⇒ no
+    // persisted proposal (Apply also refuses not_independently_verifiable).
+    if (!evidence.sourceType)
+        return null;
     return {
         field: input.raw.field,
         currentValue,
         proposedValue,
-        sourceType: evidence.sourceType ?? "agent_interpretation",
+        sourceType: evidence.sourceType,
     };
 }
 async function runReviewAgentTurnCore(input) {
