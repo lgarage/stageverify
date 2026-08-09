@@ -70,6 +70,15 @@ async function enterPin(page, digits) {
   for (const digit of digits) {
     await page.getByRole("button", { name: digit, exact: true }).click();
   }
+  // Auto-submit only at 6 digits; 4–5 digit PINs need Verify.
+  if (digits.length < 6) {
+    const byTestId = page.getByTestId("technician-pin-verify");
+    if ((await byTestId.count()) > 0) {
+      await byTestId.click();
+    } else {
+      await page.getByRole("button", { name: /^Verify/ }).click();
+    }
+  }
 }
 
 async function setupTechnicianDocOnly() {
