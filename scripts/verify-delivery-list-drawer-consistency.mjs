@@ -461,7 +461,8 @@ async function assertStagingLocationCard(page, record, label, expectAssigned) {
   if (expectAssigned) {
     record(
       `${label} — assigned staging shown in Delivery Basics`,
-      (await page.getByTestId("delivery-basics-staging-unassigned").count()) === 0,
+      (await page.getByTestId("delivery-basics-staging-unassigned").count()) === 0 &&
+        (await page.getByTestId("delivery-basics-staging-unresolved").count()) === 0,
     );
     const basicsText = (await basicsStaging.innerText()).trim();
     record(
@@ -470,9 +471,20 @@ async function assertStagingLocationCard(page, record, label, expectAssigned) {
       basicsText.slice(0, 80),
     );
   } else {
+    const unassignedCount = await page
+      .getByTestId("delivery-basics-staging-unassigned")
+      .count();
+    const unresolvedCount = await page
+      .getByTestId("delivery-basics-staging-unresolved")
+      .count();
     record(
       `${label} — unassigned staging in Delivery Basics`,
-      (await page.getByTestId("delivery-basics-staging-unassigned").count()) > 0,
+      unassignedCount > 0 || unresolvedCount > 0,
+      unassignedCount > 0
+        ? "Not Assigned"
+        : unresolvedCount > 0
+          ? "Staging location missing"
+          : "neither",
     );
   }
 }
