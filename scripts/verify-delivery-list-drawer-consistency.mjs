@@ -23,6 +23,10 @@ import {
   isDispatcherTableStagingActionRequired,
   isWillCallPickupStagingListNa,
 } from "../src/dispatcher/deliveryDisplayHelpers.ts";
+import {
+  hasActiveShopStagingAssignment,
+  isShopStagingAssignmentMissing,
+} from "../src/dispatcher/drawer/DrawerStagingLocationChips.tsx";
 import { deliveryReadinessDisplayLabel } from "../src/dispatcher/jobReadinessDisplay.ts";
 import { computeDeliveryReadiness } from "../src/dispatcher/readiness.ts";
 import {
@@ -152,6 +156,52 @@ function assertOfflineStagingActionRules() {
   record(
     "offline — Will-Call / pickup_at_vendor exempt from staging action",
     !isDispatcherTableStagingActionRequired(willCallShell),
+  );
+
+  const offlineLocById = new Map([
+    [
+      "staging-2",
+      {
+        id: "staging-2",
+        code: "G2",
+        label: "G2",
+        type: "zone",
+        status: "Active",
+      },
+    ],
+  ]);
+  const stalePlannedOnly = {
+    ...pendingNoStaging,
+    plannedStagingLocationIds: ["missing-zone-xyz"],
+  };
+  record(
+    "offline — stale planned id is not active staging",
+    !hasActiveShopStagingAssignment(stalePlannedOnly, offlineLocById),
+  );
+  record(
+    "offline — stale planned id → staging-needed (drop-off)",
+    isShopStagingAssignmentMissing(stalePlannedOnly, offlineLocById),
+  );
+  record(
+    "offline — active spot + stale extra ref → not missing",
+    !isShopStagingAssignmentMissing(
+      {
+        ...pendingNoStaging,
+        stagingLocationId: "staging-2",
+        plannedStagingLocationIds: ["missing-zone-xyz"],
+      },
+      offlineLocById,
+    ),
+  );
+  record(
+    "offline — Will-Call + stale planned → not staging-needed",
+    !isShopStagingAssignmentMissing(
+      {
+        ...willCallShell,
+        plannedStagingLocationIds: ["missing-zone-xyz"],
+      },
+      offlineLocById,
+    ),
   );
   const willCallDisplay = computeDeliveryDisplayState(
     willCallShell,

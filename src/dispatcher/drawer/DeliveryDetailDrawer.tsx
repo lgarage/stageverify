@@ -77,10 +77,19 @@ export function DeliveryDetailDrawer({
   const [stagingLocations, setStagingLocations] = useState<StagingLocation[]>(
     [],
   );
+  const [stagingLocationsReady, setStagingLocationsReady] = useState(false);
   const pickupOperationIds = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
-    void firestoreDataService.listStagingLocations().then(setStagingLocations);
+    void firestoreDataService
+      .listStagingLocations()
+      .then((locs) => {
+        setStagingLocations(locs);
+        setStagingLocationsReady(true);
+      })
+      .catch(() => {
+        setStagingLocationsReady(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -580,6 +589,7 @@ export function DeliveryDetailDrawer({
             onUpdateItemReceiptStatus={handleUpdateItemReceiptStatus}
             onUpdateShopStockPickList={handleUpdateShopStockPickList}
             stagingLocations={stagingLocations}
+            stagingLocationsReady={stagingLocationsReady}
             onResolveMaterialIssue={handleResolveMaterialIssue}
             emailProviderConnected={emailProviderConnected}
             onNavigateToAssignLocation={handleNavigateToAssignLocation}
