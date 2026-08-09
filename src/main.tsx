@@ -56,12 +56,12 @@ function CompactRouteSpinner({ label }: { label: string }) {
   );
 }
 
-/** Compact `#/r?…` QRs rewrite to `#/receive?…` before content mounts. */
+/** Compact `#/r?…` QRs rewrite to `#/receive?id=` or `#/s?loc=` before content mounts. */
 function CompactReceiveRedirect() {
   useLayoutEffect(() => {
     normalizeReceiveHash();
   }, []);
-  return <CompactRouteSpinner label="Opening vendor check-in…" />;
+  return <CompactRouteSpinner label="Opening StageVerify…" />;
 }
 
 function CompactPickupRedirect() {

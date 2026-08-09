@@ -19,7 +19,6 @@ import {
   prefetchVendorReceiveDelivery,
   type StagingLocationOccupant,
 } from "./dispatcher/firestoreService";
-import { resolveZoneScanDisposition } from "./scanRouting";
 import { VendorPinGate } from "./VendorPinGate";
 import { isPinSessionValid } from "./vendorPinSession";
 import { isVendorSessionError } from "./vendorSessionErrors";
@@ -34,7 +33,7 @@ import {
 } from "./dispatcher/models";
 import { deliveryDetailsFromVendorPinBootstrap } from "./dispatcher/vendorPinBootstrap";
 import { shouldReinitItemQtys } from "./dispatcher/itemQtyInit";
-import { VendorNativeQrEntry } from "./VendorNativeQrEntry";
+import { ReceiveEntryRecovery } from "./ReceiveEntryRecovery";
 import { VendorDeliveredHub } from "./VendorDeliveredHub";
 import { isOutsideShopGeofence } from "./geofence";
 import type { VendorDeliveryMode } from "./dispatcher/models";
@@ -102,8 +101,6 @@ export function ReceivingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [manualId, setManualId] = useState("");
-  const [zoneMissCode, setZoneMissCode] = useState<string | null>(null);
   const [deepLinkPending, setDeepLinkPending] = useState(hasReceiveDeepLink);
   const [adjustingItemId, setAdjustingItemId] = useState<string | null>(null);
   const [adjustQty, setAdjustQty] = useState(0);
@@ -467,58 +464,18 @@ export function ReceivingPage() {
     [beginDeliveryAccess],
   );
 
-  const processZoneLookup = useCallback(
-    async (zoneCode: string, options?: { quiet?: boolean }) => {
-      const trimmed = zoneCode.trim();
-      if (!trimmed) return;
-
-      if (!options?.quiet) {
-        setLoading(true);
-      }
-      setError(null);
-
-      try {
-        const disposition = await resolveZoneScanDisposition(trimmed);
-        if (!disposition) {
-          setZoneMissCode(trimmed);
-          showToast("Invalid code.");
-          return;
-        }
-        if (disposition.kind === "pickup") {
-          window.location.hash = pickupPath(
-            disposition.jobId,
-            disposition.deliveryId,
-          );
-          return;
-        }
-        beginDeliveryAccess(disposition.deliveryId);
-      } catch {
-        setError("Failed to load delivery for this zone");
-      } finally {
-        setLoading(false);
-        setDeepLinkPending(false);
-      }
-    },
-    [beginDeliveryAccess, showToast],
-  );
-
   const handleReceiveDeepLink = useCallback(() => {
     if (urlDeepLinkHandledRef.current) return;
 
-    const { id, zone } = readReceiveParams(searchParams);
-    if (!id && !zone) return;
+    // Zone-only legacy URLs redirect in normalizeReceiveHash → `#/s?loc=`.
+    const { id } = readReceiveParams(searchParams);
+    if (!id) return;
     urlDeepLinkHandledRef.current = true;
 
-    if (id) {
-      void processDeliveryLookup(id).then(() => {
-        window.history.replaceState(null, "", "#/receive");
-      });
-      return;
-    }
-    if (zone) {
-      void processZoneLookup(zone);
-    }
-  }, [searchParams, processDeliveryLookup, processZoneLookup]);
+    void processDeliveryLookup(id).then(() => {
+      window.history.replaceState(null, "", "#/receive");
+    });
+  }, [searchParams, processDeliveryLookup]);
 
   useEffect(() => {
     handleReceiveDeepLink();
@@ -717,7 +674,6 @@ export function ReceivingPage() {
     itemQtyInitRef.current = null;
     enrichedDeliveryIdRef.current = null;
     setStep("scan");
-    setZoneMissCode(null);
     setPendingDeliveryId(null);
     setPinUnlocking(false);
     setPinLoadError(null);
@@ -729,7 +685,6 @@ export function ReceivingPage() {
     setStagingLocations([]);
     setLoading(false);
     setError(null);
-    setManualId("");
     setDeepLinkPending(false);
     setAdjustingItemId(null);
     window.history.replaceState(null, "", "#/receive");
@@ -810,43 +765,9 @@ export function ReceivingPage() {
       <div className="flex flex-1 flex-col overflow-hidden min-h-0">
         {toast && <Toast message={toast} />}
 
-        {step === "scan" && zoneMissCode && (
-          <div className="flex flex-col h-full">
-            <div className="px-6 py-4 border-b border-border">
-              <h1 className="text-xl font-bold">Zone {zoneMissCode}</h1>
-              <p className="text-sm text-text-secondary mt-1">
-                No active delivery is assigned to this staging spot.
-              </p>
-            </div>
-            <div className="flex-1 flex items-center justify-center px-6 text-center">
-              <p className="text-sm text-text-secondary">
-                Ask dispatch to assign a delivery, or scan a package QR with
-                your Camera app.
-              </p>
-            </div>
-            <div className="px-6 py-4 border-t border-border">
-              <button
-                type="button"
-                onClick={() => setZoneMissCode(null)}
-                className="action-btn action-btn-secondary w-full"
-              >
-                Back
-              </button>
-            </div>
-          </div>
-        )}
+        {step === "scan" && !deepLinkPending && <ReceiveEntryRecovery />}
 
-        {step === "scan" && !zoneMissCode && !deepLinkPending && (
-          <VendorNativeQrEntry
-            manualId={manualId}
-            onManualIdChange={setManualId}
-            onManualSubmit={() => void processDeliveryLookup(manualId)}
-            manualLoading={loading}
-            manualError={error}
-          />
-        )}
-
-        {step === "scan" && !zoneMissCode && deepLinkPending && (
+        {step === "scan" && deepLinkPending && (
           <div className="flex flex-1 flex-col items-center justify-center px-6">
             <p className="text-sm text-text-secondary">Opening delivery…</p>
           </div>

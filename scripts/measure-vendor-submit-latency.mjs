@@ -110,7 +110,7 @@ for (const vp of viewports) {
   }
 
   const checkinVisible = await page
-    .getByText(/Check off items as delivered|Receive Delivery/i)
+    .getByText(/Check off items as delivered|Scan a location QR/i)
     .first()
     .isVisible()
     .catch(() => false);

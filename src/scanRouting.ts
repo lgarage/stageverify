@@ -9,7 +9,11 @@ import {
   type ParsedQrScan,
 } from "./receiveQrUrls";
 
-/** Vendor check-in has a single UI: `ReceivingPage` at `/#/receive`. */
+/**
+ * Delivery-id vendor deep links use `ReceivingPage` at `/#/receive?id=`.
+ * Location-first entry is `#/s?loc=` (PIN → vendor / tech / office).
+ * Legacy `#/receive?zone=` rewrites to `#/s?loc=` in `normalizeReceiveHash`.
+ */
 export type ScanHandlerTarget = "receive-page";
 
 export type SyncScanIntent =
@@ -42,6 +46,12 @@ export function syncScanIntent(parsed: ParsedQrScan): SyncScanIntent {
   }
   if (parsed.kind === "receive-id") {
     return { kind: "resolve-delivery", deliveryId: parsed.deliveryId };
+  }
+  if (parsed.kind === "receive-zone") {
+    return {
+      kind: "navigate",
+      path: `#/s?loc=${encodeURIComponent(parsed.zoneCode)}`,
+    };
   }
   const zoneCode = zoneCodeFromParsed(parsed);
   if (zoneCode) return { kind: "resolve-zone", zoneCode };
