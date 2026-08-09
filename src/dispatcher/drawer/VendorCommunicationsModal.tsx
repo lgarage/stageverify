@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DeliveryListRow, Vendor, VendorEmailEvent } from "../models";
 import { listVendorEmailEventsForDelivery } from "../firestoreService";
 import { formatVendorDisplayName } from "../vendorDisplayName";
@@ -107,9 +107,13 @@ export function VendorCommunicationsModal({
   const [historyLoading, setHistoryLoading] = useState(false);
 
   const sortedVendors = useMemo(
-    () => [...(vendors ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+    () =>
+      [...(vendors ?? [])].sort((a, b) =>
+        formatVendorDisplayName(a).localeCompare(formatVendorDisplayName(b)),
+      ),
     [vendors],
   );
+  const vendorsLoading = open && vendors == null;
 
   const sortedDeliveries = useMemo(
     () =>
@@ -134,20 +138,11 @@ export function VendorCommunicationsModal({
     !!vendorId &&
     (toDiffersFromOnFile || !vendorEmailOnFile);
 
+  // Hard-reset only when the modal opens or drawer initials change — NOT when
+  // portal vendors/deliveries arrive later (that was wiping the dropdown choice).
   useEffect(() => {
     if (!open) return;
 
-    const vendorList = vendors ?? [];
-    const deliveryRow = initialDeliveryOrderId
-      ? deliveries.find((d) => d.deliveryId === initialDeliveryOrderId)
-      : undefined;
-    const resolved = resolveVendorForComms({
-      vendors: vendorList,
-      initialVendorId,
-      vendorNameHint: initialVendorName ?? deliveryRow?.vendorName,
-    });
-
-    setVendorId(resolved?.id ?? "");
     setDeliveryOrderId(initialDeliveryOrderId ?? "");
     setAdditionalEmails("");
     setBody("");
@@ -157,11 +152,8 @@ export function VendorCommunicationsModal({
     setValidationError(null);
     setReplyFromInbound(false);
     setReplyHeaders({});
-    const baseEmail =
-      initialVendorEmail?.trim() ||
-      resolved?.email?.trim() ||
-      "";
-    setTo(baseEmail);
+    setVendorId("");
+    setTo(initialVendorEmail?.trim() || "");
     setSubject("");
 
     const applyIssueDraftIfNewThread = () => {
@@ -179,8 +171,7 @@ export function VendorCommunicationsModal({
     void listVendorEmailEventsForDelivery(initialDeliveryOrderId)
       .then((events) => {
         if (cancelled) return;
-        const vendorEmailOnFile =
-          resolved?.email?.trim() ?? initialVendorEmail?.trim() ?? "";
+        const vendorEmailOnFile = initialVendorEmail?.trim() ?? "";
         const inbound = latestTrustedInboundVendorEmailEvent(events);
         const primaryTo = primaryRecipientFromEvents(events, vendorEmailOnFile);
         if (primaryTo) {
@@ -192,10 +183,7 @@ export function VendorCommunicationsModal({
           setSubject(
             replySubjectFromInbound(
               inbound,
-              initialSubject ??
-                (resolved?.name
-                  ? `Delivery follow up — ${resolved.name}`
-                  : "Delivery follow up"),
+              initialSubject ?? "Delivery follow up",
             ),
           );
         } else {
@@ -204,7 +192,7 @@ export function VendorCommunicationsModal({
       })
       .catch(() => {
         if (!cancelled) {
-          setTo(baseEmail);
+          setTo(initialVendorEmail?.trim() || "");
           applyIssueDraftIfNewThread();
         }
       })
@@ -223,8 +211,42 @@ export function VendorCommunicationsModal({
     initialDeliveryOrderId,
     initialSubject,
     initialBody,
+  ]);
+
+  // Soft-resolve drawer vendor once the portal vendor list is available.
+  // Does not override a vendor the user already selected.
+  const softResolvedVendorIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open) {
+      softResolvedVendorIdRef.current = null;
+      return;
+    }
+    if (vendorId) return;
+    if (!vendors?.length) return;
+
+    const deliveryRow = initialDeliveryOrderId
+      ? deliveries.find((d) => d.deliveryId === initialDeliveryOrderId)
+      : undefined;
+    const resolved = resolveVendorForComms({
+      vendors,
+      initialVendorId,
+      vendorNameHint: initialVendorName ?? deliveryRow?.vendorName,
+    });
+    if (!resolved) return;
+    if (softResolvedVendorIdRef.current === resolved.id) return;
+    softResolvedVendorIdRef.current = resolved.id;
+    setVendorId(resolved.id);
+    if (resolved.email?.trim()) {
+      setTo((prev) => prev.trim() || resolved.email!.trim());
+    }
+  }, [
+    open,
     vendors,
     deliveries,
+    vendorId,
+    initialVendorId,
+    initialVendorName,
+    initialDeliveryOrderId,
   ]);
 
   useEffect(() => {
@@ -524,7 +546,11 @@ export function VendorCommunicationsModal({
                     ...DRAWER_MODAL_INPUT_STYLE,
                   }}
                 >
-                  <option value="">— None —</option>
+                  {vendorsLoading ? (
+                    <option value="">Loading vendors…</option>
+                  ) : (
+                    <option value="">— None —</option>
+                  )}
                   {sortedVendors.map((v) => (
                     <option key={v.id} value={v.id}>
                       {formatVendorDisplayName(v)}
