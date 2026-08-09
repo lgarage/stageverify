@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.253",
+  "version": "0.0.254",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -44,6 +44,8 @@
     "verify:vendor-e2e:prod": "node scripts/verify-vendor-e2e.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:vendor-delivered": "node scripts/verify-vendor-delivered.mjs",
     "verify:vendor-delivered:prod": "node scripts/run-verify-with-learning.mjs --script verify:vendor-delivered:prod scripts/verify-vendor-delivered.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:vendor-unplanned-delivery": "node scripts/verify-vendor-unplanned-delivery.mjs",
+    "verify:vendor-unplanned-delivery:prod": "node scripts/run-verify-with-learning.mjs --script verify:vendor-unplanned-delivery:prod scripts/verify-vendor-unplanned-delivery.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:settings-staging": "node scripts/verify-settings-staging.mjs",
     "verify:settings-technicians": "node scripts/run-verify-with-learning.mjs --script verify:settings-technicians scripts/verify-settings-technicians.mjs",
     "verify:settings-technicians:prod": "node scripts/run-verify-with-learning.mjs --script verify:settings-technicians:prod scripts/verify-settings-technicians.mjs --base-url=https://lgarage.github.io/stageverify",
@@ -133,6 +135,7 @@
     "aecs:export:write": "node aecs/release/export.mjs --write",
     "aecs:test": "node --test aecs/installer/paths.test.mjs aecs/installer/install.test.mjs aecs/updater/update.test.mjs aecs/updater/hardening.test.mjs aecs/updater/rollback-progress.test.mjs aecs/release/export.test.mjs",
     "test:mark-vendor-delivered": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-mark-vendor-delivered.mjs\"",
+    "test:vendor-unplanned-delivery": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-vendor-unplanned-delivery.mjs\"",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"node scripts/test-delivery-status-transitions.mjs\"",
     "test:access-pin-secrets": "npm run build:functions && node scripts/test-access-pin-secrets.mjs",
     "test:access-pin-length": "npm run build:functions && node scripts/test-access-pin-length.mjs",

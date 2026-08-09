@@ -1113,6 +1113,37 @@ export function DetailContent({
             );
           }}
         </PickupTokenControls>
+        {details.delivery.unplanned ||
+        (details.delivery.reviewFlag?.flagged === true &&
+          /unplanned/i.test(details.delivery.reviewFlag.reason ?? "")) ? (
+          <div
+            data-testid="delivery-drawer-unplanned-note"
+            style={{
+              margin: "0 0 12px",
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: "1px solid var(--admin-warning-border)",
+              backgroundColor: "var(--admin-warning-bg)",
+              color: "var(--admin-warning-text)",
+              fontSize: 13,
+              fontFamily: font,
+              lineHeight: 1.45,
+            }}
+          >
+            <strong>Vendor unplanned delivery.</strong>{" "}
+            {details.delivery.reviewFlag?.reason?.trim() ??
+              "Match this delivery to the correct job and PO, then clear the review flag."}
+            {details.delivery.unplannedSubmittedReference ? (
+              <>
+                {" "}
+                Reference submitted:{" "}
+                <span style={{ fontFamily: "monospace" }}>
+                  {details.delivery.unplannedSubmittedReference}
+                </span>
+              </>
+            ) : null}
+          </div>
+        ) : null}
         <DrawerActionBanner
           details={details}
           navy={navy}

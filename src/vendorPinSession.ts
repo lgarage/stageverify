@@ -292,6 +292,91 @@ export function clearVendorRunPinSession(vendorId: string): void {
   sessionStorage.removeItem(vendorRunStorageKey(vendorId));
 }
 
+const VENDOR_UNPLANNED_STORAGE_PREFIX = "sv-vendor-unplanned-pin:";
+
+export interface VendorUnplannedPinSession {
+  vendorId: string;
+  vendorName: string;
+  sessionToken?: string;
+  expiresAt?: string;
+  sessionMinutes?: number;
+  scannedStagingLocationCode?: string;
+}
+
+function vendorUnplannedStorageKey(vendorId: string): string {
+  return `${VENDOR_UNPLANNED_STORAGE_PREFIX}${vendorId}`;
+}
+
+function readVendorUnplannedRaw(vendorId: string): VendorUnplannedPinSession | null {
+  try {
+    const raw = sessionStorage.getItem(vendorUnplannedStorageKey(vendorId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as VendorUnplannedPinSession;
+    if (
+      typeof parsed.vendorId !== "string" ||
+      typeof parsed.vendorName !== "string"
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function isVendorUnplannedPinSessionValid(vendorId: string): boolean {
+  const session = readVendorUnplannedRaw(vendorId);
+  if (!session || !isSessionRecordValid(session)) {
+    clearVendorUnplannedPinSession(vendorId);
+    return false;
+  }
+  return true;
+}
+
+export function getVendorUnplannedPinSession(
+  vendorId: string,
+): VendorUnplannedPinSession | null {
+  const session = readVendorUnplannedRaw(vendorId);
+  if (!session || !isVendorUnplannedPinSessionValid(vendorId)) {
+    clearVendorUnplannedPinSession(vendorId);
+    return null;
+  }
+  return session;
+}
+
+export function getVendorUnplannedSessionToken(vendorId: string): string | null {
+  return getVendorUnplannedPinSession(vendorId)?.sessionToken ?? null;
+}
+
+export function setVendorUnplannedPinSession(
+  vendorId: string,
+  vendorName: string,
+  options?: {
+    sessionToken?: string;
+    expiresAt?: string;
+    sessionMinutes?: number;
+    scannedStagingLocationCode?: string;
+  },
+): VendorUnplannedPinSession {
+  const session: VendorUnplannedPinSession = {
+    vendorId,
+    vendorName,
+    sessionToken: options?.sessionToken,
+    expiresAt: options?.expiresAt,
+    sessionMinutes: options?.sessionMinutes,
+    scannedStagingLocationCode: options?.scannedStagingLocationCode,
+  };
+  sessionStorage.setItem(
+    vendorUnplannedStorageKey(vendorId),
+    JSON.stringify(session),
+  );
+  return session;
+}
+
+export function clearVendorUnplannedPinSession(vendorId: string): void {
+  sessionStorage.removeItem(vendorUnplannedStorageKey(vendorId));
+}
+
 /** Bridge vendor-run session token onto a delivery for legacy vendor CF clients. */
 export function bridgeVendorRunSessionToDelivery(
   vendorId: string,

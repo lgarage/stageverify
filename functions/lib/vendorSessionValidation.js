@@ -4,6 +4,7 @@ exports.asSessionToken = asSessionToken;
 exports.asDeliveryId = asDeliveryId;
 exports.assertVendorSessionValid = assertVendorSessionValid;
 exports.assertVendorSessionForDelivery = assertVendorSessionForDelivery;
+exports.assertVendorUnplannedSessionValid = assertVendorUnplannedSessionValid;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
 function getDb() {
@@ -49,6 +50,10 @@ async function assertVendorSessionForDelivery(sessionToken, deliveryId) {
         throw new https_1.HttpsError("permission-denied", "Session expired. Enter your PIN again.");
     }
     assertNotExpired(session);
+    // Unplanned sessions may only call the dedicated match/create/confirm CFs.
+    if (session.sessionScope === "vendor_unplanned") {
+        throw new https_1.HttpsError("permission-denied", "Session is not valid for this delivery.");
+    }
     if (session.sessionScope === "vendor") {
         const deliverySnap = await getDb()
             .collection("deliveries")
@@ -81,5 +86,29 @@ async function assertVendorSessionForDelivery(sessionToken, deliveryId) {
         throw new https_1.HttpsError("permission-denied", "Session is not valid for this delivery.");
     }
     return session;
+}
+/**
+ * Validates a vendor_unplanned or vendor-scoped session for the unplanned
+ * match/create/confirm path. Does not require a deliveryId.
+ */
+async function assertVendorUnplannedSessionValid(sessionToken) {
+    const session = await loadSession(sessionToken);
+    if (!session) {
+        throw new https_1.HttpsError("permission-denied", "Session expired. Enter your PIN again.");
+    }
+    assertNotExpired(session);
+    const scope = session.sessionScope;
+    const vendorOk = typeof session.vendorId === "string" && session.vendorId.trim().length > 0;
+    if (!vendorOk) {
+        throw new https_1.HttpsError("permission-denied", "Session is not valid for unplanned delivery.");
+    }
+    if (scope === "vendor_unplanned") {
+        return session;
+    }
+    // Company-run empty list: normal vendor session may also start unplanned.
+    if (scope === "vendor") {
+        return session;
+    }
+    throw new https_1.HttpsError("permission-denied", "Session is not valid for unplanned delivery.");
 }
 //# sourceMappingURL=vendorSessionValidation.js.map

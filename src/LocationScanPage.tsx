@@ -52,15 +52,27 @@ import {
 import { stashTechnicianJobShell } from "./technicianJobShell";
 import { VendorDeliveredHub } from "./VendorDeliveredHub";
 import {
+  VendorUnplannedDeliveryFlow,
+  type VendorUnplannedCompletePayload,
+} from "./VendorUnplannedDeliveryFlow";
+import { deliveryDetailsFromVendorPinBootstrap } from "./dispatcher/vendorPinBootstrap";
+import {
   bridgeJobSessionToDelivery,
+  bridgeVendorRunSessionToDelivery,
   clearJobPinSession,
   clearVendorRunPinSession,
+  clearVendorUnplannedPinSession,
   getJobPinSession,
   getJobSessionToken,
   getVendorRunPinSession,
   getVendorRunSessionToken,
+  getVendorUnplannedPinSession,
+  getVendorUnplannedSessionToken,
   isJobPinSessionValid,
   isVendorRunPinSessionValid,
+  isVendorUnplannedPinSessionValid,
+  setVendorRunPinSession,
+  setVendorUnplannedPinSession,
 } from "./vendorPinSession";
 import { isVendorSessionError } from "./vendorSessionErrors";
 import { PublicNetworkErrorPanel } from "./PublicNetworkErrorPanel";
@@ -72,12 +84,13 @@ type Step =
   | "pin"
   | "list"
   | "vendor-list"
+  | "unplanned"
   | "tech-list"
   | "mgmt-landing"
   | "mgmt-hub"
   | "hub"
   | "done";
-type SessionScope = "job" | "vendor" | null;
+type SessionScope = "job" | "vendor" | "vendor_unplanned" | null;
 type PinRole = "vendor" | "technician" | "management";
 
 interface LocationBranding {
@@ -341,8 +354,34 @@ export function LocationScanPage() {
     (payload: {
       jobId?: string;
       vendorId?: string;
-      sessionScope?: "job" | "delivery" | "vendor";
+      vendorName?: string;
+      sessionScope?: "job" | "delivery" | "vendor" | "vendor_unplanned";
+      noExpectedDelivery?: boolean;
+      sessionToken?: string;
+      expiresAt?: string;
+      scannedStagingLocationCode?: string;
     }) => {
+      if (
+        payload.sessionScope === "vendor_unplanned" ||
+        payload.noExpectedDelivery
+      ) {
+        if (!payload.vendorId || !payload.vendorName) {
+          setError("Invalid session.");
+          return;
+        }
+        setVendorId(payload.vendorId);
+        setJobId(null);
+        setSessionScope("vendor_unplanned");
+        if (payload.sessionToken && payload.expiresAt) {
+          setVendorUnplannedPinSession(payload.vendorId, payload.vendorName, {
+            sessionToken: payload.sessionToken,
+            expiresAt: payload.expiresAt,
+            scannedStagingLocationCode: payload.scannedStagingLocationCode,
+          });
+        }
+        setStep("unplanned");
+        return;
+      }
       if (payload.sessionScope === "vendor" && payload.vendorId) {
         setVendorId(payload.vendorId);
         setJobId(null);
@@ -358,6 +397,83 @@ export function LocationScanPage() {
       void loadJobDeliveries(payload.jobId);
     },
     [loadJobDeliveries, loadVendorRunDeliveries],
+  );
+
+  const resolveUnplannedSessionToken = useCallback(
+    (resolvedVendorId: string): string | null => {
+      return (
+        getVendorUnplannedSessionToken(resolvedVendorId) ??
+        getVendorRunSessionToken(resolvedVendorId)
+      );
+    },
+    [],
+  );
+
+  const openUnplannedFromVendorList = useCallback(() => {
+    if (!vendorId) return;
+    const runSession = getVendorRunPinSession(vendorId);
+    const unplannedSession = getVendorUnplannedPinSession(vendorId);
+    if (!runSession && !unplannedSession) {
+      setStep("pin");
+      return;
+    }
+    setSessionScope(
+      unplannedSession ? "vendor_unplanned" : "vendor",
+    );
+    setStep("unplanned");
+  }, [vendorId]);
+
+  const handleUnplannedComplete = useCallback(
+    async (payload: VendorUnplannedCompletePayload) => {
+      setVendorRunPinSession(
+        payload.vendorId,
+        payload.vendorName,
+        payload.deliveryId,
+        {
+          sessionToken: payload.sessionToken,
+          expiresAt: payload.expiresAt,
+          scannedStagingLocationCode: scannedCode ?? undefined,
+        },
+      );
+      clearVendorUnplannedPinSession(payload.vendorId);
+      bridgeVendorRunSessionToDelivery(payload.vendorId, payload.deliveryId);
+      setVendorId(payload.vendorId);
+      setSessionScope("vendor");
+      setLoading(true);
+      setError(null);
+      try {
+        if (payload.bootstrap) {
+          setDeliveryDetails(
+            deliveryDetailsFromVendorPinBootstrap(payload.bootstrap),
+          );
+          setStep("hub");
+          void getDeliveryDetailsPublicForVendorReceive(payload.deliveryId).then(
+            (full) => {
+              if (full) setDeliveryDetails(full);
+            },
+          );
+          return;
+        }
+        const details = await getDeliveryDetailsPublicForVendorReceive(
+          payload.deliveryId,
+        );
+        if (!details) {
+          setError("Could not open delivery.");
+          await loadVendorRunDeliveries(payload.vendorId);
+          return;
+        }
+        setDeliveryDetails(details);
+        setStep("hub");
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Could not open delivery.",
+        );
+        await loadVendorRunDeliveries(payload.vendorId);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loadVendorRunDeliveries, scannedCode],
   );
 
   const loadTechnicianReleasedJobs = useCallback(
@@ -472,6 +588,7 @@ export function LocationScanPage() {
     setCheckedDeliveryIds(new Set());
     if (jobId) clearJobPinSession(jobId);
     if (vendorId) clearVendorRunPinSession(vendorId);
+    if (vendorId) clearVendorUnplannedPinSession(vendorId);
     if (technicianId) clearTechnicianPinSession(technicianId);
     clearManagementPinSession();
     setJobId(null);
@@ -501,8 +618,11 @@ export function LocationScanPage() {
         return;
       }
       if (vendorId && !isVendorRunPinSessionValid(vendorId)) {
-        handlePinSessionExpired();
-        return;
+        const unplannedOk = isVendorUnplannedPinSessionValid(vendorId);
+        if (!unplannedOk) {
+          handlePinSessionExpired();
+          return;
+        }
       }
       if (technicianId && !isTechnicianPinSessionValid(technicianId)) {
         handlePinSessionExpired();
@@ -638,6 +758,7 @@ export function LocationScanPage() {
   const resetFlow = () => {
     if (jobId) clearJobPinSession(jobId);
     if (vendorId) clearVendorRunPinSession(vendorId);
+    if (vendorId) clearVendorUnplannedPinSession(vendorId);
     if (technicianId) clearTechnicianPinSession(technicianId);
     clearManagementPinSession();
     setJobId(null);
@@ -927,6 +1048,37 @@ export function LocationScanPage() {
     );
   }
 
+  if (step === "unplanned" && branding && vendorId) {
+    const unplannedSession = getVendorUnplannedPinSession(vendorId);
+    const runSession = getVendorRunPinSession(vendorId);
+    const vendorName =
+      unplannedSession?.vendorName ?? runSession?.vendorName ?? "Vendor";
+    const sessionToken = resolveUnplannedSessionToken(vendorId);
+    if (!sessionToken) {
+      setStep("pin");
+      return null;
+    }
+    return (
+      <div className="app-container h-screen h-dvh overflow-hidden bg-bg-primary">
+        <VendorUnplannedDeliveryFlow
+          vendorId={vendorId}
+          vendorName={vendorName}
+          sessionToken={sessionToken}
+          locationCode={branding.code}
+          onComplete={(payload) => void handleUnplannedComplete(payload)}
+          onSessionExpired={handlePinSessionExpired}
+          onCancel={() => {
+            if (sessionScope === "vendor_unplanned" && !runSession) {
+              resetFlow();
+              return;
+            }
+            setStep("vendor-list");
+          }}
+        />
+      </div>
+    );
+  }
+
   if (step === "vendor-list" && branding) {
     const runSession = vendorId ? getVendorRunPinSession(vendorId) : null;
     return (
@@ -1001,9 +1153,42 @@ export function LocationScanPage() {
             );
           })}
           {activeVendorRun.length === 0 && (
-            <p className="text-sm text-text-secondary text-center py-8">
-              No active deliveries to confirm.
-            </p>
+            <div
+              className="rounded-2xl border border-white/10 bg-bg-secondary px-5 py-6 text-center shadow-lg shadow-black/15"
+              data-testid="vendor-unplanned-empty-state"
+            >
+              <div className="mx-auto flex size-12 items-center justify-center rounded-xl border border-[#6ee7b7]/30 bg-[#34d399]/10 text-[#6ee7b7]">
+                <svg
+                  className="size-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.8}
+                    d="M20 7 12 3 4 7m16 0-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                  />
+                </svg>
+              </div>
+              <h2 className="mt-4 text-xl font-bold tracking-tight text-text-primary">
+                Don&apos;t see this delivery?
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-text-secondary">
+                {runSession?.vendorName ?? "Your company"} can add an invoice,
+                PO, or order that isn&apos;t listed.
+              </p>
+              <button
+                type="button"
+                className="tap-target mt-5 min-h-12 w-full rounded-xl bg-[#047857] px-4 py-3 text-base font-bold text-white shadow-md shadow-black/20 transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6ee7b7] focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary"
+                data-testid="vendor-unplanned-entry-cta"
+                onClick={openUnplannedFromVendorList}
+              >
+                Add unplanned delivery
+              </button>
+            </div>
           )}
 
           {deliveredVendorRun.length > 0 && (
