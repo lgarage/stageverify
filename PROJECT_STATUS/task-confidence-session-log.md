@@ -109,10 +109,12 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-09 | docs-governance / product decision (C3-A D-59 #7/#8 amend) | T0 docs-update | Composer 2.5 Fast | 98 | 99 | ok (PR) | Narrow header_field_extraction + deterministic C3 carve-out; no product code |
 | 2026-08-09 | ship-op (PR #107 merge C3-A D-59 #7/#8 amend) | T0 docs-update | Composer 2.5 Fast | 99 | 99 | ok | merge to main; docs-only; no deploy; C3-B next |
 | 2026-08-09 | docs-governance / D-60 Sonnet+Grok iterative high-risk review | T0/T1 harness | Composer 2.5 Fast (+ Grok Critical Reviewer) | 98 | 99 | ok (PR) | Amend D-60: Sonnet pre → builder → high-risk-adversarial → Sonnet final → D-38; discovery A–I PASS; no product/deploy |
-| 2026-08-09 | harness-tooling (Timekeeper D-72 visibility + cadence) | T0/T1 harness | Composer 2.5 Fast | 98 | 99 | ok (PR) | pending→delivered; ~10–35m elapsed; policy B supersession; 37/37 tests; no product/deploy |
 <<<<<<< HEAD
-| 2026-08-09 | backend-write-critical (C3-B Johnstone parser harden) | T3 | Composer 2.5 Fast + Sonnet D-60×2 + Grok adversarial + D-38 | 98 | 99 | ok (PR; CF deploy pending Dan) | PO bleed+banner; no lesson store; no CF/rules deploy |
-| 2026-08-09 | ship-op (C3-B PR #111 rebase + D-38 final-candidate rerun) | T3 backend-write-critical | Composer 2.5 Fast + Sonnet D-38 | 99 | 99 | ok (shipping) | gate UUID format fix; prior bc-2927d76e validated via MCP; new gate 4490e262 |
+| 2026-08-09 | harness-tooling (Timekeeper D-72 visibility + cadence) | T0/T1 harness | Composer 2.5 Fast | 98 | 99 | ok (PR) | pending→delivered; ~10–35m elapsed; policy B supersession; 37/37 tests; no product/deploy |
 =======
+| 2026-08-09 | backend-write-critical (C3-B Johnstone parser harden) | T3 | Composer 2.5 Fast + Sonnet D-60×2 + Grok adversarial + D-38 | 98 | 99 | ok (PR; CF deploy pending Dan) | PO bleed+banner; no lesson store; no CF/rules deploy |
+>>>>>>> 1b19833d (feat: C3-B harden Johnstone PO bleed + INVOICE banner parse)
+| 2026-08-09 | ship-op (C3-B PR #111 rebase + D-38 final-candidate rerun) | T3 backend-write-critical | Composer 2.5 Fast + Sonnet D-38 | 99 | 99 | ok (shipping) | gate UUID format fix; prior bc-2927d76e validated via MCP; new gate 4490e262 |
 | 2026-08-09 | backend-write-critical (Invoice Review Assign Location Will-Call→Drop-Off override) | T3 high-risk | Composer 2.5 Fast (+ D-60/D-38 Sonnet; simple-UI Assign Location = Composer) | 97 | 97 | classify-only | STOP — no implement; no Invoice Review fulfillment write path; needs new CF + draft staging persist; awaiting Dan approve for D-60 |
->>>>>>> 8cc032d1 (chore: log D-38/D-60 evidence for Assign Location PR)
+| 2026-08-09 | backend-write-critical (Invoice Review Assign Location Will-Call→Drop-Off) | T3 high-risk | Composer 2.5 Fast (+ D-60/D-38 Sonnet) | 98 | 99 | ok (PR-only) | CFs+FE+tests; D-60 Agree+PASS; D-38 PASS; verify assign-location PASS; CF/rules deploy held |
+| 2026-08-09 | backend-write-critical (PR #97 D-60 re-entry Assign Location) | T3 | Composer 2.5 Fast + Sonnet/Grok | 98 | 99 | ok (PR only; CF held) | sonnet-instruct Agree-with-revisions; adversarial PASS after FE fix; sonnet-verify PASS; D-38 f18c7c2f; create_shell=A |
