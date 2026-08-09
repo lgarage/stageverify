@@ -1,8 +1,8 @@
 {
   "name": "stageverify-timekeeper",
   "displayName": "StageVerify Timekeeper",
-  "version": "0.1.0",
-  "description": "Harness anti-thrash timekeeper for StageVerify agent runs: wall-clock checkpoints, repeated-failure nudges, and bounded waiting — without weakening D-38/D-60/D-65/D-66/D-69.",
+  "version": "0.2.0",
+  "description": "Harness anti-thrash timekeeper for StageVerify agent runs: pending→delivered wall-clock checkpoints (~10–35m), repeated-failure nudges, and bounded waiting — without weakening D-38/D-60/D-65/D-66/D-69.",
   "author": {
     "name": "StageVerify",
     "email": "dan@stageverify.local"

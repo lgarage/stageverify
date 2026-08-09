@@ -108,3 +108,4 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-09 | docs-governance / product decision (C3-A D-59 #7/#8 amend) | T0 docs-update | Composer 2.5 Fast | 98 | 99 | ok (PR) | Narrow header_field_extraction + deterministic C3 carve-out; no product code |
 | 2026-08-09 | ship-op (PR #107 merge C3-A D-59 #7/#8 amend) | T0 docs-update | Composer 2.5 Fast | 99 | 99 | ok | merge to main; docs-only; no deploy; C3-B next |
 | 2026-08-09 | docs-governance / D-60 Sonnet+Grok iterative high-risk review | T0/T1 harness | Composer 2.5 Fast (+ Grok Critical Reviewer) | 98 | 99 | ok (PR) | Amend D-60: Sonnet pre → builder → high-risk-adversarial → Sonnet final → D-38; discovery A–I PASS; no product/deploy |
+| 2026-08-09 | harness-tooling (Timekeeper D-72 visibility + cadence) | T0/T1 harness | Composer 2.5 Fast | 98 | 99 | ok (PR) | pending→delivered; ~10–35m elapsed; policy B supersession; 37/37 tests; no product/deploy |

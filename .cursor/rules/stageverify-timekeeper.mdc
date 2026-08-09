@@ -9,10 +9,12 @@ Canonical detail: `plugins/stageverify-timekeeper/rules/timekeeper.mdc` + skill 
 
 Hooks auto-run via `.cursor/hooks.json`. When a `TIMEKEEPER` block appears, follow its `decision`.
 
+**Delivery:** pending until agent-visible hook (`postToolUse` / `preToolUse` / `beforeShellExecution` / `stop`). Do not treat silent best-effort channels as delivered.
+
 **Anti-thrash:** same op fails twice → stop repeating → classify → change method / D-19–D-50 / PARTIAL / BLOCKED.
 
 **Failure classes:** product | implementation | verification | measurement-tool | CI wait | deploy propagation | main drift — different recoveries.
 
-**Checkpoints:** ~10m stall · ~15m status · ~25m completion-focus · ~35m A/B/C/D + D-66 terminal.
+**Elapsed cadence (progress does not suppress):** ~10m status · ~15m focus · ~20m focus · ~25m completion-focus · ~30m completion-push · ~35m D-66 terminal. Stall ~10m only when no material progress.
 
 **HARD CONTRACT:** Never weaken or skip required D-38 / D-60 / D-42 / D-51 / named `verify:*` / D-50 because of Timekeeper advice. Green stamps only justify skipping *unchanged redundant* reruns under existing D-37/D-65 rules.
