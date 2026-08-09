@@ -364,47 +364,29 @@ export async function upsertManagementPinDoc(
     const db = getDb();
     const refs = prepareAccessPinSecretWrite("management", pinId, pin);
     await db.runTransaction(async (tx) => {
-      const [existingSecretSnap, uniquenessSnap, entitySnap, ...legacyUniquenessSnaps] =
-        await Promise.all([
-          tx.get(refs.secretRef),
-          tx.get(refs.uniquenessRef),
-          tx.get(refs.entityRef),
-          ...refs.legacyUniquenessRefs.map((ref) => tx.get(ref)),
-        ]);
-
-      await applyAccessPinSecretWriteInTransaction(tx, db, {
-        targetType: "management",
-        targetId: pinId,
-        pin,
-        now,
-        refs,
+      // ALL reads before ANY writes (incl. session consume when rotating).
+      const sessionRef =
+        input.sessionConsumption && input.actorUid
+          ? db
+              .collection(ADMIN_ACCESS_SESSIONS_COLLECTION)
+              .doc(input.sessionConsumption.sessionId)
+          : null;
+      const [
         existingSecretSnap,
         uniquenessSnap,
-        legacyUniquenessSnaps,
         entitySnap,
-        managementEntityFields: {
-          label,
-          active,
-          permissions,
-          createdAt: existing?.createdAt ?? now,
-        },
-      });
+        sessionSnap,
+        ...legacyUniquenessSnaps
+      ] = await Promise.all([
+        tx.get(refs.secretRef),
+        tx.get(refs.uniquenessRef),
+        tx.get(refs.entityRef),
+        sessionRef ? tx.get(sessionRef) : Promise.resolve(null),
+        ...refs.legacyUniquenessRefs.map((ref) => tx.get(ref)),
+      ]);
 
-      tx.set(
-        db.collection("appSettings").doc("config"),
-        {
-          managementPinConfigured: true,
-          updatedAt: now,
-        },
-        { merge: true },
-      );
-
-      if (input.sessionConsumption && input.actorUid) {
-        const sessionRef = db
-          .collection(ADMIN_ACCESS_SESSIONS_COLLECTION)
-          .doc(input.sessionConsumption.sessionId);
-        const sessionSnap = await tx.get(sessionRef);
-        if (!sessionSnap.exists) {
+      if (sessionRef && input.sessionConsumption && input.actorUid) {
+        if (!sessionSnap?.exists) {
           throw new HttpsError(
             "failed-precondition",
             "Admin access session expired.",
@@ -447,6 +429,36 @@ export async function upsertManagementPinDoc(
             "Invalid admin access session.",
           );
         }
+      }
+
+      await applyAccessPinSecretWriteInTransaction(tx, db, {
+        targetType: "management",
+        targetId: pinId,
+        pin,
+        now,
+        refs,
+        existingSecretSnap,
+        uniquenessSnap,
+        legacyUniquenessSnaps,
+        entitySnap,
+        managementEntityFields: {
+          label,
+          active,
+          permissions,
+          createdAt: existing?.createdAt ?? now,
+        },
+      });
+
+      tx.set(
+        db.collection("appSettings").doc("config"),
+        {
+          managementPinConfigured: true,
+          updatedAt: now,
+        },
+        { merge: true },
+      );
+
+      if (sessionRef) {
         tx.set(sessionRef, { consumedAt: now }, { merge: true });
       }
     });

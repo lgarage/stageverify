@@ -89,6 +89,7 @@ exports.setAccessPin = (0, https_1.onCall)({
     const auditRef = db.collection(accessPinSecretsShared_1.PIN_ACCESS_AUDIT_COLLECTION).doc();
     const now = new Date().toISOString();
     await db.runTransaction(async (tx) => {
+        // ALL reads before ANY writes (incl. session consume for existing-PIN rotate).
         const entitySnap = await tx.get(refs.entityRef);
         if (!entitySnap.exists && targetType !== "management") {
             throw new https_1.HttpsError("not-found", "Target not found.");
@@ -96,6 +97,34 @@ exports.setAccessPin = (0, https_1.onCall)({
         const existingSecretSnap = await tx.get(refs.secretRef);
         const uniquenessSnap = await tx.get(refs.uniquenessRef);
         const legacyUniquenessSnaps = await Promise.all(refs.legacyUniquenessRefs.map((ref) => tx.get(ref)));
+        let sessionRef = null;
+        let sessionSnap = null;
+        if (validatedSessionId && validatedSessionRaw) {
+            sessionRef = db
+                .collection(accessPinSecretsShared_1.ADMIN_ACCESS_SESSIONS_COLLECTION)
+                .doc(validatedSessionId);
+            sessionSnap = await tx.get(sessionRef);
+            if (!sessionSnap.exists) {
+                throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
+            }
+            const session = sessionSnap.data();
+            if (session.secretHash !== (0, adminAccessSession_1.hashAdminAccessSessionRaw)(validatedSessionRaw)) {
+                throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
+            }
+            if (session.revoked || session.consumedAt) {
+                throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
+            }
+            if (Date.parse(session.expiresAt) <= Date.now()) {
+                throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
+            }
+            if (session.managerUid !== uid) {
+                throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
+            }
+            if (session.targetType !== targetType ||
+                session.targetId !== targetId) {
+                throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
+            }
+        }
         await (0, accessPinSecretWrite_1.applyAccessPinSecretWriteInTransaction)(tx, db, {
             targetType,
             targetId,
@@ -120,31 +149,7 @@ exports.setAccessPin = (0, https_1.onCall)({
             actorUid: uid,
             createdAt: now,
         });
-        if (validatedSessionId && validatedSessionRaw) {
-            const sessionRef = db
-                .collection(accessPinSecretsShared_1.ADMIN_ACCESS_SESSIONS_COLLECTION)
-                .doc(validatedSessionId);
-            const sessionSnap = await tx.get(sessionRef);
-            if (!sessionSnap.exists) {
-                throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
-            }
-            const session = sessionSnap.data();
-            if (session.secretHash !== (0, adminAccessSession_1.hashAdminAccessSessionRaw)(validatedSessionRaw)) {
-                throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
-            }
-            if (session.revoked || session.consumedAt) {
-                throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
-            }
-            if (Date.parse(session.expiresAt) <= Date.now()) {
-                throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
-            }
-            if (session.managerUid !== uid) {
-                throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
-            }
-            if (session.targetType !== targetType ||
-                session.targetId !== targetId) {
-                throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
-            }
+        if (sessionRef) {
             tx.set(sessionRef, { consumedAt: now }, { merge: true });
         }
     });
