@@ -566,15 +566,21 @@ async function setTheme(page, theme) {
 }
 
 async function trySignOutIn(page) {
-  // Prefer an explicit logout control if present; otherwise skip.
+  // Close inspect modal first — it intercepts pointer events over the shell.
+  const closeBtn = page.getByTestId("invoice-parsed-inspect-close");
+  if (await closeBtn.isVisible().catch(() => false)) {
+    await closeBtn.click();
+    await page.waitForTimeout(300);
+  }
   const candidates = [
+    page.getByTestId("dispatcher-sign-out"),
     page.getByRole("button", { name: /sign out|log out|logout/i }),
     page.getByTestId("portal-sign-out"),
     page.getByTestId("admin-sign-out"),
   ];
   for (const loc of candidates) {
     if ((await loc.count()) && (await loc.first().isVisible().catch(() => false))) {
-      await loc.first().click();
+      await loc.first().click({ timeout: 10_000 });
       await page.waitForTimeout(1000);
       await ensureAuthenticated(page);
       return true;
