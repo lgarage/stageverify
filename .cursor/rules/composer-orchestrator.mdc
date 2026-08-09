@@ -313,6 +313,7 @@ stageverify workspace rules (`.cursor/rules/`) override the global agent-ops ski
 ❌ Leave main undeployed after substantive UI work when Dan expects to test on gh-pages.
 ❌ Wait for Dan to ask for parallel read-only scans when parallel-agent-strategy.mdc triggers apply.
 ❌ End substantive tasks with only verdict/commit/validation tables — lead with **What we did** in plain language.
+❌ Close a user-observable product ship/deploy/repair/ARCHIVE without **MANUAL TEST FOR DAN** (or the explicit N/A one-liner) before the D-66 terminal (D-78).
 
 ## Rule File Self-Maintenance
 If during any session you notice a contradiction between rule files (e.g. one file says Opus for T3, another says Composer), fix it immediately in a `chore: align rules` commit before starting the feature work. `composer-orchestrator.mdc` is the authoritative source for session defaults. Other rule files must align with it.
