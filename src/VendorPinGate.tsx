@@ -9,7 +9,9 @@ import {
   setPinSession,
   setJobPinSession,
   setVendorRunPinSession,
+  setVendorUnplannedPinSession,
 } from "./vendorPinSession";
+import type { VendorSessionScope } from "./dispatcher/models";
 
 const KEYPAD = [
   ["1", "2", "3"],
@@ -26,7 +28,11 @@ export interface VendorPinVerifiedPayload {
   vendorName: string;
   deliveryId?: string;
   jobId?: string;
-  sessionScope?: "job" | "delivery" | "vendor";
+  sessionScope?: VendorSessionScope;
+  noExpectedDelivery?: boolean;
+  sessionToken?: string;
+  expiresAt?: string;
+  scannedStagingLocationCode?: string;
   /** Present only after successful PIN when CF returns hub bootstrap. */
   bootstrap?: VendorPinBootstrap;
 }
@@ -111,6 +117,23 @@ export function VendorPinGate({
           sessionMinutes,
         };
 
+        if (result.sessionScope === "vendor_unplanned" || result.noExpectedDelivery) {
+          setVendorUnplannedPinSession(result.vendorId, result.vendorName, {
+            ...sessionOpts,
+            scannedStagingLocationCode: result.scannedStagingLocationCode,
+          });
+          onVerified({
+            vendorId: result.vendorId,
+            vendorName: result.vendorName,
+            sessionScope: "vendor_unplanned",
+            noExpectedDelivery: result.noExpectedDelivery ?? true,
+            sessionToken: result.sessionToken,
+            expiresAt: result.expiresAt,
+            scannedStagingLocationCode: result.scannedStagingLocationCode,
+          });
+          return;
+        }
+
         if (result.sessionScope === "job" && result.jobId) {
           setJobPinSession(
             result.jobId,
@@ -149,6 +172,9 @@ export function VendorPinGate({
           deliveryId: result.deliveryId,
           jobId: result.jobId,
           sessionScope: result.sessionScope,
+          sessionToken: result.sessionToken,
+          expiresAt: result.expiresAt,
+          scannedStagingLocationCode: result.scannedStagingLocationCode,
           bootstrap: result.bootstrap,
         });
       } catch (err) {

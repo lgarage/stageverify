@@ -384,6 +384,8 @@ const includesSearch = (row: DeliveryListRow, search: string): boolean => {
     row.vendorName,
     row.stagingLocationCode,
     row.stagingLocationCodes.join(", "),
+    row.unplanned ? "unplanned" : "",
+    row.unplannedReviewFlag ? "unplanned review" : "",
   ].some((value) => safe(value).toLowerCase().includes(normalized));
 };
 
@@ -466,11 +468,20 @@ export class FirestoreDataService implements DispatcherDataService {
     const rows: DeliveryListRow[] = [];
     for (const delivery of deliveries) {
       if (hideSeedDemoRows && isSeedDemoDelivery(delivery)) continue;
-      if (hideSeedDemoRows && !delivery.vendorInvoiceImportId?.trim()) continue;
+      if (
+        hideSeedDemoRows &&
+        !delivery.vendorInvoiceImportId?.trim() &&
+        !delivery.unplanned
+      ) {
+        continue;
+      }
 
-      const job = allJobs.find((j) => j.id === delivery.jobId);
+      const job = delivery.jobId
+        ? allJobs.find((j) => j.id === delivery.jobId)
+        : undefined;
       const vendor = allVendors.find((v) => v.id === delivery.vendorId);
-      if (!job || !vendor) continue;
+      if (!vendor) continue;
+      if (!job && !delivery.unplanned) continue;
 
       const po = delivery.purchaseOrderId
         ? allPOs.find((p) => p.id === delivery.purchaseOrderId)
@@ -504,15 +515,26 @@ export class FirestoreDataService implements DispatcherDataService {
       const creditReturnLinked = linkedImport
         ? isCreditReturnLinkedImport(linkedImport)
         : false;
+      const unplannedReviewFlag =
+        delivery.reviewFlag?.flagged === true &&
+        /unplanned/i.test(delivery.reviewFlag.reason ?? "");
+      const unplannedIssue =
+        delivery.unplanned === true || unplannedReviewFlag
+          ? delivery.reviewFlag?.reason?.trim() ||
+            delivery.unplannedSubmittedReference?.trim() ||
+            "Unplanned delivery — needs job/PO match"
+          : "";
+      const issueSummary =
+        unplannedIssue || display.issueSummary;
 
       rows.push({
         deliveryId: delivery.id,
-        jobId: delivery.jobId,
+        jobId: delivery.jobId ?? "",
         // Authoritative for list filter chips / counts — matches statusDisplayLabel.
         status: display.readiness.deliveryStatus,
         statusDisplayLabel: display.statusDisplayLabel,
-        jobNumber: job.jobNumber,
-        jobName: job.jobName,
+        jobNumber: job?.jobNumber ?? "—",
+        jobName: job?.jobName ?? "Needs job match",
         vendorInvoiceNumber: delivery.vendorInvoiceNumber?.trim() || undefined,
         poNumber: resolveDeliveryPoNumber(
           delivery.customerPoOrReference,
@@ -526,12 +548,14 @@ export class FirestoreDataService implements DispatcherDataService {
         stagingLocationCodes,
         plannedActualDivergence: hasPlannedActualDivergence(delivery),
         itemsReceivedLabel: `${received}/${ordered}`,
-        issueSummary: display.issueSummary,
+        issueSummary,
         openIssueCount: display.openIssueCount,
         missingStagingAssignment: display.missingStagingAssignment,
         stagingLocationListNotApplicable:
           isWillCallPickupStagingListNa(delivery),
         creditReturnLinked,
+        unplanned: delivery.unplanned === true,
+        unplannedReviewFlag,
       });
     }
 
@@ -547,6 +571,13 @@ export class FirestoreDataService implements DispatcherDataService {
         if (!matches) return false;
       }
       if (q.search && !includesSearch(row, q.search)) return false;
+      if (
+        q.unplannedOnly &&
+        !row.unplanned &&
+        !row.unplannedReviewFlag
+      ) {
+        return false;
+      }
       return true;
     });
 

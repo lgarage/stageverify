@@ -226,6 +226,7 @@ async function createVendorSession(input) {
         ...(input.scannedStagingLocationCode
             ? { scannedStagingLocationCode: input.scannedStagingLocationCode }
             : {}),
+        ...(input.unplannedEligible ? { unplannedEligible: true } : {}),
     });
     return { sessionToken, expiresAt };
 }
@@ -357,14 +358,39 @@ exports.verifyVendorPin = (0, https_1.onCall)({
                 return { success: false, message: "Invalid code." };
             }
             const anchorDeliveryId = await anchorDeliveryForVendor(vendorMatch.id);
-            if (!anchorDeliveryId) {
-                return { success: false, message: "Invalid code." };
-            }
             const location = await resolveStagingLocation(stagingLocationCode);
             const vendorName = vendorDisplayName(vendorMatch.data);
             await clearRateLimitOnSuccess(attemptKey);
             if (locationFirst) {
                 await clearRateLimitOnSuccess("pin:location-first:global");
+            }
+            // Zero expected deliveries: issue unplanned-eligible session (not Invalid code).
+            if (!anchorDeliveryId) {
+                await writePinVerifiedAudit({
+                    deliveryId: `unplanned-anchor:${vendorMatch.id}`,
+                    vendorId: vendorMatch.id,
+                    vendorName,
+                    stagingLocationCode: stagingLocationCode ?? undefined,
+                });
+                const session = await createVendorSession({
+                    deliveryId: "",
+                    vendorId: vendorMatch.id,
+                    vendorName,
+                    sessionScope: "vendor_unplanned",
+                    scannedStagingLocationId: location?.id,
+                    scannedStagingLocationCode: location?.code ?? stagingLocationCode ?? undefined,
+                    unplannedEligible: true,
+                });
+                return {
+                    success: true,
+                    vendorId: vendorMatch.id,
+                    vendorName,
+                    sessionScope: "vendor_unplanned",
+                    noExpectedDelivery: true,
+                    scannedStagingLocationCode: location?.code ?? stagingLocationCode,
+                    sessionToken: session.sessionToken,
+                    expiresAt: session.expiresAt,
+                };
             }
             await writePinVerifiedAudit({
                 deliveryId: anchorDeliveryId,

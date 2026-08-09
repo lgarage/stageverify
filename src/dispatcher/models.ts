@@ -373,6 +373,60 @@ export interface VendorPinBootstrap {
   deliveryDate?: string;
 }
 
+export type VendorSessionScope =
+  | "job"
+  | "delivery"
+  | "vendor"
+  | "vendor_unplanned";
+
+export type UnplannedSpaceTier = "shelf" | "ground" | "large";
+
+export type UnplannedMatchOutcome = "strong_match" | "ambiguous" | "no_match";
+
+export interface UnplannedMatchCandidateSummary {
+  deliveryId: string;
+  orderNumber: string;
+  jobName?: string;
+  poNumber?: string;
+  confidenceScore: number;
+}
+
+export interface MatchUnplannedVendorDeliveryResult {
+  outcome: UnplannedMatchOutcome;
+  candidate?: UnplannedMatchCandidateSummary;
+  candidateSummaries?: UnplannedMatchCandidateSummary[];
+}
+
+export interface UnplannedVendorDeliverySuccessResult {
+  success: true;
+  vendorId: string;
+  vendorName: string;
+  deliveryId: string;
+  sessionScope: "vendor";
+  sessionToken: string;
+  expiresAt: string;
+  scannedStagingLocationCode?: string;
+  bootstrap?: VendorPinBootstrap;
+  needMoreSpace?: boolean;
+  stagingLocationCode?: string;
+}
+
+export interface CreateUnplannedVendorDeliveryResult {
+  success?: boolean;
+  outcome?: "strong_match_found";
+  candidate?: UnplannedMatchCandidateSummary;
+  vendorId?: string;
+  vendorName?: string;
+  deliveryId?: string;
+  sessionScope?: "vendor";
+  sessionToken?: string;
+  expiresAt?: string;
+  scannedStagingLocationCode?: string;
+  bootstrap?: VendorPinBootstrap;
+  needMoreSpace?: boolean;
+  stagingLocationCode?: string;
+}
+
 export interface VerifyVendorPinResult {
   success: boolean;
   message?: string;
@@ -380,7 +434,9 @@ export interface VerifyVendorPinResult {
   vendorName?: string;
   deliveryId?: string;
   jobId?: string;
-  sessionScope?: "job" | "delivery" | "vendor";
+  sessionScope?: VendorSessionScope;
+  /** True when company PIN succeeded with zero expected deliveries. */
+  noExpectedDelivery?: boolean;
   scannedStagingLocationCode?: string;
   /** Opaque server-issued session token. */
   sessionToken?: string;
@@ -725,10 +781,11 @@ export interface VendorSession {
   vendorName: string;
   expiresAt: string;
   createdAt: string;
-  sessionScope?: "job" | "delivery" | "vendor";
+  sessionScope?: VendorSessionScope;
   jobId?: string;
   scannedStagingLocationId?: string;
   scannedStagingLocationCode?: string;
+  unplannedEligible?: boolean;
 }
 
 export interface PinVerificationEvent {
@@ -882,6 +939,21 @@ export interface DeliveryOrder {
   physicalDropoffCompleteAt?: string;
   /** Derived from stagingLocationId when physical material is received. */
   stagingAssignmentComplete?: boolean;
+  /** Vendor PIN fallback — delivery not on expected run list. */
+  unplanned?: boolean;
+  unplannedSubmittedReference?: string;
+  unplannedMatchStatus?: "strong_match" | "ambiguous" | "no_match";
+  unplannedAmbiguousCandidateSummaries?: Array<{
+    deliveryId: string;
+    orderNumber: string;
+    confidenceScore: number;
+  }>;
+  unplannedCreatedVia?: "vendor_pin_fallback";
+  unplannedPackageCount?: number;
+  unplannedNeedMoreSpace?: boolean;
+  unplannedSpaceTierRequested?: UnplannedSpaceTier;
+  vendorUnplannedConfirmedAt?: string;
+  vendorUnplannedConfirmedVia?: "vendor_pin_fallback";
   /** Partial pickup — staging zones already collected. */
   pickedUpStagingLocationIds?: string[];
   /** Technician item checklist — persisted per delivery for reload continuity. */
@@ -1865,6 +1937,10 @@ export interface DeliveryListRow {
   stagingLocationListNotApplicable?: boolean;
   /** Linked import is credit/return — show list badge. */
   creditReturnLinked?: boolean;
+  /** Vendor PIN unplanned fallback — needs dispatcher job/PO match. */
+  unplanned?: boolean;
+  /** reviewFlag.reason contains Unplanned — list filter/badge. */
+  unplannedReviewFlag?: boolean;
 }
 
 export interface DeliveryDetails {

@@ -60,6 +60,8 @@ export type SortDirection = "asc" | "desc";
 export interface DeliveryQuery {
   search?: string;
   statuses?: DeliveryOverviewFilterStatus[];
+  /** Vendor PIN unplanned fallback — needs job/PO match. */
+  unplannedOnly?: boolean;
   vendorIds?: string[];
   stagingLocationIds?: string[];
   jobId?: string;

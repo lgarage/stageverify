@@ -370,6 +370,32 @@ export async function markVendorDeliveriesBulkClient(input: {
   return callCallable("markVendorDeliveriesBulk", input);
 }
 
+export async function matchUnplannedVendorDeliveryClient(input: {
+  sessionToken: string;
+  reference: string;
+}): Promise<import("./dispatcher/models").MatchUnplannedVendorDeliveryResult> {
+  return callCallable("matchUnplannedVendorDelivery", input);
+}
+
+export async function createUnplannedVendorDeliveryClient(input: {
+  sessionToken: string;
+  reference: string;
+  spaceTier: import("./dispatcher/models").UnplannedSpaceTier;
+  packageCount?: number;
+}): Promise<import("./dispatcher/models").CreateUnplannedVendorDeliveryResult> {
+  return callCallable("createUnplannedVendorDelivery", input);
+}
+
+export async function confirmUnplannedVendorDeliveryMatchClient(input: {
+  sessionToken: string;
+  reference: string;
+  deliveryId: string;
+  spaceTier?: import("./dispatcher/models").UnplannedSpaceTier;
+  packageCount?: number;
+}): Promise<import("./dispatcher/models").UnplannedVendorDeliverySuccessResult> {
+  return callCallable("confirmUnplannedVendorDeliveryMatch", input);
+}
+
 export async function startAdminAccessSessionClient(input: {
   targetType: import("./dispatcher/models").AccessPinTargetType;
   targetId: string;

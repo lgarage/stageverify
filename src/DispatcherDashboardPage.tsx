@@ -160,6 +160,7 @@ const SORT_COLUMNS: Array<{
 type ListQueryState = {
   search: string;
   statuses: DeliveryOverviewFilterStatus[];
+  unplannedOnly: boolean;
   sortBy: DeliverySortField;
   sortDirection: SortDirection;
   page: number;
@@ -183,6 +184,7 @@ export function DispatcherDashboardPage() {
   const [query, setQuery] = useState<ListQueryState>({
     search: "",
     statuses: [],
+    unplannedOnly: false,
     sortBy: "deliveryDate",
     sortDirection: "desc",
     page: 1,
@@ -223,7 +225,10 @@ export function DispatcherDashboardPage() {
 
   const focusNeedsReview = portalNavFocus(location.search) === "needs-review";
 
-  const hasActiveFilters = query.statuses.length > 0 || !!query.search.trim();
+  const hasActiveFilters =
+    query.statuses.length > 0 ||
+    !!query.search.trim() ||
+    query.unplannedOnly;
 
   const techById = useMemo(
     () => new Map(technicians.map((t) => [t.id, t])),
@@ -259,6 +264,7 @@ export function DispatcherDashboardPage() {
         firestoreDataService.listDeliveries({
           search: query.search,
           statuses: query.statuses.length ? query.statuses : undefined,
+          unplannedOnly: query.unplannedOnly || undefined,
           sortBy: query.sortBy,
           sortDirection: query.sortDirection,
           page: query.page,
@@ -625,12 +631,48 @@ export function DispatcherDashboardPage() {
                   <button
                     type="button"
                     className="admin-chip"
+                    data-testid="deliveries-unplanned-filter"
+                    onClick={() =>
+                      setQuery((prev) => ({
+                        ...prev,
+                        page: 1,
+                        unplannedOnly: !prev.unplannedOnly,
+                      }))
+                    }
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: "var(--admin-radius-pill)",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      letterSpacing: "normal",
+                      boxSizing: "border-box",
+                      border: `2px solid ${
+                        query.unplannedOnly
+                          ? "var(--admin-warning-border)"
+                          : "var(--admin-border)"
+                      }`,
+                      backgroundColor: query.unplannedOnly
+                        ? "var(--admin-warning-bg)"
+                        : "var(--admin-surface-2)",
+                      color: query.unplannedOnly
+                        ? "var(--admin-warning-text)"
+                        : "var(--admin-text-label)",
+                      cursor: "pointer",
+                      fontFamily: FONT,
+                    }}
+                  >
+                    Unplanned
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-chip"
                     disabled={!hasActiveFilters}
                     onClick={() =>
                       setQuery((prev) => ({
                         ...prev,
                         search: "",
                         statuses: [],
+                        unplannedOnly: false,
                         page: 1,
                       }))
                     }
@@ -948,6 +990,25 @@ export function DispatcherDashboardPage() {
                               }}
                             >
                               Credit/Return
+                            </span>
+                          ) : null}
+                          {row.unplanned || row.unplannedReviewFlag ? (
+                            <span
+                              className="admin-chip"
+                              data-testid={`delivery-list-unplanned-badge-${row.deliveryId}`}
+                              title="Vendor unplanned delivery — needs job/PO match"
+                              style={{
+                                display: "inline-flex",
+                                marginTop: 4,
+                                fontSize: 10,
+                                fontWeight: 700,
+                                color: "var(--admin-warning-text)",
+                                backgroundColor: "var(--admin-warning-bg)",
+                                border: "1px solid var(--admin-warning-border)",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              Unplanned
                             </span>
                           ) : null}
                         </td>
@@ -1335,6 +1396,7 @@ export function DispatcherDashboardPage() {
                                 ...prev,
                                 search: "",
                                 statuses: [],
+                                unplannedOnly: false,
                                 page: 1,
                               }))
                             }
