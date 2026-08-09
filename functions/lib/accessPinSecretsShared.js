@@ -22,9 +22,9 @@ function getDb() {
 function accessPinSecretDocId(targetType, targetId) {
     return `${targetType}_${targetId}`;
 }
-/** Uniqueness index doc id — second arg is HMAC lookup key from pinLookupKeyForPin, not plaintext PIN. */
-function accessPinUniquenessDocId(targetType, pinLookupKey) {
-    return `${targetType}_${pinLookupKey}`;
+/** Global uniqueness index doc id — arg is HMAC lookup key from pinLookupKeyForPin, not plaintext PIN. */
+function accessPinUniquenessDocId(pinLookupKey) {
+    return `global_${pinLookupKey}`;
 }
 function parseAccessPinTargetType(value) {
     if (value === "technician" ||

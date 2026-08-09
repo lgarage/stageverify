@@ -79,6 +79,7 @@ import { markVendorDeliveriesBulk } from "./markVendorDeliveriesBulk";
 import { recordVendorLocationScan } from "./recordVendorLocationScan";
 import { verifyTechnicianPin } from "./verifyTechnicianPin";
 import { verifyManagementPin } from "./verifyManagementPin";
+import { resolveLocationScanPin } from "./resolveLocationScanPin";
 import { getManagementWaitingParts } from "./getManagementWaitingParts";
 import { markCatchAllDeliveryReceived } from "./markCatchAllDeliveryReceived";
 import { notifyCatchAllCheckers } from "./notifyCatchAllCheckers";
@@ -251,6 +252,7 @@ export {
   recordVendorLocationScan,
   verifyTechnicianPin,
   verifyManagementPin,
+  resolveLocationScanPin,
   getManagementWaitingParts,
   markCatchAllDeliveryReceived,
   notifyCatchAllCheckers,

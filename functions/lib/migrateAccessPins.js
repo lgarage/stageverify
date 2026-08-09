@@ -83,11 +83,12 @@ async function migrateEntityCollection(targetType, collectionName, dryRun, remai
             if (plainPin) {
                 const uniquenessRef = db
                     .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
-                    .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)(targetType, (0, accessPinCrypto_1.pinLookupKeyForPin)(plainPin)));
+                    .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)((0, accessPinCrypto_1.pinLookupKeyForPin)(plainPin)));
                 const uniquenessSnap = await tx.get(uniquenessRef);
                 if (uniquenessSnap.exists) {
                     const existing = uniquenessSnap.data();
-                    if (existing.targetId && existing.targetId !== doc.id) {
+                    if ((existing.targetId && existing.targetId !== doc.id) ||
+                        (existing.targetType && existing.targetType !== targetType)) {
                         collisionSkipped = true;
                         return;
                     }

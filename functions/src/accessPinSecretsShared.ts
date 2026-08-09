@@ -71,12 +71,9 @@ export function accessPinSecretDocId(
   return `${targetType}_${targetId}`;
 }
 
-/** Uniqueness index doc id — second arg is HMAC lookup key from pinLookupKeyForPin, not plaintext PIN. */
-export function accessPinUniquenessDocId(
-  targetType: AccessPinTargetType,
-  pinLookupKey: string,
-): string {
-  return `${targetType}_${pinLookupKey}`;
+/** Global uniqueness index doc id — arg is HMAC lookup key from pinLookupKeyForPin, not plaintext PIN. */
+export function accessPinUniquenessDocId(pinLookupKey: string): string {
+  return `global_${pinLookupKey}`;
 }
 
 export function parseAccessPinTargetType(

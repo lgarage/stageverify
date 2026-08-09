@@ -68,12 +68,12 @@ async function clearFixture(pinId) {
   batch.delete(
     db
       .collection("accessPinUniqueness")
-      .doc(accessPinUniquenessDocId("management", oldKey)),
+      .doc(accessPinUniquenessDocId(oldKey)),
   );
   batch.delete(
     db
       .collection("accessPinUniqueness")
-      .doc(accessPinUniquenessDocId("management", newKey)),
+      .doc(accessPinUniquenessDocId(newKey)),
   );
   await batch.commit();
 }
@@ -114,7 +114,7 @@ try {
     });
   await db
     .collection("accessPinUniqueness")
-    .doc(accessPinUniquenessDocId("management", oldLookupKey))
+    .doc(accessPinUniquenessDocId(oldLookupKey))
     .set({
       targetType: "management",
       targetId: pinId,
