@@ -93,7 +93,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- **Will-Call pink + staging release (v0.0.278)** — hard-refresh → delivery **6169414**: Drop-Off+G12 → Will-Call → pink **Will-Call / Pickup**, G12 free, no green Staged; reverse → Drop-Off with STAGING LOCATION NEEDED (no G12 restore); Assign Location to a new spot. Keep Cursor job open until Dan accepts.
+- **Will-Call pink category (v0.0.279)** — hard-refresh → delivery **6169414**: Drop-Off+G12 → Will-Call → pink **Will-Call / Pickup**, G12 free (D-80), no green Staged; reverse → Drop-Off with STAGING LOCATION NEEDED (no G12 restore); Assign Location to a new spot. Keep Cursor job open until Dan accepts.
 - **Delivery Details staging-needed card (v0.0.277)** — hard-refresh dispatcher → open Vendor Drop-Off with no staging → confirm STAGING LOCATION NEEDED + yellow Assign Location; Assign → Staging Map confirm; Will-Call hides card.
 - **PR #97 Invoice Review Staging Map Assign LIVE (merge `b62401eb` / PR #119 / packaged v0.0.274; served under tip **v0.0.276**) — waiting Dan manual acceptance:** Will-Call → Confirm Drop-Off → STAGING LOCATION NEEDED card → Assign Location → Staging Map → Confirm draft → reopen shows location + Change Location; hard refresh; spot not occupied pre-Approve.
 - **Staging Map zoom/canvas (v0.0.273)** — hard-refresh Staging Map → Edit Locations → zoom −/+ / 100% / Fit; enlarge Canvas Wider/Taller; drag a spot while zoomed; Done editing → refresh → confirm logical positions unchanged.
