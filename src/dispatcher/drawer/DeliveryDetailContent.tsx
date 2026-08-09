@@ -543,7 +543,6 @@ export function DetailContent({
     );
   }
 
-  if (!details.job) return null;
   const job = details.job;
   const delivery = details.delivery;
   const itemsReceivedTotal = details.items.reduce(
@@ -568,12 +567,12 @@ export function DetailContent({
   const staleWillCallStaging = willCallNoShopStaging && hasAssignedStaging;
   const drawerDeliveryRow: DeliveryListRow = {
     deliveryId: delivery.id,
-    jobId: delivery.jobId,
+    jobId: delivery.jobId ?? "",
     status: delivery.status,
     statusDisplayLabel:
       DELIVERY_STATUS_LABEL[delivery.status] ?? delivery.status,
-    jobNumber: job.jobNumber,
-    jobName: job.jobName,
+    jobNumber: job?.jobNumber ?? "—",
+    jobName: job?.jobName ?? "Needs job match",
     vendorInvoiceNumber: delivery.vendorInvoiceNumber?.trim() || undefined,
     poNumber:
       resolveDeliveryPoNumber(
@@ -761,25 +760,48 @@ export function DetailContent({
                 {
                   label: "Job #",
                   value: (
-                    <span style={{ fontFamily: "monospace", fontWeight: 700 }}>
-                      {job.jobNumber}
+                    <span
+                      data-testid="delivery-basics-job-number"
+                      style={{ fontFamily: "monospace", fontWeight: 700 }}
+                    >
+                      {job?.jobNumber ?? "—"}
                     </span>
                   ),
                 },
-                { label: "Job Name", value: job.jobName },
+                {
+                  label: "Job Name",
+                  value: (
+                    <span data-testid="delivery-basics-job-name">
+                      {job?.jobName ?? "Needs job match"}
+                    </span>
+                  ),
+                },
                 {
                   label: "Order #",
                   value: (
-                    <span style={{ fontFamily: "monospace", fontWeight: 700 }}>
-                      {details.delivery.orderNumber}
+                    <span
+                      data-testid="delivery-basics-order-number"
+                      style={{ fontFamily: "monospace", fontWeight: 700 }}
+                    >
+                      {details.delivery.orderNumber || "—"}
                     </span>
                   ),
                 },
-                { label: "Vendor", value: details.vendor.name },
+                {
+                  label: "Vendor",
+                  value: (
+                    <span data-testid="delivery-basics-vendor">
+                      {details.vendor.name}
+                    </span>
+                  ),
+                },
                 {
                   label: "PO #",
                   value: (
-                    <span style={{ fontFamily: "monospace" }}>
+                    <span
+                      data-testid="delivery-basics-po-number"
+                      style={{ fontFamily: "monospace" }}
+                    >
                       {resolveDeliveryPoNumber(
                         details.delivery.customerPoOrReference,
                         details.purchaseOrder?.poNumber,
@@ -908,11 +930,13 @@ export function DetailContent({
                   />
                 )}
               </div>
-              <JobReleaseToTechnicianPanel
-                jobId={job.id}
-                font={font}
-                onReleased={onJobReleased}
-              />
+              {job ? (
+                <JobReleaseToTechnicianPanel
+                  jobId={job.id}
+                  font={font}
+                  onReleased={onJobReleased}
+                />
+              ) : null}
               <button
                 type="button"
                 data-testid="delivery-basics-email-vendor"
@@ -979,140 +1003,142 @@ export function DetailContent({
             </div>
           </>,
         )}
-        <PickupTokenControls jobId={job.id} font={font}>
-          {({
-            hasActiveToken,
-            tokenBusy,
-            tokenExpiresAt,
-            statusLoading,
-            tokenError,
-            onRevoke,
-          }) => {
-            const showPickupStatus =
-              statusLoading ||
-              Boolean(job.pickupScheduledAt) ||
-              hasActiveToken ||
-              Boolean(tokenError);
+        {job ? (
+          <PickupTokenControls jobId={job.id} font={font}>
+            {({
+              hasActiveToken,
+              tokenBusy,
+              tokenExpiresAt,
+              statusLoading,
+              tokenError,
+              onRevoke,
+            }) => {
+              const showPickupStatus =
+                statusLoading ||
+                Boolean(job.pickupScheduledAt) ||
+                hasActiveToken ||
+                Boolean(tokenError);
 
-            return (
-            <>
-            <style>{`
-              .drawer-action-buttons-grid {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 8px;
-                width: 100%;
-              }
-              @media (max-width: 480px) {
+              return (
+              <>
+              <style>{`
                 .drawer-action-buttons-grid {
-                  grid-template-columns: 1fr;
+                  display: grid;
+                  grid-template-columns: repeat(2, minmax(0, 1fr));
+                  gap: 8px;
+                  width: 100%;
                 }
-              }
-            `}</style>
-            <div
-              data-testid="drawer-action-buttons"
-              className="drawer-action-buttons-grid"
-            >
-              {showPickupStatus ? (
-                <div
-                  data-testid="pickup-token-controls"
-                  style={{
-                    gridColumn: "1 / -1",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 2,
-                  }}
-                >
-                  {statusLoading ? (
-                    <span
-                      style={{ fontSize: 11, color: "var(--admin-text-muted)", fontFamily: font }}
-                    >
-                      Checking pickup link…
-                    </span>
-                  ) : (
-                    <>
-                      {(job.pickupScheduledAt || hasActiveToken) ? (
-                        <div
-                          style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: 6,
-                            alignItems: "center",
-                          }}
-                        >
-                          {job.pickupScheduledAt ? (
-                            <span
-                              data-testid="pickup-scheduled-badge"
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                backgroundColor: "var(--admin-info-bg)",
-                                color: "var(--admin-info-text)",
-                                border: "1px solid var(--admin-info-border)",
-                                borderRadius: 999,
-                                padding: "4px 10px",
-                                fontSize: 11,
-                                fontWeight: 600,
-                                letterSpacing: "0.02em",
-                              }}
-                            >
-                              Pickup Scheduled
-                            </span>
-                          ) : null}
-                          {hasActiveToken ? (
-                            <span
-                              data-testid="pickup-token-active"
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                backgroundColor: "var(--admin-success-bg)",
-                                color: "var(--admin-success-text)",
-                                border: "1px solid var(--admin-success-border)",
-                                borderRadius: 999,
-                                padding: "4px 10px",
-                                fontSize: 11,
-                                fontWeight: 600,
-                                letterSpacing: "0.02em",
-                              }}
-                            >
-                              Active link expires{" "}
-                              {tokenExpiresAt
-                                ? new Date(tokenExpiresAt).toLocaleString()
-                                : "…"}
-                            </span>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </>
-                  )}
-                  {tokenError ? (
-                    <span
-                      style={{ fontSize: 11, color: "var(--admin-danger-text)", fontFamily: font }}
-                    >
-                      {tokenError}
-                    </span>
-                  ) : null}
-                </div>
-              ) : null}
-              {hasActiveToken ? (
-                <button
-                  type="button"
-                  data-testid="revoke-pickup-link"
-                  disabled={mutationLoading || tokenBusy}
-                  onClick={() => void onRevoke()}
-                  style={drawerActionBtnRevoke(
-                    font,
-                    mutationLoading || tokenBusy,
-                  )}
-                >
-                  Reset Pickup Link
-                </button>
-              ) : null}
-            </div>
-            </>
-            );
-          }}
-        </PickupTokenControls>
+                @media (max-width: 480px) {
+                  .drawer-action-buttons-grid {
+                    grid-template-columns: 1fr;
+                  }
+                }
+              `}</style>
+              <div
+                data-testid="drawer-action-buttons"
+                className="drawer-action-buttons-grid"
+              >
+                {showPickupStatus ? (
+                  <div
+                    data-testid="pickup-token-controls"
+                    style={{
+                      gridColumn: "1 / -1",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2,
+                    }}
+                  >
+                    {statusLoading ? (
+                      <span
+                        style={{ fontSize: 11, color: "var(--admin-text-muted)", fontFamily: font }}
+                      >
+                        Checking pickup link…
+                      </span>
+                    ) : (
+                      <>
+                        {(job.pickupScheduledAt || hasActiveToken) ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 6,
+                              alignItems: "center",
+                            }}
+                          >
+                            {job.pickupScheduledAt ? (
+                              <span
+                                data-testid="pickup-scheduled-badge"
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  backgroundColor: "var(--admin-info-bg)",
+                                  color: "var(--admin-info-text)",
+                                  border: "1px solid var(--admin-info-border)",
+                                  borderRadius: 999,
+                                  padding: "4px 10px",
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  letterSpacing: "0.02em",
+                                }}
+                              >
+                                Pickup Scheduled
+                              </span>
+                            ) : null}
+                            {hasActiveToken ? (
+                              <span
+                                data-testid="pickup-token-active"
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  backgroundColor: "var(--admin-success-bg)",
+                                  color: "var(--admin-success-text)",
+                                  border: "1px solid var(--admin-success-border)",
+                                  borderRadius: 999,
+                                  padding: "4px 10px",
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  letterSpacing: "0.02em",
+                                }}
+                              >
+                                Active link expires{" "}
+                                {tokenExpiresAt
+                                  ? new Date(tokenExpiresAt).toLocaleString()
+                                  : "…"}
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </>
+                    )}
+                    {tokenError ? (
+                      <span
+                        style={{ fontSize: 11, color: "var(--admin-danger-text)", fontFamily: font }}
+                      >
+                        {tokenError}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+                {hasActiveToken ? (
+                  <button
+                    type="button"
+                    data-testid="revoke-pickup-link"
+                    disabled={mutationLoading || tokenBusy}
+                    onClick={() => void onRevoke()}
+                    style={drawerActionBtnRevoke(
+                      font,
+                      mutationLoading || tokenBusy,
+                    )}
+                  >
+                    Reset Pickup Link
+                  </button>
+                ) : null}
+              </div>
+              </>
+              );
+            }}
+          </PickupTokenControls>
+        ) : null}
         {details.delivery.unplanned ||
         (details.delivery.reviewFlag?.flagged === true &&
           /unplanned/i.test(details.delivery.reviewFlag.reason ?? "")) ? (
@@ -1806,7 +1832,7 @@ export function DetailContent({
               setResolutionNote(
                 buildSuggestedResolutionNote(issue, nextType, {
                   orderNumber: details.delivery.orderNumber,
-                  jobNumber: job.jobNumber,
+                  jobNumber: job?.jobNumber ?? null,
                   missingItems: details.items
                     .filter((item) => item.qtyMissing > 0)
                     .map((item) => ({

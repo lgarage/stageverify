@@ -56,9 +56,16 @@ export function VendorIssueModal({
     setSubmitting(true);
     setError(null);
     try {
+      const jobId = deliveryDetails.delivery.jobId?.trim();
+      if (!jobId) {
+        setError(
+          "This delivery is not linked to a job yet — ask dispatch to match it before reporting.",
+        );
+        return;
+      }
       await reportMaterialIssue({
         deliveryOrderId: deliveryDetails.delivery.id,
-        jobId: deliveryDetails.delivery.jobId,
+        jobId,
         type: mapIssueType(choice),
         description: buildDescription(choice, note),
         reportedBy: "Vendor Driver",

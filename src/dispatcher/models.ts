@@ -905,7 +905,8 @@ export interface ShopStockLocationMapping {
 export interface DeliveryOrder {
   id: string;
   orderNumber: string;
-  jobId: string;
+  /** Absent on D-73 vendor unplanned shells until dispatcher job/PO match. */
+  jobId?: string;
   vendorId: string;
   /** Denormalized for public vendor flows when vendors collection is auth-only. */
   vendorName?: string;
