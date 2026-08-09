@@ -99,6 +99,11 @@ interface LocationBranding {
   type: string;
 }
 
+interface VendorRunExpansionUpdate {
+  preserveExpandedIds: Set<string>;
+  collapseDeliveryIds: Set<string>;
+}
+
 function formatSpotLine(row: VendorRunDeliverySummary): string {
   const spot =
     row.stagingLocationCodes.length > 0
@@ -152,10 +157,6 @@ export function LocationScanPage() {
 
   const activeVendorRun = useMemo(() => {
     return vendorRunDeliveries.filter((d) => !d.vendorPhysicalDropoffConfirmed);
-  }, [vendorRunDeliveries]);
-
-  const deliveredVendorRun = useMemo(() => {
-    return vendorRunDeliveries.filter((d) => d.vendorPhysicalDropoffConfirmed);
   }, [vendorRunDeliveries]);
 
   const loadBranding = useCallback(async () => {
@@ -304,7 +305,10 @@ export function LocationScanPage() {
     [openDelivery],
   );
 
-  const loadVendorRunDeliveries = useCallback(async (resolvedVendorId: string) => {
+  const loadVendorRunDeliveries = useCallback(async (
+    resolvedVendorId: string,
+    expansionUpdate?: VendorRunExpansionUpdate,
+  ) => {
     const token = getVendorRunSessionToken(resolvedVendorId);
     if (!token) {
       setStep("pin");
@@ -319,7 +323,20 @@ export function LocationScanPage() {
       setVendorRunDeliveries(result.deliveries);
       setScannedCode(result.scannedStagingLocationCode);
       setCheckedDeliveryIds(new Set());
-      setExpandedDeliveryIds(new Set());
+      setExpandedDeliveryIds(() => {
+        if (expansionUpdate) {
+          const next = new Set(expansionUpdate.preserveExpandedIds);
+          for (const deliveryId of expansionUpdate.collapseDeliveryIds) {
+            next.delete(deliveryId);
+          }
+          return next;
+        }
+        return new Set(
+          result.deliveries
+            .filter((delivery) => !delivery.vendorPhysicalDropoffConfirmed)
+            .map((delivery) => delivery.deliveryId),
+        );
+      });
       setStep("vendor-list");
     } catch (err) {
       setError(
@@ -695,12 +712,20 @@ export function LocationScanPage() {
         deliveryIds,
       });
       const failed = result.results.filter((r) => !r.success);
+      const deliveredIds = new Set(
+        result.results
+          .filter((row) => row.success)
+          .map((row) => row.deliveryId),
+      );
       if (failed.length > 0) {
         setError(
           failed.map((f) => `${f.deliveryId}: ${f.error ?? "failed"}`).join("; "),
         );
       }
-      await loadVendorRunDeliveries(vendorId);
+      await loadVendorRunDeliveries(vendorId, {
+        preserveExpandedIds: new Set(expandedDeliveryIds),
+        collapseDeliveryIds: deliveredIds,
+      });
       setConfirmBulkOpen(false);
       setCheckedDeliveryIds(new Set());
     } catch (err) {
@@ -1042,7 +1067,7 @@ export function LocationScanPage() {
             {runSession?.vendorName ? ` · ${runSession.vendorName}` : ""}
           </p>
           <h1 className="text-lg font-bold text-text-primary mt-1">
-            Your open deliveries
+            Your deliveries
           </h1>
           <p className="text-sm text-text-secondary mt-1">
             Check each order you delivered, then tap Delivered.
@@ -1056,56 +1081,177 @@ export function LocationScanPage() {
         )}
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-          {activeVendorRun.map((row) => {
+          {vendorRunDeliveries.map((row) => {
             const canCheck = row.hasAssignableSpot;
             const expanded = expandedDeliveryIds.has(row.deliveryId);
+            const delivered = row.vendorPhysicalDropoffConfirmed;
+            const locationIdentity =
+              row.stagingLocationCodes.length > 0
+                ? row.stagingLocationCodes.join(", ")
+                : "—";
             return (
               <div
                 key={row.deliveryId}
-                className="rounded-xl border border-border bg-bg-surface p-4"
+                className={`overflow-hidden rounded-xl border ${
+                  delivered
+                    ? "border-[#059669] bg-[#047857]"
+                    : "border-border bg-bg-surface"
+                }`}
                 data-testid={`vendor-run-row-${row.deliveryId}`}
+                data-delivered={delivered ? "true" : "false"}
               >
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    className="mt-1 size-5 shrink-0"
-                    checked={checkedDeliveryIds.has(row.deliveryId)}
-                    disabled={!canCheck || loading}
-                    aria-label={`Select ${row.jobName}`}
-                    onChange={() => toggleChecked(row.deliveryId, canCheck)}
-                  />
+                <div
+                  className={`flex items-center gap-3 px-3 py-2.5 ${
+                    delivered ? "bg-[#047857]" : "bg-bg-surface"
+                  }`}
+                  data-testid={
+                    delivered
+                      ? `vendor-run-delivered-summary-${row.deliveryId}`
+                      : undefined
+                  }
+                >
+                  {!delivered && (
+                    <input
+                      type="checkbox"
+                      className="size-5 shrink-0"
+                      checked={checkedDeliveryIds.has(row.deliveryId)}
+                      disabled={!canCheck || loading}
+                      aria-label={`Select ${row.jobName}`}
+                      onChange={() => toggleChecked(row.deliveryId, canCheck)}
+                    />
+                  )}
                   <button
                     type="button"
-                    className="flex-1 text-left min-w-0"
+                    className="flex min-h-11 flex-1 items-center gap-3 text-left min-w-0"
                     onClick={() => toggleExpanded(row.deliveryId)}
+                    aria-expanded={expanded}
+                    data-testid={`vendor-run-toggle-${row.deliveryId}`}
                   >
-                    <p className="font-semibold text-text-primary truncate">
-                      {row.jobName}
-                    </p>
-                    <p className="text-sm text-text-secondary mt-0.5 truncate">
-                      {formatSpotLine(row)}
-                    </p>
-                    {!canCheck && (
-                      <p className="text-xs text-accent-red mt-1">
-                        No spot — ask dispatch
-                      </p>
-                    )}
+                    <span
+                      className={`flex size-10 shrink-0 items-center justify-center rounded-lg font-mono text-sm font-bold ${
+                        delivered
+                          ? "bg-white/15 text-white"
+                          : "bg-accent/15 text-accent"
+                      }`}
+                      data-testid={
+                        delivered
+                          ? `vendor-run-delivered-location-tile-${row.deliveryId}`
+                          : undefined
+                      }
+                    >
+                      {locationIdentity}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={`block truncate font-semibold ${
+                          delivered ? "text-white" : "text-text-primary"
+                        }`}
+                        data-testid={
+                          delivered
+                            ? `vendor-run-delivered-location-${row.deliveryId}`
+                            : undefined
+                        }
+                      >
+                        {delivered
+                          ? `Location: ${locationIdentity}`
+                          : row.jobName}
+                      </span>
+                      <span
+                        className={`mt-0.5 block truncate text-xs ${
+                          delivered
+                            ? "font-bold tracking-[0.14em] text-white"
+                            : "text-text-secondary"
+                        }`}
+                        data-testid={
+                          delivered
+                            ? `vendor-run-delivered-status-${row.deliveryId}`
+                            : undefined
+                        }
+                      >
+                        {delivered ? "DELIVERED" : formatSpotLine(row)}
+                      </span>
+                      {!delivered && !canCheck && (
+                        <span className="mt-1 block text-xs text-accent-red">
+                          No spot — ask dispatch
+                        </span>
+                      )}
+                    </span>
+                    <span
+                      className={`shrink-0 transition-transform duration-200 ${
+                        delivered ? "text-white" : "text-text-secondary"
+                      }`}
+                      aria-hidden
+                      style={{
+                        transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
+                      }}
+                    >
+                      <svg
+                        width="19"
+                        height="19"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="m9 18 6-6-6-6" />
+                      </svg>
+                    </span>
                   </button>
                 </div>
                 {expanded && (
-                  <ul className="mt-3 ml-8 text-sm text-text-secondary space-y-1 border-t border-border pt-2">
-                    {row.items.map((item) => (
-                      <li key={item.id}>
-                        {item.description} × {item.qtyOrdered}
-                      </li>
+                  <div
+                    className="space-y-2 border-t border-border bg-bg-surface px-4 py-3"
+                    data-testid={`vendor-run-details-${row.deliveryId}`}
+                  >
+                    {[
+                      { label: "Job / Site", value: row.jobName },
+                      { label: "Order #", value: row.orderNumber },
+                      {
+                        label: "Invoice #",
+                        value: row.vendorInvoiceNumber ?? "—",
+                      },
+                      { label: "PO #", value: row.poNumber ?? "—" },
+                      { label: "Location", value: locationIdentity },
+                      {
+                        label: "Expected items",
+                        value: String(row.items.length),
+                      },
+                    ].map(({ label, value }) => (
+                      <div
+                        key={label}
+                        className="flex items-start justify-between gap-3 text-sm"
+                      >
+                        <span className="shrink-0 text-text-secondary">
+                          {label}
+                        </span>
+                        <span className="min-w-0 text-right font-medium text-text-primary">
+                          {value}
+                        </span>
+                      </div>
                     ))}
-                    {row.items.length === 0 && <li>No item details available.</li>}
-                  </ul>
+                    <ul className="space-y-1 border-t border-border pt-2 text-sm text-text-secondary">
+                      {row.items.map((item) => (
+                        <li key={item.id}>
+                          {item.description} × {item.qtyOrdered}
+                        </li>
+                      ))}
+                      {row.items.length === 0 && (
+                        <li>No item details available.</li>
+                      )}
+                    </ul>
+                    {delivered && (
+                      <p className="border-t border-border pt-2 text-xs font-semibold text-[#6ee7b7]">
+                        Delivered
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             );
           })}
-          {activeVendorRun.length === 0 && (
+          {vendorRunDeliveries.length === 0 && (
             <div
               className="rounded-2xl border border-white/10 bg-bg-secondary px-5 py-6 text-center shadow-lg shadow-black/15"
               data-testid="vendor-unplanned-empty-state"
@@ -1144,44 +1290,6 @@ export function LocationScanPage() {
             </div>
           )}
 
-          {deliveredVendorRun.length > 0 && (
-            <div className="pt-4 border-t border-border">
-              <h2 className="text-sm font-semibold text-text-secondary mb-3">
-                Delivered
-              </h2>
-              {deliveredVendorRun.map((row) => {
-                const expanded = expandedDeliveryIds.has(row.deliveryId);
-                return (
-                  <div
-                    key={row.deliveryId}
-                    className="rounded-xl border border-border bg-bg-card p-4 mb-2 opacity-80"
-                  >
-                    <button
-                      type="button"
-                      className="w-full text-left"
-                      onClick={() => toggleExpanded(row.deliveryId)}
-                    >
-                      <p className="font-semibold text-text-primary truncate">
-                        {row.jobName}
-                      </p>
-                      <p className="text-sm text-text-secondary mt-0.5 truncate">
-                        {formatSpotLine(row)}
-                      </p>
-                    </button>
-                    {expanded && (
-                      <ul className="mt-3 text-sm text-text-secondary space-y-1 border-t border-border pt-2">
-                        {row.items.map((item) => (
-                          <li key={item.id}>
-                            {item.description} × {item.qtyOrdered}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         <div className="shrink-0 px-6 py-4 border-t border-border space-y-3">

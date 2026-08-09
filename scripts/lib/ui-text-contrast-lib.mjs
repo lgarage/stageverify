@@ -535,12 +535,54 @@ export const VENDOR_DELIVERED_HUB_CONTRAST_SPEC = {
   elements: [
     {
       name: "location value",
-      selector: ".vendor-hub-scroll p.text-base.font-medium.text-text-primary",
+      selector: '[data-testid="vendor-hub-location-label"]',
       large: true,
     },
     {
       name: "context row value",
-      selector: ".vendor-hub-scroll .flex span.text-text-primary",
+      selector: '[data-testid="vendor-hub-card-details"] span.text-text-primary',
+      large: false,
+    },
+  ],
+};
+
+export const VENDOR_DELIVERED_COLLAPSED_CONTRAST_SPEC = {
+  rootSelector: '[data-testid="vendor-hub-delivery-card"][data-delivered="true"]',
+  elements: [
+    {
+      name: "delivered location",
+      selector: '[data-testid="vendor-hub-location-label"]',
+      large: true,
+    },
+    {
+      name: "delivered status",
+      selector: '[data-testid="vendor-hub-delivered-label"]',
+      large: false,
+    },
+    {
+      name: "location tile",
+      selector: '[data-testid="vendor-hub-location-tile"]',
+      large: true,
+    },
+  ],
+};
+
+export const VENDOR_RUN_DELIVERED_ROW_CONTRAST_SPEC = {
+  rootSelector: '[data-testid^="vendor-run-delivered-summary-"]',
+  elements: [
+    {
+      name: "vendor-run delivered location",
+      selector: '[data-testid^="vendor-run-delivered-location-"]',
+      large: true,
+    },
+    {
+      name: "vendor-run delivered status",
+      selector: '[data-testid^="vendor-run-delivered-status-"]',
+      large: false,
+    },
+    {
+      name: "vendor-run delivered location tile",
+      selector: '[data-testid^="vendor-run-delivered-location-tile-"]',
       large: false,
     },
   ],
@@ -567,7 +609,7 @@ export const VENDOR_DELIVERED_HUB_ITEMS_EMPTY_CONTRAST_SPEC = {
   elements: [
     {
       name: "empty items copy",
-      selector: '[data-testid="vendor-hub-items-list"] p.text-text-secondary',
+      selector: '[data-testid="vendor-hub-items-pending"]',
       large: false,
     },
   ],

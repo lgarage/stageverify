@@ -62,6 +62,8 @@
 
 ## NOW (Phase 5 prototype)
 
+**Shipped (2026-08-09):** Vendor Drop-Off delivered-card auto-collapse (compact green DELIVERED row in place; independent expand; vendor-run stable order; Undo on expanded hub) — **v0.0.258** gh-pages FE-only.
+
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
 **Shipped (2026-08-09):** Location/Technician PIN mobile polish (PR #79) — role-track white-alpha; VendorPinGate embedded top-flow; short-viewport Verify — **v0.0.253** gh-pages.

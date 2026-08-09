@@ -29,6 +29,7 @@ import {
 import {
   assertNoElementOverlap,
   assertReadableTextContrast,
+  VENDOR_DELIVERED_COLLAPSED_CONTRAST_SPEC,
   VENDOR_DELIVERED_HUB_CONTRAST_SPEC,
   VENDOR_DELIVERED_HUB_HEADER_OVERLAP_SPEC,
 } from "./lib/ui-text-contrast-lib.mjs";
@@ -288,14 +289,36 @@ async function runDeliveredFlow(page) {
 
   // --- Mark Delivered ---
   await page.getByRole("button", { name: "Mark Delivered", exact: true }).click();
-  await page.waitForFunction(() => {
-    const btn = document.querySelector('[data-testid="vendor-mark-delivered"]');
-    return btn && /Delivered/i.test(btn.textContent ?? "");
-  }, { timeout: 30_000 });
-  record("Mark Delivered stays on hub with Delivered label", true);
-  await assertFooterInViewport(page, "Post-deliver");
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('[data-testid="vendor-hub-delivery-card"]')
+        ?.getAttribute("data-delivered") === "true",
+    { timeout: 30_000 },
+  );
+  const deliveredToggle = page.getByTestId("vendor-hub-card-toggle");
+  const deliveredDetails = page.getByTestId("vendor-hub-card-details");
   record(
-    "Undo Delivery on delivered hub",
+    "Mark Delivered collapses green delivery row",
+    (await deliveredToggle.getAttribute("aria-expanded")) === "false" &&
+      !(await deliveredDetails.isVisible().catch(() => false)) &&
+      (await page.getByTestId("vendor-hub-delivered-label").textContent())?.trim() ===
+        "DELIVERED",
+  );
+  record(
+    "No large Delivered footer CTA",
+    !(await page.getByTestId("vendor-mark-delivered").isVisible().catch(() => false)),
+  );
+  await assertReadableTextContrast(
+    page,
+    VENDOR_DELIVERED_COLLAPSED_CONTRAST_SPEC,
+  );
+  record("D-42 collapsed Delivered row contrast", true);
+  await deliveredToggle.click();
+  await deliveredDetails.waitFor({ state: "visible", timeout: 10_000 });
+  record(
+    "Expanded delivered row shows details and Undo",
+    (await page.getByText("Job / Site", { exact: true }).isVisible()) &&
     await page
       .getByRole("button", { name: "Undo Delivery" })
       .isVisible()
@@ -317,7 +340,11 @@ async function runRevertFlow(page) {
   // --- Revert on same hub screen ---
   await page.getByRole("button", { name: "Undo Delivery" }).click();
   await page.waitForSelector("text=Mark Delivered", { timeout: 30_000 });
-  record("Undo stays on hub with Mark Delivered CTA", true);
+  record(
+    "Undo restores expanded hub with Mark Delivered CTA",
+    (await page.getByTestId("vendor-hub-card-toggle").getAttribute("aria-expanded")) ===
+      "true",
+  );
   await assertFooterInViewport(page, "Post-undo");
   record(
     "No Delivery Confirmed screen after undo",
