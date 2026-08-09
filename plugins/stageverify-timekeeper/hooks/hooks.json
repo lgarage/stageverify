@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "command": "node ./scripts/timekeeper.mjs"
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "node ./scripts/timekeeper.mjs"
+      }
+    ],
+    "postToolUseFailure": [
+      {
+        "command": "node ./scripts/timekeeper.mjs"
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "node ./scripts/timekeeper.mjs"
+      }
+    ],
+    "afterShellExecution": [
+      {
+        "command": "node ./scripts/timekeeper.mjs"
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "node ./scripts/timekeeper.mjs"
+      }
+    ],
+    "subagentStart": [
+      {
+        "command": "node ./scripts/timekeeper.mjs"
+      }
+    ],
+    "subagentStop": [
+      {
+        "command": "node ./scripts/timekeeper.mjs"
+      }
+    ],
+    "stop": [
+      {
+        "command": "node ./scripts/timekeeper.mjs",
+        "loop_limit": 2
+      }
+    ]
+  }
+}

@@ -1,0 +1,40 @@
+---
+description: StageVerify Timekeeper — anti-thrash wall-clock + failure-class rules (D-72). Complements; never weakens safety gates.
+alwaysApply: true
+---
+
+# StageVerify Timekeeper (D-72)
+
+Harness tool. Optimizes for **correctness + reliability + wall-clock + model-cost**. Never weakens D-38, D-60, D-42, D-51, D-50/D-55, D-65, D-66, or D-69.
+
+## Auto machinery
+
+Project hooks (`.cursor/hooks.json` → plugin runner) observe tools/shell/subagents and inject a `TIMEKEEPER` block **only on intervention**. Honor those blocks.
+
+## Failure classes (do not use one recovery for all)
+
+| Class | Recovery |
+| --- | --- |
+| product_failure | Debug product asserts |
+| implementation_failure | New hypothesis; D-19 → D-50 ladder |
+| verification_failure | Change verify approach or escalate ladder |
+| measurement_tool_failure | Fix measurement once; else metric unavailable — do **not** invalidate green D-38/D-60/build/visual |
+| ci_wait / deploy_propagation_wait | Bounded poll; never restart successful deploy |
+| repo_main_drift | Material-impact check; resolve only real conflicts |
+
+## Anti-thrash
+
+Same operation fails twice → **STOP repeating**. Classify → change method / escalate / PARTIAL / BLOCKED.
+
+Benchmark budget: 3–5 clean samples (median/range/confidence). Stop when the decision is clear.
+
+## Timed checkpoints (also enforced by hooks when possible)
+
+- ~10m no material progress → strategy checkpoint
+- ~15m → status / shortest safe path
+- ~25m → completion-focus (no redo of approved work / green gates)
+- ~35m → choose A finish / B continue (name progress) / C PARTIAL / D BLOCKED + D-66 terminal status
+
+## Hard non-weaken contract
+
+Timekeeper may advise skipping **redundant unchanged reruns**. It must **never** authorize skipping a required gate that existing rules still require for the ship class.
