@@ -665,6 +665,10 @@ async function assertStagingActionRowsMatchStagingColumn(page, record) {
       !hasOrangeRowClass,
       hasOrangeRowClass ? "unexpected orange row" : "normal row",
     );
+    const stagingNeeded = stagingCell.locator(
+      '[data-testid^="delivery-list-staging-needed-"]',
+    );
+    const hasStagingNeeded = (await stagingNeeded.count()) > 0;
     if (hasStagingNa) {
       record(
         `${orderNumber} — Will-Call staging Loc. shows quiet empty marker`,
@@ -678,14 +682,22 @@ async function assertStagingActionRowsMatchStagingColumn(page, record) {
       );
       continue;
     }
-    if (stagingUnassigned) {
+    if (stagingUnassigned || hasStagingNeeded) {
       const pill = row.locator(`[data-testid^="staging-assignment-pill-"]`);
       const pillCount = await pill.count();
-      record(
-        `${orderNumber} — unassigned staging shows quiet empty marker`,
-        (await stagingUnassignedMarker.innerText()).trim() === "—",
-        "—",
-      );
+      if (hasStagingNeeded) {
+        record(
+          `${orderNumber} — unassigned staging shows Needs staging pill`,
+          /Needs staging/i.test((await stagingNeeded.innerText()).trim()),
+          (await stagingNeeded.innerText()).trim(),
+        );
+      } else {
+        record(
+          `${orderNumber} — unassigned staging shows quiet empty marker`,
+          (await stagingUnassignedMarker.innerText()).trim() === "—",
+          "—",
+        );
+      }
       record(
         `${orderNumber} — staging assignment red pill when action required`,
         pillCount === 0 || (await pill.innerText()).includes("Staging spot"),
@@ -858,10 +870,16 @@ async function openRowByStagingAssignment(page, wantUnassigned) {
     const isWillCallNa =
       (await stagingCell.locator('[data-testid^="delivery-list-staging-na-"]').count()) >
       0;
-    const isUnassigned =
+    const isUnassignedMarker =
       (await stagingCell
         .locator('[data-testid^="delivery-list-staging-unassigned-"]')
         .count()) > 0;
+    const isNeedsStaging =
+      (await stagingCell
+        .locator('[data-testid^="delivery-list-staging-needed-"]')
+        .count()) > 0;
+    // v0.0.277+: Drop-Off without resolvable staging shows Needs staging (not bare —).
+    const isUnassigned = isUnassignedMarker || isNeedsStaging;
     if (!wantUnassigned && isWillCallNa) continue;
     if (isUnassigned === wantUnassigned) {
       await page.keyboard.press("Escape");
@@ -2509,7 +2527,7 @@ async function assertOrd006EmailReviewAction(page, record) {
     record(
       "Unassigned staging row present for banner test",
       false,
-      "no row with empty Staging Loc.",
+      "no row with Needs staging / empty Staging Loc.",
     );
   }
 
