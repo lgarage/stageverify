@@ -631,6 +631,7 @@ export class FirestoreDataService implements DispatcherDataService {
   ): Promise<DeliveryDetails | null> {
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) return null;
+    // Always hydrate doc id (body may omit `id` → assignDelivery=undefined after refresh).
     const delivery = deliveryOrderFromSnap(
       deliveryId,
       deliverySnap.data() as DeliveryOrder,
@@ -906,15 +907,23 @@ export class FirestoreDataService implements DispatcherDataService {
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) return null;
 
+    const existing = deliverySnap.data() as DeliveryOrder;
     const now = new Date().toISOString();
-    await setDoc(
-      doc(db, "deliveries", deliveryId),
-      {
-        invoiceFulfillmentMethod: method,
-        updatedAt: now,
-      },
-      { merge: true },
-    );
+    const patch: Record<string, unknown> = {
+      invoiceFulfillmentMethod: method,
+      updatedAt: now,
+    };
+    // Pair fulfillment with import-status skip-staging gates (same pairing as Handle Arrival).
+    if (method === "will_call_pickup") {
+      patch.invoiceImportStatus = "pickup_at_vendor";
+    } else if (
+      method === "delivery" &&
+      existing.invoiceImportStatus === "pickup_at_vendor"
+    ) {
+      patch.invoiceImportStatus = "pending";
+    }
+
+    await setDoc(doc(db, "deliveries", deliveryId), patch, { merge: true });
     await invokeRecalculateDeliveryReadiness(deliveryId);
     return this.getDeliveryDetails(deliveryId);
   }
@@ -1963,7 +1972,8 @@ function deliveryOrderFromSnap(
   deliveryId: string,
   data: DeliveryOrder,
 ): DeliveryOrder {
-  return { ...data, id: data.id ?? deliveryId };
+  // Prefer Firestore doc id over any stale/missing body `id` (Assign Location URL).
+  return { ...data, id: deliveryId };
 }
 
 export async function getDeliveryDetailsPublic(
