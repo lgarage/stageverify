@@ -10,6 +10,7 @@ import {
   type ReviewChatCitation,
   type ReviewCitationSourceType,
 } from "./reviewAgentTypes";
+import { reconcileAssertionConsistency } from "./assertionSupport";
 import { findEvidenceSpan } from "./reviewAgentContext";
 
 export const REVIEW_AGENT_SYSTEM_INSTRUCTION = `You are StageVerify Invoice Review Chat — a read-only assistant for one vendor invoice import.
@@ -27,6 +28,7 @@ Source distinctions (required):
 Rules:
 - Every factual claim about the document must cite document_evidence or parser_value.
 - If the dispatcher asserts a value and you cannot find it in text windows, say you cannot find it, treat it as a dispatcher assertion, and do not pretend you verified it.
+- If a dispatcher assertion appears as a contiguous substring in the provided text windows or document evidence, treat it as supported — do not say unsupported while citing supporting document_evidence. Still do not invent evidence.
 - Use actionType suggest_correction_may_be_needed only to flag a possible mismatch — never say a correction was made.
 - Return ONLY JSON matching the schema. No markdown fences, no extra keys, no reasoning/thinking field.
 
@@ -77,6 +79,7 @@ function isCitationSource(value: unknown): value is ReviewCitationSourceType {
 export function parseAndValidateReviewAgentResponse(
   raw: unknown,
   combinedExtractedText: string,
+  options?: { dispatcherMessage?: string; parserCustomerPo?: string | null },
 ): ReviewAgentModelResponse | { ok: false; reason: string } {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return { ok: false, reason: "response_not_object" };
@@ -137,11 +140,32 @@ export function parseAndValidateReviewAgentResponse(
     });
   }
 
+  let finalActionType = actionType;
+  let finalAnswerText = answerText.slice(0, 4_000);
+  let finalCitations = citations;
+  let consistencyCorrected = false;
+
+  if (options?.dispatcherMessage?.trim()) {
+    const reconciled = reconcileAssertionConsistency({
+      dispatcherMessage: options.dispatcherMessage,
+      answerText: finalAnswerText,
+      citations: finalCitations,
+      actionType: finalActionType,
+      combinedExtractedText,
+      parserCustomerPo: options.parserCustomerPo,
+    });
+    finalActionType = reconciled.actionType;
+    finalAnswerText = reconciled.answerText.slice(0, 4_000);
+    finalCitations = reconciled.citations;
+    consistencyCorrected = reconciled.consistencyCorrected;
+  }
+
   return {
-    actionType,
-    answerText: answerText.slice(0, 4_000),
-    citations,
+    actionType: finalActionType,
+    answerText: finalAnswerText,
+    citations: finalCitations,
     droppedActionTypes,
+    ...(consistencyCorrected ? { consistencyCorrected: true } : {}),
   };
 }
 
