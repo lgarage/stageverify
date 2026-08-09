@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MAX_EXTRACT_CHARS_FOR_MODEL = exports.MAX_VENDOR_MD_BYTES = exports.TRAINING_NOTE_AUDIT_TTL_DAYS = exports.MAX_TRAINING_LESSONS_PER_HOUR_PER_UID = exports.MAX_LESSON_NOTE_CHARS = exports.MODEL_FLASH = exports.MODEL_FLASH_LITE = exports.VERTEX_LOCATION = exports.VERTEX_PROJECT = exports.INVOICE_TRAINING_BUCKET = void 0;
+exports.REVIEW_CHAT_MAX_LINES = exports.REVIEW_CHAT_MAX_TEXT_WINDOWS = exports.REVIEW_CHAT_TEXT_WINDOW_CHARS = exports.REVIEW_CHAT_SUMMARY_EVERY_N_TURNS = exports.REVIEW_CHAT_RECENT_TURNS = exports.MAX_REVIEW_CHAT_CONTEXT_CHARS = exports.MAX_REVIEW_CHAT_MESSAGE_CHARS = exports.MAX_REVIEW_CHAT_TURNS_PER_HOUR_PER_UID = exports.MAX_EXTRACT_CHARS_FOR_MODEL = exports.MAX_VENDOR_MD_BYTES = exports.TRAINING_NOTE_AUDIT_TTL_DAYS = exports.MAX_TRAINING_LESSONS_PER_HOUR_PER_UID = exports.MAX_LESSON_NOTE_CHARS = exports.MODEL_FLASH = exports.MODEL_FLASH_LITE = exports.VERTEX_LOCATION = exports.VERTEX_PROJECT = exports.INVOICE_TRAINING_BUCKET = void 0;
 /** Private GCS bucket for per-vendor invoice training playbooks (CF Admin SDK only). */
 exports.INVOICE_TRAINING_BUCKET = "stageverify-db-invoice-training";
 exports.VERTEX_PROJECT = "stageverify-db";
@@ -15,4 +15,14 @@ exports.MAX_TRAINING_LESSONS_PER_HOUR_PER_UID = 20;
 exports.TRAINING_NOTE_AUDIT_TTL_DAYS = 90;
 exports.MAX_VENDOR_MD_BYTES = 120_000;
 exports.MAX_EXTRACT_CHARS_FOR_MODEL = 24_000;
+/** Lane C C1 — Invoice Review Chat (read/explain only). */
+exports.MAX_REVIEW_CHAT_TURNS_PER_HOUR_PER_UID = 40;
+exports.MAX_REVIEW_CHAT_MESSAGE_CHARS = 2_000;
+/** Bound for structured context packet sent to the review-chat model. */
+exports.MAX_REVIEW_CHAT_CONTEXT_CHARS = 10_000;
+exports.REVIEW_CHAT_RECENT_TURNS = 6;
+exports.REVIEW_CHAT_SUMMARY_EVERY_N_TURNS = 6;
+exports.REVIEW_CHAT_TEXT_WINDOW_CHARS = 420;
+exports.REVIEW_CHAT_MAX_TEXT_WINDOWS = 4;
+exports.REVIEW_CHAT_MAX_LINES = 12;
 //# sourceMappingURL=constants.js.map

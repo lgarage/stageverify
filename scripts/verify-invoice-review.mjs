@@ -85,11 +85,26 @@ async function assertViewOriginalPdfButton(page) {
 }
 
 const TRAINING_SECTION19_STRINGS = [
-  "Propose a reusable lesson — optional",
-  "StageVerify turns this note into a limited, reviewable rule",
+  "Prefer Invoice Review Chat for questions about this invoice",
   "Lessons can't delete data, approve documents, send messages, or change access",
   "Use patterns only — no invoice numbers, POs, or addresses",
 ];
+
+async function ensureTrainingAdvancedOpen(page) {
+  const advanced = page.getByTestId(
+    "invoice-parsed-inspect-training-advanced",
+  );
+  if (!(await advanced.count())) return;
+  const open = await advanced.evaluate(
+    (el) => el instanceof HTMLDetailsElement && el.open,
+  );
+  if (!open) {
+    await page
+      .getByTestId("invoice-parsed-inspect-training-advanced-summary")
+      .click();
+    await page.waitForTimeout(200);
+  }
+}
 
 const IDLE_NOTE_PLACEHOLDER =
   "Example: Ignore these order confirmations from now on.";
@@ -108,6 +123,7 @@ async function waitForTrainingToastHidden(page, timeoutMs = 6000) {
 }
 
 async function assertTrainingPanelSection19(page) {
+  await ensureTrainingAdvancedOpen(page);
   const panel = page.getByTestId("invoice-parsed-inspect-training-panel");
   const panelText = (await panel.innerText()).trim();
   for (const snippet of TRAINING_SECTION19_STRINGS) {
@@ -134,6 +150,7 @@ async function assertTrainingPanelSection19(page) {
 }
 
 async function assertLessonPreviewDialog(page) {
+  await ensureTrainingAdvancedOpen(page);
   const noteInput = page.getByTestId("invoice-parsed-inspect-correction-note");
   const sendBtn = page.getByTestId("invoice-parsed-inspect-save-lesson");
   const toastEl = page.getByTestId("invoice-training-toast");
@@ -178,6 +195,7 @@ async function assertLessonPreviewDialog(page) {
 }
 
 async function assertTeachChatServerEcho(page) {
+  await ensureTrainingAdvancedOpen(page);
   const noteInput = page.getByTestId("invoice-parsed-inspect-correction-note");
   const sendBtn = page.getByTestId("invoice-parsed-inspect-save-lesson");
   const echoEl = page.getByTestId("invoice-teach-echo");
@@ -257,6 +275,7 @@ async function assertTeachChatServerEcho(page) {
 }
 
 async function assertTrainingPanelContrast(page, { includeEcho = false } = {}) {
+  await ensureTrainingAdvancedOpen(page);
   const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
   const elements = [
     {
@@ -295,6 +314,7 @@ async function assertTrainingPanelContrast(page, { includeEcho = false } = {}) {
 }
 
 async function assertTrainingPanelNoOverlap(page) {
+  await ensureTrainingAdvancedOpen(page);
   const { assertNoElementOverlap } = await import("./lib/ui-text-contrast-lib.mjs");
   await assertNoElementOverlap(page, {
     containerSelector: '[data-testid="invoice-parsed-inspect-actions"]',
@@ -582,6 +602,10 @@ async function main() {
       await assertViewOriginalPdfButton(page);
       await assertViewOriginalPdfOpens(page);
 
+      await page
+        .getByTestId("invoice-parsed-inspect-training-advanced")
+        .waitFor({ timeout: 5000 });
+      await ensureTrainingAdvancedOpen(page);
       await page.getByTestId("invoice-parsed-inspect-training-panel").waitFor({
         timeout: 5000,
       });

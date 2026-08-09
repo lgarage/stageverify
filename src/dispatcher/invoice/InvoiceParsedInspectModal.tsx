@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useAdminAppearance } from "../../adminAppearance";
 import type {
   InvoiceMatchResult,
   VendorInvoiceImportReview,
@@ -26,6 +27,7 @@ import { buildExpectedJohnstoneFieldChecklist } from "./invoiceExpectedFieldsChe
 import { useVendorInvoicePdfViewer } from "./useVendorInvoicePdfViewer";
 import { AutoImportSuggestionPanel } from "./autoImportSuggestionUi";
 import { InvoiceDeliveryMatchSection } from "./InvoiceDeliveryMatchSection";
+import { InvoiceReviewChatPanel } from "./InvoiceReviewChatPanel";
 import {
   buildHeaderDisplayRows,
   INVOICE_HEADER_FIELD_LABELS,
@@ -144,6 +146,9 @@ export function InvoiceParsedInspectModal({
   const [toast, setToast] = useState<string | null>(null);
   const [saveLessonLoading, setSaveLessonLoading] = useState(false);
   const [teachPhase, setTeachPhase] = useState<TeachChatPhase>("idle");
+  /** Lane C: Training note / teach-ignore is advanced — collapsed unless teach flow active. */
+  const [trainingAdvancedOpen, setTrainingAdvancedOpen] = useState(false);
+  const { appearance } = useAdminAppearance();
   const [teachEcho, setTeachEcho] = useState<string | null>(null);
   const [teachEchoToken, setTeachEchoToken] = useState<string | null>(null);
   const [adminBusy, setAdminBusy] = useState(false);
@@ -513,6 +518,7 @@ export function InvoiceParsedInspectModal({
       <div
         data-testid="invoice-parsed-inspect-panel"
         className="admin-card"
+        data-admin-appearance={appearance}
         style={{
           width: "100%",
           maxWidth: 960,
@@ -1006,6 +1012,8 @@ export function InvoiceParsedInspectModal({
           </table>
         </div>
 
+        <InvoiceReviewChatPanel importId={importRow.id} readOnly={readOnly} />
+
         <details>
           <summary
             style={{
@@ -1062,122 +1070,168 @@ export function InvoiceParsedInspectModal({
             }}
           >
             {(isPending || isRejected) && (
-              <div
-                data-testid="invoice-parsed-inspect-training-panel"
+              <details
+                data-testid="invoice-parsed-inspect-training-advanced"
+                open={
+                  trainingAdvancedOpen ||
+                  teachPhase !== "idle" ||
+                  Boolean(teachEcho)
+                }
+                onToggle={(e) => {
+                  setTrainingAdvancedOpen(
+                    (e.currentTarget as HTMLDetailsElement).open,
+                  );
+                }}
                 style={{
-                  padding: "14px 16px",
-                  backgroundColor: "var(--admin-surface-2)",
                   border: "1px solid var(--admin-border)",
                   borderRadius: 8,
+                  backgroundColor: "var(--admin-surface-2)",
+                  padding: "0 12px",
                 }}
               >
-                <div
+                <summary
+                  data-testid="invoice-parsed-inspect-training-advanced-summary"
                   style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    marginBottom: 6,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <h3
-                    style={{
-                      margin: 0,
-                      fontSize: 14,
-                      fontWeight: 700,
-                      color: "var(--admin-text-data)",
-                      fontFamily: FONT,
-                    }}
-                  >
-                    Training note
-                    <span
-                      style={{
-                        marginLeft: 8,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: "var(--admin-text-muted)",
-                      }}
-                    >
-                      Propose a reusable lesson — optional
-                    </span>
-                  </h3>
-                </div>
-                <p
-                  style={{
-                    margin: "0 0 10px",
-                    fontSize: 12,
-                    lineHeight: 1.45,
+                    cursor: "pointer",
+                    listStyle: "none",
+                    padding: "10px 4px",
+                    fontSize: 13,
+                    fontWeight: 700,
                     color: "var(--admin-text-secondary)",
-                    fontWeight: 500,
                     fontFamily: FONT,
                   }}
                 >
-                  StageVerify turns this note into a limited, reviewable rule.
-                  Lessons can&apos;t delete data, approve documents, send messages,
-                  or change access. Use patterns only — no invoice numbers, POs, or
-                  addresses.
-                </p>
-                {teachEcho && (
-                  <div
-                    data-testid="invoice-teach-echo"
+                  Advanced: Training note &amp; document ignore
+                </summary>
+                <div
+                  data-testid="invoice-parsed-inspect-training-panel"
+                  style={{
+                    padding: "4px 4px 14px",
+                  }}
+                >
+                  <p
                     style={{
                       margin: "0 0 10px",
-                      padding: "10px 12px",
-                      backgroundColor: "var(--admin-surface)",
-                      border: "1px solid var(--admin-info-border)",
-                      borderRadius: 8,
-                      fontSize: 13,
+                      fontSize: 12,
                       lineHeight: 1.45,
-                      color: "var(--admin-text-label)",
-                      fontWeight: 600,
+                      color: "var(--admin-text-secondary)",
+                      fontWeight: 500,
                       fontFamily: FONT,
                     }}
                   >
-                    {teachEcho}
+                    Prefer Invoice Review Chat for questions about this invoice.
+                    Use this only for reusable playbook lessons or teaching a
+                    document-ignore rule. Lessons can&apos;t delete data, approve
+                    documents, send messages, or change access. Use patterns
+                    only — no invoice numbers, POs, or addresses.
+                  </p>
+                  {teachEcho && (
+                    <div
+                      data-testid="invoice-teach-echo"
+                      style={{
+                        margin: "0 0 10px",
+                        padding: "10px 12px",
+                        backgroundColor: "var(--admin-surface)",
+                        border: "1px solid var(--admin-info-border)",
+                        borderRadius: 8,
+                        fontSize: 13,
+                        lineHeight: 1.45,
+                        color: "var(--admin-text-label)",
+                        fontWeight: 600,
+                        fontFamily: FONT,
+                      }}
+                    >
+                      {teachEcho}
+                    </div>
+                  )}
+                  <textarea
+                    data-testid="invoice-parsed-inspect-correction-note"
+                    value={correctionNote}
+                    onChange={(e) => setCorrectionNote(e.target.value)}
+                    placeholder={
+                      teachPhase === "idle"
+                        ? "Example: Ignore these order confirmations from now on."
+                        : 'Type "yes" to send to a manager, or "no" to cancel.'
+                    }
+                    rows={3}
+                    disabled={actionLoading || saveLessonLoading}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      boxSizing: "border-box",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      lineHeight: 1.45,
+                      color: CELL_TEXT,
+                      backgroundColor: "var(--admin-surface)",
+                      border: "1px solid var(--admin-border)",
+                      borderRadius: 8,
+                      padding: "12px 14px",
+                      resize: "vertical",
+                      minHeight: 72,
+                      fontFamily: FONT,
+                      outline: "none",
+                      boxShadow: "inset 0 1px 2px rgba(15, 23, 42, 0.04)",
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "var(--admin-accent)";
+                      e.currentTarget.style.boxShadow =
+                        "0 0 0 3px rgba(10, 49, 97, 0.12)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "var(--admin-border)";
+                      e.currentTarget.style.boxShadow =
+                        "inset 0 1px 2px rgba(15, 23, 42, 0.04)";
+                    }}
+                  />
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      marginTop: 10,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      data-testid="invoice-parsed-inspect-save-lesson"
+                      disabled={
+                        actionLoading ||
+                        saveLessonLoading ||
+                        !correctionNote.trim()
+                      }
+                      onClick={() => void handleTeachSend()}
+                      style={{
+                        backgroundColor: "var(--admin-surface)",
+                        color: "var(--admin-text-label)",
+                        border: "1px solid var(--admin-border)",
+                        borderRadius: 6,
+                        padding: "10px 18px",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor:
+                          actionLoading ||
+                          saveLessonLoading ||
+                          !correctionNote.trim()
+                            ? "not-allowed"
+                            : "pointer",
+                        opacity:
+                          actionLoading ||
+                          saveLessonLoading ||
+                          !correctionNote.trim()
+                            ? 0.55
+                            : 1,
+                        fontFamily: FONT,
+                      }}
+                    >
+                      {saveLessonLoading
+                        ? "Saving…"
+                        : teachPhase === "idle"
+                          ? "Send"
+                          : "Confirm"}
+                    </button>
                   </div>
-                )}
-                <textarea
-                  data-testid="invoice-parsed-inspect-correction-note"
-                  value={correctionNote}
-                  onChange={(e) => setCorrectionNote(e.target.value)}
-                  placeholder={
-                    teachPhase === "idle"
-                      ? "Example: Ignore these order confirmations from now on."
-                      : 'Type "yes" to send to a manager, or "no" to cancel.'
-                  }
-                  rows={3}
-                  disabled={actionLoading || saveLessonLoading}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    boxSizing: "border-box",
-                    fontSize: 13,
-                    fontWeight: 500,
-                    lineHeight: 1.45,
-                    color: CELL_TEXT,
-                    backgroundColor: "var(--admin-surface)",
-                    border: "1px solid var(--admin-border)",
-                    borderRadius: 8,
-                    padding: "12px 14px",
-                    resize: "vertical",
-                    minHeight: 72,
-                    fontFamily: FONT,
-                    outline: "none",
-                    boxShadow: "inset 0 1px 2px rgba(15, 23, 42, 0.04)",
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "var(--admin-accent)";
-                    e.currentTarget.style.boxShadow =
-                      "0 0 0 3px rgba(10, 49, 97, 0.12)";
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "var(--admin-border)";
-                    e.currentTarget.style.boxShadow =
-                      "inset 0 1px 2px rgba(15, 23, 42, 0.04)";
-                  }}
-                />
-              </div>
+                </div>
+              </details>
             )}
             {(isPending || isRejected) && onApprove && (
               <div
@@ -1271,46 +1325,6 @@ export function InvoiceParsedInspectModal({
                 flexWrap: "wrap",
               }}
             >
-              {(isPending || isRejected) && (
-                <button
-                  type="button"
-                  data-testid="invoice-parsed-inspect-save-lesson"
-                  disabled={
-                    actionLoading ||
-                    saveLessonLoading ||
-                    !correctionNote.trim()
-                  }
-                  onClick={() => void handleTeachSend()}
-                  style={{
-                    backgroundColor: "var(--admin-surface)",
-                    color: "var(--admin-text-label)",
-                    border: "1px solid var(--admin-border)",
-                    borderRadius: 6,
-                    padding: "10px 18px",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor:
-                      actionLoading ||
-                      saveLessonLoading ||
-                      !correctionNote.trim()
-                        ? "not-allowed"
-                        : "pointer",
-                    opacity:
-                      actionLoading ||
-                      saveLessonLoading ||
-                      !correctionNote.trim()
-                        ? 0.55
-                        : 1,
-                    fontFamily: FONT,
-                  }}
-                >
-                  {saveLessonLoading
-                    ? "Saving…"
-                    : teachPhase === "idle"
-                      ? "Send"
-                      : "Confirm"}
-                </button>
-              )}
               {onReject && isPending && (
                 <button
                   type="button"

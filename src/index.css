@@ -127,7 +127,12 @@ nav {
 }
 
 html[data-sv-admin-theme="dark"] .portal-shell,
-.portal-shell[data-admin-appearance="dark"] {
+.portal-shell[data-admin-appearance="dark"],
+/* Invoice inspect modal is position:fixed; bind theme tokens on the panel itself. */
+html[data-sv-admin-theme="dark"] [data-testid="invoice-parsed-inspect-panel"],
+[data-testid="invoice-parsed-inspect-panel"][data-admin-appearance="dark"],
+html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
+[data-testid="invoice-review-chat-panel"][data-admin-appearance="dark"] {
   --admin-bg: #0b1622;
   --admin-bg-deep: #0b1622;
   --admin-section-bg: #122235;

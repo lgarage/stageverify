@@ -352,3 +352,19 @@ Per repo harness, every phase: (1) pre-edit conf ≥97% + Solution Verifier per 
 ---
 
 *Evidence basis: direct reads of the files cited in §2 plus `git log/show` at `f38b8bc`; all findings verified in-repo during the war-game session; the war-game agent created, edited, and deleted no files and ran no state-mutating commands.*
+
+---
+
+## Addendum — Lane C / C3 dependency (2026-08-09)
+
+**Status note only — does not amend Dan #7/#8 decision prose above.**
+
+Lane C **C1** (Invoice Review Chat — read/explain only) may ship without changing D-59 #7/#8.
+
+Before **C3** structured field-learning begins, **D-59 #7/#8 must be amended** so reusable structured learning can support additional invoice fields such as:
+
+- `customerPoOrReference`
+- `vendorOrderNumber`
+- other explicitly approved invoice fields
+
+**P8 `fulfillment_mapping` remains a separate category** and is not replaced by Lane C.

@@ -262,6 +262,21 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Lane C C1 — Invoice Review Chat (dispatcher read; CF Admin SDK writes only).
+    match /vendorInvoiceImportChats/{importId} {
+      allow read: if isDispatcher();
+      allow create, update, delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isDispatcher();
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /invoiceReviewChatRateLimits/{uid} {
+      allow read, write: if false;
+    }
+
     match /emailOAuthStates/{stateId} {
       allow read, write: if false;
     }
