@@ -2,7 +2,11 @@
  * Stage 1 auto-import eligibility — deterministic rules (offline).
  * Run: npm run test:auto-import-eligibility
  */
-import { computeAutoImportEligibility } from "../src/dispatcher/invoice/computeAutoImportEligibility.ts";
+import {
+  computeAutoImportEligibility,
+  resolveAutoImportEligibility,
+} from "../src/dispatcher/invoice/computeAutoImportEligibility.ts";
+import { reconcileParseWarningsForHeader } from "../src/dispatcher/invoice/reconcileParseWarningsForHeader.ts";
 import { INVOICE_FIXTURES } from "../src/dispatcher/invoice/invoiceFixtures.ts";
 import {
   expectedInvoiceLines,
@@ -151,6 +155,65 @@ if (partialElig.importDecisionMode === "review_required") {
   pass("partial import → review_required");
 } else {
   fail("partial expected review_required", partialElig);
+}
+
+// C2 live reconcile — client warning filter + stale persisted eligibility
+{
+  const filtered = reconcileParseWarningsForHeader(
+    ["missing customerPoOrReference", "uncertain:shipVia"],
+    { customerPoOrReference: "2205 EARLY" },
+  );
+  if (
+    !filtered.includes("uncertain:shipVia") ||
+    filtered.includes("missing customerPoOrReference")
+  ) {
+    fail("reconcileParseWarningsForHeader should drop only resolved missing PO", filtered);
+  } else {
+    pass("client reconcileParseWarningsForHeader drops resolved missing PO");
+  }
+
+  const staleResolved = resolveAutoImportEligibility({
+    importStatus: "pending",
+    confidenceScore: 92,
+    humanReviewRequired: true,
+    duplicate: false,
+    parseWarnings: ["uncertain:shipVia"],
+    parsedHeader: {
+      customerAccountNumber: "001",
+      vendorOrderNumber: "123",
+      vendorInvoiceNumber: "INV1",
+      customerPoOrReference: "2205 EARLY",
+      orderDate: "2026-01-01",
+      vendorBranchName: "Johnstone Supply",
+      buyerName: "Buyer",
+    },
+    parsedLines: [
+      {
+        lineType: "product",
+        excludeFromExpectedItems: false,
+        quantityOrdered: 2,
+        quantityShipped: 2,
+        quantityBackordered: 0,
+      },
+    ],
+    parsedLineCount: 1,
+    pageId: "inv-c2-stale",
+    parserFormatId: "johnstone",
+    // Persisted pre-correction eligibility (stale)
+    autoImportEligible: false,
+    importDecisionMode: "review_required",
+    suggestedAction: "Review required — inspect fields and match before approve.",
+    reviewRequiredReasons: ["Missing Customer P/O", "Parse warnings (2)"],
+    autoImportReasons: [],
+  });
+  if (staleResolved.reviewRequiredReasons.some((r) => /Missing Customer P\/O/i.test(r))) {
+    fail(
+      "resolveAutoImportEligibility should recompute away stale Missing Customer P/O",
+      staleResolved.reviewRequiredReasons,
+    );
+  } else {
+    pass("stale persisted Missing Customer P/O recomputes after C2 header correction");
+  }
 }
 
 console.log(`\n--- Result: ${passed} passed, ${failed} failed ---`);

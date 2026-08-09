@@ -24,6 +24,9 @@ const evidence = await import(
 const applyMod = await import(
   pathToFileURL(path.join(libRoot, "applyInvoiceReviewFieldCorrection.js")).href
 );
+const reconcileMod = await import(
+  pathToFileURL(path.join(libRoot, "reconcileAfterFieldCorrection.js")).href
+);
 
 const EXTRACTED = `
 JOHNSTONE SUPPLY
@@ -165,12 +168,42 @@ function seedImportAndProposal(opts = {}) {
   const seed = {
     [`vendorInvoiceImports/${importId}`]: {
       reviewStatus,
+      importStatus: opts.importStatus ?? "pending",
+      confidenceScore: opts.confidenceScore ?? 92,
+      humanReviewRequired: true,
+      duplicate: false,
+      parserFormatId: "johnstone",
+      pageId: "p1",
       parsedHeader: {
         vendorInvoiceNumber: "6168733",
         vendorOrderNumber: "SO9",
         customerPoOrReference: currentValue,
         orderDate: "2026-01-01",
+        customerAccountNumber: "12345",
+        vendorBranchName: "Johnstone Supply",
+        buyerName: "Acme HVAC",
       },
+      parsedLines: [
+        {
+          lineType: "product",
+          excludeFromExpectedItems: false,
+          quantityOrdered: 2,
+          quantityShipped: 2,
+          quantityBackordered: 0,
+        },
+      ],
+      parsedLineCount: 1,
+      parseWarnings: opts.parseWarnings ?? [
+        "missing customerPoOrReference",
+        "uncertain:shipVia",
+      ],
+      reviewRequiredReasons: opts.reviewRequiredReasons ?? [
+        "Missing Customer P/O",
+        "Parse warnings (2)",
+      ],
+      importDecisionMode: "review_required",
+      autoImportEligible: false,
+      suggestedAction: "Review required — inspect fields and match before approve.",
       inboundEmailProcessingId: inboundId,
       approvalState: "pending",
       linkedDeliveryOrderId: null,
@@ -320,6 +353,20 @@ function ok(label) {
   assert.equal(r1.newValue, "2205 EARLY");
   assert.equal(r1.parsedHeader.customerPoOrReference, "2205 EARLY");
   assert.equal(r1.reviewStatus, "pending_review");
+  assert.ok(
+    !r1.parseWarnings.includes("missing customerPoOrReference"),
+    "apply result clears resolved missing PO warning",
+  );
+  assert.ok(
+    r1.parseWarnings.includes("uncertain:shipVia"),
+    "unrelated warning remains after PO correction",
+  );
+  assert.ok(
+    !(r1.reviewRequiredReasons ?? []).some((r) =>
+      /Missing Customer P\/O/i.test(r),
+    ),
+    "review summary drops Missing Customer P/O after correction",
+  );
   const audit = await db
     .collection("vendorInvoiceFieldCorrections")
     .doc(r1.correctionId)
@@ -330,6 +377,15 @@ function ok(label) {
   const imp = await db.collection("vendorInvoiceImports").doc(importId).get();
   assert.ok(imp.data().originalParsedHeader);
   assert.equal(imp.data().originalParsedHeader.customerPoOrReference, "");
+  assert.ok(Array.isArray(imp.data().originalParseWarnings));
+  assert.ok(
+    imp.data().originalParseWarnings.includes("missing customerPoOrReference"),
+    "historical parser warnings preserved on originalParseWarnings",
+  );
+  assert.ok(
+    !imp.data().parseWarnings.includes("missing customerPoOrReference"),
+  );
+  assert.ok(imp.data().parseWarnings.includes("uncertain:shipVia"));
   assert.equal(imp.data().stagingLocationIds[0], "Z1");
   assert.equal(imp.data().linkedDeliveryOrderId, null);
   ok("blank Customer PO → evidenced PO applies + audit + original snapshot");
@@ -582,6 +638,100 @@ function ok(label) {
     (err) => err.message === "import_not_pending_review",
   );
   ok("non-pending_review import rejected");
+}
+
+// Live reconcile helpers — warnings + reparse preservation
+{
+  const cleared = reconcileMod.reconcileParseWarningsForHeader(
+    ["missing customerPoOrReference", "uncertain:shipVia", "missing vendorOrderNumber"],
+    {
+      customerPoOrReference: "2205 EARLY",
+      vendorOrderNumber: "",
+    },
+  );
+  assert.deepEqual(cleared, ["uncertain:shipVia", "missing vendorOrderNumber"]);
+  ok("reconcileParseWarningsForHeader drops only resolved missing fields");
+
+  const restored = reconcileMod.applyFieldCorrectionLogToHeader(
+    {
+      customerPoOrReference: "",
+      vendorInvoiceNumber: "6168733",
+    },
+    [
+      {
+        field: "customerPoOrReference",
+        previousValue: "",
+        newValue: "2205 EARLY",
+      },
+      {
+        field: "fulfillmentMethod",
+        newValue: "will_call_pickup",
+      },
+    ],
+  );
+  assert.equal(restored.customerPoOrReference, "2205 EARLY");
+  assert.equal(restored.fulfillmentMethod, undefined);
+  ok("applyFieldCorrectionLogToHeader re-applies allowlisted C2 overrides only");
+
+  const state = reconcileMod.reconcileImportStateAfterCorrection({
+    parsedHeader: {
+      customerPoOrReference: "2205 EARLY",
+      vendorInvoiceNumber: "6168733",
+      vendorOrderNumber: "SO9",
+      orderDate: "2026-01-01",
+      customerAccountNumber: "12345",
+      vendorBranchName: "Johnstone Supply",
+      buyerName: "Acme",
+    },
+    parseWarnings: ["missing customerPoOrReference", "uncertain:shipVia"],
+    importStatus: "pending",
+    confidenceScore: 92,
+    humanReviewRequired: true,
+    duplicate: false,
+    parserFormatId: "johnstone",
+    parsedLines: [
+      {
+        lineType: "product",
+        excludeFromExpectedItems: false,
+        quantityOrdered: 1,
+        quantityShipped: 1,
+        quantityBackordered: 0,
+      },
+    ],
+    parsedLineCount: 1,
+  });
+  assert.ok(!state.parseWarnings.includes("missing customerPoOrReference"));
+  assert.ok(state.parseWarnings.includes("uncertain:shipVia"));
+  assert.ok(
+    !state.reviewRequiredReasons.some((r) => /Missing Customer P\/O/i.test(r)),
+  );
+  ok("reconcileImportStateAfterCorrection updates warnings + review reasons");
+}
+
+// Idempotent apply still returns reconciled parseWarnings for FE live merge
+{
+  const { db, importId, messageId } = seedImportAndProposal({
+    importId: "imp-reconcile-idem",
+  });
+  const first = await applyMod.runApplyInvoiceReviewFieldCorrectionCore({
+    db,
+    uid: "u1",
+    vendorInvoiceImportId: importId,
+    sourceMessageId: messageId,
+    idempotencyKey: "k-rec-1",
+  });
+  const second = await applyMod.runApplyInvoiceReviewFieldCorrectionCore({
+    db,
+    uid: "u1",
+    vendorInvoiceImportId: importId,
+    sourceMessageId: messageId,
+    idempotencyKey: "k-rec-2",
+  });
+  assert.equal(second.alreadyApplied, true);
+  assert.equal(second.parsedHeader.customerPoOrReference, "2205 EARLY");
+  assert.ok(!second.parseWarnings.includes("missing customerPoOrReference"));
+  assert.deepEqual(first.parseWarnings, second.parseWarnings);
+  ok("repeated apply remains idempotent and returns reconciled warnings");
 }
 
 console.log(`PASS: test-invoice-field-correction (${passed} checks)`);

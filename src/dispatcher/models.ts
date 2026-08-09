@@ -1548,6 +1548,14 @@ export interface ApplyInvoiceReviewFieldCorrectionResult {
   correctionId: string;
   parsedHeader: Record<string, unknown>;
   reviewStatus: string;
+  /** Authoritative current unresolved parse warnings after correction. */
+  parseWarnings?: string[];
+  autoImportEligible?: boolean;
+  autoImportConfidence?: number;
+  autoImportReasons?: string[];
+  reviewRequiredReasons?: string[];
+  importDecisionMode?: "suggested_import" | "review_required" | "blocked";
+  suggestedAction?: string;
 }
 
 /** Firestore vendorInvoiceIgnoreRules — CF-managed fingerprint rules. */

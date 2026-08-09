@@ -14,7 +14,7 @@ const extractPdfText_1 = require("./extractPdfText");
 const normalizePdfText_1 = require("./normalizePdfText");
 const invoiceDocumentSplit_1 = require("../invoice/invoiceDocumentSplit");
 const pdfTextAdapter_1 = require("../invoice/pdfTextAdapter");
-const computeAutoImportEligibility_1 = require("../invoice/computeAutoImportEligibility");
+const reconcileAfterFieldCorrection_1 = require("../invoice/reviewChat/reconcileAfterFieldCorrection");
 const creditReturnSkip_1 = require("../invoice/creditReturnSkip");
 const vendorIgnoreRules_1 = require("../invoice/aiShadow/vendorIgnoreRules");
 const ignoreRuleAudit_1 = require("../invoice/aiShadow/ignoreRuleAudit");
@@ -296,13 +296,18 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             now,
             existingRejectedBy: existingData?.rejectedBy,
         });
-        const eligibility = (0, computeAutoImportEligibility_1.eligibilityFieldsFromInput)({
+        // Preserve C2 field corrections across Refresh/reparse: parser output is the
+        // base, then durable fieldCorrectionLog overrides are re-applied.
+        const existingExtras = (existingData ?? {});
+        const parserHeader = proc.parsed.header;
+        const correctedHeader = (0, reconcileAfterFieldCorrection_1.applyFieldCorrectionLogToHeader)(parserHeader, existingExtras.fieldCorrectionLog);
+        const reconciled = (0, reconcileAfterFieldCorrection_1.reconcileImportStateAfterCorrection)({
+            parsedHeader: correctedHeader,
+            parseWarnings: proc.parsed.parseWarnings,
             importStatus: proc.importStatus,
             confidenceScore: proc.confidenceScore,
             humanReviewRequired: proc.humanReviewRequired,
             duplicate: proc.duplicate,
-            parseWarnings: proc.parsed.parseWarnings,
-            parsedHeader: proc.parsed.header,
             parsedLines,
             parsedLineCount: parsedLines.length,
             pageId: row.pageId,
@@ -334,18 +339,18 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 ? skipFields.humanReviewRequired
                 : true,
             duplicate: proc.duplicate,
-            parsedHeader: proc.parsed.header,
+            parsedHeader: correctedHeader,
             parsedLines,
             parsedLineCount: parsedLines.length,
-            parseWarnings: proc.parsed.parseWarnings,
+            parseWarnings: reconciled.parseWarnings,
             orderNotes: proc.parsed.orderNotes,
             outcome: skipFields ? "skipped" : "needs_review",
-            autoImportEligible: eligibility.autoImportEligible,
-            autoImportConfidence: eligibility.autoImportConfidence,
-            autoImportReasons: eligibility.autoImportReasons,
-            reviewRequiredReasons: eligibility.reviewRequiredReasons,
-            importDecisionMode: eligibility.importDecisionMode,
-            suggestedAction: eligibility.suggestedAction,
+            autoImportEligible: reconciled.autoImportEligible,
+            autoImportConfidence: reconciled.autoImportConfidence,
+            autoImportReasons: reconciled.autoImportReasons,
+            reviewRequiredReasons: reconciled.reviewRequiredReasons,
+            importDecisionMode: reconciled.importDecisionMode,
+            suggestedAction: reconciled.suggestedAction,
             parserFormatId: proc.parserFormatId,
             parserRouteConfidence: proc.parserRouteConfidence,
             detectedVendorName: proc.detectedVendorName,
@@ -353,6 +358,15 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             updatedAt: now,
             ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),
             ...(reviewError ? { error: reviewError } : {}),
+            ...(Array.isArray(existingExtras.fieldCorrectionLog)
+                ? { fieldCorrectionLog: existingExtras.fieldCorrectionLog }
+                : {}),
+            ...(existingExtras.originalParsedHeader
+                ? { originalParsedHeader: existingExtras.originalParsedHeader }
+                : {}),
+            ...(Array.isArray(existingExtras.originalParseWarnings)
+                ? { originalParseWarnings: existingExtras.originalParseWarnings }
+                : {}),
             ...(skipFields
                 ? {
                     skipReason: skipFields.skipReason,

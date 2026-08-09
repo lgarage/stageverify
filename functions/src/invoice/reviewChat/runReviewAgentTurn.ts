@@ -369,8 +369,54 @@ export async function runReviewAgentTurnCore(input: {
 
   // Confirmation turns apply an *existing* proposal — never persist a new one
   // from the model on this turn (prevents arbitrary/extra pending cards).
+  let confirmationPendingId: string | null = null;
+  let confirmationPendingPc: ReviewProposedCorrection | undefined;
   if (intent.kind === "confirmation") {
     proposedCorrection = undefined;
+    confirmationPendingId = await findPendingProposalMessageId(
+      input.db,
+      importId,
+      intent.field,
+    );
+    if (confirmationPendingId) {
+      const pendingSnap = await chatRef
+        .collection(REVIEW_CHAT_MESSAGES_SUB)
+        .doc(confirmationPendingId)
+        .get();
+      const rawPc = pendingSnap.exists
+        ? (pendingSnap.data() as { proposedCorrection?: unknown }).proposedCorrection
+        : undefined;
+      if (rawPc && typeof rawPc === "object" && !Array.isArray(rawPc)) {
+        const pc = rawPc as Record<string, unknown>;
+        if (
+          isCorrectableFieldKey(pc.field) &&
+          typeof pc.proposedValue === "string" &&
+          pc.proposedValue.trim()
+        ) {
+          confirmationPendingPc = {
+            field: pc.field,
+            currentValue:
+              typeof pc.currentValue === "string" ? pc.currentValue : "",
+            proposedValue: pc.proposedValue.trim(),
+            sourceType:
+              pc.sourceType === "document_evidence" ||
+              pc.sourceType === "dispatcher_assertion" ||
+              pc.sourceType === "agent_interpretation"
+                ? pc.sourceType
+                : "agent_interpretation",
+          };
+          const display =
+            confirmationPendingPc.field === "customerPoOrReference"
+              ? "Customer PO"
+              : confirmationPendingPc.field === "vendorOrderNumber"
+                ? "Vendor order #"
+                : "Invoice #";
+          // C2 can apply after explicit confirmation — never claim inability.
+          agentText = `Confirmed. Applying ${display} → ${confirmationPendingPc.proposedValue}.`;
+          error = undefined;
+        }
+      }
+    }
   }
 
   // If dispatcher issued a direct command with a value but the model omitted
@@ -402,6 +448,23 @@ export async function runReviewAgentTurnCore(input: {
       const cur = proposedCorrection.currentValue || "blank";
       agentText = `I can update ${display} from ${cur} to ${proposedCorrection.proposedValue}. Confirm with Apply correction or reply “Yes, apply it.”`;
     }
+  }
+
+  // Strip leftover "cannot change/apply" model copy when we have a real C2 proposal.
+  if (
+    proposedCorrection &&
+    /\b(cannot change|can't change|cannot apply|can't apply|i cannot change or apply)\b/i.test(
+      agentText,
+    )
+  ) {
+    const display =
+      proposedCorrection.field === "customerPoOrReference"
+        ? "Customer PO"
+        : proposedCorrection.field === "vendorOrderNumber"
+          ? "Vendor order #"
+          : "Invoice #";
+    const cur = proposedCorrection.currentValue || "blank";
+    agentText = `I can update ${display} from ${cur} to ${proposedCorrection.proposedValue}. Confirm with Apply correction or reply “Yes, apply it.”`;
   }
 
   const agentMsgRef = chatRef.collection(REVIEW_CHAT_MESSAGES_SUB).doc();
@@ -438,20 +501,10 @@ export async function runReviewAgentTurnCore(input: {
     autoApplyEligible = true;
     autoApplyMessageId = agentMsgRef.id;
     autoApplyTriggerMode = "chat_direct_command";
-  } else if (intent.kind === "confirmation") {
-    // Confirmation must target the sole *existing* pending proposal — never a
-    // newly synthesized proposal on this turn (avoids arbitrary mutation).
-    const pendingId = await findPendingProposalMessageId(
-      input.db,
-      importId,
-      intent.field,
-      agentMsgRef.id,
-    );
-    if (pendingId) {
-      autoApplyEligible = true;
-      autoApplyMessageId = pendingId;
-      autoApplyTriggerMode = "chat_confirmation";
-    }
+  } else if (intent.kind === "confirmation" && confirmationPendingId) {
+    autoApplyEligible = true;
+    autoApplyMessageId = confirmationPendingId;
+    autoApplyTriggerMode = "chat_confirmation";
   }
 
   const turnCountAfterAgent = turnCountAfterUser + 1;

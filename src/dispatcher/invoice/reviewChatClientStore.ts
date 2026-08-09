@@ -202,7 +202,7 @@ function buildAgentReply(
       agent: {
         id: `agent-${Date.now()}`,
         role: "agent",
-        text: `Confirming — I can apply Customer PO → ${pending.proposedCorrection.proposedValue}.`,
+        text: `Confirmed. Applying Customer PO → ${pending.proposedCorrection.proposedValue}.`,
         createdAt: new Date().toISOString(),
         createdByUid: "system",
         actionType: "answer",
@@ -408,6 +408,18 @@ export async function applyInvoiceReviewFieldCorrectionMock(input: {
     typeof header[pc.field] === "string" ? String(header[pc.field]) : "";
   const correctionId = `${input.vendorInvoiceImportId}__${pc.field}__${input.sourceMessageId}`;
 
+  const nextHeader = { ...header, [pc.field]: pc.proposedValue };
+  // Return only the corrected field patch — FE merges into the live import header.
+  const parsedHeaderPatch = { [pc.field]: pc.proposedValue };
+  // Mock reconcile: clear the resolved missing-field warning for the corrected field.
+  const parseWarnings: string[] = [];
+  const reviewRequiredReasons: string[] = [];
+  const autoImportReasons = [
+    pc.field === "customerPoOrReference"
+      ? "Customer P/O present"
+      : `${pc.field} present`,
+  ];
+
   if (source.correctionStatus === "applied" || live === pc.proposedValue) {
     return {
       vendorInvoiceImportId: input.vendorInvoiceImportId,
@@ -417,8 +429,15 @@ export async function applyInvoiceReviewFieldCorrectionMock(input: {
       applied: false,
       alreadyApplied: true,
       correctionId,
-      parsedHeader: { ...header, [pc.field]: pc.proposedValue },
+      parsedHeader: parsedHeaderPatch,
       reviewStatus: "pending_review",
+      parseWarnings,
+      autoImportEligible: false,
+      autoImportConfidence: 0,
+      autoImportReasons,
+      reviewRequiredReasons,
+      importDecisionMode: "review_required",
+      suggestedAction: "Review required — inspect fields and match before approve.",
     };
   }
 
@@ -426,8 +445,7 @@ export async function applyInvoiceReviewFieldCorrectionMock(input: {
     throw new Error("expected_current_value_stale");
   }
 
-  header[pc.field] = pc.proposedValue;
-  api.setParsedHeader(input.vendorInvoiceImportId, header);
+  api.setParsedHeader(input.vendorInvoiceImportId, nextHeader);
 
   const next = messages.map((m) =>
     m.id === input.sourceMessageId
@@ -452,8 +470,15 @@ export async function applyInvoiceReviewFieldCorrectionMock(input: {
     applied: true,
     alreadyApplied: false,
     correctionId,
-    parsedHeader: header,
+    parsedHeader: parsedHeaderPatch,
     reviewStatus: "pending_review",
+    parseWarnings,
+    autoImportEligible: false,
+    autoImportConfidence: 0,
+    autoImportReasons,
+    reviewRequiredReasons,
+    importDecisionMode: "review_required",
+    suggestedAction: "Review required — inspect fields and match before approve.",
   };
 }
 

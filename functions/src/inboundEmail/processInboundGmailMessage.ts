@@ -20,7 +20,10 @@ import {
 } from "./normalizePdfText";
 import { preferredPreParseFormat } from "../invoice/invoiceDocumentSplit";
 import { normalizeExtractedPageText } from "../invoice/pdfTextAdapter";
-import { eligibilityFieldsFromInput } from "../invoice/computeAutoImportEligibility";
+import {
+  applyFieldCorrectionLogToHeader,
+  reconcileImportStateAfterCorrection,
+} from "../invoice/reviewChat/reconcileAfterFieldCorrection";
 import {
   isCreditReturnInvoice,
   documentIgnoreSkipFields,
@@ -402,13 +405,25 @@ async function writeReviewRecords(
       now,
       existingRejectedBy: existingData?.rejectedBy,
     });
-    const eligibility = eligibilityFieldsFromInput({
+    // Preserve C2 field corrections across Refresh/reparse: parser output is the
+    // base, then durable fieldCorrectionLog overrides are re-applied.
+    const existingExtras = (existingData ?? {}) as VendorInvoiceImportDoc & {
+      fieldCorrectionLog?: unknown;
+      originalParsedHeader?: Record<string, unknown>;
+      originalParseWarnings?: string[];
+    };
+    const parserHeader = proc.parsed.header as unknown as Record<string, unknown>;
+    const correctedHeader = applyFieldCorrectionLogToHeader(
+      parserHeader,
+      existingExtras.fieldCorrectionLog,
+    );
+    const reconciled = reconcileImportStateAfterCorrection({
+      parsedHeader: correctedHeader,
+      parseWarnings: proc.parsed.parseWarnings,
       importStatus: proc.importStatus,
       confidenceScore: proc.confidenceScore,
       humanReviewRequired: proc.humanReviewRequired,
       duplicate: proc.duplicate,
-      parseWarnings: proc.parsed.parseWarnings,
-      parsedHeader: proc.parsed.header as unknown as Record<string, unknown>,
       parsedLines,
       parsedLineCount: parsedLines.length,
       pageId: row.pageId,
@@ -428,7 +443,11 @@ async function writeReviewRecords(
       skipFields && matchedRuleId
         ? existingData?.matchedRuleId ?? matchedRuleId
         : undefined;
-    const reviewDoc: VendorInvoiceImportDoc = {
+    const reviewDoc: VendorInvoiceImportDoc & {
+      fieldCorrectionLog?: unknown;
+      originalParsedHeader?: Record<string, unknown>;
+      originalParseWarnings?: string[];
+    } = {
       id: reviewId,
       inboundEmailProcessingId: inboundDoc.id,
       gmailMessageId: inboundDoc.gmailMessageId,
@@ -443,18 +462,18 @@ async function writeReviewRecords(
         ? skipFields.humanReviewRequired
         : true,
       duplicate: proc.duplicate,
-      parsedHeader: proc.parsed.header as unknown as Record<string, unknown>,
+      parsedHeader: correctedHeader,
       parsedLines,
       parsedLineCount: parsedLines.length,
-      parseWarnings: proc.parsed.parseWarnings,
+      parseWarnings: reconciled.parseWarnings,
       orderNotes: proc.parsed.orderNotes,
       outcome: skipFields ? "skipped" : "needs_review",
-      autoImportEligible: eligibility.autoImportEligible,
-      autoImportConfidence: eligibility.autoImportConfidence,
-      autoImportReasons: eligibility.autoImportReasons,
-      reviewRequiredReasons: eligibility.reviewRequiredReasons,
-      importDecisionMode: eligibility.importDecisionMode,
-      suggestedAction: eligibility.suggestedAction,
+      autoImportEligible: reconciled.autoImportEligible,
+      autoImportConfidence: reconciled.autoImportConfidence,
+      autoImportReasons: reconciled.autoImportReasons,
+      reviewRequiredReasons: reconciled.reviewRequiredReasons,
+      importDecisionMode: reconciled.importDecisionMode,
+      suggestedAction: reconciled.suggestedAction,
       parserFormatId: proc.parserFormatId,
       parserRouteConfidence: proc.parserRouteConfidence,
       detectedVendorName: proc.detectedVendorName,
@@ -462,6 +481,15 @@ async function writeReviewRecords(
       updatedAt: now,
       ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),
       ...(reviewError ? { error: reviewError } : {}),
+      ...(Array.isArray(existingExtras.fieldCorrectionLog)
+        ? { fieldCorrectionLog: existingExtras.fieldCorrectionLog }
+        : {}),
+      ...(existingExtras.originalParsedHeader
+        ? { originalParsedHeader: existingExtras.originalParsedHeader }
+        : {}),
+      ...(Array.isArray(existingExtras.originalParseWarnings)
+        ? { originalParseWarnings: existingExtras.originalParseWarnings }
+        : {}),
       ...(skipFields
         ? {
             skipReason: skipFields.skipReason,

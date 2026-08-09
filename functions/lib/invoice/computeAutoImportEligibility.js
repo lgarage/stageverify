@@ -225,11 +225,40 @@ function buildImportDecisionLogEntry(action, uid, at, eligibility, deliveryOrder
         ...(deliveryOrderId ? { deliveryOrderId } : {}),
     };
 }
-/** Use persisted fields when present; recompute for legacy rows. */
+/** True when persisted “Missing …” reasons contradict the current corrected header. */
+function persistedEligibilityStaleAfterCorrection(row) {
+    const reasons = row.reviewRequiredReasons ?? [];
+    if (reasons.length === 0)
+        return false;
+    const header = row.parsedHeader ?? {};
+    const checks = [
+        [/missing customer p\/?o/i, "customerPoOrReference"],
+        [/missing s\/?o|missing vendor order/i, "vendorOrderNumber"],
+        [/missing invoice/i, "vendorInvoiceNumber"],
+    ];
+    for (const [re, key] of checks) {
+        if (!reasons.some((r) => re.test(r)))
+            continue;
+        const value = header[key];
+        if (typeof value === "string" && value.trim())
+            return true;
+    }
+    if (reasons.some((r) => /^Parse warnings\b/i.test(r)) &&
+        Array.isArray(row.parseWarnings)) {
+        const unresolved = row.parseWarnings.filter(Boolean);
+        const match = reasons.find((r) => /^Parse warnings\s*\((\d+)\)/i.test(r));
+        const m = match?.match(/\((\d+)\)/);
+        if (m && Number(m[1]) !== unresolved.length)
+            return true;
+    }
+    return false;
+}
+/** Use persisted fields when present; recompute for legacy rows / post-correction stale state. */
 function resolveAutoImportEligibility(row) {
     if (row.importDecisionMode &&
         row.autoImportEligible !== undefined &&
-        row.suggestedAction) {
+        row.suggestedAction &&
+        !persistedEligibilityStaleAfterCorrection(row)) {
         return {
             autoImportEligible: row.autoImportEligible,
             autoImportConfidence: row.autoImportConfidence ?? row.confidenceScore,
