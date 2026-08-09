@@ -1,10 +1,11 @@
 /**
- * Playwright: Invoice Review Assign Location footer UX.
+ * Playwright: Invoice Review Assign Location UX.
  *
  * Full CF confirm→persist path is covered by npm run test:invoice-fulfillment-override
  * (CF not deployed in verify env). This script exercises UI only:
  * - Will-Call: Assign Location → confirm dialog → Cancel keeps Will-Call + staging N/A
- * - Vendor Drop-Off: Assign Location opens staging picker without confirm dialog
+ * - Vendor Drop-Off unresolved: staging-needed banner; Assign Location navigates to map
+ *   with assignInvoiceImport (no inline invoice-staging-picker)
  *
  * Usage:
  *   npm run dev
@@ -42,7 +43,7 @@ const email = process.env.STAGEVERIFY_TEST_EMAIL;
 const password = process.env.STAGEVERIFY_TEST_PASSWORD;
 
 async function ensureAuthenticated(page) {
-  await page.goto(`${appBase}/#/invoice-review`, {
+  await page.goto(`${appBase}/#/dispatcher?focus=needs-review`, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
   });
@@ -63,7 +64,7 @@ async function ensureAuthenticated(page) {
     timeout: 20_000,
   });
 
-  await page.goto(`${appBase}/#/invoice-review`, {
+  await page.goto(`${appBase}/#/dispatcher?focus=needs-review`, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
   });
@@ -103,7 +104,7 @@ async function main() {
   const page = await context.newPage();
 
   try {
-    console.log(`verify-invoice-assign-location @ ${appBase}/#/invoice-review`);
+    console.log(`verify-invoice-assign-location @ ${appBase}/#/dispatcher?focus=needs-review`);
 
     await ensureAuthenticated(page);
 
@@ -114,33 +115,33 @@ async function main() {
       return;
     }
 
-    const assignBtn = page.getByTestId("invoice-parsed-inspect-assign-location");
-    await assignBtn.waitFor({ timeout: 5000 });
-
     const fulfillmentLabel = (
       await page.getByTestId("invoice-parsed-inspect-fulfillment-label").innerText()
     ).trim();
     const isWillCall = /Will-Call/i.test(fulfillmentLabel);
 
-    {
-      const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
-      await assertReadableTextContrast(page, {
-        rootSelector: '[data-testid="invoice-parsed-inspect-modal"]',
-        elements: [
-          {
-            name: "Assign Location button",
-            selector: '[data-testid="invoice-parsed-inspect-assign-location"]',
-          },
-          {
-            name: "Fulfillment label",
-            selector: '[data-testid="invoice-parsed-inspect-fulfillment-label"]',
-          },
-        ],
-      });
-      console.log("PASS: Assign Location + fulfillment readable contrast");
-    }
-
     if (isWillCall) {
+      const assignBtn = page.getByTestId("invoice-parsed-inspect-assign-location");
+      await assignBtn.waitFor({ timeout: 5000 });
+
+      {
+        const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+        await assertReadableTextContrast(page, {
+          rootSelector: '[data-testid="invoice-parsed-inspect-modal"]',
+          elements: [
+            {
+              name: "Assign Location button",
+              selector: '[data-testid="invoice-parsed-inspect-assign-location"]',
+            },
+            {
+              name: "Fulfillment label",
+              selector: '[data-testid="invoice-parsed-inspect-fulfillment-label"]',
+            },
+          ],
+        });
+        console.log("PASS: Assign Location + fulfillment readable contrast");
+      }
+
       await assignBtn.click();
       const dialog = page.getByTestId("invoice-fulfillment-override-confirm-dialog");
       await dialog.waitFor({ timeout: 5000 });
@@ -184,19 +185,56 @@ async function main() {
       }
       console.log("PASS: cancel keeps Will-Call + staging N/A");
     } else {
-      await assignBtn.click();
-      const dialog = page.getByTestId("invoice-fulfillment-override-confirm-dialog");
-      if (await dialog.isVisible().catch(() => false)) {
-        throw new Error("Vendor Drop-Off Assign Location should not open confirm dialog");
+      const stagingBanner = page.getByTestId("invoice-parsed-inspect-staging-needed");
+      if (!(await stagingBanner.isVisible().catch(() => false))) {
+        const selected = page.getByTestId("invoice-parsed-inspect-staging-selected");
+        if (await selected.isVisible().catch(() => false)) {
+          console.log("SKIP: pending import already has draft staging — banner not shown");
+          console.log("\nverify-invoice-assign-location: PASS (skip — draft present)");
+          return;
+        }
+        throw new Error("Vendor Drop-Off unresolved should show staging-needed banner");
       }
+      console.log("PASS: Vendor Drop-Off unresolved shows staging-needed banner");
+
+      const bannerAssign = page.getByTestId("invoice-parsed-inspect-staging-location-assign");
+      await bannerAssign.waitFor({ timeout: 5000 });
+
+      {
+        const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+        await assertReadableTextContrast(page, {
+          rootSelector: '[data-testid="invoice-parsed-inspect-staging-needed"]',
+          elements: [
+            {
+              name: "Staging banner Assign Location",
+              selector: '[data-testid="invoice-parsed-inspect-staging-location-assign"]',
+            },
+          ],
+        });
+        console.log("PASS: staging banner Assign Location readable contrast");
+      }
+
+      const footerAssign = page.getByTestId("invoice-parsed-inspect-assign-location");
+      if (await footerAssign.isVisible().catch(() => false)) {
+        throw new Error("Vendor Drop-Off should not show footer Assign Location");
+      }
+
+      await bannerAssign.click();
+      await page.waitForURL(/assignInvoiceImport=/, { timeout: 15_000 });
+      if (!/assignInvoiceImport=/.test(page.url())) {
+        throw new Error(`Expected assignInvoiceImport in URL — got ${page.url()}`);
+      }
+      console.log("PASS: banner Assign Location navigates to Staging Map");
+
       const picker = page.getByTestId("invoice-staging-picker");
       const chooseBtn = page.getByTestId("invoice-staging-choose");
-      const pickerVisible = await picker.isVisible().catch(() => false);
-      const chooseVisible = await chooseBtn.isVisible().catch(() => false);
-      if (!pickerVisible && !chooseVisible) {
-        throw new Error("Vendor Drop-Off Assign Location should open staging picker");
+      if (await picker.isVisible().catch(() => false)) {
+        throw new Error("Inline invoice-staging-picker should not be visible");
       }
-      console.log("PASS: Vendor Drop-Off Assign Location opens picker without confirm");
+      if (await chooseBtn.isVisible().catch(() => false)) {
+        throw new Error("Inline invoice-staging-choose should not be visible");
+      }
+      console.log("PASS: no inline staging picker on map navigation path");
     }
 
     await page.screenshot({

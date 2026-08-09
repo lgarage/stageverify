@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import type {
   InvoiceMatchResult,
   VendorInvoiceImportReview,
 } from "../models";
 import {
   approveVendorInvoiceImport,
+  getVendorInvoiceImport,
   INVOICE_TRAINING_LESSON_TOAST,
   ensureApprovedUnlinkedInvoiceShells,
   listVendorInvoiceImports,
@@ -35,6 +37,7 @@ import { ignoreRuleSuppressedAdvisoryLabel } from "./ignoreRuleSuppressed";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+const INVOICE_DRAFT_STAGING_STORAGE_KEY = "sv-invoice-draft-staging";
 
 function reviewStatusLabel(status: VendorInvoiceImportReview["reviewStatus"]): string {
   if (status === "pending_review") return "Pending review";
@@ -293,6 +296,8 @@ export function InvoiceReviewPanel({
   backfillErrors?: string[] | null;
   onApproveSuccess?: () => Promise<void>;
 }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [imports, setImports] = useState<VendorInvoiceImportReview[]>([]);
   const [matchById, setMatchById] = useState<Record<string, InvoiceMatchResult>>({});
   const [matchUnavailableById, setMatchUnavailableById] = useState<Record<string, string>>(
@@ -310,6 +315,74 @@ export function InvoiceReviewPanel({
   const [inspectImport, setInspectImport] =
     useState<VendorInvoiceImportReview | null>(null);
   const lastAppliedGeneration = useRef(0);
+  const inspectDeepLinkHandled = useRef<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(INVOICE_DRAFT_STAGING_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        importId: string;
+        draftPlannedStagingLocationIds: string[];
+      };
+      sessionStorage.removeItem(INVOICE_DRAFT_STAGING_STORAGE_KEY);
+      const mergeDraft = (
+        row: VendorInvoiceImportReview,
+      ): VendorInvoiceImportReview =>
+        row.id === parsed.importId
+          ? {
+              ...row,
+              draftPlannedStagingLocationIds: parsed.draftPlannedStagingLocationIds,
+            }
+          : row;
+      setImports((prev) => prev.map(mergeDraft));
+      setInspectImport((prev) => (prev ? mergeDraft(prev) : prev));
+    } catch {
+      sessionStorage.removeItem(INVOICE_DRAFT_STAGING_STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const inspectId = params.get("inspectInvoiceImport")?.trim();
+    if (!inspectId) return;
+    if (inspectDeepLinkHandled.current === inspectId) return;
+    inspectDeepLinkHandled.current = inspectId;
+
+    const nextParams = new URLSearchParams(location.search);
+    nextParams.delete("inspectInvoiceImport");
+    const search = nextParams.toString();
+    navigate(
+      { pathname: location.pathname, search: search ? `?${search}` : "" },
+      { replace: true },
+    );
+
+    setFilter("pending");
+
+    const queued = imports.find((row) => row.id === inspectId);
+    if (queued) {
+      setInspectImport(queued);
+    }
+
+    void getVendorInvoiceImport(inspectId)
+      .then((row) => {
+        setInspectImport(row);
+        setImports((prev) => {
+          const idx = prev.findIndex((item) => item.id === row.id);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = { ...next[idx], ...row };
+            return next;
+          }
+          return [row, ...prev];
+        });
+      })
+      .catch((err) => {
+        setError(
+          err instanceof Error ? err.message : "Could not open invoice import.",
+        );
+      });
+  }, [location.pathname, location.search, navigate]);
 
   const showTrainingToast = (message: string) => {
     setTrainingToast(message);

@@ -125,6 +125,8 @@ type Props = {
   assignDeliveryId?: string;
   pendingAssignLayoutSlot?: string | null;
   selfPlannedLayoutSlots?: ReadonlySet<string>;
+  /** Label under self-planned spots in assign mode. */
+  selfPlannedNote?: string;
   onAssignSpotClick?: (layoutSlot: string) => void;
   onAssignSpotRefused?: (message: string) => void;
   /** Deep-link highlight — scroll to and outline matching spot (e.g. from drawer chip). */
@@ -362,6 +364,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       assignDeliveryId,
       pendingAssignLayoutSlot = null,
       selfPlannedLayoutSlots,
+      selfPlannedNote = "Also assigned to this job",
       onAssignSpotClick,
       onAssignSpotRefused,
       focusSpotCode = null,
@@ -2629,7 +2632,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                 overflow: "hidden",
               }}
             >
-              Also assigned to this job
+              {selfPlannedNote}
             </span>
           ) : null}
         </button>
@@ -2848,7 +2851,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       selectSpotForEdit(layoutSlot);
       return;
     }
-    if (assignMode && assignDeliveryId) {
+    if (assignMode && onAssignSpotClick) {
       if (selfPlannedLayoutSlots?.has(layoutSlot)) {
         return;
       }
@@ -2862,13 +2865,22 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         return;
       }
       const occ = occupancyByZoneCode[key];
-      if (occ && occ.deliveryId !== assignDeliveryId) {
-        onAssignSpotRefused?.(
-          `${displayCode} is assigned to another delivery (${occ.orderNumber}).`,
-        );
-        return;
+      if (occ) {
+        if (assignDeliveryId) {
+          if (occ.deliveryId !== assignDeliveryId) {
+            onAssignSpotRefused?.(
+              `${displayCode} is assigned to another delivery (${occ.orderNumber}).`,
+            );
+            return;
+          }
+        } else {
+          onAssignSpotRefused?.(
+            `${displayCode} is assigned to another delivery (${occ.orderNumber}).`,
+          );
+          return;
+        }
       }
-      onAssignSpotClick?.(layoutSlot);
+      onAssignSpotClick(layoutSlot);
       return;
     }
     const displayCode = displayCodeForSlot(layoutSlot);
