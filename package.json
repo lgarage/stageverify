@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.272",
+  "version": "0.0.273",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -61,6 +61,8 @@
     "verify:dispatcher-nav:prod": "node scripts/run-verify-with-learning.mjs --script verify:dispatcher-nav:prod --runner tsx scripts/verify-dispatcher-nav.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:shop-map": "node scripts/run-verify-with-learning.mjs --script verify:shop-map scripts/verify-shop-map.mjs",
     "verify:shop-map:prod": "node scripts/run-verify-with-learning.mjs --script verify:shop-map:prod scripts/verify-shop-map.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:shop-map-zoom": "node scripts/run-verify-with-learning.mjs --script verify:shop-map-zoom scripts/verify-shop-map-zoom.mjs",
+    "verify:shop-map-zoom:prod": "node scripts/run-verify-with-learning.mjs --script verify:shop-map-zoom:prod scripts/verify-shop-map-zoom.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:catch-all-map": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map scripts/verify-catch-all-map.mjs",
     "verify:catch-all-map:prod": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map:prod scripts/verify-catch-all-map.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-review": "node scripts/verify-invoice-review.mjs",
@@ -264,8 +266,8 @@
   },
   "_vendorVerifyScriptsDoc": {
     "see": "scripts/VERIFY_PROD_ENV.md",
-    "verify:vendor-delivered:prod": "CANONICAL prod — receive deep link + exception-only Delivered hub; requires STAGEVERIFY_RECEIVE_DELIVERY + vendor env (see VERIFY_PROD_ENV.md)",
-    "verify:vendor-demo": "DEPRECATED — no demo defaults; use verify:vendor-delivered with real ingest env",
-    "verify:vendor-demo:prod": "DEPRECATED — use verify:vendor-delivered:prod"
+    "verify:vendor-delivered:prod": "CANONICAL prod \u2014 receive deep link + exception-only Delivered hub; requires STAGEVERIFY_RECEIVE_DELIVERY + vendor env (see VERIFY_PROD_ENV.md)",
+    "verify:vendor-demo": "DEPRECATED \u2014 no demo defaults; use verify:vendor-delivered with real ingest env",
+    "verify:vendor-demo:prod": "DEPRECATED \u2014 use verify:vendor-delivered:prod"
   }
 }

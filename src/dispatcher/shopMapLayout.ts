@@ -54,6 +54,17 @@ export const SHOP_MAP_DEFAULT_SHELF_LETTERS = SHOP_MAP_SHELF_LEVELS.flatMap(
   ([a, b]) => [a, b],
 );
 
+/** Default logical shop-floor canvas (px) — distinct from view zoom. */
+export const SHOP_MAP_DEFAULT_CANVAS_WIDTH = 1200;
+export const SHOP_MAP_DEFAULT_CANVAS_HEIGHT = 600;
+export const SHOP_MAP_MIN_CANVAS_WIDTH = 640;
+export const SHOP_MAP_MIN_CANVAS_HEIGHT = 420;
+export const SHOP_MAP_MAX_CANVAS_WIDTH = 2400;
+export const SHOP_MAP_MAX_CANVAS_HEIGHT = 1600;
+export const SHOP_MAP_CANVAS_STEP_PX = 50;
+/** Padding when testing shrink vs occupied object bounds. */
+export const SHOP_MAP_CANVAS_SHRINK_PAD_PX = 20;
+
 /** Persisted layout additions (appSettings.shopMapLayoutExtras). */
 export type ShopMapLayoutExtras = {
   /** Extra ground slots beyond G1–G12 (e.g. G13). */
@@ -90,6 +101,12 @@ export type ShopMapLayoutExtras = {
    * Separate from ground spots (G1…); movable/resizable in Edit Locations mode.
    */
   catchAll?: { ox: number; oy: number; width: number; height: number };
+  /**
+   * Logical editable shop-floor canvas size (px). View zoom is separate / not persisted.
+   * Absent → defaults (1200×600).
+   */
+  canvasWidth?: number;
+  canvasHeight?: number;
 };
 
 export const DOOR_DEFAULT_SIZE_PX = 72;
@@ -212,6 +229,7 @@ export function normalizeShopMapLayoutExtras(
   const youAreHere = resolveYouAreHereMarker(raw);
   const door = resolveDoorMarker(raw);
   const catchAll = resolveCatchAllMarker(raw);
+  const canvasSize = resolvePersistedCanvasSize(raw);
 
   return {
     extraGround,
@@ -221,6 +239,62 @@ export function normalizeShopMapLayoutExtras(
     ...(youAreHere ? { youAreHere } : {}),
     ...(door ? { door } : {}),
     ...(catchAll ? { catchAll } : {}),
+    ...(canvasSize
+      ? { canvasWidth: canvasSize.width, canvasHeight: canvasSize.height }
+      : {}),
+  };
+}
+
+export function clampCanvasWidth(width: number): number {
+  return Math.max(
+    SHOP_MAP_MIN_CANVAS_WIDTH,
+    Math.min(SHOP_MAP_MAX_CANVAS_WIDTH, Math.round(width)),
+  );
+}
+
+export function clampCanvasHeight(height: number): number {
+  return Math.max(
+    SHOP_MAP_MIN_CANVAS_HEIGHT,
+    Math.min(SHOP_MAP_MAX_CANVAS_HEIGHT, Math.round(height)),
+  );
+}
+
+/** Persisted canvas size only when both dimensions were stored. */
+export function resolvePersistedCanvasSize(
+  raw: ShopMapLayoutExtras | null | undefined,
+): { width: number; height: number } | undefined {
+  const w = raw?.canvasWidth;
+  const h = raw?.canvasHeight;
+  if (!Number.isFinite(w) || !Number.isFinite(h)) return undefined;
+  return {
+    width: clampCanvasWidth(w as number),
+    height: clampCanvasHeight(h as number),
+  };
+}
+
+/** Resolved logical canvas size (defaults when unset). */
+export function resolveShopMapCanvasSize(
+  raw: ShopMapLayoutExtras | null | undefined,
+): { width: number; height: number } {
+  const persisted = resolvePersistedCanvasSize(raw);
+  return (
+    persisted ?? {
+      width: SHOP_MAP_DEFAULT_CANVAS_WIDTH,
+      height: SHOP_MAP_DEFAULT_CANVAS_HEIGHT,
+    }
+  );
+}
+
+/** Persist / update logical shop-floor canvas dimensions. */
+export function withCanvasSize(
+  extras: ShopMapLayoutExtras | null | undefined,
+  size: { width: number; height: number },
+): ShopMapLayoutExtras {
+  const normalized = normalizeShopMapLayoutExtras(extras);
+  return {
+    ...normalized,
+    canvasWidth: clampCanvasWidth(size.width),
+    canvasHeight: clampCanvasHeight(size.height),
   };
 }
 

@@ -45,6 +45,12 @@ import {
   YOU_ARE_HERE_DEFAULT_SIZE_PX,
   YOU_ARE_HERE_MIN_SIZE_PX,
   YOU_ARE_HERE_MAX_SIZE_PX,
+  SHOP_MAP_CANVAS_STEP_PX,
+  SHOP_MAP_CANVAS_SHRINK_PAD_PX,
+  clampCanvasHeight,
+  clampCanvasWidth,
+  resolveShopMapCanvasSize,
+  withCanvasSize,
   type ResolvedShopMapLayout,
   type ShopMapLayoutExtras,
   type ShopMapShelfUnit,
@@ -168,6 +174,7 @@ type UndoFrame = {
   pendingYouAreHere: YouAreHereMarker | null;
   pendingDoor: DoorMarker | null;
   pendingCatchAll: CatchAllMarker | null;
+  pendingCanvas: { width: number; height: number } | null;
   editLabel: string;
   editCode: string;
   editOffsetX: number;
@@ -187,6 +194,22 @@ const ROTATE_STEP = 15;
 const LABEL_ROTATE_STEP = 90;
 const MIN_SPOT_SIZE = 24;
 const DRAG_CLICK_THRESHOLD_PX = 4;
+/** View zoom — presentation only; never persisted. */
+const VIEW_ZOOM_MIN = 0.5;
+const VIEW_ZOOM_MAX = 2;
+const VIEW_ZOOM_STEP = 0.1;
+
+function clampViewZoom(z: number): number {
+  const stepped = Math.round(z / VIEW_ZOOM_STEP) * VIEW_ZOOM_STEP;
+  return Math.max(
+    VIEW_ZOOM_MIN,
+    Math.min(VIEW_ZOOM_MAX, Math.round(stepped * 100) / 100),
+  );
+}
+
+function formatZoomPercent(z: number): string {
+  return `${Math.round(z * 100)}%`;
+}
 
 function normalizeRotationDeg(deg: number): number {
   const n = ((Math.round(deg) % 360) + 360) % 360;
@@ -358,6 +381,14 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   const [pendingDoor, setPendingDoor] = useState<DoorMarker | null>(null);
   const [pendingCatchAll, setPendingCatchAll] =
     useState<CatchAllMarker | null>(null);
+  /** null = use resolved extras/default canvas; object = pending canvas resize this session. */
+  const [pendingCanvas, setPendingCanvas] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [canvasSizeError, setCanvasSizeError] = useState<string | null>(null);
+  /** Presentation zoom only — not persisted. */
+  const [viewZoom, setViewZoom] = useState(1);
   const formatLastEdited = () =>
     new Date().toLocaleString(undefined, {
       dateStyle: "short",
@@ -393,6 +424,12 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     };
   const door = pendingDoor ?? persistedDoor;
   const doorHeightPx = doorHeightFromWidth(door.sizePx);
+  const resolvedCanvasSize = useMemo(
+    () => resolveShopMapCanvasSize(layout.extras),
+    [layout.extras],
+  );
+  const canvasWidth = pendingCanvas?.width ?? resolvedCanvasSize.width;
+  const canvasHeight = pendingCanvas?.height ?? resolvedCanvasSize.height;
   /** Drag/resize only while editing inside Vendor view (marker visibility is CSS). */
   const canEditYouAreHere = editMode && vendorView;
   const [hover, setHover] = useState<HoverInfo | null>(null);
@@ -530,6 +567,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     canvasTop: number;
   } | null>(null);
   const mapCanvasRef = useRef<HTMLDivElement>(null);
+  const mapViewportRef = useRef<HTMLDivElement>(null);
   const spotElRefs = useRef<Record<string, HTMLElement | null>>({});
   const suppressClickRef = useRef(false);
 
@@ -586,6 +624,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       setPendingYouAreHere(null);
       setPendingDoor(null);
       setPendingCatchAll(null);
+      setPendingCanvas(null);
+      setCanvasSizeError(null);
       setSelectedCatchAll(false);
       catchAllSessionSnapshotRef.current = null;
       setCatchAllRemovedInSession(false);
@@ -683,11 +723,13 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   ) => {
     if (!canEditYouAreHere || !yahDragRef.current) return;
     const { startX, startY, baseOx, baseOy, baseSize } = yahDragRef.current;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
+    const screenDx = e.clientX - startX;
+    const screenDy = e.clientY - startY;
+    const dx = screenDx / viewZoom;
+    const dy = screenDy / viewZoom;
     if (
       !yahDragRef.current.undoPushed &&
-      Math.hypot(dx, dy) >= DRAG_CLICK_THRESHOLD_PX
+      Math.hypot(screenDx, screenDy) >= DRAG_CLICK_THRESHOLD_PX
     ) {
       pushUndo();
       yahDragRef.current.undoPushed = true;
@@ -733,10 +775,11 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   ) => {
     if (!canEditYouAreHere || !yahResizeRef.current) return;
     const { startX, startY, baseSize, baseOx, baseOy } = yahResizeRef.current;
-    const delta = Math.max(e.clientX - startX, e.clientY - startY);
+    const screenDelta = Math.max(e.clientX - startX, e.clientY - startY);
+    const delta = screenDelta / viewZoom;
     if (
       !yahResizeRef.current.undoPushed &&
-      Math.abs(delta) >= DRAG_CLICK_THRESHOLD_PX
+      Math.abs(screenDelta) >= DRAG_CLICK_THRESHOLD_PX
     ) {
       pushUndo();
       yahResizeRef.current.undoPushed = true;
@@ -792,11 +835,13 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     if (!editMode || !doorDragRef.current) return;
     const { startX, startY, baseOx, baseOy, baseSizePx, baseRotationDeg } =
       doorDragRef.current;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
+    const screenDx = e.clientX - startX;
+    const screenDy = e.clientY - startY;
+    const dx = screenDx / viewZoom;
+    const dy = screenDy / viewZoom;
     if (
       !doorDragRef.current.undoPushed &&
-      Math.hypot(dx, dy) >= DRAG_CLICK_THRESHOLD_PX
+      Math.hypot(screenDx, screenDy) >= DRAG_CLICK_THRESHOLD_PX
     ) {
       pushUndo();
       doorDragRef.current.undoPushed = true;
@@ -843,10 +888,11 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     if (!editMode || !doorResizeRef.current) return;
     const { startX, startY, baseSizePx, baseOx, baseOy, baseRotationDeg } =
       doorResizeRef.current;
-    const delta = Math.max(e.clientX - startX, e.clientY - startY);
+    const screenDelta = Math.max(e.clientX - startX, e.clientY - startY);
+    const delta = screenDelta / viewZoom;
     if (
       !doorResizeRef.current.undoPushed &&
-      Math.abs(delta) >= DRAG_CLICK_THRESHOLD_PX
+      Math.abs(screenDelta) >= DRAG_CLICK_THRESHOLD_PX
     ) {
       pushUndo();
       doorResizeRef.current.undoPushed = true;
@@ -900,11 +946,13 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     if (!editMode || !catchAllDragRef.current) return;
     const { startX, startY, baseOx, baseOy, baseWidth, baseHeight } =
       catchAllDragRef.current;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
+    const screenDx = e.clientX - startX;
+    const screenDy = e.clientY - startY;
+    const dx = screenDx / viewZoom;
+    const dy = screenDy / viewZoom;
     if (
       !catchAllDragRef.current.undoPushed &&
-      Math.hypot(dx, dy) >= DRAG_CLICK_THRESHOLD_PX
+      Math.hypot(screenDx, screenDy) >= DRAG_CLICK_THRESHOLD_PX
     ) {
       pushUndo();
       catchAllDragRef.current.undoPushed = true;
@@ -952,11 +1000,13 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     if (!editMode || !catchAllResizeRef.current) return;
     const { startX, startY, baseWidth, baseHeight, baseOx, baseOy } =
       catchAllResizeRef.current;
-    const dw = e.clientX - startX;
-    const dh = e.clientY - startY;
+    const screenDw = e.clientX - startX;
+    const screenDh = e.clientY - startY;
+    const dw = screenDw / viewZoom;
+    const dh = screenDh / viewZoom;
     if (
       !catchAllResizeRef.current.undoPushed &&
-      (dw !== 0 || dh !== 0)
+      (screenDw !== 0 || screenDh !== 0)
     ) {
       pushUndo();
       catchAllResizeRef.current.undoPushed = true;
@@ -1370,6 +1420,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         : null,
       pendingDoor: pendingDoor ? { ...pendingDoor } : null,
       pendingCatchAll: catchAllSnapshot,
+      pendingCanvas: pendingCanvas ? { ...pendingCanvas } : null,
       editLabel,
       editCode,
       editOffsetX,
@@ -1392,6 +1443,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     pendingYouAreHere,
     pendingDoor,
     pendingCatchAll,
+    pendingCanvas,
     selectedLayoutSlot,
     selectedSlots,
     selectedCatchAll,
@@ -1443,6 +1495,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     setPendingCatchAll(
       frame.pendingCatchAll ? { ...frame.pendingCatchAll } : null,
     );
+    setPendingCanvas(frame.pendingCanvas ? { ...frame.pendingCanvas } : null);
+    setCanvasSizeError(null);
     if (frame.pendingCatchAll) {
       setCatchAllRemovedInSession(false);
     }
@@ -1687,6 +1741,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     ]);
     const yahPending = pendingYouAreHere !== null;
     const doorPending = pendingDoor !== null;
+    const canvasPending = pendingCanvas !== null;
     const catchAllPending = pendingCatchAll !== null;
     const catchAllShouldPersist = catchAllPending && !!catchAllZone;
     if (
@@ -1694,13 +1749,17 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       pendingHidden.length === 0 &&
       !yahPending &&
       !doorPending &&
+      !canvasPending &&
       !catchAllShouldPersist &&
       !catchAllRemovedInSession
     ) {
       return true;
     }
     if (
-      (pendingHidden.length > 0 || yahPending || doorPending) &&
+      (pendingHidden.length > 0 ||
+        yahPending ||
+        doorPending ||
+        canvasPending) &&
       !onPersistLayoutExtras
     ) {
       return false;
@@ -1768,7 +1827,10 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         setSelectedCatchAll(false);
       }
       if (
-        (pendingHidden.length > 0 || yahPending || doorPending) &&
+        (pendingHidden.length > 0 ||
+          yahPending ||
+          doorPending ||
+          canvasPending) &&
         onPersistLayoutExtras
       ) {
         if (pendingHidden.length > 0) {
@@ -1794,6 +1856,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         if (doorPending && pendingDoor) {
           workingExtras = withDoor(workingExtras, pendingDoor);
         }
+        if (canvasPending && pendingCanvas) {
+          workingExtras = withCanvasSize(workingExtras, pendingCanvas);
+        }
         shouldPersistExtras = true;
       }
       if (shouldPersistExtras && onPersistLayoutExtras) {
@@ -1809,6 +1874,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         setPendingHidden([]);
         setPendingYouAreHere(null);
         setPendingDoor(null);
+        setPendingCanvas(null);
+        setCanvasSizeError(null);
         setSelectedLayoutSlot(null);
         setSelectedSlots([]);
         return true;
@@ -1920,6 +1987,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       setPendingHidden([]);
       setPendingYouAreHere(null);
       setPendingDoor(null);
+      setPendingCanvas(null);
+      setCanvasSizeError(null);
       setSelectedCatchAll(false);
       undoStackRef.current = [];
       setUndoDepth(0);
@@ -1936,6 +2005,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     pendingLabels,
     pendingYouAreHere,
     pendingDoor,
+    pendingCanvas,
     pendingRotations,
     pendingLabelRotations,
     pendingSizes,
@@ -2093,11 +2163,13 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   const onDragPointerMove = (e: ReactPointerEvent<HTMLElement>) => {
     if (!editMode || !dragRef.current) return;
     const { startX, startY } = dragRef.current;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
+    const screenDx = e.clientX - startX;
+    const screenDy = e.clientY - startY;
+    const dx = screenDx / viewZoom;
+    const dy = screenDy / viewZoom;
     if (
       !dragRef.current.moved &&
-      Math.hypot(dx, dy) >= DRAG_CLICK_THRESHOLD_PX
+      Math.hypot(screenDx, screenDy) >= DRAG_CLICK_THRESHOLD_PX
     ) {
       if (!dragRef.current.undoPushed) {
         pushUndo();
@@ -2147,15 +2219,16 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     const canvas = mapCanvasRef.current;
     if (!canvas) return [];
     const canvasRect = canvas.getBoundingClientRect();
+    const z = viewZoom || 1;
     const hits: string[] = [];
     for (const code of allShopMapSpotCodes(layout)) {
       const el = spotElRefs.current[code];
       if (!el) continue;
       const r = el.getBoundingClientRect();
-      const x = r.left - canvasRect.left;
-      const y = r.top - canvasRect.top;
-      const x2 = x + r.width;
-      const y2 = y + r.height;
+      const x = (r.left - canvasRect.left) / z;
+      const y = (r.top - canvasRect.top) / z;
+      const x2 = x + r.width / z;
+      const y2 = y + r.height / z;
       if (x < right && x2 > left && y < bottom && y2 > top) {
         hits.push(code);
       }
@@ -2176,8 +2249,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     const canvas = mapCanvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const z = viewZoom || 1;
+    const x = (e.clientX - rect.left) / z;
+    const y = (e.clientY - rect.top) / z;
     marqueeRef.current = {
       startX: x,
       startY: y,
@@ -2191,8 +2265,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   const onCanvasPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!marqueeRef.current || !mapCanvasRef.current) return;
     const rect = mapCanvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const z = viewZoom || 1;
+    const x = (e.clientX - rect.left) / z;
+    const y = (e.clientY - rect.top) / z;
     setMarquee({
       x0: marqueeRef.current.startX,
       y0: marqueeRef.current.startY,
@@ -2209,11 +2284,12 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       /* already released */
     }
     const rect = mapCanvasRef.current.getBoundingClientRect();
+    const z = viewZoom || 1;
     const box = {
       x0: marqueeRef.current.startX,
       y0: marqueeRef.current.startY,
-      x1: e.clientX - rect.left,
-      y1: e.clientY - rect.top,
+      x1: (e.clientX - rect.left) / z,
+      y1: (e.clientY - rect.top) / z,
     };
     marqueeRef.current = null;
     setMarquee(null);
@@ -2418,9 +2494,11 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   const onResizeHandlePointerMove = (e: ReactPointerEvent<HTMLSpanElement>) => {
     if (!editMode || !resizeRef.current || !selectedLayoutSlot) return;
     const { startX, startY, baseW, baseH } = resizeRef.current;
-    const dw = e.clientX - startX;
-    const dh = e.clientY - startY;
-    if (!resizeRef.current.undoPushed && (dw !== 0 || dh !== 0)) {
+    const screenDw = e.clientX - startX;
+    const screenDh = e.clientY - startY;
+    const dw = screenDw / viewZoom;
+    const dh = screenDh / viewZoom;
+    if (!resizeRef.current.undoPushed && (screenDw !== 0 || screenDh !== 0)) {
       pushUndo();
       resizeRef.current.undoPushed = true;
     }
@@ -2625,6 +2703,92 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     } finally {
       setAddingLayout(false);
     }
+  };
+
+  const measureOccupiedLogicalBounds = useCallback((): {
+    maxRight: number;
+    maxBottom: number;
+  } => {
+    const canvas = mapCanvasRef.current;
+    if (!canvas) {
+      return { maxRight: 0, maxBottom: 0 };
+    }
+    const canvasRect = canvas.getBoundingClientRect();
+    const z = viewZoom || 1;
+    let maxRight = 0;
+    let maxBottom = 0;
+    const selectors = [
+      '[data-testid^="shop-spot-"]',
+      '[data-testid="shop-map-catch-all"]',
+      '[data-testid="shop-map-door-wrap"]',
+      '[data-testid="shop-map-you-are-here"]',
+      '[data-testid^="shop-shelf-"][data-testid$="-frame"]',
+    ];
+    for (const sel of selectors) {
+      for (const el of canvas.querySelectorAll(sel)) {
+        const r = el.getBoundingClientRect();
+        maxRight = Math.max(maxRight, (r.right - canvasRect.left) / z);
+        maxBottom = Math.max(maxBottom, (r.bottom - canvasRect.top) / z);
+      }
+    }
+    return { maxRight, maxBottom };
+  }, [viewZoom]);
+
+  const trySetCanvasSize = useCallback(
+    (nextWidth: number, nextHeight: number) => {
+      const width = clampCanvasWidth(nextWidth);
+      const height = clampCanvasHeight(nextHeight);
+      if (width === canvasWidth && height === canvasHeight) return;
+      if (width < canvasWidth || height < canvasHeight) {
+        const occupied = measureOccupiedLogicalBounds();
+        const pad = SHOP_MAP_CANVAS_SHRINK_PAD_PX;
+        if (
+          width < occupied.maxRight + pad ||
+          height < occupied.maxBottom + pad
+        ) {
+          setCanvasSizeError(
+            width < canvasWidth
+              ? "Canvas can’t be narrower while locations occupy that area."
+              : "Canvas can’t be shorter while locations occupy that area.",
+          );
+          return;
+        }
+      }
+      pushUndo();
+      setPendingCanvas({ width, height });
+      setCanvasSizeError(null);
+    },
+    [
+      canvasWidth,
+      canvasHeight,
+      measureOccupiedLogicalBounds,
+      pushUndo,
+    ],
+  );
+
+  const nudgeViewZoom = useCallback((delta: number) => {
+    setViewZoom((z) => clampViewZoom(z + delta));
+  }, []);
+
+  const resetViewZoom = useCallback(() => {
+    setViewZoom(1);
+  }, []);
+
+  const fitViewZoom = useCallback(() => {
+    const vp = mapViewportRef.current;
+    if (!vp) return;
+    const availW = Math.max(1, vp.clientWidth - 8);
+    const availH = Math.max(1, vp.clientHeight - 8);
+    const raw = Math.min(availW / canvasWidth, availH / canvasHeight, 1);
+    setViewZoom(clampViewZoom(Math.max(VIEW_ZOOM_MIN, raw)));
+  }, [canvasWidth, canvasHeight]);
+
+  const viewControlBtnStyle: CSSProperties = {
+    ...addLayoutBtnStyle,
+    minWidth: 44,
+    minHeight: 44,
+    padding: "8px 12px",
+    boxSizing: "border-box",
   };
 
   const colorOf = (layoutSlot: string) =>
@@ -2887,26 +3051,210 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       )}
 
       <div
-        ref={mapCanvasRef}
-        data-testid="shop-map-canvas"
-        onPointerDown={onCanvasPointerDown}
-        onPointerMove={onCanvasPointerMove}
-        onPointerUp={onCanvasPointerUp}
+        data-testid="shop-map-view-controls"
+        className="shop-map-view-controls print:hidden"
         style={{
-          display: "grid",
-          gridTemplateColumns: "auto 1fr",
-          gap: 16,
-          background:
-            "repeating-linear-gradient(0deg, #f8fafc, #f8fafc 19px, #eef2f7 20px), repeating-linear-gradient(90deg, #f8fafc, #f8fafc 19px, #eef2f7 20px)",
-          border: "1px solid var(--admin-border)",
-          borderRadius: 10,
-          padding: 20,
-          minHeight: 420,
-          position: "relative",
-          touchAction: editMode ? "none" : undefined,
-          userSelect: editMode ? "none" : undefined,
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 8,
+          alignItems: "center",
+          marginBottom: 10,
         }}
       >
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 800,
+            color: "var(--admin-text)",
+            marginRight: 2,
+          }}
+        >
+          View
+        </span>
+        <button
+          type="button"
+          data-testid="shop-map-zoom-out"
+          aria-label="Zoom out"
+          disabled={viewZoom <= VIEW_ZOOM_MIN}
+          onClick={() => nudgeViewZoom(-VIEW_ZOOM_STEP)}
+          style={{
+            ...viewControlBtnStyle,
+            opacity: viewZoom <= VIEW_ZOOM_MIN ? 0.45 : 1,
+            cursor: viewZoom <= VIEW_ZOOM_MIN ? "not-allowed" : "pointer",
+          }}
+        >
+          −
+        </button>
+        <button
+          type="button"
+          data-testid="shop-map-zoom-percent"
+          aria-label="Reset zoom to 100%"
+          title="Reset to 100%"
+          onClick={resetViewZoom}
+          style={{ ...viewControlBtnStyle, minWidth: 56, fontVariantNumeric: "tabular-nums" }}
+        >
+          {formatZoomPercent(viewZoom)}
+        </button>
+        <button
+          type="button"
+          data-testid="shop-map-zoom-in"
+          aria-label="Zoom in"
+          disabled={viewZoom >= VIEW_ZOOM_MAX}
+          onClick={() => nudgeViewZoom(VIEW_ZOOM_STEP)}
+          style={{
+            ...viewControlBtnStyle,
+            opacity: viewZoom >= VIEW_ZOOM_MAX ? 0.45 : 1,
+            cursor: viewZoom >= VIEW_ZOOM_MAX ? "not-allowed" : "pointer",
+          }}
+        >
+          +
+        </button>
+        <button
+          type="button"
+          data-testid="shop-map-zoom-fit"
+          aria-label="Fit view"
+          onClick={fitViewZoom}
+          style={viewControlBtnStyle}
+        >
+          Fit
+        </button>
+        {editMode && (
+          <>
+            <span
+              aria-hidden
+              style={{
+                width: 1,
+                alignSelf: "stretch",
+                backgroundColor: "var(--admin-border)",
+                margin: "0 4px",
+              }}
+            />
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 800,
+                color: "var(--admin-text)",
+              }}
+            >
+              Canvas
+            </span>
+            <span
+              data-testid="shop-map-canvas-size-label"
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "var(--admin-text)",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {canvasWidth} × {canvasHeight} px
+            </span>
+            <button
+              type="button"
+              data-testid="shop-map-canvas-narrower"
+              onClick={() =>
+                trySetCanvasSize(canvasWidth - SHOP_MAP_CANVAS_STEP_PX, canvasHeight)
+              }
+              style={viewControlBtnStyle}
+            >
+              Narrower
+            </button>
+            <button
+              type="button"
+              data-testid="shop-map-canvas-wider"
+              onClick={() =>
+                trySetCanvasSize(canvasWidth + SHOP_MAP_CANVAS_STEP_PX, canvasHeight)
+              }
+              style={viewControlBtnStyle}
+            >
+              Wider
+            </button>
+            <button
+              type="button"
+              data-testid="shop-map-canvas-shorter"
+              onClick={() =>
+                trySetCanvasSize(canvasWidth, canvasHeight - SHOP_MAP_CANVAS_STEP_PX)
+              }
+              style={viewControlBtnStyle}
+            >
+              Shorter
+            </button>
+            <button
+              type="button"
+              data-testid="shop-map-canvas-taller"
+              onClick={() =>
+                trySetCanvasSize(canvasWidth, canvasHeight + SHOP_MAP_CANVAS_STEP_PX)
+              }
+              style={viewControlBtnStyle}
+            >
+              Taller
+            </button>
+          </>
+        )}
+        {editMode && canvasSizeError && (
+          <span
+            data-testid="shop-map-canvas-size-error"
+            style={{
+              color: "var(--admin-danger-text)",
+              fontSize: 12,
+              fontWeight: 700,
+              width: "100%",
+            }}
+          >
+            {canvasSizeError}
+          </span>
+        )}
+      </div>
+
+      <div
+        ref={mapViewportRef}
+        data-testid="shop-map-viewport"
+        style={{
+          overflow: "auto",
+          maxHeight: "min(85vh, 900px)",
+          border: "1px solid var(--admin-border)",
+          borderRadius: 10,
+          backgroundColor: "var(--admin-surface-muted, #f1f5f9)",
+        }}
+      >
+        <div
+          data-testid="shop-map-zoom-spacer"
+          style={{
+            width: canvasWidth * viewZoom,
+            height: canvasHeight * viewZoom,
+            position: "relative",
+          }}
+        >
+          <div
+            ref={mapCanvasRef}
+            data-testid="shop-map-canvas"
+            data-canvas-width={canvasWidth}
+            data-canvas-height={canvasHeight}
+            data-view-zoom={viewZoom}
+            onPointerDown={onCanvasPointerDown}
+            onPointerMove={onCanvasPointerMove}
+            onPointerUp={onCanvasPointerUp}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "auto 1fr",
+              gap: 16,
+              background:
+                "repeating-linear-gradient(0deg, #f8fafc, #f8fafc 19px, #eef2f7 20px), repeating-linear-gradient(90deg, #f8fafc, #f8fafc 19px, #eef2f7 20px)",
+              border: "1px solid var(--admin-border)",
+              borderRadius: 10,
+              padding: 20,
+              boxSizing: "border-box",
+              width: canvasWidth,
+              height: canvasHeight,
+              position: "absolute",
+              left: 0,
+              top: 0,
+              transform: `scale(${viewZoom})`,
+              transformOrigin: "0 0",
+              touchAction: editMode ? "none" : undefined,
+              userSelect: editMode ? "none" : undefined,
+            }}
+          >
         {marquee && (
           <div
             data-testid="shop-map-marquee"
@@ -3493,6 +3841,8 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             })}
           </div>
         </div>
+          </div>
+        </div>
       </div>
 
       {editMode && (selectedCatchAll || selectedLayoutSlot || selectedSlots.length > 1) && (
@@ -3950,6 +4300,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                   !(pendingHidden.length > 0 && onPersistLayoutExtras) &&
                   pendingYouAreHere === null &&
                   pendingDoor === null &&
+                  pendingCanvas === null &&
                   !(pendingCatchAll && catchAllZone && onPersistLayoutExtras) &&
                   !catchAllRemovedInSession)
               }

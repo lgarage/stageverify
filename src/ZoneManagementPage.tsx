@@ -2349,9 +2349,27 @@ export function ZoneManagementPage() {
           [data-testid="shop-map-door-rotate-ccw"],
           [data-testid="shop-map-marquee"],
           [data-testid="shop-map-add-bar"],
+          [data-testid="shop-map-view-controls"],
           .shop-map-unplaced,
           .shop-map-legend {
             display: none !important;
+          }
+          [data-testid="shop-map-viewport"] {
+            overflow: visible !important;
+            max-height: none !important;
+            border: none !important;
+            background: transparent !important;
+          }
+          [data-testid="shop-map-zoom-spacer"] {
+            width: auto !important;
+            height: auto !important;
+          }
+          [data-testid="shop-map-canvas"] {
+            position: relative !important;
+            transform: none !important;
+            width: auto !important;
+            height: auto !important;
+            min-height: 420px !important;
           }
 
           /* Bold wall-poster guide — location only, no live status colors */
