@@ -395,6 +395,17 @@ export const deactivateDispatcher = onCall(
     const roleData = roleSnap.data() as DispatcherRoleFields;
     await assertNotLastActiveAdmin(uid, roleData);
 
+    // Align with demotion policy: only Admins may deactivate Admins.
+    if (
+      resolveDispatcherAccessRole(roleData) === "admin" &&
+      !(await hasAdminRole(callerUid))
+    ) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only an Admin can deactivate an Admin account.",
+      );
+    }
+
     await roleRef.set(
       {
         active: false,
