@@ -1,12 +1,30 @@
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, existsSync, appendFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
+/** Elapsed + stall thresholds (ms). Healthy progress suppresses stall10 only. */
 export const THRESHOLDS_MS = {
   stallNoProgress: 10 * 60 * 1000,
+  status10: 10 * 60 * 1000,
+  focus15: 15 * 60 * 1000,
+  focus20: 20 * 60 * 1000,
+  focus25: 25 * 60 * 1000,
+  completion30: 30 * 60 * 1000,
+  force35: 35 * 60 * 1000,
+  // Back-compat aliases used by older tests/docs
   status: 15 * 60 * 1000,
   focus: 25 * 60 * 1000,
   force: 35 * 60 * 1000,
 };
+
+/** Elapsed ladder order (lowest → highest). Supersession emits the highest pending only. */
+export const ELAPSED_CHECKPOINT_ORDER = [
+  "status10",
+  "focus15",
+  "focus20",
+  "focus25",
+  "completion30",
+  "force35",
+];
 
 /** Max identical-signature failures before thrash intervention (2 fails → stop repeating). */
 export const THRASH_FAIL_LIMIT = 2;
@@ -19,6 +37,34 @@ export const WAIT_POLL_SOFT_LIMIT = 3;
  * Ignore duplicate signature counts inside this window.
  */
 export const SHELL_HOOK_DEDUPE_MS = 3000;
+
+/**
+ * Hooks that can carry agent-visible advice (repo-documented inject fields).
+ * Approximation: we mark delivered only when the response includes one of these fields.
+ * Platform does not ack receipt — this is the strongest deterministic guarantee available.
+ */
+export const RELIABLE_DELIVERY_HOOKS = new Set([
+  "preToolUse", // agent_message + permission allow
+  "postToolUse", // additional_context
+  "beforeShellExecution", // agent_message + permission allow
+  "stop", // followup_message
+]);
+
+/** Best-effort / no official inject — may queue pending but must not consume. */
+export const BEST_EFFORT_HOOKS = new Set([
+  "afterShellExecution",
+  "postToolUseFailure",
+  "afterFileEdit",
+  "subagentStart",
+  "subagentStop",
+]);
+
+/**
+ * @param {string} hook
+ */
+export function isReliableDeliveryHook(hook) {
+  return RELIABLE_DELIVERY_HOOKS.has(String(hook || ""));
+}
 
 /**
  * @param {string[]} workspaceRoots
@@ -39,8 +85,20 @@ export function statePath(conversationId, workspaceRoots) {
   return join(resolveStateDir(workspaceRoots), `${id}.json`);
 }
 
+/**
+ * Optional local debug trace (gitignored via `.cursor/hooks/state/`).
+ * @param {string[]} workspaceRoots
+ */
+export function tracePath(workspaceRoots) {
+  return join(resolveStateDir(workspaceRoots), "trace.jsonl");
+}
+
 function sanitizeId(id) {
   return String(id).replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
+}
+
+function emptyDeliverySlot() {
+  return { status: "not_due", queuedAt: null, deliveredAt: null, family: null, payload: null };
 }
 
 /**
@@ -53,14 +111,12 @@ export function emptyState(conversationId, now) {
     lastProgressAt: now,
     lastInterventionAt: null,
     interventions: [],
-    firedCheckpoints: {
-      stall10: false,
-      status15: false,
-      focus25: false,
-      force35: false,
-      main_clean: false,
-      merge_conflict: false,
-    },
+    /** @deprecated migrated into delivery — kept for load compat */
+    firedCheckpoints: {},
+    /**
+     * kind → { status: not_due|pending|delivered|superseded, queuedAt, deliveredAt, family, payload }
+     */
+    delivery: {},
     signatures: {},
     greenEvidence: {
       build: false,
@@ -78,6 +134,59 @@ export function emptyState(conversationId, now) {
 }
 
 /**
+ * Migrate legacy firedCheckpoints booleans → delivery map.
+ * @param {object} state
+ */
+export function normalizeDeliveryState(state) {
+  if (!state.delivery || typeof state.delivery !== "object") state.delivery = {};
+  const fired = state.firedCheckpoints || {};
+  // Old elapsed names → new
+  const legacyMap = {
+    status15: "focus15",
+    focus25: "focus25",
+    force35: "force35",
+    stall10: "stall10",
+    main_clean: "main_clean",
+    merge_conflict: "merge_conflict",
+  };
+  for (const [oldKey, newKey] of Object.entries(legacyMap)) {
+    if (fired[oldKey] && !state.delivery[newKey]) {
+      state.delivery[newKey] = {
+        ...emptyDeliverySlot(),
+        status: "delivered",
+        deliveredAt: state.lastInterventionAt || state.startedAt || null,
+        family: ELAPSED_CHECKPOINT_ORDER.includes(newKey)
+          ? "elapsed"
+          : newKey === "stall10"
+            ? "stall"
+            : "event",
+      };
+    }
+  }
+  return state;
+}
+
+/**
+ * @param {object} state
+ * @param {string} kind
+ */
+export function getDeliveryStatus(state, kind) {
+  const slot = state.delivery?.[kind];
+  return slot?.status || "not_due";
+}
+
+/**
+ * @param {object} state
+ * @param {string} kind
+ * @param {object} patch
+ */
+export function setDelivery(state, kind, patch) {
+  if (!state.delivery) state.delivery = {};
+  const prev = state.delivery[kind] || emptyDeliverySlot();
+  state.delivery[kind] = { ...prev, ...patch };
+}
+
+/**
  * @param {string} conversationId
  * @param {string[]} workspaceRoots
  * @param {number} now
@@ -89,12 +198,14 @@ export function loadState(conversationId, workspaceRoots, now = Date.now()) {
   }
   try {
     const raw = JSON.parse(readFileSync(path, "utf8"));
-    return {
+    const state = {
       ...emptyState(conversationId, now),
       ...raw,
       firedCheckpoints: {
-        ...emptyState(conversationId, now).firedCheckpoints,
         ...(raw.firedCheckpoints || {}),
+      },
+      delivery: {
+        ...(raw.delivery || {}),
       },
       greenEvidence: {
         ...emptyState(conversationId, now).greenEvidence,
@@ -112,6 +223,7 @@ export function loadState(conversationId, workspaceRoots, now = Date.now()) {
       thrashWarned: raw.thrashWarned || {},
       interventions: Array.isArray(raw.interventions) ? raw.interventions : [],
     };
+    return normalizeDeliveryState(state);
   } catch {
     return emptyState(conversationId, now);
   }
@@ -125,6 +237,21 @@ export function saveState(state, workspaceRoots) {
   const path = statePath(state.conversationId, workspaceRoots);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify(state, null, 2), "utf8");
+}
+
+/**
+ * Append one debug trace line (best-effort; never throws to caller).
+ * @param {string[]} workspaceRoots
+ * @param {object} row
+ */
+export function appendTrace(workspaceRoots, row) {
+  try {
+    const path = tracePath(workspaceRoots);
+    mkdirSync(dirname(path), { recursive: true });
+    appendFileSync(path, JSON.stringify(row) + "\n", "utf8");
+  } catch {
+    /* ignore — correctness does not depend on trace */
+  }
 }
 
 /**
