@@ -43,6 +43,6 @@ Numeric only, **min 4 / max 6** — tech, vendor, management, job-scoped vendor.
 | Management PIN | Shop-floor shared credential (`managementPins` + `verifyManagementPin` / catch-all hub) — **not** Firebase Auth identity; **not** the Admin Access unlock |
 | Preferred end-state | Named Admin Auth users authorize reveal; no shared privileged “Management PIN” identity for Admin Access |
 | This PR | Keeps Management PIN catch-all paths; does **not** delete production `managementPins` / `accessPinSecrets/management_*` |
-| Bootstrap | Atomic `bootstrapFirstAdmin` only (Manager + zero active Admins + `accessControlLocks/firstAdmin` transaction); not a permanent Manager→Admin path (D-70) |
+| Bootstrap | Atomic `bootstrapFirstAdmin` only (Manager + zero active Admins + `accessControlLocks/firstAdmin` transaction); not a permanent Manager→Admin path (D-71) |
 | Admin identity | Managers cannot rename/demote/deactivate Admins — Admin auth required for Admin identity/role mutations |
 | Separate migration | Optional later: retire Management PIN roster presentation / migrate catch-all entry — **out of this PR** |
