@@ -1331,147 +1331,22 @@ export function ZoneManagementPage() {
           }}
         >
           <div className="print:hidden">
-            <div>
-              <h1
-                style={{
-                  fontSize: 24,
-                  fontWeight: 700,
-                  color: "var(--admin-accent-soft)",
-                  margin: 0,
-                  lineHeight: "1.2",
-                }}
-              >
-                Staging Map
-              </h1>
-              <p style={{ fontSize: 13, color: "var(--admin-text-muted)", marginTop: 4 }}>
-                Live floor map — green available, yellow assigned/planned, purple ready
-                for pickup, gray shop stock. Click a spot to open the delivery
-                drawer.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-3">
-              <button
-                type="button"
-                data-testid="staging-map-print-all-location-labels"
-                onClick={() => navigate("/zones/print-labels")}
-                style={{
-                  padding: "8px 18px",
-                  borderRadius: 4,
-                  border: `1px solid ${NAVY}`,
-                  backgroundColor: "var(--admin-surface)",
-                  color: "var(--admin-accent-soft)",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: "pointer",
-                  fontFamily: FONT,
-                }}
-              >
-                Print location labels
-              </button>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                style={{
-                  padding: "8px 18px",
-                  borderRadius: 4,
-                  border: `1px solid ${NAVY}`,
-                  backgroundColor: "var(--admin-surface)",
-                  color: "var(--admin-accent-soft)",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: "pointer",
-                  fontFamily: FONT,
-                }}
-              >
-                Print map
-              </button>
-              <button
-                type="button"
-                data-testid="shop-map-vendor-view-toggle"
-                aria-pressed={vendorView}
-                title={
-                  vendorView
-                    ? "Vendor view on — click to return to live map"
-                    : "Show wall-sign preview (YOU ARE HERE)"
-                }
-                onClick={() => setVendorView((v) => !v)}
-                style={{
-                  padding: "8px 18px",
-                  borderRadius: 4,
-                  border: vendorView ? "2px solid #ca8a04" : "1px solid var(--admin-border)",
-                  backgroundColor: vendorView ? "var(--admin-warning-bg)" : "var(--admin-surface)",
-                  color: vendorView ? "var(--admin-warning-text)" : "var(--admin-text)",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: "pointer",
-                  fontFamily: FONT,
-                  minWidth: 118,
-                }}
-              >
-                Vendor view
-              </button>
-              <button
-                type="button"
-                data-testid="shop-map-edit-mode-toggle"
-                aria-pressed={mapEditMode}
-                title={
-                  mapEditMode
-                    ? "Edit mode on — click to finish and save pending changes"
-                    : "Edit spot positions and labels"
-                }
-                onClick={() => {
-                  if (mapEditMode) {
-                    void (async () => {
-                      const ok = mapRef.current
-                        ? await mapRef.current.persistAllPendingEdits()
-                        : true;
-                      if (!ok) return;
-                      setSelectedDeliveryId(null);
-                      setMapEditMode(false);
-                    })();
-                  } else if (assignMode) {
-                    showAssignToast(
-                      "Exit assign mode before editing map locations.",
-                    );
-                  } else {
-                    setMapEditMode(true);
-                  }
-                }}
-                style={{
-                  padding: "8px 18px",
-                  borderRadius: 4,
-                  border: mapEditMode ? "2px solid #2563eb" : "1px solid var(--admin-border)",
-                  backgroundColor: mapEditMode ? "var(--admin-info-bg)" : "var(--admin-surface)",
-                  color: mapEditMode ? "var(--admin-info-text)" : "var(--admin-text)",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: "pointer",
-                  fontFamily: FONT,
-                  minWidth: 96,
-                }}
-              >
-                {mapEditMode ? "Done editing" : "Edit Locations"}
-              </button>
-              <button
-                type="button"
-                aria-pressed={showZoneTools}
-                onClick={() => setShowZoneTools((v) => !v)}
-                style={{
-                  padding: "8px 18px",
-                  borderRadius: 4,
-                  border: showZoneTools ? "2px solid #64748b" : "1px solid var(--admin-border)",
-                  backgroundColor: showZoneTools ? "#e8eef5" : "var(--admin-surface)",
-                  color: "var(--admin-text)",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  cursor: "pointer",
-                  fontFamily: FONT,
-                  minWidth: 96,
-                }}
-              >
-                Zone tools
-              </button>
-            </div>
+            <h1
+              style={{
+                fontSize: 24,
+                fontWeight: 700,
+                color: "var(--admin-accent-soft)",
+                margin: 0,
+                lineHeight: "1.2",
+              }}
+            >
+              Staging Map
+            </h1>
+            <p style={{ fontSize: 13, color: "var(--admin-text-muted)", marginTop: 4 }}>
+              Live floor map — green available, yellow assigned/planned, purple ready
+              for pickup, gray shop stock. Click a spot to open the delivery
+              drawer.
+            </p>
           </div>
 
           {liveOccupancy.error && (
@@ -1685,6 +1560,149 @@ export function ZoneManagementPage() {
               onRemoveCatchAllSpot={handleRemoveCatchAllSpot}
               onSpotDeliveryUnavailable={showAssignToast}
               onCatchAllClick={handleCatchAllClick}
+              headerActions={
+                <>
+                  <button
+                    type="button"
+                    data-testid="staging-map-print-all-location-labels"
+                    onClick={() => navigate("/zones/print-labels")}
+                    style={{
+                      padding: "8px 18px",
+                      borderRadius: 4,
+                      border: `1px solid ${NAVY}`,
+                      backgroundColor: "var(--admin-surface)",
+                      color: "var(--admin-accent-soft)",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: "pointer",
+                      fontFamily: FONT,
+                    }}
+                  >
+                    Print location labels
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="staging-map-print-map"
+                    onClick={() => window.print()}
+                    style={{
+                      padding: "8px 18px",
+                      borderRadius: 4,
+                      border: `1px solid ${NAVY}`,
+                      backgroundColor: "var(--admin-surface)",
+                      color: "var(--admin-accent-soft)",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: "pointer",
+                      fontFamily: FONT,
+                    }}
+                  >
+                    Print map
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="shop-map-vendor-view-toggle"
+                    aria-pressed={vendorView}
+                    title={
+                      vendorView
+                        ? "Vendor view on — click to return to live map"
+                        : "Show wall-sign preview (YOU ARE HERE)"
+                    }
+                    onClick={() => setVendorView((v) => !v)}
+                    style={{
+                      padding: "8px 18px",
+                      borderRadius: 4,
+                      border: vendorView
+                        ? "2px solid #ca8a04"
+                        : "1px solid var(--admin-border)",
+                      backgroundColor: vendorView
+                        ? "var(--admin-warning-bg)"
+                        : "var(--admin-surface)",
+                      color: vendorView
+                        ? "var(--admin-warning-text)"
+                        : "var(--admin-text)",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: "pointer",
+                      fontFamily: FONT,
+                      minWidth: 118,
+                    }}
+                  >
+                    Vendor view
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="shop-map-edit-mode-toggle"
+                    aria-pressed={mapEditMode}
+                    title={
+                      mapEditMode
+                        ? "Edit mode on — click to finish and save pending changes"
+                        : "Edit spot positions and labels"
+                    }
+                    onClick={() => {
+                      if (mapEditMode) {
+                        void (async () => {
+                          const ok = mapRef.current
+                            ? await mapRef.current.persistAllPendingEdits()
+                            : true;
+                          if (!ok) return;
+                          setSelectedDeliveryId(null);
+                          setMapEditMode(false);
+                        })();
+                      } else if (assignMode) {
+                        showAssignToast(
+                          "Exit assign mode before editing map locations.",
+                        );
+                      } else {
+                        setMapEditMode(true);
+                      }
+                    }}
+                    style={{
+                      padding: "8px 18px",
+                      borderRadius: 4,
+                      border: mapEditMode
+                        ? "2px solid #2563eb"
+                        : "1px solid var(--admin-border)",
+                      backgroundColor: mapEditMode
+                        ? "var(--admin-info-bg)"
+                        : "var(--admin-surface)",
+                      color: mapEditMode
+                        ? "var(--admin-info-text)"
+                        : "var(--admin-text)",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: "pointer",
+                      fontFamily: FONT,
+                      minWidth: 96,
+                    }}
+                  >
+                    {mapEditMode ? "Done editing" : "Edit Locations"}
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="shop-map-zone-tools-toggle"
+                    aria-pressed={showZoneTools}
+                    onClick={() => setShowZoneTools((v) => !v)}
+                    style={{
+                      padding: "8px 18px",
+                      borderRadius: 4,
+                      border: showZoneTools
+                        ? "2px solid #64748b"
+                        : "1px solid var(--admin-border)",
+                      backgroundColor: showZoneTools
+                        ? "#e8eef5"
+                        : "var(--admin-surface)",
+                      color: "var(--admin-text)",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: "pointer",
+                      fontFamily: FONT,
+                      minWidth: 96,
+                    }}
+                  >
+                    Zone tools
+                  </button>
+                </>
+              }
             />
             {!liveOccupancy.ready && (
               <p style={{ fontSize: 12, color: "var(--admin-text-muted)", marginTop: 8 }}>
