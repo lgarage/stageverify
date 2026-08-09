@@ -1105,6 +1105,16 @@ export function InvoiceReviewPanel({
                 }
               : undefined
           }
+          onCorrectionApplied={(parsedHeader) => {
+            setInspectImport((prev) =>
+              prev ? { ...prev, parsedHeader } : prev,
+            );
+            setImports((prev) =>
+              prev.map((row) =>
+                row.id === inspectImport.id ? { ...row, parsedHeader } : row,
+              ),
+            );
+          }}
           onImportDismissed={() => {
             setInspectImport(null);
             void loadQueue();

@@ -77,7 +77,10 @@ import type {
   ApproveVendorInvoiceImportResult,
   InvoiceTrainingAdminStatus,
   SaveInvoiceTrainingLessonResult,
+  ApplyInvoiceReviewFieldCorrectionResult,
   InvoiceReviewChatMessage,
+  InvoiceReviewProposedCorrection,
+  InvoiceReviewCorrectionStatus,
   ReviewAgentTurnResult,
   ConfirmVendorIgnoreRuleResult,
   ProposeVendorIgnoreRuleResult,
@@ -100,6 +103,7 @@ import {
 import { findStagingLocationByCode } from "./stagingCode";
 import { isCreditReturnLinkedImport } from "./invoice/deliveryCreditReturn";
 import {
+  applyInvoiceReviewFieldCorrectionMock,
   isReviewChatMockEnabled,
   reviewAgentTurnMock,
   subscribeReviewChatMock,
@@ -2528,6 +2532,16 @@ const reviewAgentTurnCallable = httpsCallable<
   ReviewAgentTurnResult
 >(functions, "reviewAgentTurn");
 
+const applyInvoiceReviewFieldCorrectionCallable = httpsCallable<
+  {
+    vendorInvoiceImportId: string;
+    sourceMessageId: string;
+    idempotencyKey: string;
+    triggerMode?: "apply_button" | "chat_direct_command" | "chat_confirmation";
+  },
+  ApplyInvoiceReviewFieldCorrectionResult
+>(functions, "applyInvoiceReviewFieldCorrection");
+
 const getVendorTrainingPlaybookCallable = httpsCallable<
   { password: string; vendorKey?: string; vendorInvoiceImportId?: string },
   { vendorKey: string; markdown: string }
@@ -2830,7 +2844,7 @@ export async function configureInvoiceTrainingAdmin(input: {
   return response.data;
 }
 
-/** Lane C C1 — send one Invoice Review Chat turn (CF persists both messages). */
+/** Lane C C1/C2 — send one Invoice Review Chat turn (CF persists both messages). */
 export async function reviewAgentTurn(input: {
   vendorInvoiceImportId: string;
   message: string;
@@ -2840,6 +2854,47 @@ export async function reviewAgentTurn(input: {
   }
   const response = await reviewAgentTurnCallable(input);
   return response.data;
+}
+
+/** Lane C C2 — apply a proposed parsed-header correction (server-validated). */
+export async function applyInvoiceReviewFieldCorrection(input: {
+  vendorInvoiceImportId: string;
+  sourceMessageId: string;
+  idempotencyKey: string;
+  triggerMode?: "apply_button" | "chat_direct_command" | "chat_confirmation";
+}): Promise<ApplyInvoiceReviewFieldCorrectionResult> {
+  if (isReviewChatMockEnabled()) {
+    return applyInvoiceReviewFieldCorrectionMock(input);
+  }
+  const response = await applyInvoiceReviewFieldCorrectionCallable(input);
+  return response.data;
+}
+
+function mapProposedCorrection(
+  raw: unknown,
+): InvoiceReviewProposedCorrection | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const o = raw as Record<string, unknown>;
+  const field = o.field;
+  if (
+    field !== "customerPoOrReference" &&
+    field !== "vendorOrderNumber" &&
+    field !== "vendorInvoiceNumber"
+  ) {
+    return undefined;
+  }
+  const proposedValue =
+    typeof o.proposedValue === "string" ? o.proposedValue : "";
+  if (!proposedValue) return undefined;
+  const currentValue =
+    typeof o.currentValue === "string" ? o.currentValue : "";
+  const sourceType =
+    o.sourceType === "document_evidence" ||
+    o.sourceType === "dispatcher_assertion" ||
+    o.sourceType === "agent_interpretation"
+      ? o.sourceType
+      : "agent_interpretation";
+  return { field, currentValue, proposedValue, sourceType };
 }
 
 function mapReviewChatMessageDoc(
@@ -2860,6 +2915,17 @@ function mapReviewChatMessageDoc(
   } else if (typeof createdAtRaw === "string") {
     createdAt = createdAtRaw;
   }
+
+  const proposedCorrection = mapProposedCorrection(data.proposedCorrection);
+  const correctionStatusRaw =
+    typeof data.correctionStatus === "string" ? data.correctionStatus : "";
+  const correctionStatus: InvoiceReviewCorrectionStatus | undefined =
+    correctionStatusRaw === "proposed" ||
+    correctionStatusRaw === "applied" ||
+    correctionStatusRaw === "superseded" ||
+    correctionStatusRaw === "unresolvable"
+      ? correctionStatusRaw
+      : undefined;
 
   return {
     id,
@@ -2890,6 +2956,8 @@ function mapReviewChatMessageDoc(
         }
       : {}),
     ...(typeof data.error === "string" ? { error: data.error } : {}),
+    ...(proposedCorrection ? { proposedCorrection } : {}),
+    ...(correctionStatus ? { correctionStatus } : {}),
   };
 }
 

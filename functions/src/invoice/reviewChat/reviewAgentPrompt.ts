@@ -1,5 +1,7 @@
 /**
- * Lane C C1 — review-agent prompt + response validation (no CoT persistence).
+ * Lane C C1/C2 — review-agent prompt + response validation (no CoT persistence).
+ * C1: reconciles assertion vs document evidence.
+ * C2: may propose a correction; never claims apply / never mutates.
  */
 import type { ReviewAgentContextPacket } from "./reviewAgentTypes";
 import {
@@ -10,13 +12,22 @@ import {
   type ReviewChatCitation,
   type ReviewCitationSourceType,
 } from "./reviewAgentTypes";
+import { reconcileAssertionConsistency } from "./assertionSupport";
 import { findEvidenceSpan } from "./reviewAgentContext";
+import { isCorrectableFieldKey } from "./correctionAllowlist";
 
-export const REVIEW_AGENT_SYSTEM_INSTRUCTION = `You are StageVerify Invoice Review Chat — a read-only assistant for one vendor invoice import.
+export const REVIEW_AGENT_SYSTEM_INSTRUCTION = `You are StageVerify Invoice Review Chat for one vendor invoice import.
 
 You answer questions about the provided review context packet only.
-You never approve, reject, reopen, mutate fields, create deliveries, change staging, send email, activate ignore rules, or save reusable learning.
-You never claim to have taken an action or that a correction was applied.
+You never approve, reject, reopen, create deliveries, change staging, send email, activate ignore rules, or save reusable learning.
+You never claim to have applied a correction or mutated a field.
+
+When the dispatcher asks to capture/fix/update an allowlisted parsed field and you have a clear proposed value:
+- Use actionType "suggest_correction_may_be_needed"
+- Include proposedCorrection: { field, currentValue, proposedValue }
+- field MUST be one of correctableFields from the packet
+- Say you can update the field after they confirm (Apply correction / "Yes, apply it")
+- Do NOT say the value was already changed
 
 Source distinctions (required):
 - document_evidence: a real quoted span from the provided invoice text windows
@@ -27,7 +38,8 @@ Source distinctions (required):
 Rules:
 - Every factual claim about the document must cite document_evidence or parser_value.
 - If the dispatcher asserts a value and you cannot find it in text windows, say you cannot find it, treat it as a dispatcher assertion, and do not pretend you verified it.
-- Use actionType suggest_correction_may_be_needed only to flag a possible mismatch — never say a correction was made.
+- If a dispatcher assertion appears as a contiguous substring in the provided text windows or document evidence, treat it as supported — do not say unsupported while citing supporting document_evidence. Still do not invent evidence.
+- Use actionType suggest_correction_may_be_needed only to flag a possible mismatch or propose an allowlisted correction — never say a correction was made.
 - Return ONLY JSON matching the schema. No markdown fences, no extra keys, no reasoning/thinking field.
 
 JSON schema:
@@ -40,7 +52,12 @@ JSON schema:
       "text": "string",
       "field": "optional dotted path for parser_value"
     }
-  ]
+  ],
+  "proposedCorrection": {
+    "field": "customerPoOrReference | vendorOrderNumber | vendorInvoiceNumber",
+    "currentValue": "string",
+    "proposedValue": "string"
+  }
 }`;
 
 export function formatReviewAgentUserText(
@@ -73,10 +90,13 @@ function isCitationSource(value: unknown): value is ReviewCitationSourceType {
 /**
  * Parse model JSON, drop unknown action types, resolve document_evidence citations.
  * Unresolvable document_evidence citations downgrade to agent_interpretation.
+ * Invalid proposedCorrection is dropped (turn still returns answerText).
+ * Assertion/evidence contradictions are reconciled deterministically (C1 #72).
  */
 export function parseAndValidateReviewAgentResponse(
   raw: unknown,
   combinedExtractedText: string,
+  options?: { dispatcherMessage?: string; parserCustomerPo?: string | null },
 ): ReviewAgentModelResponse | { ok: false; reason: string } {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return { ok: false, reason: "response_not_object" };
@@ -137,11 +157,58 @@ export function parseAndValidateReviewAgentResponse(
     });
   }
 
+  let proposedCorrection: ReviewAgentModelResponse["proposedCorrection"];
+  const pcRaw = obj.proposedCorrection;
+  if (pcRaw && typeof pcRaw === "object" && !Array.isArray(pcRaw)) {
+    const pc = pcRaw as Record<string, unknown>;
+    const fieldRaw = typeof pc.field === "string" ? pc.field.trim() : "";
+    // Accept dotted path from model: parsedHeader.customerPoOrReference
+    const field = fieldRaw.includes(".")
+      ? fieldRaw.split(".").pop()!.trim()
+      : fieldRaw;
+    const proposedValue =
+      typeof pc.proposedValue === "string" ? pc.proposedValue.trim() : "";
+    const currentValue =
+      typeof pc.currentValue === "string" ? pc.currentValue.trim() : "";
+    if (isCorrectableFieldKey(field) && proposedValue) {
+      proposedCorrection = {
+        field,
+        ...(currentValue ? { currentValue } : {}),
+        proposedValue,
+      };
+      if (actionType !== "suggest_correction_may_be_needed") {
+        actionType = "suggest_correction_may_be_needed";
+      }
+    }
+  }
+
+  let finalActionType = actionType;
+  let finalAnswerText = answerText.slice(0, 4_000);
+  let finalCitations = citations;
+  let consistencyCorrected = false;
+
+  if (options?.dispatcherMessage?.trim()) {
+    const reconciled = reconcileAssertionConsistency({
+      dispatcherMessage: options.dispatcherMessage,
+      answerText: finalAnswerText,
+      citations: finalCitations,
+      actionType: finalActionType,
+      combinedExtractedText,
+      parserCustomerPo: options.parserCustomerPo,
+    });
+    finalActionType = reconciled.actionType;
+    finalAnswerText = reconciled.answerText.slice(0, 4_000);
+    finalCitations = reconciled.citations;
+    consistencyCorrected = reconciled.consistencyCorrected;
+  }
+
   return {
-    actionType,
-    answerText: answerText.slice(0, 4_000),
-    citations,
+    actionType: finalActionType,
+    answerText: finalAnswerText,
+    citations: finalCitations,
     droppedActionTypes,
+    ...(consistencyCorrected ? { consistencyCorrected: true } : {}),
+    ...(proposedCorrection ? { proposedCorrection } : {}),
   };
 }
 

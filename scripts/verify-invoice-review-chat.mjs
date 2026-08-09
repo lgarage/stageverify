@@ -289,7 +289,66 @@ try {
   });
   console.log("PASS: in-modal dispatcher + agent turn with citations");
 
-  await sendChat(page, "Yes, that’s the PO.");
+  // --- C2: proposed correction card (before apply) ---
+  await page.getByTestId("invoice-review-chat-correction-card").waitFor({
+    timeout: 5_000,
+  });
+  await page.getByTestId("invoice-review-chat-apply-correction").waitFor({
+    timeout: 3_000,
+  });
+  const applyLabel = (
+    await page.getByTestId("invoice-review-chat-apply-correction").innerText()
+  ).trim();
+  if (applyLabel !== "Apply correction") {
+    throw new Error(`Expected Apply correction label, got "${applyLabel}"`);
+  }
+  if (await approveBtn.count()) {
+    const approveText = (await approveBtn.first().innerText()).trim();
+    if (/apply correction/i.test(approveText)) {
+      throw new Error("Invoice Approve confused with Apply correction");
+    }
+  }
+  await page.screenshot({
+    path: resolve(screenshotDir, "c2-light-proposed-correction.png"),
+    fullPage: false,
+  });
+  console.log("PASS: C2 proposed correction card (distinct from Approve)");
+
+  // Capture empty/prior PO before apply
+  const poBefore = await page
+    .locator('[data-testid="invoice-parsed-header-row-customerPoOrReference"] [data-testid="invoice-parsed-header-value"]')
+    .innerText()
+    .catch(() => "");
+
+  await page.getByTestId("invoice-review-chat-apply-correction").click();
+  await page
+    .getByTestId("invoice-review-chat-correction-applied")
+    .first()
+    .waitFor({ timeout: 8_000 });
+  await page.waitForTimeout(300);
+  const appliedCount = await page
+    .getByTestId("invoice-review-chat-correction-applied")
+    .count();
+  if (appliedCount !== 1) {
+    throw new Error(
+      `Expected exactly one applied badge, got ${appliedCount}`,
+    );
+  }
+  const poAfter = await page
+    .locator('[data-testid="invoice-parsed-header-row-customerPoOrReference"] [data-testid="invoice-parsed-header-value"]')
+    .innerText();
+  if (!/2205\s*EARLY/i.test(poAfter)) {
+    throw new Error(
+      `Parsed Import Data did not show corrected PO (before="${poBefore}" after="${poAfter}")`,
+    );
+  }
+  await page.screenshot({
+    path: resolve(screenshotDir, "c2-light-applied-correction.png"),
+    fullPage: false,
+  });
+  console.log("PASS: C2 Apply correction updates Parsed Import Data live");
+
+  await sendChat(page, "Thanks — confirm the PO is captured.");
   const agentCount = await page
     .locator('[data-testid="invoice-review-chat-msg-agent"]')
     .count();
@@ -448,6 +507,57 @@ try {
     path: resolve(screenshotDir, "c1-dark-multiturn.png"),
     fullPage: false,
   });
+
+  // --- C2 dark: propose + apply on a fresh import chat seed ---
+  await page.evaluate(() => {
+    for (let i = sessionStorage.length - 1; i >= 0; i -= 1) {
+      const k = sessionStorage.key(i);
+      if (
+        k &&
+        (k.startsWith("stageverify-review-chat:") ||
+          k.startsWith("stageverify-review-chat-header:"))
+      ) {
+        sessionStorage.removeItem(k);
+      }
+    }
+  });
+  await page.getByTestId("invoice-parsed-inspect-close").click();
+  await page.waitForTimeout(400);
+  await openInspectModal(page);
+  await setAdminTheme(page, "dark");
+  const chatDark2 = page.getByTestId("invoice-review-chat-panel");
+  await chatDark2.scrollIntoViewIfNeeded();
+  await sendChat(
+    page,
+    "I see the PO and it is 2205 EARLY. Check the invoice again.",
+  );
+  await page.getByTestId("invoice-review-chat-correction-card").waitFor({
+    timeout: 5_000,
+  });
+  await page.screenshot({
+    path: resolve(screenshotDir, "c2-dark-proposed-correction.png"),
+    fullPage: false,
+  });
+  await page.getByTestId("invoice-review-chat-apply-correction").click();
+  await page
+    .getByTestId("invoice-review-chat-correction-applied")
+    .first()
+    .waitFor({ timeout: 8_000 });
+  await assertReadableTextContrast(page, {
+    rootSelector: '[data-testid="invoice-review-chat-panel"]',
+    elements: [
+      {
+        name: "correction-applied-dark",
+        selector: '[data-testid="invoice-review-chat-correction-applied"]',
+        large: true,
+      },
+    ],
+  });
+  await page.screenshot({
+    path: resolve(screenshotDir, "c2-dark-applied-correction.png"),
+    fullPage: false,
+  });
+  console.log("PASS: C2 dark proposed + applied correction");
 
   console.log("VERIFY_BACKEND=mock+sessionStorage (production response schema)");
   console.log("PASS: verify-invoice-review-chat");

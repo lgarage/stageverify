@@ -1,7 +1,14 @@
 /**
- * Lane C C1 — Invoice Review Chat types (read/explain only).
- * No field mutation, knowledge writes, or ignore-rule effects.
+ * Lane C C1/C2 — Invoice Review Chat types.
+ * C1: read/explain + assertion/evidence consistency.
+ * C2: propose corrections only (apply is a separate callable).
  */
+
+import type {
+  InvoiceCorrectableFieldKey,
+  ReviewCorrectionStatus,
+  ReviewProposedCorrection,
+} from "./correctionAllowlist";
 
 export const REVIEW_CHAT_COLLECTION = "vendorInvoiceImportChats";
 export const REVIEW_CHAT_MESSAGES_SUB = "messages";
@@ -41,6 +48,14 @@ export interface ReviewAgentModelResponse {
   answerText: string;
   citations: ReviewChatCitation[];
   droppedActionTypes: string[];
+  /** Set when deterministic assertion/evidence reconcile rewrote the model answer. */
+  consistencyCorrected?: boolean;
+  /** Raw model proposal — validated/normalized before persist. */
+  proposedCorrection?: {
+    field: string;
+    currentValue?: string;
+    proposedValue: string;
+  };
 }
 
 export interface ReviewAgentContextPacket {
@@ -52,6 +67,7 @@ export interface ReviewAgentContextPacket {
   recentTurns: Array<{ role: ReviewChatMessageRole; text: string }>;
   rollingSummary: string;
   sourceTextAvailable: boolean;
+  correctableFields: InvoiceCorrectableFieldKey[];
 }
 
 export interface ReviewAgentTurnResult {
@@ -67,5 +83,16 @@ export interface ReviewAgentTurnResult {
     modelUsed?: string;
     droppedActionTypes?: string[];
     error?: string;
+    proposedCorrection?: ReviewProposedCorrection;
+    correctionStatus?: ReviewCorrectionStatus;
   };
+  autoApplyEligible?: boolean;
+  autoApplyMessageId?: string;
+  autoApplyTriggerMode?: "chat_direct_command" | "chat_confirmation";
 }
+
+export type {
+  InvoiceCorrectableFieldKey,
+  ReviewCorrectionStatus,
+  ReviewProposedCorrection,
+};

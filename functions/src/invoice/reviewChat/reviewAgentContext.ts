@@ -9,6 +9,7 @@ import {
   REVIEW_CHAT_RECENT_TURNS,
   REVIEW_CHAT_TEXT_WINDOW_CHARS,
 } from "../aiShadow/constants";
+import { INVOICE_CORRECTABLE_FIELD_KEYS } from "./correctionAllowlist";
 import type {
   ReviewAgentContextPacket,
   ReviewChatMessageRole,
@@ -172,6 +173,7 @@ export function buildReviewAgentContextPacket(input: {
     recentTurns,
     rollingSummary: (input.rollingSummary || "").slice(0, 1_500),
     sourceTextAvailable: Boolean(input.combinedExtractedText?.trim()),
+    correctableFields: [...INVOICE_CORRECTABLE_FIELD_KEYS],
   };
 
   // Soft-trim if serialized packet is oversized.
