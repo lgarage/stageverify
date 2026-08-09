@@ -29,9 +29,10 @@ Bypass exists (advisory-vs-malice; use only when Dan approves): `git push --no-v
 ### Session start
 
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` and `PROJECT_STATUS/MEMORY.md` before coding.
-2. **Planning questions** (“what’s next”, “what can mobile do”, ranked options): **`git fetch origin main && git pull origin main`** first — then follow `.cursor/rules/parallel-agent-strategy.mdc` § Planning question protocol.
-3. Follow `.cursor/rules/` **alwaysApply** rules identically to desktop — ship-loop tiers, repair loop, planning verify loop, Q&A verify loop, hot-tier auto-sync (D-23), verification ladder, security gate, stall-advisor, **MVP completion % reporting** (`mvp-completion-report.mdc`, D-25), and mandatory evidence lines (`model-gates.mdc` § Platform parity, D-20 onward incl. D-32/D-35). **Parity is the default for every new rule (D-32)** — new rules bind desktop PC, mobile Cursor, and cloud VM identically from creation; only physically-impossible exceptions, documented here. **Environment is auto-detected (D-35)** — never keyed to Dan saying "phone/mobile"; device mentions are ergonomic context only. No mobile-lite orchestration.
-4. For scope disputes, load `PROJECT_STATUS/svscope_simple.md` on demand only.
+2. **97 rule (D-47) — alwaysApply:** `.cursor/rules/confidence-gate.mdc` — classify → cheapest sufficient model → honest conf ≥ 97% before any file edit **and** before DONE; never inflate conf; ≥97% does not waive D-38/D-60/ship gates. No reminder required.
+3. **Planning questions** (“what’s next”, “what can mobile do”, ranked options): **`git fetch origin main && git pull origin main`** first — then follow `.cursor/rules/parallel-agent-strategy.mdc` § Planning question protocol.
+4. Follow `.cursor/rules/` **alwaysApply** rules identically to desktop — ship-loop tiers, repair loop, planning verify loop, Q&A verify loop, hot-tier auto-sync (D-23), verification ladder, security gate, stall-advisor, **MVP completion % reporting** (`mvp-completion-report.mdc`, D-25), and mandatory evidence lines (`model-gates.mdc` § Platform parity, D-20 onward incl. D-32/D-35). **Parity is the default for every new rule (D-32)** — new rules bind desktop PC, mobile Cursor, and cloud VM identically from creation; only physically-impossible exceptions, documented here. **Environment is auto-detected (D-35)** — never keyed to Dan saying "phone/mobile"; device mentions are ergonomic context only. No mobile-lite orchestration.
+5. For scope disputes, load `PROJECT_STATUS/svscope_simple.md` on demand only.
 
 ### Harness parity exceptions (mobile/cloud only)
 
