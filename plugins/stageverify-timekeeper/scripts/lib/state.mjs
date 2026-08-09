@@ -52,6 +52,8 @@ export function emptyState(conversationId, now) {
       status15: false,
       focus25: false,
       force35: false,
+      main_clean: false,
+      merge_conflict: false,
     },
     signatures: {},
     greenEvidence: {

@@ -173,6 +173,18 @@ test("4. main moves but PR clean → do not redo work", () => {
   assert.ok(hasKind(r.interventions, "main_clean"), decisionText(r.interventions));
   const i = r.interventions.find((x) => x.kind === "main_clean");
   assert.match(i.decision, /do not automatically redo/i);
+  // Second pull must not spam
+  const r2 = evaluate(
+    state,
+    {
+      hook_event_name: "afterShellExecution",
+      command: "git pull origin main",
+      output: "Already up to date.",
+      duration: 200,
+    },
+    1_000_500
+  );
+  assert.equal(hasKind(r2.interventions, "main_clean"), false);
   console.log("   decision:", i.decision);
 });
 

@@ -205,7 +205,9 @@ export function evaluate(state, event, now = Date.now()) {
         state.mainMoves.lastAt = now;
         state.mainMoves.lastClean = drift.clean;
         state.mainMoves.conflict = drift.kind === "merge_conflict";
-        if (drift.kind === "merge_conflict") {
+        // Once per conversation (planning sync pulls main often — do not spam)
+        if (drift.kind === "merge_conflict" && !state.firedCheckpoints.merge_conflict) {
+          state.firedCheckpoints.merge_conflict = true;
           interventions.push({
             kind: "merge_conflict",
             stateLabel: "main_drift",
@@ -214,7 +216,12 @@ export function evaluate(state, event, now = Date.now()) {
             failureClass: "repo_main_drift",
             message: "",
           });
-        } else if (drift.clean) {
+        } else if (
+          drift.kind === "main_move" &&
+          drift.clean &&
+          !state.firedCheckpoints.main_clean
+        ) {
+          state.firedCheckpoints.main_clean = true;
           interventions.push({
             kind: "main_clean",
             stateLabel: "main_moved",
@@ -322,7 +329,7 @@ export function evaluate(state, event, now = Date.now()) {
       stateLabel: "completion_focus",
       reason: "~25m elapsed",
       decision:
-        `Completion-focused mode. Narrow to remaining acceptance criteria. Do not redo approved architecture/visual review or rerun unchanged green gates (${green.join(", ") || "none stamped"}). Do not broaden scope.`,
+        `Completion-focused mode. Narrow to remaining acceptance criteria. Do not redo approved architecture/visual review. Skip only same-cycle redundant reruns under D-37/D-65 (${green.join(", ") || "none stamped"} — heuristic stamps, not a skip license). Required gates still apply. Do not broaden scope.`,
     });
     if (i) interventions.push(i);
   }
