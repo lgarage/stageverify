@@ -462,6 +462,46 @@ const FIXTURE_EXPECTATIONS = {
     autoProcessed: true,
     lineDescriptionIncludes: ["LINE SET", "MINI-SPLIT"],
   },
+  /** C3-B Corpus A — salesman/Ship-Via bleed must yield 2205 EARLY (not …PICKUP). */
+  "inv-c3b-2205-early": {
+    vendorInvoiceNumber: "6169414",
+    vendorOrderNumber: "4049999",
+    customerAccountNumber: "0018114",
+    customerPoOrReference: "2205 EARLY",
+    shipViaRaw: "OUR TRUCK",
+    // OUR TRUCK is not TRUCK DELIVE — fulfillment stays unknown (existing infer rules).
+    fulfillmentMethod: "unknown",
+    importStatus: "pending",
+    displayLabel: "Pending Delivery",
+    expectedLineCount: 1,
+    notAutoProcessed: true,
+  },
+  /** C3-B Corpus B — bare INVOICE banner digits; Invoice Date on next line must not win. */
+  "inv-c3b-invoice-banner": {
+    vendorInvoiceNumber: "6168733",
+    vendorOrderNumber: "4050001",
+    customerAccountNumber: "0018114",
+    customerPoOrReference: "STOCK CHECK",
+    shipViaRaw: "OUR TRUCK",
+    fulfillmentMethod: "unknown",
+    importStatus: "pending",
+    displayLabel: "Pending Delivery",
+    expectedLineCount: 1,
+    notAutoProcessed: true,
+  },
+  /** C3-B negative — RETURN PICKUP preserved despite salesman bleed. */
+  "inv-c3b-return-pickup-sad": {
+    vendorInvoiceNumber: "6169001",
+    vendorOrderNumber: "4050002",
+    customerAccountNumber: "0018114",
+    customerPoOrReference: "RETURN PICKUP",
+    shipViaRaw: "PICKUP",
+    fulfillmentMethod: "will_call_pickup",
+    importStatus: "pickup_at_vendor",
+    displayLabel: "Will-Call / Pickup.",
+    expectedLineCount: 1,
+    autoProcessed: true,
+  },
 };
 
 const failures = [];

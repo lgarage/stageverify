@@ -608,4 +608,85 @@ Johnstone Supply Tax (30305) 0.00
 Sioux Falls SD 57103 TOTAL $217.11
 `.trim(),
   },
+  /** C3-B Corpus A — Customer P/O grid bleed with Ship Via OUR TRUCK (2205 EARLY style). */
+  {
+    pageId: "inv-c3b-2205-early",
+    importBatchId: "batch-c3b-parser-harden",
+    pageIndexInBatch: 0,
+    extractedText: `
+JOHNSTONE SUPPLY
+INVOICE 6169414
+Customer #: 0018114
+Sales Order #: 4049999
+Customer P/O # 2205 EARLY PICKUP SAD
+SHIP VIA: OUR TRUCK
+Order Date: 08/01/2026
+Invoice Date: 08/01/2026
+Ship Date: 08/01/2026
+Buyer: DAN DAY
+
+Sold To: TWIN PILLAR HEATING & COOLING
+Ship To: TWIN PILLAR HEATING & COOLING
+2944 HOLMGREN WAY, GREEN BAY WI 54304
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 2 2 0 ABC-123 FILTER MEDIA 16X25
+
+please call 605-338-2652
+`.trim(),
+  },
+  /**
+   * C3-B Corpus B — bare INVOICE banner + adjacent Invoice Date line must not steal.
+   * Banner digits differ from any labeled Invoice # so the banner path is exercised.
+   */
+  {
+    pageId: "inv-c3b-invoice-banner",
+    importBatchId: "batch-c3b-parser-harden",
+    pageIndexInBatch: 1,
+    extractedText: `
+JOHNSTONE SUPPLY
+INVOICE 6168733
+Invoice Date: 08/02/2026
+Customer #: 0018114
+Sales Order #: 4050001
+Customer P/O #: STOCK CHECK
+Ship Via: OUR TRUCK
+Order Date: 08/02/2026
+Buyer: DAN DAY
+
+Sold To: TWIN PILLAR HEATING & COOLING
+Ship To: TWIN PILLAR HEATING & COOLING
+2944 HOLMGREN WAY, GREEN BAY WI 54304
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 1 1 0 XYZ-9 GASKET KIT
+
+please call 605-338-2652
+`.trim(),
+  },
+  /** C3-B negative — RETURN PICKUP + salesman bleed must keep RETURN PICKUP. */
+  {
+    pageId: "inv-c3b-return-pickup-sad",
+    importBatchId: "batch-c3b-parser-harden",
+    pageIndexInBatch: 2,
+    extractedText: `
+Johnstone Supply
+Customer #: 0018114
+Sales Order #: 4050002
+Invoice #: 6169001
+Customer P/O # RETURN PICKUP SAD
+Ship Via: PICKUP
+Order Date: 08/03/2026
+Invoice Date: 08/03/2026
+Buyer: DAN DAY
+
+Sold To: TWIN PILLAR HEATING & COOLING
+Ship To: TWIN PILLAR HEATING & COOLING
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 1 -1 0 AOX-045 R410A-25 Return from Invoice # 6164000
+
+please call 605-338-2652
+`.trim(),
+  },
 ];
