@@ -216,6 +216,138 @@ if (partialElig.importDecisionMode === "review_required") {
   }
 }
 
+// CLEANUP Phase 1 — stale parser-era confidence/HRR vetoes after verified C2 correction
+{
+  const cleanJohnstoneHeader = {
+    customerAccountNumber: "001",
+    vendorOrderNumber: "SO-1",
+    vendorInvoiceNumber: "6169414",
+    customerPoOrReference: "2205 EARLY",
+    orderDate: "2026-01-01",
+    vendorBranchName: "Johnstone Supply",
+    buyerName: "Buyer",
+  };
+  const cleanLines = [
+    {
+      lineType: "product",
+      excludeFromExpectedItems: false,
+      quantityOrdered: 2,
+      quantityShipped: 2,
+      quantityBackordered: 0,
+    },
+  ];
+  const poCorrectionLog = [
+    {
+      field: "customerPoOrReference",
+      previousValue: "",
+      newValue: "2205 EARLY",
+    },
+  ];
+
+  // A — verified PO correction + otherwise clean CURRENT → suggested_import; score stays 80
+  const afterVerified = computeAutoImportEligibility({
+    importStatus: "pending",
+    confidenceScore: 80,
+    humanReviewRequired: true,
+    duplicate: false,
+    parseWarnings: [],
+    parsedHeader: cleanJohnstoneHeader,
+    parsedLines: cleanLines,
+    parsedLineCount: 1,
+    pageId: "inv-6169414",
+    parserFormatId: "johnstone",
+    fieldCorrectionLog: poCorrectionLog,
+  });
+  if (
+    afterVerified.importDecisionMode === "suggested_import" &&
+    afterVerified.autoImportEligible &&
+    afterVerified.autoImportConfidence === 80 &&
+    !afterVerified.reviewRequiredReasons.some((r) =>
+      /Parser confidence|human review required/i.test(r),
+    )
+  ) {
+    pass(
+      "A: verified C2 PO correction + clean CURRENT → suggested_import (score 80 diagnostic retained)",
+    );
+  } else {
+    fail("A: expected suggested_import without stale confidence/HRR veto", afterVerified);
+  }
+
+  // C — same low-confidence raw parse with no verified correction → review_required
+  const noCorrection = computeAutoImportEligibility({
+    importStatus: "pending",
+    confidenceScore: 80,
+    humanReviewRequired: true,
+    duplicate: false,
+    parseWarnings: [],
+    parsedHeader: cleanJohnstoneHeader,
+    parsedLines: cleanLines,
+    parsedLineCount: 1,
+    pageId: "inv-6169414-raw",
+    parserFormatId: "johnstone",
+  });
+  if (
+    noCorrection.importDecisionMode === "review_required" &&
+    noCorrection.reviewRequiredReasons.some((r) => /Parser confidence 80 below threshold/i.test(r)) &&
+    noCorrection.reviewRequiredReasons.some((r) => /human review required/i.test(r))
+  ) {
+    pass("C: low-confidence with no verified correction → review_required (stale vetoes still apply)");
+  } else {
+    fail("C: expected review_required with confidence+HRR vetoes", noCorrection);
+  }
+
+  // B/D — verified correction but another real blocker remains → still not suggested
+  const stillMissingSo = computeAutoImportEligibility({
+    importStatus: "pending",
+    confidenceScore: 80,
+    humanReviewRequired: true,
+    duplicate: false,
+    parseWarnings: [],
+    parsedHeader: { ...cleanJohnstoneHeader, vendorOrderNumber: "" },
+    parsedLines: cleanLines,
+    parsedLineCount: 1,
+    pageId: "inv-6169414-partial-gap",
+    parserFormatId: "johnstone",
+    fieldCorrectionLog: poCorrectionLog,
+  });
+  if (
+    stillMissingSo.importDecisionMode !== "suggested_import" &&
+    stillMissingSo.reviewRequiredReasons.some((r) => /Missing S\/O/i.test(r))
+  ) {
+    pass("B/D: verified PO correction but missing S/O → still review/blocked");
+  } else {
+    fail("B/D: unresolved S/O gap must still block suggested_import", stillMissingSo);
+  }
+
+  // Persisted stale confidence/HRR reasons self-heal via resolve when log matches CURRENT
+  const staleConfResolved = resolveAutoImportEligibility({
+    importStatus: "pending",
+    confidenceScore: 80,
+    humanReviewRequired: true,
+    duplicate: false,
+    parseWarnings: [],
+    parsedHeader: cleanJohnstoneHeader,
+    parsedLines: cleanLines,
+    parsedLineCount: 1,
+    pageId: "inv-6169414-stale-persist",
+    parserFormatId: "johnstone",
+    fieldCorrectionLog: poCorrectionLog,
+    autoImportEligible: false,
+    importDecisionMode: "review_required",
+    suggestedAction: "Review required — inspect fields and match before approve.",
+    reviewRequiredReasons: [
+      "Parser confidence 80 below threshold 85",
+      "Parser flagged human review required",
+    ],
+    autoImportReasons: [],
+  });
+  if (staleConfResolved.importDecisionMode === "suggested_import") {
+    pass("resolveAutoImportEligibility self-heals persisted stale confidence/HRR after verified correction");
+  } else {
+    fail("expected persisted stale confidence/HRR to recompute to suggested_import", staleConfResolved);
+  }
+}
+
 console.log(`\n--- Result: ${passed} passed, ${failed} failed ---`);
 if (failed > 0) process.exit(1);
 console.log("test-auto-import-eligibility: PASS");

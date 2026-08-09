@@ -109,6 +109,8 @@ export function reconcileImportStateAfterCorrection(input: {
   pageId?: unknown;
   parserFormatId?: unknown;
   orderNotes?: unknown;
+  /** Verified C2 corrections — forwarded so eligibility can skip stale parser-era vetoes. */
+  fieldCorrectionLog?: unknown;
 }): ReconciledImportState {
   const parsedHeader = asRecord(input.parsedHeader);
   const parseWarnings = reconcileParseWarningsForHeader(
@@ -161,6 +163,7 @@ export function reconcileImportStateAfterCorrection(input: {
     orderNotes: Array.isArray(input.orderNotes)
       ? input.orderNotes.filter((n): n is string => typeof n === "string")
       : undefined,
+    fieldCorrectionLog: input.fieldCorrectionLog,
   });
 
   return {

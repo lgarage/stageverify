@@ -20,6 +20,7 @@ function eligibilityInputFromRow(importRow: VendorInvoiceImportReview) {
     parsedLineCount: importRow.parsedLineCount,
     pageId: importRow.pageId,
     parserFormatId: importRow.parserFormatId,
+    fieldCorrectionLog: importRow.fieldCorrectionLog,
     autoImportEligible: importRow.autoImportEligible,
     autoImportConfidence: importRow.autoImportConfidence,
     autoImportReasons: importRow.autoImportReasons,

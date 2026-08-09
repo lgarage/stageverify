@@ -25,6 +25,12 @@ export interface AutoImportEligibilityInput {
   pageId?: string;
   parserFormatId?: "johnstone" | "first_supply" | "generic" | "unknown";
   orderNotes?: string[];
+  /**
+   * CLEANUP Phase 1: verified allowlisted field corrections for this import.
+   * Used only to decide whether stale parser-era confidence/HRR vetoes may be
+   * skipped when CURRENT readiness is otherwise clean — never mutates confidenceScore.
+   */
+  fieldCorrectionLog?: unknown;
 }
 
 export interface AutoImportEligibilityResult {
@@ -82,6 +88,35 @@ function inferDocumentType(input: AutoImportEligibilityInput): JohnstoneDocument
 function productLines(input: AutoImportEligibilityInput) {
   const lines = input.parsedLines ?? [];
   return lines.filter((l) => l.lineType === "product" && !l.excludeFromExpectedItems);
+}
+
+/** Local allowlist mirror — do not import reviewChat/correctionAllowlist here. */
+const STALE_VETO_CORRECTABLE_FIELD_KEYS = [
+  "customerPoOrReference",
+  "vendorOrderNumber",
+  "vendorInvoiceNumber",
+] as const;
+
+/** True when a confirmed allowlisted correction matches the CURRENT header value. */
+function hasVerifiedCorrectionForCurrentHeader(
+  fieldCorrectionLog: unknown,
+  header: Record<string, unknown>,
+): boolean {
+  if (!Array.isArray(fieldCorrectionLog)) return false;
+  return fieldCorrectionLog.some((raw) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+    const entry = raw as Record<string, unknown>;
+    const field = entry.field;
+    if (
+      typeof field !== "string" ||
+      !(STALE_VETO_CORRECTABLE_FIELD_KEYS as readonly string[]).includes(field)
+    ) {
+      return false;
+    }
+    const newValue = typeof entry.newValue === "string" ? entry.newValue.trim() : "";
+    if (!newValue) return false;
+    return headerStr(header, field) === newValue;
+  });
 }
 
 /** Deterministic eligibility — explains suggested vs review vs blocked. */
@@ -240,10 +275,24 @@ export function computeAutoImportEligibility(
     autoImportReasons.push("No parse warnings");
   }
 
+  // CLEANUP / SPLIT-lite Phase 1: keep confidenceScore as parse-time diagnostic.
+  // When verified C2 corrections cover CURRENT header fields and no other
+  // operational blockers remain, do not let stale confidence/HRR independently veto.
+  const otherBlockersExist = reviewRequiredReasons.length > 0;
+  const canSkipStaleParserEraVetoes =
+    !otherBlockersExist &&
+    hasVerifiedCorrectionForCurrentHeader(input.fieldCorrectionLog, header);
+
   if (confidence < INVOICE_AUTO_APPLY_CONFIDENCE) {
-    reviewRequiredReasons.push(
-      `Parser confidence ${confidence} below threshold ${INVOICE_AUTO_APPLY_CONFIDENCE}`,
-    );
+    if (canSkipStaleParserEraVetoes) {
+      autoImportReasons.push(
+        `Parser confidence ${confidence} below threshold ${INVOICE_AUTO_APPLY_CONFIDENCE} — not vetoed (verified correction confirmed for this import)`,
+      );
+    } else {
+      reviewRequiredReasons.push(
+        `Parser confidence ${confidence} below threshold ${INVOICE_AUTO_APPLY_CONFIDENCE}`,
+      );
+    }
   } else {
     autoImportReasons.push(
       `Parser confidence ${confidence} meets threshold (${INVOICE_AUTO_APPLY_CONFIDENCE}+)`,
@@ -251,7 +300,13 @@ export function computeAutoImportEligibility(
   }
 
   if (input.humanReviewRequired) {
-    reviewRequiredReasons.push("Parser flagged human review required");
+    if (canSkipStaleParserEraVetoes) {
+      autoImportReasons.push(
+        "Parser flagged human review required — not vetoed (verified correction confirmed for this import)",
+      );
+    } else {
+      reviewRequiredReasons.push("Parser flagged human review required");
+    }
   }
 
   const autoImportEligible = reviewRequiredReasons.length === 0;
@@ -360,6 +415,16 @@ function persistedEligibilityStaleAfterCorrection(
     const match = reasons.find((r) => /^Parse warnings\s*\((\d+)\)/i.test(r));
     const m = match?.match(/\((\d+)\)/);
     if (m && Number(m[1]) !== unresolved.length) return true;
+  }
+  if (
+    reasons.some((r) =>
+      /^Parser confidence .* below threshold|^Parser flagged human review required/i.test(
+        r,
+      ),
+    ) &&
+    hasVerifiedCorrectionForCurrentHeader(row.fieldCorrectionLog, header)
+  ) {
+    return true;
   }
   return false;
 }
