@@ -33,6 +33,10 @@ import {
   restDocId,
   restFields,
 } from "./lib/firestore-admin-rest.mjs";
+import {
+  ensureAuthenticated,
+  openDeliveryDrawerByDeepLink,
+} from "./dispatcherVerifyHelpers.mjs";
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -137,20 +141,28 @@ async function seedUnplannedFixture() {
   );
 
   // Active prior unplanned shell — must NOT hide the reusable fallback CTA.
+  // Omit jobId to match real D-73 createUnplannedVendorDelivery shells (drawer
+  // must load without a job match — see verify:unplanned-delivery-drawer).
   const priorActiveId = `${vendorId}-prior-active`;
   await setDoc(doc(db, "deliveries", priorActiveId), {
     id: priorActiveId,
     orderNumber: `PRIOR-${vendorId.slice(-6)}`,
     vendorId,
     vendorName: "Unplanned Verify Vendor",
-    jobId: ANCHOR_JOB_ID,
     vendorInvoiceNumber: "INV-PRIOR-ACTIVE-1",
     deliveryDate: now.slice(0, 10),
     status: "pending",
     unplanned: true,
     unplannedSubmittedReference: "INV-PRIOR-ACTIVE-1",
+    unplannedMatchStatus: "no_match",
     unplannedCreatedVia: "vendor_pin_fallback",
     stagingLocationId: STAGING_LOC_ID,
+    reviewFlag: {
+      flagged: true,
+      reason: "Unplanned delivery received — needs job/PO match",
+      flaggedBy: "vendor",
+      flaggedAt: now,
+    },
     createdAt: now,
     updatedAt: now,
   });
@@ -391,6 +403,62 @@ try {
       true,
       `soft-pass — ${submitErr instanceof Error ? submitErr.message : String(submitErr)}`,
     );
+  }
+
+  // G — dispatcher Delivery Details must open the job-less unplanned shell.
+  // Regression: list rendered while getDeliveryDetails threw on missing jobId.
+  const priorActiveId = `${vendorId}-prior-active`;
+  const dispatcherPage = await browser.newPage({
+    viewport: { width: 1400, height: 900 },
+  });
+  try {
+    await ensureAuthenticated(dispatcherPage, appBase);
+    await openDeliveryDrawerByDeepLink(
+      dispatcherPage,
+      appBase,
+      priorActiveId,
+    );
+    const unable = dispatcherPage.getByText("Unable to load delivery details.");
+    if (await unable.isVisible().catch(() => false)) {
+      throw new Error(
+        "dispatcher drawer failed to load job-less unplanned shell",
+      );
+    }
+    await dispatcherPage
+      .getByTestId("delivery-basics-card")
+      .waitFor({ timeout: 15_000 });
+    await dispatcherPage
+      .getByTestId("delivery-drawer-unplanned-note")
+      .waitFor({ timeout: 10_000 });
+    const jobName = (
+      await dispatcherPage.getByTestId("delivery-basics-job-name").innerText()
+    ).trim();
+    if (jobName !== "Needs job match") {
+      throw new Error(
+        `expected Needs job match in drawer, got "${jobName}"`,
+      );
+    }
+    record(
+      "G dispatcher drawer opens created/prior unplanned row (job-less)",
+      true,
+      priorActiveId,
+    );
+    await dispatcherPage.screenshot({
+      path: resolve(outDir, "06-dispatcher-unplanned-drawer.png"),
+      fullPage: false,
+    });
+  } catch (drawerErr) {
+    record(
+      "G dispatcher drawer opens created/prior unplanned row (job-less)",
+      false,
+      drawerErr instanceof Error ? drawerErr.message : String(drawerErr),
+    );
+    await dispatcherPage.screenshot({
+      path: resolve(outDir, "06-dispatcher-unplanned-drawer-fail.png"),
+      fullPage: true,
+    });
+  } finally {
+    await dispatcherPage.close();
   }
 } catch (err) {
   record("verify flow", false, err instanceof Error ? err.message : String(err));

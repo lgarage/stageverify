@@ -277,10 +277,14 @@ export function ReceivingPage() {
   const loadDeliveryForReceive = useCallback(
     async (details: DeliveryDetails): Promise<boolean> => {
       if (shouldRouteScanToPickup(details.delivery.status)) {
-        window.location.hash = pickupPath(
-          details.delivery.jobId,
-          details.delivery.id,
-        );
+        const jobId = details.delivery.jobId?.trim();
+        if (!jobId) {
+          setError(
+            "This delivery is not linked to a job yet — ask dispatch to match it before pickup.",
+          );
+          return false;
+        }
+        window.location.hash = pickupPath(jobId, details.delivery.id);
         return false;
       }
 
