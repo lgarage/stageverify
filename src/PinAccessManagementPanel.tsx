@@ -136,16 +136,27 @@ function normalizeManagementPermissions(
   };
 }
 
-function withoutPlaintextVendorPin(vendor: Vendor): Vendor {
-  const copy = { ...vendor };
+/** Strip CF-owned PIN secret fields so client metadata merges never trip rules. */
+function stripClientPinSecretFields<T extends object>(entity: T): T {
+  const copy = { ...entity } as T & {
+    pinCode?: string;
+    pinHash?: string;
+    pinConfigured?: boolean;
+    pinEncrypted?: unknown;
+  };
   delete copy.pinCode;
+  delete copy.pinHash;
+  delete copy.pinConfigured;
+  delete copy.pinEncrypted;
   return copy;
 }
 
+function withoutPlaintextVendorPin(vendor: Vendor): Vendor {
+  return stripClientPinSecretFields(vendor);
+}
+
 function withoutPlaintextTechnicianPin(technician: Technician): Technician {
-  const copy = { ...technician };
-  delete copy.pinCode;
-  return copy;
+  return stripClientPinSecretFields(technician);
 }
 
 function entityHasConfiguredPin(entity: Technician | Vendor): boolean {
@@ -331,6 +342,7 @@ export function PinAccessManagementPanel({
   const [message, setMessage] = useState<string | null>(null);
   const [lastTempPassword, setLastTempPassword] = useState<string | null>(null);
   const [pinDraft, setPinDraft] = useState("");
+  const [confirmPinDraft, setConfirmPinDraft] = useState("");
   const [editorDraft, setEditorDraft] = useState<PinEditorDraft | null>(null);
   const [adminAccess, setAdminAccess] =
     useState<AdminAccessElevation | null>(null);
@@ -621,6 +633,7 @@ export function PinAccessManagementPanel({
     setAdminPinError(null);
     setSelected({ type: row.type, id: row.id });
     setPinDraft("");
+    setConfirmPinDraft("");
     setError(null);
     setMessage(null);
     if (
@@ -900,10 +913,16 @@ export function PinAccessManagementPanel({
     setAdminAccessBusy(false);
     await revokeCurrentAdminAccess();
     setPinDraft("");
+    setConfirmPinDraft("");
     setEditorDraft(null);
     setSelected(null);
     setError(null);
   };
+
+  const pinDraftIsValid = /^\d{4,6}$/.test(pinDraft);
+  const confirmPinMatches =
+    !pinDraft || (pinDraftIsValid && pinDraft === confirmPinDraft);
+  const pinChangeBlocked = Boolean(pinDraft) && !confirmPinMatches;
 
   const savePinEditor = async (
     row: Extract<AccessRow, { type: PinUserType }>,
@@ -912,6 +931,10 @@ export function PinAccessManagementPanel({
     if (!editorDraft || editorDraft.type !== row.type) return;
     if (pinDraft && !/^\d{4,6}$/.test(pinDraft)) {
       setError("PIN must be 4–6 digits.");
+      return;
+    }
+    if (pinDraft && pinDraft !== confirmPinDraft) {
+      setError("New PIN and Confirm New PIN must match.");
       return;
     }
     const matchingElevation =
@@ -925,10 +948,23 @@ export function PinAccessManagementPanel({
       return;
     }
 
+    const changingPin = Boolean(pinDraft);
+    const savedPinValue = changingPin ? pinDraft : "";
+
     setBusyId(row.id);
     setError(null);
     setMessage(null);
     try {
+      // PIN write first — never blocked/masked by metadata client writes.
+      if (changingPin) {
+        await setAccessPinClient({
+          targetType: row.type,
+          targetId: row.id,
+          pin: pinDraft,
+          sessionToken: row.hasPin ? matchingElevation?.token : undefined,
+        });
+      }
+
       const now = new Date().toISOString();
       if (row.type === "technician" && editorDraft.type === "technician") {
         const technician = technicians.find((item) => item.id === row.id);
@@ -962,18 +998,16 @@ export function PinAccessManagementPanel({
         });
       }
 
-      if (pinDraft) {
-        await setAccessPinClient({
-          targetType: row.type,
-          targetId: row.id,
-          pin: pinDraft,
-          sessionToken: row.hasPin ? matchingElevation?.token : undefined,
-        });
-      }
-
-      setMessage("Changes saved");
+      // Session is consumed by setAccessPin — reflect the just-authored PIN locally
+      // (no second reveal). Do not log plaintext PIN values.
+      setMessage(
+        changingPin
+          ? `PIN updated (${savedPinValue.length} digits). Re-open Admin Access to reveal again.`
+          : "Changes saved",
+      );
       await revokeCurrentAdminAccess();
       setPinDraft("");
+      setConfirmPinDraft("");
       setEditorDraft(null);
       setSelected(null);
       await reload();
@@ -981,7 +1015,16 @@ export function PinAccessManagementPanel({
       if (isSessionValidityError(err)) {
         clearAdminAccess();
       }
-      setError(err instanceof Error ? err.message : "Could not save changes.");
+      const raw =
+        err instanceof Error ? err.message : "Could not save changes.";
+      // Safe user-facing copy — no PIN-owner leakage from uniqueness/collision.
+      if (/could not set pin|already-exists|already in use/i.test(raw)) {
+        setError(
+          "Could not set PIN — it is already in use or conflicts with another PIN.",
+        );
+      } else {
+        setError(raw);
+      }
     } finally {
       setBusyId(null);
     }
@@ -1957,31 +2000,74 @@ export function PinAccessManagementPanel({
         ? adminAccess
         : null;
     const renderNewPinInput = () => (
-      <label
-        style={{
-          display: "grid",
-          gap: 6,
-          maxWidth: 260,
-          color: TEXT,
-          fontWeight: 600,
-        }}
-      >
-        New PIN
-        <input
-          data-testid="pin-access-new-pin-input"
-          aria-label={`New PIN for ${row.name}`}
-          type="password"
-          inputMode="numeric"
-          maxLength={6}
-          autoComplete="new-password"
-          placeholder="Optional 4–6 digit PIN"
-          value={pinDraft}
-          onChange={(event) =>
-            setPinDraft(event.target.value.replace(/\D/g, "").slice(0, 6))
-          }
-          style={{ ...inputStyle, width: 180 }}
-        />
-      </label>
+      <div style={{ display: "grid", gap: 12, maxWidth: 260 }}>
+        <label
+          style={{
+            display: "grid",
+            gap: 6,
+            color: TEXT,
+            fontWeight: 600,
+          }}
+        >
+          New PIN
+          <input
+            data-testid="pin-access-new-pin-input"
+            aria-label={`New PIN for ${row.name}`}
+            type="password"
+            inputMode="numeric"
+            maxLength={6}
+            autoComplete="new-password"
+            placeholder="4–6 digit PIN"
+            value={pinDraft}
+            onChange={(event) =>
+              setPinDraft(event.target.value.replace(/\D/g, "").slice(0, 6))
+            }
+            style={{ ...inputStyle, width: 180 }}
+          />
+        </label>
+        <label
+          style={{
+            display: "grid",
+            gap: 6,
+            color: TEXT,
+            fontWeight: 600,
+          }}
+        >
+          Confirm New PIN
+          <input
+            data-testid="pin-access-confirm-pin-input"
+            aria-label={`Confirm New PIN for ${row.name}`}
+            type="password"
+            inputMode="numeric"
+            maxLength={6}
+            autoComplete="new-password"
+            placeholder="Re-enter PIN"
+            value={confirmPinDraft}
+            onChange={(event) =>
+              setConfirmPinDraft(
+                event.target.value.replace(/\D/g, "").slice(0, 6),
+              )
+            }
+            style={{ ...inputStyle, width: 180 }}
+          />
+        </label>
+        {pinDraft &&
+          confirmPinDraft &&
+          pinDraft !== confirmPinDraft && (
+            <p
+              data-testid="pin-access-confirm-mismatch"
+              role="alert"
+              style={{
+                margin: 0,
+                color: "var(--admin-danger-text, #b91c1c)",
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              New PIN and Confirm New PIN must match.
+            </p>
+          )}
+      </div>
     );
 
     return (
@@ -2154,12 +2240,29 @@ export function PinAccessManagementPanel({
           selectedManagementPin &&
           renderManagementDetail(selectedManagementPin)}
 
+        {error && (
+          <p
+            data-testid="pin-access-editor-error"
+            role="alert"
+            style={{
+              margin: 0,
+              color: "var(--admin-danger-text, #b91c1c)",
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            {error}
+          </p>
+        )}
+
         <div
+          data-testid="pin-access-editor-actions"
           style={{
             display: "flex",
-            justifyContent: "space-between",
+            justifyContent: "flex-start",
             alignItems: "center",
-            gap: 12,
+            flexWrap: "wrap",
+            gap: 10,
             paddingTop: 4,
           }}
         >
@@ -2178,7 +2281,8 @@ export function PinAccessManagementPanel({
             disabled={
               adminAccessBusy ||
               busyId === row.id ||
-              Boolean(pinDraft && !/^\d{4,6}$/.test(pinDraft))
+              Boolean(pinDraft && !pinDraftIsValid) ||
+              pinChangeBlocked
             }
             onClick={() => void savePinEditor(row)}
             style={{
@@ -2187,7 +2291,8 @@ export function PinAccessManagementPanel({
               opacity:
                 adminAccessBusy ||
                 busyId === row.id ||
-                Boolean(pinDraft && !/^\d{4,6}$/.test(pinDraft))
+                Boolean(pinDraft && !pinDraftIsValid) ||
+                pinChangeBlocked
                   ? 0.55
                   : 1,
             }}

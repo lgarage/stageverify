@@ -266,6 +266,47 @@ async function assertPinLengthContract(detail) {
   console.log("PASS: PIN input numeric-only, maxLength 6 (4–6 contract)");
 }
 
+async function assertConfirmPinAndActions(detail) {
+  const confirm = detail.getByTestId("pin-access-confirm-pin-input");
+  await confirm.waitFor({ timeout: 5_000 });
+  const actions = detail.getByTestId("pin-access-editor-actions");
+  await actions.waitFor({ timeout: 5_000 });
+  const orderOk = await actions.evaluate((node) => {
+    const cancel = node.querySelector('[data-testid="pin-access-cancel"]');
+    const save = node.querySelector('[data-testid="pin-access-save"]');
+    if (!(cancel instanceof HTMLElement) || !(save instanceof HTMLElement)) {
+      return false;
+    }
+    const position = cancel.compareDocumentPosition(save);
+    return (position & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+  });
+  if (!orderOk) {
+    throw new Error("Expected [Cancel] then [Save Changes] adjacent in actions row.");
+  }
+  const newPin = detail.getByTestId("pin-access-new-pin-input");
+  await newPin.fill("2468");
+  await confirm.fill("2469");
+  await detail.getByTestId("pin-access-confirm-mismatch").waitFor({ timeout: 5_000 });
+  const saveDisabled = await detail.getByTestId("pin-access-save").isDisabled();
+  if (!saveDisabled) {
+    throw new Error("Save Changes must stay disabled when Confirm New PIN mismatches.");
+  }
+  await confirm.fill("2468");
+  if ((await detail.getByTestId("pin-access-confirm-mismatch").count()) !== 0) {
+    throw new Error("Mismatch message should clear when Confirm matches New PIN.");
+  }
+  const saveEnabled = !(await detail.getByTestId("pin-access-save").isDisabled());
+  if (!saveEnabled) {
+    throw new Error("Save Changes must enable when New PIN and Confirm match (4–6 digits).");
+  }
+  // Leave fields empty for subsequent metadata-only save paths.
+  await newPin.fill("");
+  await confirm.fill("");
+  console.log(
+    "PASS: Confirm New PIN + mismatch gate + Cancel/Save adjacent order",
+  );
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -305,6 +346,7 @@ async function main() {
     // 7) Technician reveal (+ PIN length contract once New PIN input is shown)
     await startAdminAccessOnDetail(detail, page);
     await assertPinLengthContract(detail);
+    await assertConfirmPinAndActions(detail);
     const techPin = detail.getByTestId("pin-access-current-pin");
     await page.waitForFunction(
       () => {
@@ -358,10 +400,16 @@ async function main() {
       await newPin.press("Control+A");
       await newPin.press("Backspace");
     }
+    const confirmPin = detail.getByTestId("pin-access-confirm-pin-input");
+    if ((await confirmPin.count()) > 0) {
+      await confirmPin.fill("");
+      await confirmPin.press("Control+A");
+      await confirmPin.press("Backspace");
+    }
     await detail.getByTestId("pin-access-save").click();
     const saveError = page
       .locator('[data-testid="pin-access-management-panel"]')
-      .getByText(/Could not save|required|denied|Invalid/i);
+      .getByText(/Could not save|required|denied|Invalid|already in use|conflicts/i);
     await Promise.race([
       page.getByText("Changes saved").waitFor({ timeout: 20_000 }),
       saveError.waitFor({ state: "visible", timeout: 20_000 }).then(async () => {
@@ -375,6 +423,99 @@ async function main() {
       throw new Error("Admin Access still active after Save.");
     }
     console.log("PASS: Save persists, shows Changes saved, revokes Admin Access, collapses");
+
+    // 9b) Vendor PIN persist: Admin Access → matching Confirm → Save → re-reveal
+    // Uses a deterministic fixture PIN unlikely to collide with prod job/access PINs.
+    // Restores the original revealed PIN in finally (cleanup — D-76 teardown expectation).
+    detail = await openEditorByType(page, "vendor");
+    await page.waitForTimeout(1500);
+    await startAdminAccessOnDetail(detail, page);
+    await page.waitForFunction(
+      () => {
+        const el = document.querySelector(
+          '[data-testid="pin-access-current-pin"]',
+        );
+        const t = el?.textContent?.trim() || "";
+        return /^\d{4,6}$/.test(t);
+      },
+      null,
+      { timeout: 25_000 },
+    );
+    const originalVendorPin = (
+      await detail.getByTestId("pin-access-current-pin").innerText()
+    ).trim();
+    // Fixture PIN reserved for this harness — do not reuse production job PINs.
+    const fixturePin = "841759";
+    if (fixturePin === originalVendorPin) {
+      throw new Error(
+        "Fixture PIN unexpectedly equals current vendor PIN — pick another harness PIN.",
+      );
+    }
+    try {
+      await detail.getByTestId("pin-access-new-pin-input").fill(fixturePin);
+      await detail.getByTestId("pin-access-confirm-pin-input").fill(fixturePin);
+      await detail.getByTestId("pin-access-save").click();
+      await page.getByText(/PIN updated/i).waitFor({ timeout: 25_000 });
+      await page
+        .getByTestId("pin-access-detail")
+        .waitFor({ state: "detached", timeout: 20_000 });
+      detail = await openEditorByType(page, "vendor");
+      await page.waitForTimeout(1500);
+      await startAdminAccessOnDetail(detail, page);
+      await page.waitForFunction(
+        () => {
+          const el = document.querySelector(
+            '[data-testid="pin-access-current-pin"]',
+          );
+          const t = el?.textContent?.trim() || "";
+          return /^\d{4,6}$/.test(t);
+        },
+        null,
+        { timeout: 25_000 },
+      );
+      const afterPin = (
+        await detail.getByTestId("pin-access-current-pin").innerText()
+      ).trim();
+      if (afterPin !== fixturePin) {
+        throw new Error(
+          `Vendor PIN did not persist after Save (length ${afterPin.length} vs fixture).`,
+        );
+      }
+      console.log("PASS: Vendor New PIN + Confirm persists across re-reveal");
+    } finally {
+      // Restore original PIN — never leave fixture PIN on production vendors.
+      if ((await page.getByTestId("pin-access-detail").count()) === 0) {
+        detail = await openEditorByType(page, "vendor");
+        await page.waitForTimeout(1500);
+      }
+      if ((await detail.getByTestId("pin-access-admin-active").count()) === 0) {
+        await startAdminAccessOnDetail(detail, page);
+        await page.waitForFunction(
+          () => {
+            const el = document.querySelector(
+              '[data-testid="pin-access-current-pin"]',
+            );
+            const t = el?.textContent?.trim() || "";
+            return /^\d{4,6}$/.test(t);
+          },
+          null,
+          { timeout: 25_000 },
+        );
+      }
+      await detail.getByTestId("pin-access-new-pin-input").fill(originalVendorPin);
+      await detail
+        .getByTestId("pin-access-confirm-pin-input")
+        .fill(originalVendorPin);
+      await detail.getByTestId("pin-access-save").click();
+      await page.getByText(/PIN updated|Changes saved/i).waitFor({
+        timeout: 25_000,
+      });
+      await page
+        .getByTestId("pin-access-detail")
+        .waitFor({ state: "detached", timeout: 20_000 })
+        .catch(() => undefined);
+      console.log("PASS: Vendor PIN restore cleanup after persist harness");
+    }
 
     // 5 + 8) Management Admin Access + hash-only copy
     detail = await openEditorByType(page, "management");

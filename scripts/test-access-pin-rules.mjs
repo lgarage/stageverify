@@ -113,6 +113,43 @@ try {
   );
   pass("authenticated user cannot client-update vendor pinHash");
 
+  // Settings savePinEditor footgun: stale client pinHash after CF deleted it.
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "vendors", "vendor-rules-migrated"), {
+      name: "Migrated Vendor",
+      active: true,
+      pinConfigured: true,
+    });
+  });
+  await assert.rejects(
+    () =>
+      setDoc(
+        doc(db, "vendors", "vendor-rules-migrated"),
+        {
+          name: "Migrated Vendor",
+          active: true,
+          pinConfigured: true,
+          pinHash: "salt:stale",
+          updatedAt: "2026-08-09T00:00:00.000Z",
+        },
+        { merge: true },
+      ),
+    /PERMISSION_DENIED/,
+  );
+  pass("stale pinHash re-merge after migration is denied");
+
+  await setDoc(
+    doc(db, "vendors", "vendor-rules-migrated"),
+    {
+      name: "Migrated Vendor",
+      active: false,
+      companyWideSessionEnabled: true,
+      updatedAt: "2026-08-09T00:00:00.000Z",
+    },
+    { merge: true },
+  );
+  pass("metadata-only merge omitting pin secret fields is allowed");
+
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const snap = await getDoc(
       doc(ctx.firestore(), "technicians", "tech-rules-1"),
