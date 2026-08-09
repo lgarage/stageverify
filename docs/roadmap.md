@@ -62,6 +62,7 @@
 
 ## NOW (Phase 5 prototype)
 
+**Shipped (2026-08-09):** Vendor-run multi-job card unify with Delivered hub (shell/safe-area, card gaps, Back up, green collapse + Undo) — **v0.0.261** gh-pages FE-only.
 **Shipped (2026-08-09):** Vendor Drop-Off delivered-card auto-collapse (compact green DELIVERED row in place; independent expand; vendor-run stable order; Undo on expanded hub) — **v0.0.258** gh-pages FE-only.
 
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).

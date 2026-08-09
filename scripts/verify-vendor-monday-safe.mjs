@@ -35,6 +35,7 @@ import {
   VENDOR_DELIVERED_HUB_ITEMS_EMPTY_CONTRAST_SPEC,
   VENDOR_DELIVERED_HUB_HEADER_OVERLAP_SPEC,
   VENDOR_RUN_DELIVERED_ROW_CONTRAST_SPEC,
+  VENDOR_RUN_LAYOUT_CONTRAST_SPEC,
 } from "./lib/ui-text-contrast-lib.mjs";
 
 const envPath = resolve(process.cwd(), ".env.local");
@@ -758,6 +759,48 @@ try {
       }),
     });
   });
+  await page.route("**/updateVendorDeliveryStatus", async (route) => {
+    const requestBody = JSON.parse(route.request().postData() ?? "{}");
+    const deliveryId = requestBody.data?.deliveryId;
+    vendorRunRows = vendorRunRows.map((row) =>
+      row.deliveryId === deliveryId
+        ? { ...row, vendorPhysicalDropoffConfirmed: false }
+        : row,
+    );
+    const row = vendorRunRows.find((candidate) => candidate.deliveryId === deliveryId);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        result: {
+          details: {
+            delivery: {
+              id: deliveryId,
+              orderNumber: row?.orderNumber ?? "ORDER",
+              jobId: row?.jobId ?? "job",
+              vendorId: "vendor-verify-run",
+              vendorName: "Johnstone Supply",
+              status: "pending",
+              availabilityStatus: "expected",
+              vendorPhysicalDropoffConfirmed: false,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+            vendor: {
+              id: "vendor-verify-run",
+              name: "Johnstone Supply",
+              active: true,
+            },
+            job: {
+              id: row?.jobId ?? "job",
+              jobName: row?.jobName ?? "Job",
+            },
+            items: row?.items ?? [],
+          },
+        },
+      }),
+    });
+  });
 
   await page.evaluate(() => sessionStorage.clear());
   await page.setViewportSize({ width: 390, height: 844 });
@@ -798,6 +841,30 @@ try {
       (await detailsC.isVisible()) &&
       !(await detailsB.isVisible().catch(() => false)),
   );
+  const adjacentCardGap = await page
+    .locator('[data-testid^="vendor-run-row-"]')
+    .evaluateAll((rows) => {
+      if (rows.length < 2) return 0;
+      const first = rows[0].getBoundingClientRect();
+      const second = rows[1].getBoundingClientRect();
+      return second.top - first.bottom;
+    });
+  record(
+    "vendor-run adjacent cards have at least 12px gap",
+    adjacentCardGap >= 12,
+    `gap=${adjacentCardGap.toFixed(1)}px`,
+  );
+  await page.setViewportSize({ width: 390, height: 667 });
+  const backBox = await page.getByTestId("vendor-run-back").boundingBox();
+  const backBottomClearance = backBox
+    ? 667 - (backBox.y + backBox.height)
+    : -1;
+  record(
+    "vendor-run Back clears short viewport bottom by at least 24px",
+    backBottomClearance >= 24,
+    `clearance=${backBottomClearance.toFixed(1)}px`,
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
 
   await page.getByTestId("vendor-run-toggle-verify-run-active-c").click();
   record(
@@ -815,6 +882,8 @@ try {
 
   const rowA = page.getByTestId("vendor-run-row-verify-run-active-a");
   await rowA.locator('input[type="checkbox"]').check();
+  await assertReadableTextContrast(page, VENDOR_RUN_LAYOUT_CONTRAST_SPEC);
+  record("vendor-run enabled layout contrast", true);
   await page.getByTestId("vendor-run-bulk-deliver").click();
   await page.getByRole("button", { name: "Confirm", exact: true }).click();
   await page.waitForFunction(
@@ -844,7 +913,28 @@ try {
     "bulk delivered row expands with details",
     await detailsA.isVisible(),
   );
+  record(
+    "expanded delivered vendor-run row shows Undo Delivery",
+    await page
+      .getByTestId("vendor-run-undo-verify-run-active-a")
+      .isVisible(),
+  );
   await shot(page, "05-vendor-run-stable-delivered");
+  await page.getByTestId("vendor-run-undo-verify-run-active-a").click();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('[data-testid="vendor-run-row-verify-run-active-a"]')
+        ?.getAttribute("data-delivered") === "false",
+    { timeout: 20_000 },
+  );
+  record(
+    "vendor-run Undo restores expanded undelivered row in place",
+    JSON.stringify(await rowOrder()) === JSON.stringify(expectedStableOrder) &&
+      (await detailsA.isVisible()) &&
+      (await rowA.locator('input[type="checkbox"]').isVisible()),
+    (await rowOrder()).join(" → "),
+  );
 
   // No Firebase Auth required — still unauthenticated session
   record(

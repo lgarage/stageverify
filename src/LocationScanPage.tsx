@@ -104,17 +104,6 @@ interface VendorRunExpansionUpdate {
   collapseDeliveryIds: Set<string>;
 }
 
-function formatSpotLine(row: VendorRunDeliverySummary): string {
-  const spot =
-    row.stagingLocationCodes.length > 0
-      ? row.stagingLocationCodes.join(", ")
-      : "—";
-  const inv = row.vendorInvoiceNumber ?? row.orderNumber;
-  const po = row.poNumber ?? "—";
-  const line = `${spot} · Inv ${inv} · PO ${po}`;
-  return line.length > 72 ? `${line.slice(0, 69)}…` : line;
-}
-
 export function LocationScanPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -147,6 +136,9 @@ export function LocationScanPage() {
   const [vendorGeofenceEnforce, setVendorGeofenceEnforce] = useState(false);
   const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
   const [reverting, setReverting] = useState(false);
+  const [vendorRunRevertingId, setVendorRunRevertingId] = useState<string | null>(
+    null,
+  );
   const [technicianId, setTechnicianId] = useState<string | null>(null);
   const [technicianName, setTechnicianName] = useState<string | null>(null);
   const [releasedJobs, setReleasedJobs] = useState<TechnicianReleasedJobSummary[]>(
@@ -739,6 +731,41 @@ export function LocationScanPage() {
     }
   };
 
+  const handleVendorRunUndo = async (deliveryId: string) => {
+    if (!vendorId || vendorRunRevertingId) return;
+    if (!bridgeVendorRunSessionToDelivery(vendorId, deliveryId)) {
+      handlePinSessionExpired();
+      return;
+    }
+    setVendorRunRevertingId(deliveryId);
+    setError(null);
+    try {
+      const updated = await firestoreDataService.revertDeliveryStatus(
+        deliveryId,
+        "vendor",
+        revertWindowMinutes,
+      );
+      if (!updated || updated.delivery.vendorPhysicalDropoffConfirmed) {
+        setError("This delivery can no longer be undone.");
+        return;
+      }
+      const preserveExpandedIds = new Set(expandedDeliveryIds);
+      preserveExpandedIds.add(deliveryId);
+      await loadVendorRunDeliveries(vendorId, {
+        preserveExpandedIds,
+        collapseDeliveryIds: new Set(),
+      });
+    } catch (err) {
+      if (isVendorSessionError(err)) {
+        handlePinSessionExpired();
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Failed to undo delivery.");
+    } finally {
+      setVendorRunRevertingId(null);
+    }
+  };
+
   const handleMarkDelivered = async (): Promise<boolean> => {
     if (!deliveryDetails) return false;
     if (vendorGeofenceEnforce && outsideGeofence) {
@@ -1060,8 +1087,12 @@ export function LocationScanPage() {
   if (step === "vendor-list" && branding) {
     const runSession = vendorId ? getVendorRunPinSession(vendorId) : null;
     return (
-      <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden">
-        <div className="shrink-0 px-6 py-4 border-b border-border bg-bg-surface">
+      <div className="app-container vendor-mobile-shell bg-bg-primary">
+        <div
+          className="vendor-hub-layout h-full min-h-0"
+          data-testid="vendor-run-layout"
+        >
+        <header className="vendor-hub-header px-4 py-3 border-b border-border bg-bg-surface">
           <p className="text-xs uppercase tracking-widest text-text-secondary">
             Scanned {branding.code}
             {runSession?.vendorName ? ` · ${runSession.vendorName}` : ""}
@@ -1069,19 +1100,25 @@ export function LocationScanPage() {
           <h1 className="text-lg font-bold text-text-primary mt-1">
             Your deliveries
           </h1>
-          <p className="text-sm text-text-secondary mt-1">
+          <p
+            className="text-sm text-[#cbd5e1] mt-1"
+            data-testid="vendor-run-helper"
+          >
             Check each order you delivered, then tap Delivered.
           </p>
-        </div>
+        </header>
 
-        {error && (
-          <p className="px-6 py-2 text-sm text-accent-red" role="alert">
-            {error}
-          </p>
-        )}
-
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-          {vendorRunDeliveries.map((row) => {
+        <main className="vendor-hub-scroll px-4 py-4">
+          {error && (
+            <p className="mb-3 text-sm text-accent-red" role="alert">
+              {error}
+            </p>
+          )}
+          <div
+            className="flex flex-col gap-4"
+            data-testid="vendor-run-card-list"
+          >
+            {vendorRunDeliveries.map((row) => {
             const canCheck = row.hasAssignableSpot;
             const expanded = expandedDeliveryIds.has(row.deliveryId);
             const delivered = row.vendorPhysicalDropoffConfirmed;
@@ -1092,7 +1129,7 @@ export function LocationScanPage() {
             return (
               <div
                 key={row.deliveryId}
-                className={`overflow-hidden rounded-xl border ${
+                className={`overflow-hidden rounded-2xl border shadow-md shadow-black/10 ${
                   delivered
                     ? "border-[#059669] bg-[#047857]"
                     : "border-border bg-bg-surface"
@@ -1101,7 +1138,7 @@ export function LocationScanPage() {
                 data-delivered={delivered ? "true" : "false"}
               >
                 <div
-                  className={`flex items-center gap-3 px-3 py-2.5 ${
+                  className={`flex min-h-16 items-center gap-3 px-3 py-2.5 ${
                     delivered ? "bg-[#047857]" : "bg-bg-surface"
                   }`}
                   data-testid={
@@ -1113,7 +1150,7 @@ export function LocationScanPage() {
                   {!delivered && (
                     <input
                       type="checkbox"
-                      className="size-5 shrink-0"
+                      className="size-6 shrink-0 accent-[#047857]"
                       checked={checkedDeliveryIds.has(row.deliveryId)}
                       disabled={!canCheck || loading}
                       aria-label={`Select ${row.jobName}`}
@@ -1122,13 +1159,14 @@ export function LocationScanPage() {
                   )}
                   <button
                     type="button"
-                    className="flex min-h-11 flex-1 items-center gap-3 text-left min-w-0"
+                    className="flex min-h-12 flex-1 items-center gap-3 text-left min-w-0"
                     onClick={() => toggleExpanded(row.deliveryId)}
                     aria-expanded={expanded}
+                    aria-label={`${expanded ? "Collapse" : "Expand"} ${row.jobName} delivery details`}
                     data-testid={`vendor-run-toggle-${row.deliveryId}`}
                   >
                     <span
-                      className={`flex size-10 shrink-0 items-center justify-center rounded-lg font-mono text-sm font-bold ${
+                      className={`flex size-11 shrink-0 items-center justify-center rounded-xl font-mono text-sm font-semibold ${
                         delivered
                           ? "bg-white/15 text-white"
                           : "bg-accent/15 text-accent"
@@ -1143,32 +1181,30 @@ export function LocationScanPage() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span
-                        className={`block truncate font-semibold ${
+                        className={`block truncate text-base font-semibold ${
                           delivered ? "text-white" : "text-text-primary"
                         }`}
                         data-testid={
                           delivered
                             ? `vendor-run-delivered-location-${row.deliveryId}`
-                            : undefined
+                            : `vendor-run-location-${row.deliveryId}`
                         }
                       >
-                        {delivered
-                          ? `Location: ${locationIdentity}`
-                          : row.jobName}
+                        Location: {locationIdentity}
                       </span>
                       <span
                         className={`mt-0.5 block truncate text-xs ${
                           delivered
                             ? "font-bold tracking-[0.14em] text-white"
-                            : "text-text-secondary"
+                            : "text-[#cbd5e1]"
                         }`}
                         data-testid={
                           delivered
                             ? `vendor-run-delivered-status-${row.deliveryId}`
-                            : undefined
+                            : `vendor-run-job-${row.deliveryId}`
                         }
                       >
-                        {delivered ? "DELIVERED" : formatSpotLine(row)}
+                        {delivered ? "DELIVERED" : row.jobName}
                       </span>
                       {!delivered && !canCheck && (
                         <span className="mt-1 block text-xs text-accent-red">
@@ -1178,7 +1214,7 @@ export function LocationScanPage() {
                     </span>
                     <span
                       className={`shrink-0 transition-transform duration-200 ${
-                        delivered ? "text-white" : "text-text-secondary"
+                        delivered ? "text-white" : "text-[#cbd5e1]"
                       }`}
                       aria-hidden
                       style={{
@@ -1202,55 +1238,96 @@ export function LocationScanPage() {
                 </div>
                 {expanded && (
                   <div
-                    className="space-y-2 border-t border-border bg-bg-surface px-4 py-3"
+                    className="border-t border-border bg-bg-surface"
                     data-testid={`vendor-run-details-${row.deliveryId}`}
                   >
+                    <div className="space-y-1.5 p-3">
                     {[
-                      { label: "Job / Site", value: row.jobName },
-                      { label: "Order #", value: row.orderNumber },
+                      { label: "Job / Site", value: row.jobName, mono: false },
+                      { label: "Order #", value: row.orderNumber, mono: true },
                       {
                         label: "Invoice #",
                         value: row.vendorInvoiceNumber ?? "—",
+                        mono: true,
                       },
-                      { label: "PO #", value: row.poNumber ?? "—" },
-                      { label: "Location", value: locationIdentity },
-                      {
-                        label: "Expected items",
-                        value: String(row.items.length),
-                      },
-                    ].map(({ label, value }) => (
+                      { label: "PO #", value: row.poNumber ?? "—", mono: true },
+                      { label: "Location", value: locationIdentity, mono: false },
+                    ].map(({ label, value, mono }) => (
                       <div
                         key={label}
-                        className="flex items-start justify-between gap-3 text-sm"
+                        className="flex min-w-0 items-center justify-between gap-3 text-sm"
                       >
-                        <span className="shrink-0 text-text-secondary">
+                        <span
+                          className="shrink-0 text-[#cbd5e1]"
+                          data-testid="vendor-run-details-label"
+                        >
                           {label}
                         </span>
-                        <span className="min-w-0 text-right font-medium text-text-primary">
-                          {value}
+                        <span
+                          className={`min-w-0 text-right font-medium text-text-primary ${
+                            mono ? "max-w-[55%]" : ""
+                          }`}
+                          data-testid="vendor-run-details-value"
+                        >
+                          {mono ? (
+                            <span className="inline-block max-w-full truncate rounded bg-bg-secondary px-2 py-0.5 font-mono text-xs">
+                              {value}
+                            </span>
+                          ) : (
+                            value
+                          )}
                         </span>
                       </div>
                     ))}
-                    <ul className="space-y-1 border-t border-border pt-2 text-sm text-text-secondary">
+                    </div>
+                    <div className="border-t border-border px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-[#cbd5e1]">Expected items</span>
+                        <span className="font-medium text-text-primary">
+                          {row.items.length}
+                        </span>
+                      </div>
+                    </div>
+                    <ul className="space-y-2 border-t border-border bg-bg-secondary/40 px-3 py-2.5">
                       {row.items.map((item) => (
-                        <li key={item.id}>
-                          {item.description} × {item.qtyOrdered}
+                        <li
+                          key={item.id}
+                          className="rounded-lg border border-border bg-bg-primary px-3 py-2"
+                        >
+                          <p className="text-sm font-medium leading-snug text-text-primary">
+                            {item.description}
+                          </p>
+                          <p className="mt-1 text-xs text-[#cbd5e1]">
+                            Qty {item.qtyOrdered}
+                          </p>
                         </li>
                       ))}
                       {row.items.length === 0 && (
-                        <li>No item details available.</li>
+                        <li className="text-sm text-[#cbd5e1]">
+                          No item details available.
+                        </li>
                       )}
                     </ul>
                     {delivered && (
-                      <p className="border-t border-border pt-2 text-xs font-semibold text-[#6ee7b7]">
-                        Delivered
-                      </p>
+                      <div className="border-t border-border p-3">
+                        <button
+                          type="button"
+                          disabled={vendorRunRevertingId !== null}
+                          onClick={() => void handleVendorRunUndo(row.deliveryId)}
+                          className="action-btn action-btn-secondary w-full disabled:opacity-50"
+                          data-testid={`vendor-run-undo-${row.deliveryId}`}
+                        >
+                          {vendorRunRevertingId === row.deliveryId
+                            ? "Reverting…"
+                            : "Undo Delivery"}
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}
               </div>
             );
-          })}
+            })}
           {vendorRunDeliveries.length === 0 && (
             <div
               className="rounded-2xl border border-white/10 bg-bg-secondary px-5 py-6 text-center shadow-lg shadow-black/15"
@@ -1289,15 +1366,27 @@ export function LocationScanPage() {
               </button>
             </div>
           )}
+          </div>
+        </main>
 
-        </div>
-
-        <div className="shrink-0 px-6 py-4 border-t border-border space-y-3">
+        <footer
+          className="vendor-hub-footer border-t border-border bg-bg-primary px-4 pt-3 space-y-2"
+          data-testid="vendor-run-footer"
+        >
+          <button
+            type="button"
+            onClick={resetFlow}
+            className="action-btn action-btn-secondary w-full"
+            data-testid="vendor-run-back"
+          >
+            ← Back
+          </button>
           <button
             type="button"
             disabled={loading || checkedDeliveryIds.size === 0}
             onClick={() => setConfirmBulkOpen(true)}
             className="action-btn action-btn-delivered w-full disabled:opacity-40"
+            style={{ backgroundColor: "#047857" }}
             data-testid="vendor-run-bulk-deliver"
           >
             Delivered
@@ -1305,14 +1394,7 @@ export function LocationScanPage() {
               ? ` (${checkedDeliveryIds.size})`
               : ""}
           </button>
-          <button
-            type="button"
-            onClick={resetFlow}
-            className="action-btn action-btn-secondary w-full"
-          >
-            ← Back
-          </button>
-        </div>
+        </footer>
 
         {confirmBulkOpen && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4 pb-6">
@@ -1355,6 +1437,7 @@ export function LocationScanPage() {
             vendor-run-session
           </p>
         )}
+        </div>
       </div>
     );
   }
