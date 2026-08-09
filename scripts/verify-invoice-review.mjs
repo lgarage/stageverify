@@ -644,6 +644,22 @@ async function main() {
           throw new Error("Will-Call must not show active staging picker");
         }
         console.log("PASS: Will-Call staging N/A (no picker)");
+        const assignBtn = page.getByTestId("invoice-parsed-inspect-assign-location");
+        if (!(await assignBtn.isVisible().catch(() => false))) {
+          throw new Error("Will-Call inspect modal should show Assign Location button");
+        }
+        await assignBtn.click();
+        const overrideDialog = page.getByTestId(
+          "invoice-fulfillment-override-confirm-dialog",
+        );
+        await overrideDialog.waitFor({ timeout: 5000 });
+        console.log("PASS: Will-Call Assign Location opens confirm dialog");
+        await page.getByTestId("invoice-fulfillment-override-cancel").click();
+        await overrideDialog.waitFor({ state: "hidden", timeout: 5000 });
+        if (!(await stagingNa.isVisible().catch(() => false))) {
+          throw new Error("Cancel should keep Will-Call staging N/A");
+        }
+        console.log("PASS: confirm cancel keeps Will-Call + staging N/A");
       } else {
         if (!(await stagingChoose.isVisible().catch(() => false))) {
           throw new Error("Vendor Drop-Off should show Choose Staging Location");

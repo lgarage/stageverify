@@ -1531,6 +1531,16 @@ export interface VendorInvoiceImportReview {
     by?: string;
     correctionId?: string;
   }>;
+  /** Human Will-Call → Vendor Drop-Off override (Assign Location). */
+  fulfillmentOverride?: {
+    active: true;
+    fromMethod: "will_call_pickup";
+    toMethod: "delivery";
+    at: string;
+    by: string;
+  };
+  /** Draft staging picks before Approve — persisted via CF, not occupancy. */
+  draftPlannedStagingLocationIds?: string[];
   importDecisionLog?: Array<{
     action: "approve" | "reject" | "link" | "create_shell" | "reopen" | "relink_to_shell";
     at: string;
@@ -1720,6 +1730,36 @@ export interface ApplyInvoiceReviewFieldCorrectionResult {
   reviewRequiredReasons?: string[];
   importDecisionMode?: "suggested_import" | "review_required" | "blocked";
   suggestedAction?: string;
+}
+
+export interface SetInvoiceReviewFulfillmentOverrideResult {
+  vendorInvoiceImportId: string;
+  applied: boolean;
+  alreadyApplied: boolean;
+  parsedHeader: Record<string, unknown>;
+  importStatus: string;
+  previousImportStatus: string;
+  fulfillmentOverride: {
+    active: true;
+    fromMethod: "will_call_pickup";
+    toMethod: "delivery";
+    at: string;
+    by: string;
+  };
+  reviewStatus: string;
+  parseWarnings: string[];
+  autoImportEligible: boolean;
+  autoImportConfidence: number;
+  autoImportReasons: string[];
+  reviewRequiredReasons: string[];
+  importDecisionMode?: "suggested_import" | "review_required" | "blocked";
+  suggestedAction: string;
+}
+
+export interface SetInvoiceReviewDraftStagingLocationsResult {
+  vendorInvoiceImportId: string;
+  draftPlannedStagingLocationIds: string[];
+  reviewStatus: string;
 }
 
 /** Firestore vendorInvoiceIgnoreRules — CF-managed fingerprint rules. */

@@ -16,6 +16,8 @@ const invoiceDocumentSplit_1 = require("../invoice/invoiceDocumentSplit");
 const pdfTextAdapter_1 = require("../invoice/pdfTextAdapter");
 const correctionAuditRecovery_1 = require("../invoice/reviewChat/correctionAuditRecovery");
 const reconcileAfterFieldCorrection_1 = require("../invoice/reviewChat/reconcileAfterFieldCorrection");
+const inferImportStatus_1 = require("../invoice/inferImportStatus");
+const parsedHeaderValidation_1 = require("../invoice/parsedHeaderValidation");
 const creditReturnSkip_1 = require("../invoice/creditReturnSkip");
 const vendorIgnoreRules_1 = require("../invoice/aiShadow/vendorIgnoreRules");
 const ignoreRuleAudit_1 = require("../invoice/aiShadow/ignoreRuleAudit");
@@ -328,7 +330,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             pageId: row.pageId,
             pageIndexInBatch: row.pageIndexInBatch,
             reviewStatus: skipFields ? skipFields.reviewStatus : "pending_review",
-            importStatus: proc.importStatus,
+            importStatus: input.importStatus,
             confidenceTier: proc.confidenceTier,
             confidenceScore: proc.confidenceScore,
             humanReviewRequired: skipFields
@@ -362,6 +364,12 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 : {}),
             ...(Array.isArray(input.originalParseWarnings)
                 ? { originalParseWarnings: input.originalParseWarnings }
+                : {}),
+            ...(input.fulfillmentOverride
+                ? { fulfillmentOverride: input.fulfillmentOverride }
+                : {}),
+            ...(Array.isArray(input.draftPlannedStagingLocationIds)
+                ? { draftPlannedStagingLocationIds: input.draftPlannedStagingLocationIds }
                 : {}),
             ...(skipFields
                 ? {
@@ -402,10 +410,37 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                     ? existingExtras.originalParseWarnings
                     : undefined;
             const freshCorrectedHeader = (0, reconcileAfterFieldCorrection_1.applyFieldCorrectionLogToHeader)(parserHeader, freshLog);
+            const freshOverrideHeader = (0, reconcileAfterFieldCorrection_1.applyFulfillmentOverrideToHeader)(freshCorrectedHeader, freshData?.fulfillmentOverride);
+            let effectiveImportStatus = proc.importStatus;
+            const overrideActive = freshData?.fulfillmentOverride?.active === true;
+            if (overrideActive && proc.importStatus === "pickup_at_vendor") {
+                const formatId = proc.parserFormatId === "johnstone" ||
+                    proc.parserFormatId === "first_supply" ||
+                    proc.parserFormatId === "generic" ||
+                    proc.parserFormatId === "unknown"
+                    ? proc.parserFormatId
+                    : "johnstone";
+                let headerForDerive;
+                try {
+                    headerForDerive = (0, parsedHeaderValidation_1.asParsedHeaderForImport)(freshOverrideHeader);
+                }
+                catch {
+                    headerForDerive = {
+                        ...freshOverrideHeader,
+                        fulfillmentMethod: "delivery",
+                    };
+                }
+                effectiveImportStatus = (0, inferImportStatus_1.deriveImportStatus)({
+                    header: headerForDerive,
+                    lines: parsedLines,
+                    parseWarnings: proc.parsed.parseWarnings,
+                    orderNotes: proc.parsed.orderNotes,
+                }, formatId);
+            }
             const freshReconciled = (0, reconcileAfterFieldCorrection_1.reconcileImportStateAfterCorrection)({
-                parsedHeader: freshCorrectedHeader,
+                parsedHeader: freshOverrideHeader,
                 parseWarnings: proc.parsed.parseWarnings,
-                importStatus: proc.importStatus,
+                importStatus: effectiveImportStatus,
                 confidenceScore: proc.confidenceScore,
                 humanReviewRequired: proc.humanReviewRequired,
                 duplicate: proc.duplicate,
@@ -417,7 +452,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 fieldCorrectionLog: freshLog,
             });
             const freshReviewDoc = buildReviewDoc({
-                parsedHeader: freshCorrectedHeader,
+                parsedHeader: freshOverrideHeader,
                 parseWarnings: freshReconciled.parseWarnings,
                 autoImportEligible: freshReconciled.autoImportEligible,
                 autoImportConfidence: freshReconciled.autoImportConfidence,
@@ -428,6 +463,9 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 fieldCorrectionLog: freshLog,
                 originalParsedHeader: freshOriginalHeader,
                 originalParseWarnings: freshOriginalWarnings,
+                importStatus: effectiveImportStatus,
+                fulfillmentOverride: freshData?.fulfillmentOverride,
+                draftPlannedStagingLocationIds: freshData?.draftPlannedStagingLocationIds,
             });
             // User re-opened a system skip (pending, no skipReason) — do not re-auto-skip.
             if (freshSnap.exists &&

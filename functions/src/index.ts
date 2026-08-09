@@ -55,6 +55,8 @@ import {
 } from "./invoiceTrainingAdminApi";
 import { reviewAgentTurn } from "./invoiceReviewChatApi";
 import { applyInvoiceReviewFieldCorrection } from "./applyInvoiceReviewFieldCorrectionApi";
+import { setInvoiceReviewFulfillmentOverride } from "./setInvoiceReviewFulfillmentOverrideApi";
+import { setInvoiceReviewDraftStagingLocations } from "./setInvoiceReviewDraftStagingLocationsApi";
 import { reparseVendorInvoiceImportCallable } from "./reparseVendorInvoiceImportCallable";
 import { dismissVendorEmailEventCallable } from "./dismissVendorEmailEventCallable";
 import { reopenVendorEmailEventCallable } from "./reopenVendorEmailEventCallable";
@@ -313,6 +315,8 @@ export {
   updateVendorIgnoreRuleCallable,
   reviewAgentTurn,
   applyInvoiceReviewFieldCorrection,
+  setInvoiceReviewFulfillmentOverride,
+  setInvoiceReviewDraftStagingLocations,
   reparseVendorInvoiceImportCallable,
   dismissVendorEmailEventCallable,
   reopenVendorEmailEventCallable,
