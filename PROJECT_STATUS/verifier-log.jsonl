@@ -189,3 +189,4 @@
 {"date":"2026-08-09","role":"security","verdict":"PASS","taskId":"3dee26bd-b58d-5647-838f-e8288def77e8","model":"claude-sonnet-5-thinking-high","real":"na","note":""}
 {"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-7579df93-48de-5c14-802d-1c77081353f2","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
 {"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-84888349-5b32-597c-bf08-9c8d7763d469","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-6b1e1514-f674-57d3-befd-5e870d7920f5","model":"cursor-grok-4.5-high-fast","real":"na","note":"v0.0.263 unplanned drawer FE"}
