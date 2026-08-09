@@ -1,43 +1,39 @@
 ---
-description: Pre-edit confidence bar (≥97%) before every file edit (D-46/D-47).
+description: Universal 97 rule (D-47/D-69) — classify, cheapest sufficient model, honest ≥97% before edit or DONE.
 alwaysApply: true
 ---
 
-# Confidence gate (D-46/D-47 — pre-edit)
+# 97 rule (D-46/D-47/D-69 — universal)
 
-**Dan standing preference (D-47):** **"I want the 97% rule to be followed with every edit."** Before **every file edit**, reach **conf ≥ 97%** first: classify → raise conf via **code inspection, deterministic tests, known architecture, repo state**, targeted reads, or one focused Dan question — then edit. **D-65:** do **not** dispatch another premium model solely to raise a confidence number. Escalate with scouts/Solution Verifier only when **uncertainty is real** and those lanes' own triggers fire. Solution Verifier PASS/N/A per D-36/D-65 applies on its own triggers **in addition**; 97% does not replace Solution Verifier when D-36 requires it. Platform parity automatic (D-32).
+**Alias:** “the 97 rule” / “follow the 97 rule” = **this file**. `alwaysApply: true` — binds every Cursor agent in this repo (new conv, cloud, Composer, Sonnet, Grok, Sol, subagents) on investigate / implement / verify / ship. Repo rules are authority — not chat memory.
 
-## When it applies
+## Bar (all task classes)
 
-**Every file edit** — no path-class or substantive-only carve-out for the confidence bar. Runs **after** announce-and-go classification (`model-gates.mdc`), **before the first edit** in any task (including Phase 1 in `composer-grok-collab.mdc`).
+1. **Classify first** — archetype, tier, cheapest sufficient model/workflow, **confStart** (`MODEL_DOSSIER.md` index + `model-gates.mdc`).
+2. **Track honestly** — confStart → confAfter; never manufacture, round up, or inflate to clear the bar.
+3. **Raise conf only with evidence** — investigation, repo/state inspection, tests, deterministic `verify:*`, stronger-model review when that lane’s triggers fire, security review, prod verification, escalation. **D-65:** do **not** buy conf by dispatching premium models solely to raise a number.
+4. **Edits:** conf ≥ 97% before **any** file write (sole skip: mechanical `package.json` version bump in the same ship commit as work already ≥97%).
+5. **Completion:** do **not** emit **DONE** when confAfter < 97%. Report actual conf + uncertainty; prefer **BLOCKED** (needs evidence/Dan) or **PARTIAL** (agent-owned scope unfinished) per `done-signal.mdc` — not FAILED solely for low conf. Pure no-tool one-line Q&A may skip the terminal block; the ≥97% bar binds when emitting **DONE** or on action turns.
+6. **97% does not waive** protected workflows: D-38, D-60, D-50/D-55/D-62, D-65 lane table, D-66 terminal status, security gates, ship gates, D-51/D-42. Those remain independently required when applicable.
+7. **Subagents:** a child PASS/Agree is evidence, not a parent conf override. Parent confAfter must reflect parent-evaluated evidence + required gates. Parents must not claim ≥97% solely because a **subagent PASS**ed. **Task prompts:** implementer Task prompts must include `97 rule: ≥97% before edits; child PASS ≠ parent conf/DONE` (platform alwaysApply on nested Tasks is unreliable). Readonly scouts: N/A for edits.
 
-## Sequence
+Classify alone may yield ≥97% for unambiguous T0/typo/docs locks (files + acceptance + approach clear).
 
-1. **Classify** — `PROJECT_STATUS/MODEL_DOSSIER.md` + agent-ops skill → archetype, tier, cheapest model, **confStart** (state in reply). **Classify alone may yield ≥97%** for unambiguous T0 edits, typos, or docs-only clarifications with an explicit fix list — no scout fan-out required when classification already locks files, acceptance, and approach.
-2. **If conf < 97%** — **no edits**: targeted reads / mechanical checks / one focused Dan question; parallel scouts only when independent read-only work is needed to resolve **real** uncertainty. Do **not** spawn Grok/Sol/Sonnet just to increment confStart→confAfter. Solution Verifier only if D-36/D-65 triggers.
-3. **Edit only when** conf ≥ 97%. When D-36 requires Solution Verifier, **also** require `solution-verifier:` PASS or N/A **before the first repo write** (D-48). **`solution-verifier: N/A` does not skip the conf bar.**
-4. **Session log** — brief archetype/tier/conf when useful; avoid repetitive confidence tables that add no new information (D-65).
+## Edit sequence (when writing files)
 
-## Scope persistence
+1. Classify → state archetype/tier/model/confStart.
+2. If conf < 97% → **no edits**; gather evidence (or one focused Dan question). Parallel scouts only for real uncertainty.
+3. Edit only at conf ≥ 97%. When D-36 requires Solution Verifier, also require in-session `solution-verifier:` PASS/N/A **before first write** (D-48). `solution-verifier: N/A` does **not** skip the conf bar.
+4. Scope persistence: ≥97% holds for the same scope until scope widens, acceptance blurs, or verify/build fails — then re-raise.
 
-Once conf ≥ 97% for the **current task scope**, that confidence **holds for subsequent edits in the same scope** until scope materially widens, acceptance becomes ambiguous, or a failed verify/build drops conf below 97% — then re-raise before the next edit.
+Detail: D-48 worker forbid-defer + stuck-task N/A → `model-gates.mdc` § Solution deliberation / D-50. Pre-edit announce → `model-gates.mdc`.
 
-## Skips (confidence bar only — tiny)
+## Reporting
 
-- **Default: none.** Misclassifying down to skip the bar = failure mode.
-- **Mechanical version bump** — `package.json` `version` field only, in the **same ship commit** as work already completed at conf ≥ 97%, with no other semantic change in that hunk.
+On substantive tasks, report enough to establish: task type, tier, cheapest appropriate model, confStart, confAfter. If confAfter < 97%, the terminal block must explain why. Tiny mechanical replies may stay concise per D-65 — still no fake DONE under 97%.
 
-Planning/Q&A/repair loops run their own verifiers; they do **not** exempt reaching 97% before editing files in those loops.
-
-## Solution Verifier ordering (D-48)
-
-When D-36 requires **Solution Verifier**, **PASS** (or a valid **N/A** reason per `model-gates.mdc`) must be **evidenced in-session before the first repo write** in that scope — **together with** conf ≥ 97%, not instead of it.
-
-- **Workers/subagents:** MUST NOT write any repo path and defer Solution Verifier to the parent. Parent completes Phase 1 (Agree) **before** dispatching implementation, **or** the worker dispatches readonly Solution Verifier and reaches PASS/N/A **before** its first repo write.
-- **Forbidden:** any repo write then Solution Verifier (including docs/rules/PROJECT_STATUS first — docs-first dodge); "parent will verify later"; completion-report-only `solution-verifier:` after diffs already exist.
-- **Missing when triggered** = **NOT RUN** — do not ship or declare done.
-- **D-50 stuck scope:** after `stuck-task-agree:` **Agree**, use `solution-verifier: N/A (stuck-task-agree)` instead of a separate Solution Verifier pass for Grok Phase B edits.
+Session log (optional append): `PROJECT_STATUS/task-confidence-session-log.md`.
 
 ## Relation
 
-Does not replace D-36/D-43 (Solution Verifier, Build Checker, UI Playwright, Ship Verifier). **D-47** widens D-46: the **97% floor binds every edit**; **D-48** locks Solution Verifier **before first edit** when D-36 applies. **D-50:** after stuck-task Agree on the **3rd fail**, Grok implement phase still requires **conf ≥ 97%** before Grok's first product edit in that stuck scope; Agree plan satisfies acceptance.
+Does not replace D-36/D-43 verifier lanes. **D-47/D-69** = honest ≥97% floor for edits **and** confident completion. Platform parity automatic (D-32).

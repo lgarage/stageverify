@@ -32,6 +32,8 @@ Your action: <exact next action, or "Nothing needed">
 
 Use when the requested/approved scope for this turn is complete. On substantive ships, **What I did** reuses the opening **What we did** (one shared summary).
 
+**97 rule (D-47/D-69):** do **not** use DONE when confAfter < 97% — report actual confidence + uncertainty; prefer BLOCKED or PARTIAL (`confidence-gate.mdc`). ≥97% does not waive D-38/D-60/ship gates.
+
 If production verification was part of the requested task and is still outstanding → do **not** use DONE.
 
 Phased work: if the **approved phase** is fully complete and the agent intentionally stops before the next phase → DONE is OK; put the next approval ask in **Your action** (not a second status block).
