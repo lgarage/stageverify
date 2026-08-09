@@ -787,11 +787,6 @@ export function buildDrawerActionBannerContent(
       }
     }
 
-    // Order Summary already lists Backordered — banner Why = missing + partial only
-    for (const row of [...missingExceptionRows, ...partialExceptionRows]) {
-      pushWhy(explainItemIssueRow(row));
-    }
-
     if (
       !delivery.stagingLocationId?.trim() &&
       items.some((item) => item.qtyReceived > 0) &&
@@ -801,16 +796,8 @@ export function buildDrawerActionBannerContent(
       pushNext("Assign a staging location for received items");
     }
 
-    // When Why is only item exception lines, omit Next Step prose (buttons cover outreach)
-    if (
-      itemDrivenBanner &&
-      whyBullets.length > 0 &&
-      whyBullets.every((bullet) =>
-        [...missingExceptionRows, ...partialExceptionRows].some(
-          (row) => bullet === explainItemIssueRow(row),
-        ),
-      )
-    ) {
+    // Item exceptions live in Order Summary — omit Next Step when Why has no prose bullets
+    if (itemDrivenBanner && whyBullets.length === 0) {
       nextStepBullets.length = 0;
       seenNext.clear();
     }
@@ -834,10 +821,13 @@ export function buildDrawerActionBannerContent(
     backorderedExceptionRows.length > 0 ||
     readinessBlockReasons.includes("unresolved_backorder");
 
+  // Item exceptions may leave Why empty (Order Summary owns line detail) but
+  // still require attention mode + vendor outreach CTAs.
   const attentionRequired =
     !display.readiness.readyForPickup &&
     !calmWaiting &&
     (whyBullets.length > 0 ||
+      itemDrivenBanner ||
       hasBackorderAttention ||
       openBlockingMaterialIssues(materialIssues).length > 0 ||
       options?.emailReviewRequired === true) ||
@@ -893,27 +883,34 @@ export function buildDrawerActionBannerContent(
       "No material received yet. No dispatcher action required unless overdue or vendor says delivered.";
   } else {
     bannerMode = "attention_required";
-    if (missingExceptionRows.length > 0) {
-      const n = missingExceptionRows.length;
-      attentionHeadline =
-        n === 1 ? "1 item missing" : `${n} items missing`;
-    } else if (
-      partialExceptionRows.length > 0 &&
-      backorderedExceptionRows.length === 0
-    ) {
-      const n = partialExceptionRows.length;
-      attentionHeadline =
-        n === 1
-          ? "1 item partially outstanding"
-          : `${n} items partially outstanding`;
-    } else if (
-      backorderedExceptionRows.length > 0 &&
-      missingExceptionRows.length === 0 &&
-      partialExceptionRows.length === 0
-    ) {
-      const n = backorderedExceptionRows.length;
-      attentionHeadline =
-        n === 1 ? "1 item backordered" : `${n} items backordered`;
+    const missingCount = missingExceptionRows.length;
+    const partialCount = partialExceptionRows.length;
+    const backorderCount = backorderedExceptionRows.length;
+    const categoryCount = [
+      missingCount > 0,
+      partialCount > 0,
+      backorderCount > 0,
+    ].filter(Boolean).length;
+    const orderSummaryPointer =
+      "Review the Order Summary below for individual items.";
+    const itemLabel = (n: number) =>
+      n === 1 ? "1 order item" : `${n} order items`;
+
+    if (categoryCount >= 2) {
+      const total = missingCount + partialCount + backorderCount;
+      attentionHeadline = `${itemLabel(total)} still need attention. ${orderSummaryPointer}`;
+    } else if (missingCount > 0) {
+      attentionHeadline = `${itemLabel(missingCount)} still need${
+        missingCount === 1 ? "s" : ""
+      } to be delivered. ${orderSummaryPointer}`;
+    } else if (partialCount > 0) {
+      attentionHeadline = `${itemLabel(partialCount)} ${
+        partialCount === 1 ? "was" : "were"
+      } only partially delivered. ${orderSummaryPointer}`;
+    } else if (backorderCount > 0) {
+      attentionHeadline = `${itemLabel(backorderCount)} ${
+        backorderCount === 1 ? "is" : "are"
+      } backordered. ${orderSummaryPointer}`;
     } else {
       attentionHeadline =
         whyBullets[0] ??

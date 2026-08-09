@@ -410,6 +410,55 @@ const ASSIGN_LOCATION_CONTRAST = {
   }
 
   const pickedUpOption = statusDropdown.locator('option[value="picked_up"]');
+  const emailVendorButton = page.getByTestId("delivery-basics-email-vendor");
+  await emailVendorButton.waitFor({ timeout: 10_000 });
+  console.log("PASS: Email Vendor button present in Delivery Basics");
+
+  const completePickupButton = page.getByTestId(
+    "delivery-basics-complete-pickup",
+  );
+  const completePickupCount = await completePickupButton.count();
+  if ((await pickedUpOption.count()) > 0 && !(await pickedUpOption.isDisabled())) {
+    if (completePickupCount === 0) {
+      throw new Error(
+        "FAIL: Complete Pickup CTA should show when picked_up transition is enabled.",
+      );
+    }
+    const emailBox = await emailVendorButton.boundingBox();
+    const completeBox = await completePickupButton.boundingBox();
+    if (!emailBox || !completeBox || completeBox.y <= emailBox.y) {
+      throw new Error(
+        "FAIL: Complete Pickup should appear below Email Vendor.",
+      );
+    }
+    console.log("PASS: Complete Pickup CTA visible below Email Vendor");
+    await completePickupButton.click();
+    await page.waitForTimeout(300);
+    await page.getByTestId("delivery-status-pickup-input").waitFor({
+      timeout: 5000,
+    });
+    console.log("PASS: Complete Pickup opens shared Who picked up? form");
+    if (await completePickupButton.isVisible().catch(() => false)) {
+      throw new Error(
+        "FAIL: Full-width Complete Pickup CTA should hide while Who picked up? form is open.",
+      );
+    }
+    console.log("PASS: Full-width Complete Pickup CTA hidden while form open");
+    await page
+      .getByTestId("delivery-status-pickup-input")
+      .getByRole("button", { name: "Cancel" })
+      .click();
+    await page.waitForTimeout(200);
+  } else if (completePickupCount > 0) {
+    console.log(
+      "WARN: Complete Pickup visible but picked_up option disabled — unexpected",
+    );
+  } else {
+    console.log(
+      "SKIP: Complete Pickup CTA hidden (picked_up transition not available)",
+    );
+  }
+
   if ((await pickedUpOption.count()) > 0 && !(await pickedUpOption.isDisabled())) {
     await statusDropdown.selectOption("picked_up");
     await page.waitForTimeout(300);
@@ -456,9 +505,9 @@ const ASSIGN_LOCATION_CONTRAST = {
         await page
           .getByTestId("delivery-status-pickup-name")
           .fill("Verify Script Tech");
-        await pickupInput.getByRole("button", { name: "Confirm Pickup" }).click();
+        await pickupInput.getByRole("button", { name: "Complete Pickup" }).click();
         await drawer.waitFor({ state: "hidden", timeout: 20_000 });
-        console.log("PASS: Drawer closed after successful Confirm Pickup");
+        console.log("PASS: Drawer closed after successful Complete Pickup");
       } else {
         console.log(
           "SKIP: STAGEVERIFY_DRAWER_STATUS_CLOSE_VERIFY=1 but fixture not ready_for_pickup",
