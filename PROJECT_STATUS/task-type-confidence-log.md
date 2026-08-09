@@ -13,8 +13,5 @@ Append-only session log (Dan standing preference). Not a planning SSOT.
 | 2026-08-09 | ship-op (vendor-run card unify merge+deploy v0.0.262) | ship-op / mobile D-27 | T1 | Composer 2.5 Fast | 99 | 99 | LIVE index-GCr3QEjg.js; monday-safe prod 63/63 |
 | 2026-08-09 | Dispatcher Deliveries status legend/row wording+colors align | ui-component / css-restyle | T1 | Composer 2.5 Fast (simple-ui — D-65) | 98 | 99 | FE-only; legend green/orange/yellow/gray match badges; v0.0.265 |
 | 2026-08-09 | Review/merge/deploy/prod-verify PR #96 Assign Location restore | ship-op / prod-verify | T1 | Composer 2.5 Fast | 98 | 99 | Rebase conflict w/ #98; retarget 264; merge 59c9221a; smoke PASS under tip 265 |
-<<<<<<< HEAD
 | 2026-08-09 | Add MANUAL TEST FOR DAN harness requirement (D-78) | docs-update / harness-rules | T0 | Composer 2.5 Fast | 98 | 99 | No product code; Critical Reviewer amendments adopted |
-=======
 | 2026-08-09 | Unplanned status single-badge + U1 fixture cleanup | ui-component / service-logic | T1 | Composer 2.5 Fast (simple-ui/non-UI — D-65) | 97 | 99 | FE display override; prod U1 deleted; teardown UV; v0.0.266 |
->>>>>>> cursor/unplanned-status-u1-cleanup-d131
