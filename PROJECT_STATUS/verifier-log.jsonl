@@ -175,3 +175,4 @@
 {"date":"2026-08-09","role":"security-review","verdict":"PASS","taskId":"bc-74a49be8-0a7d-52cc-af52-b6b44b3f2ca7","model":"claude-sonnet-5-thinking-high","note":"PR #67 post-rebase D-38 on tip f835a58b","real":"na"}
 {"date":"2026-08-09","role":"sonnet-verify","verdict":"PASS","taskId":"bc-cc720973-3af1-5b67-a3d3-5dfea63a5d6f","model":"claude-sonnet-5-thinking-high","note":"PR #67 D-60 verify post-rebase incl PR64 coexistence","real":"na"}
 {"date":"2026-08-09","role":"security-review","verdict":"PASS","taskId":"bc-bd3b68ef-3348-5f74-b282-453fe07ff27a","model":"claude-sonnet-5-thinking-high","note":"C1 citation undefined Firestore write hotfix","real":"na"}
+{"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-4b7a6bcb-1fc0-5482-9c31-f229350356b4","model":"cursor-grok-4.5-high-fast","real":"na","note":"deploy-turn C1; rebuttal accepted"}
