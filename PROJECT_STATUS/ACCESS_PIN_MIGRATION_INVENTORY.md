@@ -32,3 +32,17 @@ Do **not** remigrate, redo Phase 1, or mutate production PIN values for format t
 ## PIN length contract (LIVE)
 
 Numeric only, **min 4 / max 6** — tech, vendor, management, job-scoped vendor. Existing 4-digit PINs remain valid.
+
+**Admin privileged PIN (PR named-Admin model — deploy gated):** exactly **6** digits, hash-only at `accessPinSecrets/admin_{uid}`, never on the revealable tech/vendor/management surface.
+
+## Named Admin + Management PIN (findings)
+
+| Concern | Finding |
+| --- | --- |
+| Privileged reveal (pre-change) | Any `dispatcherRoles.manager===true` could start Admin Access **without** a PIN |
+| Management PIN | Shop-floor shared credential (`managementPins` + `verifyManagementPin` / catch-all hub) — **not** Firebase Auth identity; **not** the Admin Access unlock |
+| Preferred end-state | Named Admin Auth users authorize reveal; no shared privileged “Management PIN” identity for Admin Access |
+| This PR | Keeps Management PIN catch-all paths; does **not** delete production `managementPins` / `accessPinSecrets/management_*` |
+| Bootstrap | Atomic `bootstrapFirstAdmin` only (Manager + zero active Admins + `accessControlLocks/firstAdmin` transaction); not a permanent Manager→Admin path (D-71) |
+| Admin identity | Managers cannot rename/demote/deactivate Admins — Admin auth required for Admin identity/role mutations |
+| Separate migration | Optional later: retire Management PIN roster presentation / migrate catch-all entry — **out of this PR** |

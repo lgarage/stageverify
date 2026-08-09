@@ -168,7 +168,16 @@ async function openEditorByType(page, type) {
   return detail;
 }
 
-async function startAdminAccessOnDetail(detail, page) {
+async function startAdminAccessOnDetail(detail, page, adminPin) {
+  const pin =
+    typeof adminPin === "string" && /^\d{6}$/.test(adminPin)
+      ? adminPin
+      : process.env.STAGEVERIFY_TEST_ADMIN_PIN;
+  if (!pin || !/^\d{6}$/.test(pin)) {
+    throw new Error(
+      "STAGEVERIFY_TEST_ADMIN_PIN (exactly 6 digits) is required for Admin Access verify after named-Admin unlock.",
+    );
+  }
   const adminBtn = detail.getByTestId("pin-access-admin-button");
   await page.waitForFunction(
     () => {
@@ -198,6 +207,10 @@ async function startAdminAccessOnDetail(detail, page) {
   page.on("response", onResponse);
   try {
     await adminBtn.click();
+    const prompt = detail.getByTestId("pin-access-admin-pin-prompt");
+    await prompt.waitFor({ timeout: 10_000 });
+    await detail.getByTestId("pin-access-admin-pin-input").fill(pin);
+    await detail.getByTestId("pin-access-admin-pin-submit").click();
     await detail
       .getByTestId("pin-access-admin-active")
       .waitFor({ timeout: 25_000 });
