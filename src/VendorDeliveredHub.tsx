@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   deliveryHasAssignableSpot,
   type DeliveryDetails,
@@ -69,6 +69,9 @@ export function VendorDeliveredHub({
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [issueToast, setIssueToast] = useState<string | null>(null);
   const [itemsExpanded, setItemsExpanded] = useState(false);
+  const [cardExpandedOverride, setCardExpandedOverride] = useState<
+    boolean | null
+  >(null);
   const [ctaPhase, setCtaPhase] = useState<DeliverCtaPhase>(() =>
     isVendorDeliveryConfirmed(deliveryDetails.delivery) ? "delivered" : "idle",
   );
@@ -79,19 +82,9 @@ export function VendorDeliveredHub({
   const locationCode = stagingLocation?.code ?? "—";
   const invoiceNumber = delivery.vendorInvoiceNumber?.trim() || "—";
 
-  useEffect(() => {
-    setCtaPhase((prev) => {
-      if (prev === "checkmark") return prev;
-      return isVendorDeliveryConfirmed(deliveryDetails.delivery)
-        ? "delivered"
-        : "idle";
-    });
-  }, [
-    deliveryDetails.delivery.vendorPhysicalDropoffConfirmed,
-    deliveryDetails.delivery.vendorPhysicalDropoffConfirmedAt,
-  ]);
-
-  const isDelivered = ctaPhase === "delivered";
+  const isDelivered =
+    ctaPhase === "delivered" || isVendorDeliveryConfirmed(delivery);
+  const cardExpanded = cardExpandedOverride ?? !isDelivered;
   const confirming = ctaPhase === "checkmark";
   const deliverDisabled =
     isDelivered ||
@@ -111,6 +104,7 @@ export function VendorDeliveredHub({
     const ok = await onDelivered();
     if (ok) {
       setCtaPhase("delivered");
+      setCardExpandedOverride(false);
     } else {
       setCtaPhase("idle");
     }
@@ -118,7 +112,11 @@ export function VendorDeliveredHub({
 
   const handleUndoClick = async () => {
     if (!onUndoDelivered || reverting || !isDelivered) return;
-    await onUndoDelivered();
+    const ok = await onUndoDelivered();
+    if (ok) {
+      setCtaPhase("idle");
+      setCardExpandedOverride(true);
+    }
   };
 
   const deliverLabel =
@@ -161,133 +159,192 @@ export function VendorDeliveredHub({
           {job?.jobName ?? "Delivery"}
         </p>
 
-        <div className="w-full bg-bg-surface rounded-2xl border border-border overflow-hidden">
+        <div
+          className={`w-full rounded-2xl border overflow-hidden ${
+            isDelivered
+              ? "border-[#059669] bg-[#047857]"
+              : "border-border bg-bg-surface"
+          }`}
+          data-testid="vendor-hub-delivery-card"
+          data-delivered={isDelivered ? "true" : "false"}
+        >
           <button
             type="button"
-            onClick={() => setItemsExpanded((prev) => !prev)}
-            aria-expanded={itemsExpanded}
+            onClick={() => setCardExpandedOverride(!cardExpanded)}
+            aria-expanded={cardExpanded}
             aria-label={
-              itemsExpanded
-                ? "Hide expected item details"
-                : "View expected item details"
+              cardExpanded
+                ? "Collapse delivery details"
+                : "Expand delivery details"
             }
-            data-testid="vendor-hub-items-toggle"
-            className="w-full text-left"
+            data-testid="vendor-hub-card-toggle"
+            className={`w-full min-h-16 px-3 py-2.5 flex items-center gap-3 text-left ${
+              isDelivered ? "bg-[#047857]" : "bg-bg-surface"
+            }`}
           >
-            <div className="p-3 border-b border-border flex items-center gap-3">
-              <div className="size-12 shrink-0 rounded-xl bg-accent/15 text-accent font-mono text-xl font-light flex items-center justify-center">
-                {locationCode}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p
-                  className="text-base font-medium text-text-primary truncate"
-                  data-testid="vendor-hub-location-label"
-                >
-                  Location: {locationCode}
-                </p>
-              </div>
-              <span
-                className="shrink-0 text-text-secondary transition-transform duration-200"
-                aria-hidden
-                style={{
-                  transform: itemsExpanded ? "rotate(180deg)" : "rotate(0deg)",
-                }}
-              >
-                ▾
-              </span>
+            <div
+              className={`size-11 shrink-0 rounded-xl font-mono text-lg font-semibold flex items-center justify-center ${
+                isDelivered
+                  ? "bg-white/15 text-white"
+                  : "bg-accent/15 text-accent"
+              }`}
+              data-testid="vendor-hub-location-tile"
+            >
+              {locationCode}
             </div>
+            <div className="min-w-0 flex-1">
+              <p
+                className={`text-base font-semibold truncate ${
+                  isDelivered ? "text-white" : "text-text-primary"
+                }`}
+                data-testid="vendor-hub-location-label"
+              >
+                Location: {locationCode}
+              </p>
+              {isDelivered && (
+                <p
+                  className="mt-0.5 text-xs font-bold tracking-[0.14em] text-white"
+                  data-testid="vendor-hub-delivered-label"
+                >
+                  DELIVERED
+                </p>
+              )}
+            </div>
+            <span
+              className={`shrink-0 transition-transform duration-200 ${
+                isDelivered ? "text-white" : "text-text-secondary"
+              }`}
+              aria-hidden
+              style={{
+                transform: cardExpanded ? "rotate(90deg)" : "rotate(0deg)",
+              }}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </span>
+          </button>
 
-            <div className="p-3 space-y-1.5">
-              {[
-                { label: "Job / Site", value: job?.jobName ?? "—", mono: false },
-                { label: "Vendor", value: vendor.name, mono: false },
-                { label: "Order #", value: delivery.orderNumber, mono: true },
-                {
-                  label: "Invoice #",
-                  value: invoiceNumber,
-                  mono: true,
-                  testId: "vendor-hub-invoice",
-                },
-                {
-                  label: "PO #",
-                  value: purchaseOrder?.poNumber ?? "—",
-                  mono: true,
-                },
-                {
-                  label: "Expected items",
-                  value:
-                    items.length > 0
+          {cardExpanded && (
+            <div
+              className="border-t border-border bg-bg-surface"
+              data-testid="vendor-hub-card-details"
+            >
+              <div className="p-3 space-y-1.5">
+                {[
+                  { label: "Job / Site", value: job?.jobName ?? "—", mono: false },
+                  { label: "Vendor", value: vendor.name, mono: false },
+                  { label: "Order #", value: delivery.orderNumber, mono: true },
+                  {
+                    label: "Invoice #",
+                    value: invoiceNumber,
+                    mono: true,
+                    testId: "vendor-hub-invoice",
+                  },
+                  {
+                    label: "PO #",
+                    value: purchaseOrder?.poNumber ?? "—",
+                    mono: true,
+                  },
+                ].map(({ label, value, mono, testId }) => (
+                  <div
+                    key={label}
+                    className="flex items-center justify-between gap-3 text-sm min-w-0"
+                  >
+                    <span className="text-text-secondary shrink-0">{label}</span>
+                    <span
+                      className={`text-text-primary font-medium text-right min-w-0 ${
+                        mono ? "truncate max-w-[55%]" : ""
+                      }`}
+                      {...(testId ? { "data-testid": testId } : {})}
+                    >
+                      {mono ? (
+                        <span className="font-mono text-xs bg-bg-secondary px-2 py-0.5 rounded inline-block max-w-full truncate">
+                          {value}
+                        </span>
+                      ) : (
+                        value
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setItemsExpanded((prev) => !prev)}
+                aria-expanded={itemsExpanded}
+                aria-label={
+                  itemsExpanded
+                    ? "Hide expected item details"
+                    : "View expected item details"
+                }
+                data-testid="vendor-hub-items-toggle"
+                className="w-full border-t border-border px-3 py-2.5 text-left"
+              >
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-text-secondary">Expected items</span>
+                  <span className="font-medium text-text-primary">
+                    {items.length > 0
                       ? String(items.length)
                       : expectedItemCount != null
                         ? String(expectedItemCount)
                         : detailsHydrating
                           ? "…"
-                          : "0",
-                  mono: false,
-                },
-              ].map(({ label, value, mono, testId }) => (
-                <div
-                  key={label}
-                  className="flex items-center justify-between gap-3 text-sm min-w-0"
-                >
-                  <span className="text-text-secondary shrink-0">{label}</span>
-                  <span
-                    className={`text-text-primary font-medium text-right min-w-0 ${
-                      mono ? "truncate max-w-[55%]" : ""
-                    }`}
-                    {...(testId ? { "data-testid": testId } : {})}
-                  >
-                    {mono ? (
-                      <span className="font-mono text-xs bg-bg-secondary px-2 py-0.5 rounded inline-block max-w-full truncate">
-                        {value}
-                      </span>
-                    ) : (
-                      value
-                    )}
+                          : "0"}
                   </span>
                 </div>
-              ))}
-              <p className="text-xs text-accent pt-0.5">
-                {itemsExpanded ? "Tap to hide items" : "Tap to view items"}
-              </p>
-            </div>
-          </button>
-
-          {itemsExpanded && (
-            <div
-              className="border-t border-border px-3 py-2.5 space-y-2 bg-bg-secondary/40"
-              data-testid="vendor-hub-items-list"
-            >
-              {items.length === 0 ? (
-                <p
-                  className="text-sm text-text-secondary"
-                  data-testid="vendor-hub-items-pending"
-                >
-                  {detailsHydrating
-                    ? "Loading item details…"
-                    : "No item details available."}
+                <p className="text-xs text-accent pt-1">
+                  {itemsExpanded ? "Tap to hide items" : "Tap to view items"}
                 </p>
-              ) : (
-                items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-lg border border-border bg-bg-primary px-3 py-2"
-                    data-testid="vendor-hub-item-row"
-                  >
-                    <p className="text-sm font-medium text-text-primary leading-snug">
-                      {item.description}
+              </button>
+
+              {itemsExpanded && (
+                <div
+                  className="border-t border-border px-3 py-2.5 space-y-2 bg-bg-secondary/40"
+                  data-testid="vendor-hub-items-list"
+                >
+                  {items.length === 0 ? (
+                    <p
+                      className="text-sm text-[#cbd5e1]"
+                      data-testid="vendor-hub-items-pending"
+                    >
+                      {detailsHydrating
+                        ? "Loading item details…"
+                        : "No item details available."}
                     </p>
-                    <p className="text-xs text-text-secondary mt-1">
-                      Qty {item.qtyOrdered}
-                      {item.sku ? (
-                        <>
-                          {" · "}
-                          <span className="font-mono">{item.sku}</span>
-                        </>
-                      ) : null}
-                    </p>
-                  </div>
-                ))
+                  ) : (
+                    items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="rounded-lg border border-border bg-bg-primary px-3 py-2"
+                        data-testid="vendor-hub-item-row"
+                      >
+                        <p className="text-sm font-medium text-text-primary leading-snug">
+                          {item.description}
+                        </p>
+                        <p className="text-xs text-text-secondary mt-1">
+                          Qty {item.qtyOrdered}
+                          {item.sku ? (
+                            <>
+                              {" · "}
+                              <span className="font-mono">{item.sku}</span>
+                            </>
+                          ) : null}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -299,10 +356,11 @@ export function VendorDeliveredHub({
         </p>
       </main>
 
-      <footer
-        className="vendor-hub-footer px-4 pt-2 border-t border-border bg-bg-primary space-y-2"
-        data-testid="vendor-hub-footer"
-      >
+      {(!isDelivered || (cardExpanded && onUndoDelivered)) && (
+        <footer
+          className="vendor-hub-footer px-4 pt-2 border-t border-border bg-bg-primary space-y-2"
+          data-testid="vendor-hub-footer"
+        >
         {!hasAssignableSpot && !isDelivered && (
           <p
             className="text-xs text-accent-amber text-center rounded-lg border border-accent-amber/40 bg-accent-amber/10 px-3 py-2"
@@ -329,33 +387,27 @@ export function VendorDeliveredHub({
             {error}
           </p>
         )}
-        <button
-          type="button"
-          disabled={deliverDisabled}
-          onClick={() => void handleDeliverClick()}
-          aria-label={deliverLabel}
-          data-testid="vendor-mark-delivered"
-          className={`action-btn action-btn-delivered w-full text-base font-bold tracking-wide transition-all ${
-            isDelivered ? "opacity-100 cursor-default" : "disabled:opacity-50"
-          }`}
-        >
-          {ctaPhase === "checkmark" && (
-            <span className="inline-flex items-center justify-center">
-              <DeliverCheckmark />
-            </span>
-          )}
-          {ctaPhase === "delivered" && (
-            <span className="inline-flex items-center justify-center gap-2">
-              <DeliverCheckmark />
-              Delivered
-            </span>
-          )}
-          {ctaPhase === "idle" &&
-            (hasAssignableSpot
-              ? "Mark Delivered"
-              : "Ask dispatch for a staging spot.")}
-        </button>
-        {isDelivered && onUndoDelivered && (
+        {!isDelivered && (
+          <button
+            type="button"
+            disabled={deliverDisabled}
+            onClick={() => void handleDeliverClick()}
+            aria-label={deliverLabel}
+            data-testid="vendor-mark-delivered"
+            className="action-btn action-btn-delivered w-full text-base font-bold tracking-wide transition-all disabled:opacity-50"
+          >
+            {ctaPhase === "checkmark" ? (
+              <span className="inline-flex items-center justify-center">
+                <DeliverCheckmark />
+              </span>
+            ) : hasAssignableSpot ? (
+              "Mark Delivered"
+            ) : (
+              "Ask dispatch for a staging spot."
+            )}
+          </button>
+        )}
+        {isDelivered && cardExpanded && onUndoDelivered && (
           <button
             type="button"
             disabled={reverting}
@@ -375,7 +427,8 @@ export function VendorDeliveredHub({
             ← Back
           </button>
         )}
-      </footer>
+        </footer>
+      )}
 
       {showSpaceFlow && (
         <VendorNeedMoreSpaceFlow

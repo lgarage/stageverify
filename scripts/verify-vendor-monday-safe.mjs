@@ -29,10 +29,12 @@ import { resolveAppBase } from "./resolveAppBase.mjs";
 import {
   assertNoElementOverlap,
   assertReadableTextContrast,
+  VENDOR_DELIVERED_COLLAPSED_CONTRAST_SPEC,
   VENDOR_DELIVERED_HUB_CONTRAST_SPEC,
   VENDOR_DELIVERED_HUB_ITEMS_CONTRAST_SPEC,
   VENDOR_DELIVERED_HUB_ITEMS_EMPTY_CONTRAST_SPEC,
   VENDOR_DELIVERED_HUB_HEADER_OVERLAP_SPEC,
+  VENDOR_RUN_DELIVERED_ROW_CONTRAST_SPEC,
 } from "./lib/ui-text-contrast-lib.mjs";
 
 const envPath = resolve(process.cwd(), ".env.local");
@@ -50,13 +52,13 @@ const baseUrl =
 const appBase = resolveAppBase(baseUrl);
 const email = process.env.STAGEVERIFY_TEST_EMAIL;
 const password = process.env.STAGEVERIFY_TEST_PASSWORD;
-const deliveryId =
-  process.env.STAGEVERIFY_RECEIVE_DELIVERY ?? "delivery-demo-vendor-1";
+let deliveryId = process.env.STAGEVERIFY_RECEIVE_DELIVERY;
 const vendorPin = process.env.STAGEVERIFY_VENDOR_PIN ?? "1234";
 const jobPin = process.env.STAGEVERIFY_JOB1_PIN ?? "1234";
 const runSuffix = Date.now().toString(36);
 const ephemeralNoSpotDeliveryId = `delivery-monday-verify-nospot-${runSuffix}`;
 const ephemeralWithSpotDeliveryId = `delivery-monday-verify-wspot-${runSuffix}`;
+deliveryId ??= ephemeralWithSpotDeliveryId;
 const noSpotOrder =
   process.env.STAGEVERIFY_NO_SPOT_ORDER ?? `MON-VERIFY-NOSPOT-${runSuffix.slice(-6)}`;
 const withSpotOrder =
@@ -260,6 +262,13 @@ try {
   });
   await page.waitForTimeout(1500);
   await enterPin(page, vendorPin);
+  const receivePinVerify = page.getByRole("button", {
+    name: "Verify",
+    exact: true,
+  });
+  if (await receivePinVerify.isVisible().catch(() => false)) {
+    await receivePinVerify.click();
+  }
   await page.getByTestId("vendor-mark-delivered").waitFor({
     state: "visible",
     timeout: 25_000,
@@ -410,6 +419,10 @@ try {
   const vendorTab = page.getByRole("button", { name: "Vendor", exact: true });
   if (await vendorTab.isVisible().catch(() => false)) await vendorTab.click();
   await enterPin(page, jobPin);
+  const neutralPinVerify = page.getByTestId("location-scan-pin-verify");
+  if (await neutralPinVerify.isVisible().catch(() => false)) {
+    await neutralPinVerify.click();
+  }
   await page.getByText("This job's deliveries").waitFor({ timeout: 20_000 });
   const noSpotCard = page.locator("button").filter({ hasText: noSpotOrder }).first();
   await noSpotCard.scrollIntoViewIfNeeded();
@@ -462,6 +475,62 @@ try {
     await withSpotCard.click();
     await page.waitForTimeout(2000);
     await shot(page, "03-location-withspot-hub");
+    let mockedDelivered = false;
+    const mockedDeliveryDetails = () => ({
+      delivery: {
+        id: ephemeralWithSpotDeliveryId,
+        orderNumber: withSpotOrder,
+        vendorInvoiceNumber: `INV-${runSuffix.slice(-6)}`,
+        jobId: fixtureJobId,
+        vendorId: "vendor-1",
+        vendorName: "Johnstone Supply",
+        stagingLocationId: "staging-2",
+        deliveryDate: new Date().toISOString().slice(0, 10),
+        status: mockedDelivered ? "arrived" : "pending",
+        availabilityStatus: "expected",
+        vendorPhysicalDropoffConfirmed: mockedDelivered,
+        vendorPhysicalDropoffConfirmedAt: mockedDelivered
+          ? new Date().toISOString()
+          : null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      vendor: { id: "vendor-1", name: "Johnstone Supply", active: true },
+      job: { id: fixtureJobId, jobName: "Riverside Medical Center" },
+      purchaseOrder: { id: "po-monday-verify", poNumber: "PO-MONDAY" },
+      stagingLocation: {
+        id: "staging-2",
+        code: "G2",
+        label: "Ground Spot 2",
+        type: "ground",
+      },
+      items: [],
+    });
+    await page.route(/\/markVendorDelivered(?:\?.*)?$/, async (route) => {
+      mockedDelivered = true;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: { success: true } }),
+      });
+    });
+    await page.route(/\/getVendorReceiveDetails(?:\?.*)?$/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ result: mockedDeliveryDetails() }),
+      });
+    });
+    await page.route(/\/updateVendorDeliveryStatus(?:\?.*)?$/, async (route) => {
+      mockedDelivered = false;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          result: { details: mockedDeliveryDetails() },
+        }),
+      });
+    });
     const withBtn = page.getByTestId("vendor-mark-delivered");
     const withEnabled = !(await withBtn.isDisabled());
     const withLabel = ((await withBtn.textContent()) || "").trim();
@@ -472,19 +541,68 @@ try {
     );
     if (withEnabled) {
       await withBtn.click();
-      await page.waitForFunction(() => {
-        const btn = document.querySelector(
-          '[data-testid="vendor-mark-delivered"]',
-        );
-        const text = (btn?.textContent ?? "").replace(/\s+/g, " ").trim();
-        return text === "Delivered" || /^Delivered/.test(text);
-      }, { timeout: 30_000 });
+      const deliveryCard = page.getByTestId("vendor-hub-delivery-card");
+      const cardToggle = page.getByTestId("vendor-hub-card-toggle");
+      const cardDetails = page.getByTestId("vendor-hub-card-details");
+      await page.waitForFunction(
+        () =>
+          document
+            .querySelector('[data-testid="vendor-hub-delivery-card"]')
+            ?.getAttribute("data-delivered") === "true",
+        { timeout: 30_000 },
+      );
       record("location Mark Delivered succeeds with spot", true);
+      record(
+        "delivered hub auto-collapses",
+        (await cardToggle.getAttribute("aria-expanded")) === "false" &&
+          !(await cardDetails.isVisible().catch(() => false)),
+      );
+      record(
+        "collapsed delivered hub uses compact green row",
+        (await deliveryCard.getAttribute("data-delivered")) === "true" &&
+          (await page.getByTestId("vendor-hub-delivered-label").textContent())?.trim() ===
+            "DELIVERED",
+      );
+      record(
+        "large delivered footer CTA removed",
+        !(await page
+          .getByTestId("vendor-mark-delivered")
+          .isVisible()
+          .catch(() => false)),
+      );
+      record(
+        "delivered hub keeps Need More Space",
+        await page.getByRole("button", { name: /Need More Space/i }).isVisible(),
+      );
+      record(
+        "delivered hub keeps Report a Problem",
+        await page.getByTestId("vendor-report-problem").isVisible(),
+      );
+      await assertReadableTextContrast(
+        page,
+        VENDOR_DELIVERED_COLLAPSED_CONTRAST_SPEC,
+      );
+      record("collapsed delivered row contrast", true);
+
+      await cardToggle.click();
+      await cardDetails.waitFor({ state: "visible", timeout: 10_000 });
+      record(
+        "delivered hub expands details downward",
+        (await cardToggle.getAttribute("aria-expanded")) === "true" &&
+          (await page.getByText("Job / Site", { exact: true }).isVisible()),
+      );
       const undo = page.getByTestId("vendor-undo-delivery");
       await undo.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
       const undoVisible = await undo.isVisible().catch(() => false);
-      record("location Undo Delivery control visible", undoVisible);
+      record("expanded delivered hub shows Undo Delivery", undoVisible);
       if (undoVisible) {
+        await cardToggle.click();
+        record(
+          "delivered hub collapses again",
+          (await cardToggle.getAttribute("aria-expanded")) === "false" &&
+            !(await cardDetails.isVisible().catch(() => false)),
+        );
+        await cardToggle.click();
         await undo.click();
         try {
           await page.waitForFunction(() => {
@@ -494,16 +612,49 @@ try {
             const text = (btn?.textContent ?? "").replace(/\s+/g, " ").trim();
             return text === "Mark Delivered";
           }, { timeout: 20_000 });
-          record("location Undo Delivery restores Mark Delivered", true);
+          record(
+            "Undo restores expanded undelivered hub and Mark Delivered",
+            (await cardToggle.getAttribute("aria-expanded")) === "true" &&
+              (await page.getByTestId("vendor-mark-delivered").isVisible()),
+          );
         } catch {
           record(
-            "location Undo Delivery restores Mark Delivered",
+            "Undo restores expanded undelivered hub and Mark Delivered",
             false,
             ((await page.getByTestId("vendor-mark-delivered").textContent()) ||
               "").trim(),
           );
         }
       }
+
+      await page.setViewportSize({ width: 360, height: 800 });
+      await page.getByTestId("vendor-mark-delivered").click();
+      await page.waitForFunction(
+        () =>
+          document
+            .querySelector('[data-testid="vendor-hub-delivery-card"]')
+            ?.getAttribute("data-delivered") === "true",
+        { timeout: 30_000 },
+      );
+      record(
+        "Android 360x800 delivered row auto-collapses",
+        (await cardToggle.getAttribute("aria-expanded")) === "false",
+      );
+      await assertReadableTextContrast(
+        page,
+        VENDOR_DELIVERED_COLLAPSED_CONTRAST_SPEC,
+      );
+      await shot(page, "04-android-delivered-collapsed");
+      await cardToggle.click();
+      record(
+        "Android delivered row expands with Undo",
+        await page.getByTestId("vendor-undo-delivery").isVisible(),
+      );
+      await page.getByTestId("vendor-undo-delivery").click();
+      await page
+        .getByTestId("vendor-mark-delivered")
+        .waitFor({ state: "visible", timeout: 20_000 });
+      record("Android Undo restores Mark Delivered", true);
     }
   } else {
     record(
@@ -512,6 +663,188 @@ try {
       `order ${withSpotOrder} not in list`,
     );
   }
+
+  // --- Path C: vendor-run stable order + independent expansion (mocked callable fixture) ---
+  let vendorRunRows = [
+    {
+      deliveryId: "verify-run-active-a",
+      jobId: "job-a",
+      jobName: "Riverside Medical Center",
+      orderNumber: "ORDER-100",
+      vendorInvoiceNumber: "INV-100",
+      poNumber: "PO-100",
+      stagingLocationCodes: ["G2"],
+      hasAssignableSpot: true,
+      vendorPhysicalDropoffConfirmed: false,
+      items: [{ id: "item-a", description: "Air handler", qtyOrdered: 1 }],
+    },
+    {
+      deliveryId: "verify-run-delivered-b",
+      jobId: "job-b",
+      jobName: "Oak Street Offices",
+      orderNumber: "ORDER-200",
+      vendorInvoiceNumber: "INV-200",
+      poNumber: "PO-200",
+      stagingLocationCodes: ["S1-A"],
+      hasAssignableSpot: true,
+      vendorPhysicalDropoffConfirmed: true,
+      items: [{ id: "item-b", description: "Thermostat", qtyOrdered: 4 }],
+    },
+    {
+      deliveryId: "verify-run-active-c",
+      jobId: "job-c",
+      jobName: "Northside School",
+      orderNumber: "ORDER-300",
+      vendorInvoiceNumber: "INV-300",
+      poNumber: "PO-300",
+      stagingLocationCodes: ["G1"],
+      hasAssignableSpot: true,
+      vendorPhysicalDropoffConfirmed: false,
+      items: [{ id: "item-c", description: "Condensing unit", qtyOrdered: 1 }],
+    },
+  ];
+
+  await page.route("**/resolveLocationScanPin", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          success: true,
+          accessType: "vendor",
+          vendorId: "vendor-verify-run",
+          vendorName: "Johnstone Supply",
+          sessionToken: "verify-run-session",
+          expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+          scannedStagingLocationCode: "G2",
+          sessionScope: "vendor",
+          deliveryId: "verify-run-active-a",
+        },
+      }),
+    });
+  });
+  await page.route("**/getVendorRunDeliveries", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        result: {
+          vendorId: "vendor-verify-run",
+          scannedStagingLocationCode: "G2",
+          deliveries: vendorRunRows,
+        },
+      }),
+    });
+  });
+  await page.route("**/markVendorDeliveriesBulk", async (route) => {
+    const requestBody = JSON.parse(route.request().postData() ?? "{}");
+    const deliveryIds = requestBody.data?.deliveryIds ?? [];
+    vendorRunRows = vendorRunRows.map((row) =>
+      deliveryIds.includes(row.deliveryId)
+        ? { ...row, vendorPhysicalDropoffConfirmed: true }
+        : row,
+    );
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        result: {
+          results: deliveryIds.map((id) => ({
+            deliveryId: id,
+            success: true,
+            vendorPhysicalDropoffConfirmed: true,
+          })),
+        },
+      }),
+    });
+  });
+
+  await page.evaluate(() => sessionStorage.clear());
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${appBase}/#/s?loc=G2`, {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
+  });
+  await page.getByRole("heading", { name: "Enter PIN" }).waitFor({
+    timeout: 30_000,
+  });
+  await enterPin(page, "1234");
+  await page.getByTestId("location-scan-pin-verify").click();
+  await page.getByText("Your deliveries").waitFor({ timeout: 30_000 });
+
+  const rowOrder = async () =>
+    page.locator('[data-testid^="vendor-run-row-"]').evaluateAll((rows) =>
+      rows.map((row) =>
+        (row.getAttribute("data-testid") ?? "").replace("vendor-run-row-", ""),
+      ),
+    );
+  const expectedStableOrder = [
+    "verify-run-active-a",
+    "verify-run-delivered-b",
+    "verify-run-active-c",
+  ];
+  record(
+    "vendor-run preserves server list order",
+    JSON.stringify(await rowOrder()) === JSON.stringify(expectedStableOrder),
+    (await rowOrder()).join(" → "),
+  );
+
+  const detailsA = page.getByTestId("vendor-run-details-verify-run-active-a");
+  const detailsB = page.getByTestId("vendor-run-details-verify-run-delivered-b");
+  const detailsC = page.getByTestId("vendor-run-details-verify-run-active-c");
+  record(
+    "vendor-run defaults undelivered expanded and delivered collapsed",
+    (await detailsA.isVisible()) &&
+      (await detailsC.isVisible()) &&
+      !(await detailsB.isVisible().catch(() => false)),
+  );
+
+  await page.getByTestId("vendor-run-toggle-verify-run-active-c").click();
+  record(
+    "vendor-run expansion is independent",
+    (await detailsA.isVisible()) &&
+      !(await detailsC.isVisible().catch(() => false)),
+  );
+  await page.getByTestId("vendor-run-toggle-verify-run-delivered-b").click();
+  record(
+    "delivered vendor-run row expands in place",
+    (await detailsB.isVisible()) &&
+      !(await detailsC.isVisible().catch(() => false)),
+  );
+  await page.getByTestId("vendor-run-toggle-verify-run-delivered-b").click();
+
+  const rowA = page.getByTestId("vendor-run-row-verify-run-active-a");
+  await rowA.locator('input[type="checkbox"]').check();
+  await page.getByTestId("vendor-run-bulk-deliver").click();
+  await page.getByRole("button", { name: "Confirm", exact: true }).click();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('[data-testid="vendor-run-row-verify-run-active-a"]')
+        ?.getAttribute("data-delivered") === "true",
+    { timeout: 20_000 },
+  );
+  record(
+    "bulk delivered row stays in the same position",
+    JSON.stringify(await rowOrder()) === JSON.stringify(expectedStableOrder),
+    (await rowOrder()).join(" → "),
+  );
+  record(
+    "bulk success collapses only delivered ids",
+    !(await detailsA.isVisible().catch(() => false)) &&
+      !(await detailsC.isVisible().catch(() => false)),
+  );
+  await assertReadableTextContrast(
+    page,
+    VENDOR_RUN_DELIVERED_ROW_CONTRAST_SPEC,
+  );
+  record("vendor-run collapsed delivered row contrast", true);
+  await page.getByTestId("vendor-run-toggle-verify-run-active-a").click();
+  record(
+    "bulk delivered row expands with details",
+    await detailsA.isVisible(),
+  );
+  await shot(page, "05-vendor-run-stable-delivered");
 
   // No Firebase Auth required — still unauthenticated session
   record(

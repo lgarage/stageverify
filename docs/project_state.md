@@ -74,7 +74,7 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 
 **Single vendor UI (shipped 2026-06-11):** One vendor check-in experience ? `ReceivingPage` at `/#/receive`. Legacy `/#/` and `/#/checkin/:id` redirect to receive. `appSettings.vendorDeliveryMode`: `exception_only` (Scan ? PIN ? Delivered hub) or `full_checkin` (line-item flow) on the same page. Removed `App.tsx` and `CheckInPage.tsx`.
 
-**Exception-only vendor flow (shipped 2026-06-11):** Delivered hub with Need More Space, Report a Problem, and `markVendorDelivered` (status `arrived`, not `ready_for_pickup`). E2E: `npm run verify:vendor-delivered`. Monday-safe: Mark Delivered disabled without assignable spot.
+**Exception-only vendor flow (shipped 2026-06-11; delivered-card collapse v0.0.257):** Delivered hub with Need More Space, Report a Problem, and `markVendorDelivered` (status `arrived`, not `ready_for_pickup`). After Mark Delivered, that card auto-collapses in place to a compact green DELIVERED row (independent expand/collapse; Undo when expanded; vendor-run list keeps stable order). E2E: `npm run verify:vendor-delivered`. Monday-safe: `node scripts/verify-vendor-monday-safe.mjs` (Mark Delivered disabled without assignable spot + collapse asserts).
 
 **Evidence model alignment (shipped 2026-06-20):** `markVendorDelivered` records `vendorPhysicalDropoffConfirmed` + invokes `recalculateDeliveryReadiness`; exception-only physical gate without vendor qty; `full_checkin` qty path unchanged. Tests: `npm run test:evidence-alignment`.
 

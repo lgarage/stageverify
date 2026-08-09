@@ -83,3 +83,5 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-09 | ship-op (PR #83 D-74 CF+FE deploy v0.0.255) | T3 high-risk | Composer 2.5 Fast | 99 | 99 | ok | merge 7703b024; resolveLocationScanPin LIVE; gh-pages index-CvZU2kJN.js; prod layout PASS |
 | 2026-08-09 | ui-component / css-restyle (location PIN vertical spacing polish) | T1 visual-judgment | Sol Task→gpt-5.6-sol-high | 98 | 99 | ok | gap 4→29px @390; verify visible @320; FE-only |
 | 2026-08-09 | ship-op (PIN spacing polish merge+deploy v0.0.256) | T1 fast-safe UI | Composer 2.5 Fast + Sol implement | 99 | 99 | ok | merge 17717997; LIVE index-TTCy-EDh.js; prod layout PASS |
+| 2026-08-09 | ui-component / css-restyle (Vendor Drop-Off delivered-card collapse) | T1 visual-judgment UI | Sol Task→gpt-5.6-sol-high | 97 | 99 | ok | Auto-collapse green DELIVERED row; independent expand; stable vendor-run order; monday-safe 58/58 |
+| 2026-08-09 | ship-op (vendor delivered-card collapse merge+deploy v0.0.257) | T1 fast-safe UI / mobile D-27 | Composer 2.5 Fast + Sol implement | 99 | pending | pending | D-27 merge+deploy after gates |

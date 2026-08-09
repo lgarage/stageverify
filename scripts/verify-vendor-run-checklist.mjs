@@ -13,6 +13,10 @@ import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getFirestore, setDoc } from "firebase/firestore";
 import { resolveAppBase } from "./resolveAppBase.mjs";
+import {
+  assertReadableTextContrast,
+  VENDOR_RUN_DELIVERED_ROW_CONTRAST_SPEC,
+} from "./lib/ui-text-contrast-lib.mjs";
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -100,8 +104,11 @@ async function enterPin(page, digits) {
   console.log(`Opening ${url}`);
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
-  await page.waitForSelector("text=Enter Job or Company PIN", { timeout: 30_000 });
+  await page.getByRole("heading", { name: "Enter PIN" }).waitFor({
+    timeout: 30_000,
+  });
   await enterPin(page, companyPin);
+  await page.getByTestId("location-scan-pin-verify").click();
   await page.waitForTimeout(3000);
 
   await page.waitForSelector('[data-testid="vendor-run-session-active"]', {
@@ -109,22 +116,63 @@ async function enterPin(page, digits) {
   });
   record("Company PIN unlocks vendor-run session", true);
 
-  await page.waitForSelector("text=Your open deliveries", { timeout: 30_000 });
+  await page.waitForSelector("text=Your deliveries", { timeout: 30_000 });
   const body = await page.locator("body").innerText();
   record("Multi-job checklist shows ORD-005", body.includes(job1Order));
   record("Multi-job checklist shows ORD-006", body.includes(otherJobOrder));
 
-  const checkbox = page
-    .getByTestId(/vendor-run-row-/)
-    .first()
-    .locator('input[type="checkbox"]');
+  const initialOrder = await page
+    .locator('[data-testid^="vendor-run-row-"]')
+    .evaluateAll((rows) =>
+      rows.map((row) => row.getAttribute("data-testid") ?? ""),
+    );
+  const selectedRow = page
+    .locator('[data-testid^="vendor-run-row-"][data-delivered="false"]')
+    .first();
+  const selectedTestId = await selectedRow.getAttribute("data-testid");
+  const checkbox = selectedRow.locator('input[type="checkbox"]');
   const disabled = await checkbox.isDisabled().catch(() => true);
   if (!disabled) {
     await checkbox.check();
     await page.getByTestId("vendor-run-bulk-deliver").click();
     await page.getByRole("button", { name: "Confirm", exact: true }).click();
-    await page.waitForTimeout(2000);
-    record("Bulk deliver confirm dialog completes", true);
+    await page.waitForFunction(
+      (testId) =>
+        document
+          .querySelector(`[data-testid="${testId}"]`)
+          ?.getAttribute("data-delivered") === "true",
+      selectedTestId,
+      { timeout: 30_000 },
+    );
+    const afterOrder = await page
+      .locator('[data-testid^="vendor-run-row-"]')
+      .evaluateAll((rows) =>
+        rows.map((row) => row.getAttribute("data-testid") ?? ""),
+      );
+    record(
+      "Bulk deliver keeps stable list order",
+      JSON.stringify(afterOrder) === JSON.stringify(initialOrder),
+      afterOrder.join(" → "),
+    );
+    const deliveredRow = page.getByTestId(selectedTestId);
+    record(
+      "Bulk delivered row collapses",
+      (await deliveredRow
+        .locator('[data-testid^="vendor-run-details-"]')
+        .isVisible()
+        .catch(() => false)) === false,
+    );
+    await assertReadableTextContrast(
+      page,
+      VENDOR_RUN_DELIVERED_ROW_CONTRAST_SPEC,
+    );
+    await deliveredRow.locator('[data-testid^="vendor-run-toggle-"]').click();
+    record(
+      "Delivered row expands independently",
+      await deliveredRow
+        .locator('[data-testid^="vendor-run-details-"]')
+        .isVisible(),
+    );
   } else {
     record("Bulk deliver confirm dialog completes", true, "skipped — no assignable spot row");
   }
