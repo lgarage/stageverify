@@ -31,6 +31,11 @@ import { shopStockPickListLabels } from "./dispatcher/shopStockMapping";
 import { formatPickupError } from "./dispatcher/pickupErrors";
 import { newPickupClientOperationId } from "./dispatcher/pickupClientOperationId";
 import {
+  clearTechnicianJobShell,
+  readTechnicianJobShell,
+  type TechnicianJobShell,
+} from "./technicianJobShell";
+import {
   resolveZoneScanDisposition,
   syncScanIntent,
 } from "./scanRouting";
@@ -696,6 +701,48 @@ function pickupPortalDataInput(input: {
   };
 }
 
+function JobPickupShellHeader({ shell }: { shell: TechnicianJobShell }) {
+  const primaryCode =
+    shell.stagingLocationCodes.length > 0
+      ? shell.stagingLocationCodes[0]
+      : null;
+  const additionalCodes =
+    shell.stagingLocationCodes.length > 1
+      ? shell.stagingLocationCodes.slice(1)
+      : [];
+
+  return (
+    <div
+      data-testid="pickup-job-header"
+      className="mb-4 rounded-xl border border-border bg-bg-surface px-4 py-3 text-left text-sm space-y-1"
+    >
+      <p>
+        <span className="text-text-secondary">Job: </span>
+        <span className="text-text-primary font-medium">{shell.jobName}</span>
+      </p>
+      {primaryCode ? (
+        <p>
+          <span className="text-text-secondary">Pickup at: </span>
+          <span
+            className="text-lg font-bold text-accent"
+            data-testid="pickup-at-primary"
+          >
+            {primaryCode}
+          </span>
+          {additionalCodes.length > 0 ? (
+            <span className="text-text-primary font-medium">
+              {`, ${additionalCodes.join(", ")}`}
+            </span>
+          ) : null}
+        </p>
+      ) : null}
+      <p className="text-xs text-text-secondary">
+        {shell.readyForPickupCount} ready · {shell.deliveryCount} deliveries
+      </p>
+    </div>
+  );
+}
+
 function JobPickupScreen({
   jobId,
   pickupToken = null,
@@ -715,8 +762,12 @@ function JobPickupScreen({
   const [allStagingLocations, setAllStagingLocations] = useState<
     StagingLocation[]
   >([]);
+  const [jobShell] = useState(() => readTechnicianJobShell(jobId));
   const [checked, setChecked] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
+  const [hydratingDeliveries, setHydratingDeliveries] = useState(
+    () => readTechnicianJobShell(jobId) !== null,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -764,30 +815,28 @@ function JobPickupScreen({
     if (!hasPickupCredential({ pickupToken, technicianSessionToken })) {
       setError("Invalid or expired pickup link.");
       setLoading(false);
+      setHydratingDeliveries(false);
       return;
     }
-    setLoading(true);
+    if (!jobShell) {
+      setLoading(true);
+    } else {
+      setHydratingDeliveries(true);
+    }
     setError(null);
     initialHighlightDone.current = false;
 
     try {
-      const [settings, portalData] = await Promise.all([
-        getAppSettings(),
-        getPickupPortalDataClient(
-          pickupPortalDataInput({
-            jobId,
-            pickupToken,
-            technicianSessionToken,
-            includeDeliveryId: highlightDeliveryId ?? undefined,
-          }),
-        ),
-      ]);
+      const portalData = await getPickupPortalDataClient(
+        pickupPortalDataInput({
+          jobId,
+          pickupToken,
+          technicianSessionToken,
+          includeDeliveryId: highlightDeliveryId ?? undefined,
+        }),
+      );
       const loaded = portalData.deliveries;
       setAllStagingLocations(portalData.stagingLocations);
-      setAutoSubmitMinutes(settings.autoSubmitMinutes);
-      if (settings.autoSubmitMinutes > 0) {
-        setAutoSubmitSecondsLeft(settings.autoSubmitMinutes * 60);
-      }
       setDeliveries(
         [...loaded].sort(
           (a, b) =>
@@ -825,12 +874,23 @@ function JobPickupScreen({
             .map((d) => d.delivery.id),
         ),
       );
+      clearTechnicianJobShell(jobId);
+
+      void getAppSettings()
+        .then((settings) => {
+          setAutoSubmitMinutes(settings.autoSubmitMinutes);
+          if (settings.autoSubmitMinutes > 0) {
+            setAutoSubmitSecondsLeft(settings.autoSubmitMinutes * 60);
+          }
+        })
+        .catch(() => {});
     } catch {
       setError("Failed to load deliveries. Please try again.");
     } finally {
       setLoading(false);
+      setHydratingDeliveries(false);
     }
-  }, [jobId, highlightDeliveryId, pickupToken, technicianSessionToken]);
+  }, [jobId, highlightDeliveryId, pickupToken, technicianSessionToken, jobShell]);
 
   const refreshPickupDelivery = useCallback(
     async (deliveryId: string) => {
@@ -1436,10 +1496,31 @@ function JobPickupScreen({
     );
   }
 
-  if (loading) {
+  if (loading && deliveries.length === 0 && !jobShell) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <p className="text-text-secondary">Loading pickup list…</p>
+      </div>
+    );
+  }
+
+  if (
+    (loading || hydratingDeliveries) &&
+    deliveries.length === 0 &&
+    jobShell &&
+    !error
+  ) {
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto px-6 py-4 pt-6">
+          <JobPickupShellHeader shell={jobShell} />
+          <p
+            className="text-sm text-text-secondary text-center py-8"
+            data-testid="pickup-deliveries-loading"
+          >
+            Loading deliveries…
+          </p>
+        </div>
       </div>
     );
   }
@@ -1695,7 +1776,7 @@ function JobPickupScreen({
                                 deliveryStatus === "picked_up" ||
                                 deliveryStatus === "installed"
                                   ? "bg-accent-green/15 text-accent-green"
-                                  : "bg-accent-green/10 text-accent-green"
+                                  : "border border-[#60a5fa]/40 bg-[#1d4ed8]/30 text-[#dbeafe]"
                               }`}
                               data-testid="pickup-public-status"
                             >
@@ -1787,33 +1868,6 @@ function JobPickupScreen({
                         </div>
                       ))}
                     </div>
-
-                    {d.items.length > 0 && (
-                      <div
-                        className="mb-4"
-                        data-testid="expected-materials"
-                      >
-                        <p className="mb-2 text-xs font-semibold text-text-primary">
-                          Expected Materials
-                        </p>
-                        <ul className="space-y-1">
-                          {d.items.map((item) => (
-                            <li
-                              key={item.id}
-                              className="text-xs text-text-secondary"
-                            >
-                              <span className="text-text-primary">
-                                {formatPickupItemLine(
-                                  d.purchaseOrder?.poNumber,
-                                  item.description,
-                                  item.qtyOrdered,
-                                )}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
 
                     <p className="mb-3 text-xs text-text-secondary">
                       Mark off items as you pick them up — optional
@@ -2177,11 +2231,17 @@ function JobPickupScreen({
           type="button"
           onClick={() => void handleDone()}
           disabled={submitting || !readyToFinish}
+          aria-busy={submitting}
           className={`action-btn action-btn-delivered w-full transition-all duration-300 ${
             readyToFinish
-              ? "ring-4 ring-accent-green/50 shadow-[0_0_28px_rgba(34,197,94,0.35)] scale-[1.02] animate-pulse"
+              ? "ring-4 ring-accent-green/50 shadow-[0_0_28px_rgba(34,197,94,0.35)] scale-[1.02]"
               : "opacity-50 cursor-not-allowed"
           }`}
+          style={
+            readyToFinish
+              ? { backgroundColor: "#047857", color: "#f8fafc" }
+              : undefined
+          }
         >
           {submitting ? "Submitting…" : "Complete Pickup"}
         </button>

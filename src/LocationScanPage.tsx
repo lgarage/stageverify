@@ -4,7 +4,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   firestoreDataService,
   getAppSettings,
@@ -45,6 +45,11 @@ import {
 } from "./managementPinSession";
 import { getTechnicianReleasedJobsClient } from "./phase2CallableClients";
 import type { TechnicianReleasedJobSummary } from "./dispatcher/models";
+import {
+  readReleasedJobsCache,
+  writeReleasedJobsCache,
+} from "./technicianReleasedJobsCache";
+import { stashTechnicianJobShell } from "./technicianJobShell";
 import { VendorDeliveredHub } from "./VendorDeliveredHub";
 import {
   bridgeJobSessionToDelivery,
@@ -93,6 +98,7 @@ function formatSpotLine(row: VendorRunDeliverySummary): string {
 }
 
 export function LocationScanPage() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   normalizeLocationScanHash();
 
@@ -129,6 +135,7 @@ export function LocationScanPage() {
   const [releasedJobs, setReleasedJobs] = useState<TechnicianReleasedJobSummary[]>(
     [],
   );
+  const [jobsRevalidating, setJobsRevalidating] = useState(false);
   const [isCatchAllParcelIntake, setIsCatchAllParcelIntake] = useState(false);
   const [parcelIntakeEnabled, setParcelIntakeEnabled] = useState(false);
 
@@ -360,8 +367,20 @@ export function LocationScanPage() {
         setStep("pin");
         return;
       }
-      setLoading(true);
+      setTechnicianId(resolvedTechnicianId);
+      setStep("tech-list");
       setError(null);
+
+      const cached = readReleasedJobsCache(resolvedTechnicianId, token);
+      if (cached) {
+        setTechnicianName(cached.technicianName);
+        setReleasedJobs(cached.jobs);
+        setLoading(false);
+        setJobsRevalidating(true);
+      } else {
+        setLoading(true);
+      }
+
       try {
         const result = await getTechnicianReleasedJobsClient({
           sessionToken: token,
@@ -369,15 +388,29 @@ export function LocationScanPage() {
         setTechnicianId(resolvedTechnicianId);
         setTechnicianName(result.technicianName);
         setReleasedJobs(result.jobs);
+        writeReleasedJobsCache(resolvedTechnicianId, token, {
+          jobs: result.jobs,
+          technicianName: result.technicianName,
+          releaseDate: result.releaseDate,
+        });
         setStep("tech-list");
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Could not load released jobs.",
-        );
-        clearTechnicianPinSession(resolvedTechnicianId);
-        setStep("pin");
+        if (!cached) {
+          setError(
+            err instanceof Error ? err.message : "Could not load released jobs.",
+          );
+          clearTechnicianPinSession(resolvedTechnicianId);
+          setStep("pin");
+        } else {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Could not refresh job list — showing cached list.",
+          );
+        }
       } finally {
         setLoading(false);
+        setJobsRevalidating(false);
       }
     },
     [],
@@ -392,25 +425,38 @@ export function LocationScanPage() {
     [loadTechnicianReleasedJobs],
   );
 
-  const openTechnicianJobPickup = useCallback((jobId: string) => {
-    if (!technicianId) return;
-    const clientOpenId = crypto.randomUUID();
-    sessionStorage.setItem(
-      `stageverify_tech_job_opened_${jobId}`,
-      clientOpenId,
-    );
-    const sessionToken = getTechnicianSessionToken(technicianId);
-    if (sessionToken) {
-      void recordTechnicianJobOpenClient(
-        sessionToken,
-        jobId,
+  const openTechnicianJobPickup = useCallback(
+    (job: TechnicianReleasedJobSummary) => {
+      if (!technicianId) return;
+      stashTechnicianJobShell({
+        jobId: job.jobId,
+        jobName: job.jobName,
+        stagingLocationCodes: job.stagingLocationCodes,
+        deliveryCount: job.deliveryCount,
+        readyForPickupCount: job.readyForPickupCount,
+      });
+      const clientOpenId = crypto.randomUUID();
+      sessionStorage.setItem(
+        `stageverify_tech_job_opened_${job.jobId}`,
         clientOpenId,
-        "location_scan",
-      ).catch(() => {});
-    }
-    bindTechnicianSessionToJob(jobId);
-    window.location.hash = `#/pickup?job=${encodeURIComponent(jobId)}&door=tech`;
-  }, [technicianId]);
+      );
+      const sessionToken = getTechnicianSessionToken(technicianId);
+      if (sessionToken) {
+        void recordTechnicianJobOpenClient(
+          sessionToken,
+          job.jobId,
+          clientOpenId,
+          "location_scan",
+        ).catch(() => {});
+      }
+      bindTechnicianSessionToJob(job.jobId);
+      // SPA navigate (HashRouter) — avoid full remount so job shell paints immediately.
+      navigate(
+        `/pickup?job=${encodeURIComponent(job.jobId)}&door=tech`,
+      );
+    },
+    [technicianId, navigate],
+  );
 
   useEffect(() => {
     if (step !== "pin" || pinRole !== "technician") return;
@@ -800,13 +846,30 @@ export function LocationScanPage() {
           </p>
         )}
 
+        {jobsRevalidating && releasedJobs.length > 0 && (
+          <p
+            className="px-6 py-1 text-xs text-text-secondary text-center"
+            data-testid="technician-jobs-revalidating"
+          >
+            Updating…
+          </p>
+        )}
+
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          {loading && releasedJobs.length === 0 && (
+            <p
+              className="text-sm text-text-secondary text-center py-8"
+              data-testid="technician-jobs-loading"
+            >
+              Loading your pickups…
+            </p>
+          )}
           {releasedJobs.map((row) => (
             <button
               key={row.jobId}
               type="button"
-              disabled={loading}
-              onClick={() => openTechnicianJobPickup(row.jobId)}
+              disabled={loading && releasedJobs.length === 0}
+              onClick={() => openTechnicianJobPickup(row)}
               className="w-full text-left rounded-xl border border-border bg-bg-surface p-4 active:scale-[0.99] transition-transform"
               data-testid={`tech-released-job-${row.jobId}`}
             >
@@ -822,7 +885,7 @@ export function LocationScanPage() {
               </p>
             </button>
           ))}
-          {releasedJobs.length === 0 && (
+          {releasedJobs.length === 0 && !loading && (
             <p
               className="text-sm text-text-secondary text-center py-8"
               data-testid="technician-empty-released"

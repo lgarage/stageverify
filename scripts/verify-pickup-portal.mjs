@@ -586,15 +586,32 @@ async function assertPickupLocationSections(page) {
 }
 
 async function assertExpectedMaterials(page) {
-  const container = page.getByTestId("expected-materials").first();
-  await container.waitFor({ state: "visible", timeout: 15_000 });
-  const text = await container.innerText();
+  // Ready cards use interactive pickup-item-row (static Expected Materials
+  // list removed for density). Not-ready rows may still expose expected-materials.
+  const itemRow = page.getByTestId("pickup-item-row").first();
+  const legacy = page.getByTestId("expected-materials").first();
+  const itemVisible = await itemRow
+    .waitFor({ state: "visible", timeout: 15_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (itemVisible) {
+    const text = await itemRow.innerText();
+    if (!/\bQty\s+\d+/i.test(text)) {
+      throw new Error(
+        `Expected Materials FAIL: expected qty on pickup-item-row, got "${text.trim()}".`,
+      );
+    }
+    console.log("Expected Materials PASS: pickup-item-row qty visible on ready card.");
+    return;
+  }
+  await legacy.waitFor({ state: "visible", timeout: 5_000 });
+  const text = await legacy.innerText();
   if (!/\bQty\s+\d+/i.test(text)) {
     throw new Error(
       `Expected Materials FAIL: expected qty in expected-materials, got "${text.trim()}".`,
     );
   }
-  console.log("Expected Materials PASS: expected-materials visible on delivery-3.");
+  console.log("Expected Materials PASS: expected-materials visible (not-ready fallback).");
 }
 
 async function assertPickupItemPoLabels(page) {

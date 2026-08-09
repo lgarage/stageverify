@@ -447,6 +447,22 @@ export const PICKUP_PORTAL_CARD_CONTRAST_SPEC = {
 };
 
 /** Vendor PIN gate on /#/receive (public mobile). */
+export const TECHNICIAN_PIN_GATE_CONTRAST_SPEC = {
+  rootSelector: '[data-testid="technician-pin-gate"]',
+  elements: [
+    {
+      name: "pin title",
+      selector: "h1.text-text-primary",
+      large: true,
+    },
+    {
+      name: "verify cta",
+      selector: '[data-testid="technician-pin-verify"]',
+      large: false,
+    },
+  ],
+};
+
 export const RECEIVE_PIN_GATE_CONTRAST_SPEC = {
   rootSelector: ".max-w-sm.rounded-2xl.border-border",
   elements: [
