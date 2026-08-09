@@ -1,0 +1,1 @@
+import{Un as e,ta as t}from"./index-BUMExyG8.js";var n=e();function r(){return(0,n.jsx)(t,{to:`/dispatcher?focus=needs-review`,replace:!0})}export{r as InvoiceReviewPage};
