@@ -5,6 +5,7 @@ import type {
   StagingLocation,
 } from "../models";
 import { getAllStagingLocationIds } from "../models";
+import { skipsShopStaging } from "../invoice/invoiceShellDisplayHelpers";
 import { formatStagingCodeCanonical } from "../stagingCode";
 import {
   resolveSpotColor,
@@ -13,6 +14,45 @@ import {
   type SpotMapColor,
 } from "../resolveSpotColor";
 import type { ZoneOccupancySummaryWithReadiness } from "../zoneOccupancyCompute";
+
+/**
+ * Authoritative "active shop staging" for drawer/list UI.
+ * True only when at least one staging id/code resolves to a known location.
+ * Raw planned/actual id strings that do not resolve are NOT active staging.
+ */
+export function hasActiveShopStagingAssignment(
+  delivery: DeliveryOrder,
+  locById: Map<string, StagingLocation>,
+): boolean {
+  return collectDeliveryStagingCodes(delivery, locById).length > 0;
+}
+
+/** True when delivery still carries non-empty staging id strings (resolved or not). */
+export function hasRawShopStagingRefs(delivery: DeliveryOrder): boolean {
+  if (
+    getAllStagingLocationIds(delivery).some(
+      (id) => typeof id === "string" && id.trim().length > 0,
+    )
+  ) {
+    return true;
+  }
+  return (delivery.plannedStagingLocationIds ?? []).some(
+    (id) => typeof id === "string" && id.trim().length > 0,
+  );
+}
+
+/**
+ * Vendor Drop-Off (shop staging required) with no resolvable active staging.
+ * SSOT for Delivery Details staging-needed card + list "Needs staging".
+ */
+export function isShopStagingAssignmentMissing(
+  delivery: DeliveryOrder,
+  locById: Map<string, StagingLocation>,
+): boolean {
+  if (delivery.status === "installed") return false;
+  if (skipsShopStaging(delivery)) return false;
+  return !hasActiveShopStagingAssignment(delivery, locById);
+}
 
 export function collectDeliveryStagingCodes(
   delivery: DeliveryOrder,
@@ -87,8 +127,9 @@ export function hasUnresolvedStagingLocationRefs(
   );
   if (!hasUnresolved) return false;
 
-  const codes = collectDeliveryStagingCodes(delivery, locById);
-  return codes.length === 0 || hasUnresolved;
+  // Only "missing" when nothing resolves — a valid active spot plus a stale
+  // extra ref must not suppress Assign Location or force "Needs staging".
+  return collectDeliveryStagingCodes(delivery, locById).length === 0;
 }
 
 export function stagingSpotChipStyle(

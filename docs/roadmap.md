@@ -64,6 +64,7 @@
 
 **Shipped (2026-08-09):** Settings PIN visit-scoped green **PIN # updated** row badge (right of Deactivate; clears on leave Settings; toast `New PIN saved` kept) — **v0.0.271** gh-pages FE-only; no CF/rules.
 
+**Shipped (2026-08-09):** Delivery Details staging-needed card consistency (v0.0.274) — Vendor Drop-Off + no resolvable active staging always shows STAGING LOCATION NEEDED / Assign Location; FE-only.
 **Shipped (2026-08-09):** Staging Map view zoom + logical canvas size (v0.0.273) — session View zoom + edit Canvas W×H; FE-only.
 **Shipped (2026-08-09):** Staging Map assign-mode auto-exit after successful Assign Location confirm — **v0.0.267** gh-pages FE-only; merge `804c74c8`; prod A–H PASS.
 **Shipped (2026-08-09):** Unplanned status single-badge + U1 verify-fixture cleanup/teardown harden — **v0.0.266** gh-pages FE-only.

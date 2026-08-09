@@ -37,7 +37,6 @@ import {
   ISSUE_RESOLUTION_TYPE_LABEL,
   MATERIAL_ISSUE_TYPE_LABEL,
   DELIVERY_STATUS_LABEL,
-  getAllStagingLocationIds,
   type IssueResolutionType,
   type MaterialIssue,
   type ShopStockLocationMapping,
@@ -46,7 +45,13 @@ import { ReadinessEvidencePanel } from "../email/ReadinessEvidencePanel";
 import { DrawerActionBanner } from "./DrawerActionBanner";
 import { StagingLocationBanner } from "./StagingLocationBanner";
 import { JobReleaseToTechnicianPanel } from "./JobReleaseToTechnicianPanel";
-import { DrawerStagingLocationChips, collectDeliveryStagingCodes } from "./DrawerStagingLocationChips";
+import {
+  DrawerStagingLocationChips,
+  collectDeliveryStagingCodes,
+  hasActiveShopStagingAssignment,
+  hasRawShopStagingRefs,
+  isShopStagingAssignmentMissing,
+} from "./DrawerStagingLocationChips";
 import { IssueSummaryPanel } from "./IssueSummaryPanel";
 import { useLiveZoneOccupancy } from "../useLiveZoneOccupancy";
 import {
@@ -63,7 +68,6 @@ import {
 import {
   fulfillmentDisplayLabel,
   resolveDeliveryPoNumber,
-  skipsShopStaging,
 } from "../invoice/invoiceShellDisplayHelpers";
 import {
   buildNeedMoreInfoEmailBody,
@@ -250,6 +254,7 @@ export function DetailContent({
   onUpdateItemReceiptStatus,
   onUpdateShopStockPickList,
   stagingLocations,
+  stagingLocationsReady = true,
   onResolveMaterialIssue,
   emailProviderConnected,
   onNavigateToAssignLocation,
@@ -284,6 +289,8 @@ export function DetailContent({
     linkedMappingId?: string,
   ) => Promise<void>;
   stagingLocations: StagingLocation[];
+  /** False until Active staging catalog fetch completes (avoids banner flash). */
+  stagingLocationsReady?: boolean;
   onResolveMaterialIssue: (
     issueId: string,
     resolutionType: IssueResolutionType,
@@ -564,15 +571,21 @@ export function DetailContent({
   const drawerStagingLocById = new Map(
     stagingLocations.map((loc) => [loc.id, loc]),
   );
-  const shopStagingRequired = !skipsShopStaging(delivery);
   const willCallNoShopStaging = isWillCallPickupStagingListNa(delivery);
-  const hasAssignedStaging =
-    getAllStagingLocationIds(delivery).some((id) => !!id?.trim()) ||
-    (delivery.plannedStagingLocationIds ?? []).some(
-      (id) => typeof id === "string" && id.trim().length > 0,
-    );
-  const showStagingLocationBanner = shopStagingRequired && !hasAssignedStaging;
-  const staleWillCallStaging = willCallNoShopStaging && hasAssignedStaging;
+  /** Resolvable active staging only — stale id strings do not count. */
+  const hasAssignedStaging = hasActiveShopStagingAssignment(
+    delivery,
+    drawerStagingLocById,
+  );
+  /**
+   * Avoid a false staging-needed flash while the Active location catalog is
+   * still loading (empty map would treat raw staging ids as unresolved).
+   */
+  const showStagingLocationBanner =
+    stagingLocationsReady &&
+    isShopStagingAssignmentMissing(delivery, drawerStagingLocById);
+  const staleWillCallStaging =
+    willCallNoShopStaging && hasRawShopStagingRefs(delivery);
   const drawerDeliveryRow: DeliveryListRow = {
     deliveryId: delivery.id,
     jobId: delivery.jobId ?? "",
