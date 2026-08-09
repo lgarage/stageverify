@@ -1008,12 +1008,12 @@ export function ZoneManagementPage() {
     try {
       const existing = assignDetails.delivery.plannedStagingLocationIds ?? [];
       const merged = [...new Set([...existing, pendingAssignSpot.zoneId])];
+      const plannedCode = pendingAssignSpot.code;
       const updated = await firestoreDataService.updatePlannedStagingLocations(
         assignDeliveryId,
         merged,
       );
       if (updated) {
-        setAssignDetails(updated);
         const jobLabel =
           updated.job?.jobNumber ??
           resolveDeliveryPoNumber(
@@ -1021,11 +1021,12 @@ export function ZoneManagementPage() {
             updated.purchaseOrder?.poNumber,
           ) ??
           updated.delivery.orderNumber;
-        showAssignToast(
-          `${pendingAssignSpot.code} planned for ${jobLabel}`,
-        );
+        showAssignToast(`${plannedCode} planned for ${jobLabel}`);
         setPendingAssignSpot(null);
         await loadZones();
+        // Exit assign mode immediately — clear banner + assignDelivery query so
+        // refresh returns to normal Staging Map browse (no manual X required).
+        exitAssignMode();
       } else {
         showAssignToast("Failed to save planned location.");
       }
@@ -1038,6 +1039,7 @@ export function ZoneManagementPage() {
     assignDeliveryId,
     assignDetails,
     assignSaving,
+    exitAssignMode,
     loadZones,
     pendingAssignSpot,
     showAssignToast,
