@@ -14,6 +14,7 @@ const extractPdfText_1 = require("./extractPdfText");
 const normalizePdfText_1 = require("./normalizePdfText");
 const invoiceDocumentSplit_1 = require("../invoice/invoiceDocumentSplit");
 const pdfTextAdapter_1 = require("../invoice/pdfTextAdapter");
+const correctionAuditRecovery_1 = require("../invoice/reviewChat/correctionAuditRecovery");
 const reconcileAfterFieldCorrection_1 = require("../invoice/reviewChat/reconcileAfterFieldCorrection");
 const creditReturnSkip_1 = require("../invoice/creditReturnSkip");
 const vendorIgnoreRules_1 = require("../invoice/aiShadow/vendorIgnoreRules");
@@ -298,22 +299,17 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         });
         // Preserve C2 field corrections across Refresh/reparse: parser output is the
         // base, then durable fieldCorrectionLog overrides are re-applied.
+        // Chat/corrections stay per-import (page-scoped reviewId). Shared
+        // inbound.combinedExtractedText is intentional read-only batch evidence only.
         const existingExtras = (existingData ?? {});
+        let durableLog = Array.isArray(existingExtras.fieldCorrectionLog)
+            ? existingExtras.fieldCorrectionLog
+            : [];
+        if (durableLog.length === 0 && existingSnap.exists) {
+            // Historical wipe recovery: rebuild log from audit when import log is gone.
+            durableLog = await (0, correctionAuditRecovery_1.recoverFieldCorrectionLogFromAudit)(db, reviewId);
+        }
         const parserHeader = proc.parsed.header;
-        const correctedHeader = (0, reconcileAfterFieldCorrection_1.applyFieldCorrectionLogToHeader)(parserHeader, existingExtras.fieldCorrectionLog);
-        const reconciled = (0, reconcileAfterFieldCorrection_1.reconcileImportStateAfterCorrection)({
-            parsedHeader: correctedHeader,
-            parseWarnings: proc.parsed.parseWarnings,
-            importStatus: proc.importStatus,
-            confidenceScore: proc.confidenceScore,
-            humanReviewRequired: proc.humanReviewRequired,
-            duplicate: proc.duplicate,
-            parsedLines,
-            parsedLineCount: parsedLines.length,
-            pageId: row.pageId,
-            parserFormatId: proc.parserFormatId,
-            orderNotes: proc.parsed.orderNotes,
-        });
         const createdAt = existingSnap.exists && existingSnap.data().createdAt
             ? existingSnap.data().createdAt
             : now;
@@ -324,7 +320,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         const resolvedMatchedRuleId = skipFields && matchedRuleId
             ? existingData?.matchedRuleId ?? matchedRuleId
             : undefined;
-        const reviewDoc = {
+        const buildReviewDoc = (input) => ({
             id: reviewId,
             inboundEmailProcessingId: inboundDoc.id,
             gmailMessageId: inboundDoc.gmailMessageId,
@@ -339,18 +335,18 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 ? skipFields.humanReviewRequired
                 : true,
             duplicate: proc.duplicate,
-            parsedHeader: correctedHeader,
+            parsedHeader: input.parsedHeader,
             parsedLines,
             parsedLineCount: parsedLines.length,
-            parseWarnings: reconciled.parseWarnings,
+            parseWarnings: input.parseWarnings,
             orderNotes: proc.parsed.orderNotes,
             outcome: skipFields ? "skipped" : "needs_review",
-            autoImportEligible: reconciled.autoImportEligible,
-            autoImportConfidence: reconciled.autoImportConfidence,
-            autoImportReasons: reconciled.autoImportReasons,
-            reviewRequiredReasons: reconciled.reviewRequiredReasons,
-            importDecisionMode: reconciled.importDecisionMode,
-            suggestedAction: reconciled.suggestedAction,
+            autoImportEligible: input.autoImportEligible,
+            autoImportConfidence: input.autoImportConfidence,
+            autoImportReasons: input.autoImportReasons,
+            reviewRequiredReasons: input.reviewRequiredReasons,
+            importDecisionMode: input.importDecisionMode,
+            suggestedAction: input.suggestedAction,
             parserFormatId: proc.parserFormatId,
             parserRouteConfidence: proc.parserRouteConfidence,
             detectedVendorName: proc.detectedVendorName,
@@ -358,14 +354,14 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             updatedAt: now,
             ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),
             ...(reviewError ? { error: reviewError } : {}),
-            ...(Array.isArray(existingExtras.fieldCorrectionLog)
-                ? { fieldCorrectionLog: existingExtras.fieldCorrectionLog }
+            ...(input.fieldCorrectionLog.length > 0
+                ? { fieldCorrectionLog: input.fieldCorrectionLog }
                 : {}),
-            ...(existingExtras.originalParsedHeader
-                ? { originalParsedHeader: existingExtras.originalParsedHeader }
+            ...(input.originalParsedHeader
+                ? { originalParsedHeader: input.originalParsedHeader }
                 : {}),
-            ...(Array.isArray(existingExtras.originalParseWarnings)
-                ? { originalParseWarnings: existingExtras.originalParseWarnings }
+            ...(Array.isArray(input.originalParseWarnings)
+                ? { originalParseWarnings: input.originalParseWarnings }
                 : {}),
             ...(skipFields
                 ? {
@@ -379,7 +375,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 : ignoreRuleArmed && strongSignals
                     ? { ignoreRuleSuppressedBy: strongInvoiceSignals_1.STRONG_INVOICE_SIGNALS_REASON }
                     : {}),
-        };
+        });
         const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);
         await db.runTransaction(async (tx) => {
             const freshSnap = await tx.get(reviewRef);
@@ -394,13 +390,51 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             if (freshStatus === "rejected" && !(0, creditReturnSkip_1.isSystemAutoRejectedImport)(freshData)) {
                 return;
             }
+            // Recompute correction overrides from the fresh in-tx import snapshot so a
+            // concurrent apply cannot be wiped by a stale pre-tx log read.
+            const freshLog = Array.isArray(freshData?.fieldCorrectionLog)
+                ? freshData.fieldCorrectionLog
+                : durableLog;
+            const freshOriginalHeader = freshData?.originalParsedHeader ?? existingExtras.originalParsedHeader;
+            const freshOriginalWarnings = Array.isArray(freshData?.originalParseWarnings)
+                ? freshData.originalParseWarnings
+                : Array.isArray(existingExtras.originalParseWarnings)
+                    ? existingExtras.originalParseWarnings
+                    : undefined;
+            const freshCorrectedHeader = (0, reconcileAfterFieldCorrection_1.applyFieldCorrectionLogToHeader)(parserHeader, freshLog);
+            const freshReconciled = (0, reconcileAfterFieldCorrection_1.reconcileImportStateAfterCorrection)({
+                parsedHeader: freshCorrectedHeader,
+                parseWarnings: proc.parsed.parseWarnings,
+                importStatus: proc.importStatus,
+                confidenceScore: proc.confidenceScore,
+                humanReviewRequired: proc.humanReviewRequired,
+                duplicate: proc.duplicate,
+                parsedLines,
+                parsedLineCount: parsedLines.length,
+                pageId: row.pageId,
+                parserFormatId: proc.parserFormatId,
+                orderNotes: proc.parsed.orderNotes,
+            });
+            const freshReviewDoc = buildReviewDoc({
+                parsedHeader: freshCorrectedHeader,
+                parseWarnings: freshReconciled.parseWarnings,
+                autoImportEligible: freshReconciled.autoImportEligible,
+                autoImportConfidence: freshReconciled.autoImportConfidence,
+                autoImportReasons: freshReconciled.autoImportReasons,
+                reviewRequiredReasons: freshReconciled.reviewRequiredReasons,
+                importDecisionMode: freshReconciled.importDecisionMode,
+                suggestedAction: freshReconciled.suggestedAction,
+                fieldCorrectionLog: freshLog,
+                originalParsedHeader: freshOriginalHeader,
+                originalParseWarnings: freshOriginalWarnings,
+            });
             // User re-opened a system skip (pending, no skipReason) — do not re-auto-skip.
             if (freshSnap.exists &&
                 freshStatus === "pending_review" &&
                 !freshSystemSkip &&
                 !isNewImport) {
                 const reopenSafeDoc = {
-                    ...reviewDoc,
+                    ...freshReviewDoc,
                     reviewStatus: "pending_review",
                     humanReviewRequired: true,
                     outcome: "needs_review",
@@ -412,7 +446,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 tx.set(reviewRef, (0, firestoreSafeValue_1.firestoreSafeValue)(reopenSafeDoc));
                 return;
             }
-            tx.set(reviewRef, (0, firestoreSafeValue_1.firestoreSafeValue)(reviewDoc));
+            tx.set(reviewRef, (0, firestoreSafeValue_1.firestoreSafeValue)(freshReviewDoc));
         });
         if (autoSkipDocument && matchedRuleId) {
             // Fail-open: email ingest must not abort when audit logging fails.

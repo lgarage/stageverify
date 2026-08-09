@@ -158,6 +158,22 @@ export interface VendorInvoiceImportDoc {
   };
   /** Generalized human correction note last written to vendor training MD (redacted). */
   trainingLessonAppendedAt?: string;
+  /**
+   * C2 — durable allowlisted field overrides. Re-applied on Refresh/reparse so
+   * original parser output cannot wipe an applied correction.
+   */
+  fieldCorrectionLog?: Array<{
+    field: string;
+    previousValue?: string;
+    newValue: string;
+    at?: string;
+    by?: string;
+    correctionId?: string;
+  }>;
+  /** Parser header snapshot before the first C2 correction (audit / ORIGINAL). */
+  originalParsedHeader?: Record<string, unknown>;
+  /** Parser warnings at first C2 correction (historical — not current unresolved). */
+  originalParseWarnings?: string[];
   createdAt: string;
   updatedAt: string;
 }

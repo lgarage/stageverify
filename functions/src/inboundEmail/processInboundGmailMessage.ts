@@ -20,9 +20,11 @@ import {
 } from "./normalizePdfText";
 import { preferredPreParseFormat } from "../invoice/invoiceDocumentSplit";
 import { normalizeExtractedPageText } from "../invoice/pdfTextAdapter";
+import { recoverFieldCorrectionLogFromAudit } from "../invoice/reviewChat/correctionAuditRecovery";
 import {
   applyFieldCorrectionLogToHeader,
   reconcileImportStateAfterCorrection,
+  type FieldCorrectionLogEntry,
 } from "../invoice/reviewChat/reconcileAfterFieldCorrection";
 import {
   isCreditReturnInvoice,
@@ -407,29 +409,23 @@ async function writeReviewRecords(
     });
     // Preserve C2 field corrections across Refresh/reparse: parser output is the
     // base, then durable fieldCorrectionLog overrides are re-applied.
+    // Chat/corrections stay per-import (page-scoped reviewId). Shared
+    // inbound.combinedExtractedText is intentional read-only batch evidence only.
     const existingExtras = (existingData ?? {}) as VendorInvoiceImportDoc & {
       fieldCorrectionLog?: unknown;
       originalParsedHeader?: Record<string, unknown>;
       originalParseWarnings?: string[];
     };
-    const parserHeader = proc.parsed.header as unknown as Record<string, unknown>;
-    const correctedHeader = applyFieldCorrectionLogToHeader(
-      parserHeader,
+    let durableLog: FieldCorrectionLogEntry[] = Array.isArray(
       existingExtras.fieldCorrectionLog,
-    );
-    const reconciled = reconcileImportStateAfterCorrection({
-      parsedHeader: correctedHeader,
-      parseWarnings: proc.parsed.parseWarnings,
-      importStatus: proc.importStatus,
-      confidenceScore: proc.confidenceScore,
-      humanReviewRequired: proc.humanReviewRequired,
-      duplicate: proc.duplicate,
-      parsedLines,
-      parsedLineCount: parsedLines.length,
-      pageId: row.pageId,
-      parserFormatId: proc.parserFormatId,
-      orderNotes: proc.parsed.orderNotes,
-    });
+    )
+      ? (existingExtras.fieldCorrectionLog as FieldCorrectionLogEntry[])
+      : [];
+    if (durableLog.length === 0 && existingSnap.exists) {
+      // Historical wipe recovery: rebuild log from audit when import log is gone.
+      durableLog = await recoverFieldCorrectionLogFromAudit(db, reviewId);
+    }
+    const parserHeader = proc.parsed.header as unknown as Record<string, unknown>;
     const createdAt =
       existingSnap.exists && (existingSnap.data() as VendorInvoiceImportDoc).createdAt
         ? (existingSnap.data() as VendorInvoiceImportDoc).createdAt
@@ -443,11 +439,24 @@ async function writeReviewRecords(
       skipFields && matchedRuleId
         ? existingData?.matchedRuleId ?? matchedRuleId
         : undefined;
-    const reviewDoc: VendorInvoiceImportDoc & {
-      fieldCorrectionLog?: unknown;
+
+    const buildReviewDoc = (input: {
+      parsedHeader: Record<string, unknown>;
+      parseWarnings: string[];
+      autoImportEligible: boolean;
+      autoImportConfidence: number;
+      autoImportReasons: string[];
+      reviewRequiredReasons: string[];
+      importDecisionMode: NonNullable<VendorInvoiceImportDoc["importDecisionMode"]>;
+      suggestedAction: string;
+      fieldCorrectionLog: FieldCorrectionLogEntry[];
       originalParsedHeader?: Record<string, unknown>;
       originalParseWarnings?: string[];
-    } = {
+    }): VendorInvoiceImportDoc & {
+      fieldCorrectionLog?: FieldCorrectionLogEntry[];
+      originalParsedHeader?: Record<string, unknown>;
+      originalParseWarnings?: string[];
+    } => ({
       id: reviewId,
       inboundEmailProcessingId: inboundDoc.id,
       gmailMessageId: inboundDoc.gmailMessageId,
@@ -462,18 +471,18 @@ async function writeReviewRecords(
         ? skipFields.humanReviewRequired
         : true,
       duplicate: proc.duplicate,
-      parsedHeader: correctedHeader,
+      parsedHeader: input.parsedHeader,
       parsedLines,
       parsedLineCount: parsedLines.length,
-      parseWarnings: reconciled.parseWarnings,
+      parseWarnings: input.parseWarnings,
       orderNotes: proc.parsed.orderNotes,
       outcome: skipFields ? "skipped" : "needs_review",
-      autoImportEligible: reconciled.autoImportEligible,
-      autoImportConfidence: reconciled.autoImportConfidence,
-      autoImportReasons: reconciled.autoImportReasons,
-      reviewRequiredReasons: reconciled.reviewRequiredReasons,
-      importDecisionMode: reconciled.importDecisionMode,
-      suggestedAction: reconciled.suggestedAction,
+      autoImportEligible: input.autoImportEligible,
+      autoImportConfidence: input.autoImportConfidence,
+      autoImportReasons: input.autoImportReasons,
+      reviewRequiredReasons: input.reviewRequiredReasons,
+      importDecisionMode: input.importDecisionMode,
+      suggestedAction: input.suggestedAction,
       parserFormatId: proc.parserFormatId,
       parserRouteConfidence: proc.parserRouteConfidence,
       detectedVendorName: proc.detectedVendorName,
@@ -481,14 +490,14 @@ async function writeReviewRecords(
       updatedAt: now,
       ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),
       ...(reviewError ? { error: reviewError } : {}),
-      ...(Array.isArray(existingExtras.fieldCorrectionLog)
-        ? { fieldCorrectionLog: existingExtras.fieldCorrectionLog }
+      ...(input.fieldCorrectionLog.length > 0
+        ? { fieldCorrectionLog: input.fieldCorrectionLog }
         : {}),
-      ...(existingExtras.originalParsedHeader
-        ? { originalParsedHeader: existingExtras.originalParsedHeader }
+      ...(input.originalParsedHeader
+        ? { originalParsedHeader: input.originalParsedHeader }
         : {}),
-      ...(Array.isArray(existingExtras.originalParseWarnings)
-        ? { originalParseWarnings: existingExtras.originalParseWarnings }
+      ...(Array.isArray(input.originalParseWarnings)
+        ? { originalParseWarnings: input.originalParseWarnings }
         : {}),
       ...(skipFields
         ? {
@@ -502,7 +511,7 @@ async function writeReviewRecords(
         : ignoreRuleArmed && strongSignals
           ? { ignoreRuleSuppressedBy: STRONG_INVOICE_SIGNALS_REASON }
           : {}),
-    };
+    });
 
     const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);
     await db.runTransaction(async (tx) => {
@@ -518,6 +527,50 @@ async function writeReviewRecords(
       if (freshStatus === "rejected" && !isSystemAutoRejectedImport(freshData)) {
         return;
       }
+
+      // Recompute correction overrides from the fresh in-tx import snapshot so a
+      // concurrent apply cannot be wiped by a stale pre-tx log read.
+      const freshLog = Array.isArray(freshData?.fieldCorrectionLog)
+        ? (freshData!.fieldCorrectionLog as FieldCorrectionLogEntry[])
+        : durableLog;
+      const freshOriginalHeader =
+        freshData?.originalParsedHeader ?? existingExtras.originalParsedHeader;
+      const freshOriginalWarnings = Array.isArray(freshData?.originalParseWarnings)
+        ? freshData!.originalParseWarnings
+        : Array.isArray(existingExtras.originalParseWarnings)
+          ? existingExtras.originalParseWarnings
+          : undefined;
+      const freshCorrectedHeader = applyFieldCorrectionLogToHeader(
+        parserHeader,
+        freshLog,
+      );
+      const freshReconciled = reconcileImportStateAfterCorrection({
+        parsedHeader: freshCorrectedHeader,
+        parseWarnings: proc.parsed.parseWarnings,
+        importStatus: proc.importStatus,
+        confidenceScore: proc.confidenceScore,
+        humanReviewRequired: proc.humanReviewRequired,
+        duplicate: proc.duplicate,
+        parsedLines,
+        parsedLineCount: parsedLines.length,
+        pageId: row.pageId,
+        parserFormatId: proc.parserFormatId,
+        orderNotes: proc.parsed.orderNotes,
+      });
+      const freshReviewDoc = buildReviewDoc({
+        parsedHeader: freshCorrectedHeader,
+        parseWarnings: freshReconciled.parseWarnings,
+        autoImportEligible: freshReconciled.autoImportEligible,
+        autoImportConfidence: freshReconciled.autoImportConfidence,
+        autoImportReasons: freshReconciled.autoImportReasons,
+        reviewRequiredReasons: freshReconciled.reviewRequiredReasons,
+        importDecisionMode: freshReconciled.importDecisionMode,
+        suggestedAction: freshReconciled.suggestedAction,
+        fieldCorrectionLog: freshLog,
+        originalParsedHeader: freshOriginalHeader,
+        originalParseWarnings: freshOriginalWarnings,
+      });
+
       // User re-opened a system skip (pending, no skipReason) — do not re-auto-skip.
       if (
         freshSnap.exists &&
@@ -526,7 +579,7 @@ async function writeReviewRecords(
         !isNewImport
       ) {
         const reopenSafeDoc = {
-          ...reviewDoc,
+          ...freshReviewDoc,
           reviewStatus: "pending_review" as const,
           humanReviewRequired: true,
           outcome: "needs_review" as const,
@@ -538,7 +591,7 @@ async function writeReviewRecords(
         tx.set(reviewRef, firestoreSafeValue(reopenSafeDoc));
         return;
       }
-      tx.set(reviewRef, firestoreSafeValue(reviewDoc));
+      tx.set(reviewRef, firestoreSafeValue(freshReviewDoc));
     });
 
     if (autoSkipDocument && matchedRuleId) {

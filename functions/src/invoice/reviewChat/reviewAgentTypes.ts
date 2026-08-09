@@ -59,8 +59,25 @@ export interface ReviewAgentModelResponse {
 }
 
 export interface ReviewAgentContextPacket {
+  /** CURRENT authoritative parsed header (includes applied C2 corrections). */
   parsedHeader: Record<string, unknown>;
+  /**
+   * Original parser snapshot when a correction has been applied.
+   * Historical only — never treat as current truth.
+   */
+  originalParsedHeader?: Record<string, unknown>;
+  /** Durable applied corrections for this import (latest-per-field history). */
+  fieldCorrectionLog?: Array<{
+    field: string;
+    previousValue?: string;
+    newValue: string;
+    at?: string;
+    correctionId?: string;
+  }>;
+  /** Historical parser warnings captured at first correction (audit). */
+  originalParseWarnings?: string[];
   relevantLines: Array<Record<string, unknown>>;
+  /** CURRENT unresolved parse warnings (not historical originals). */
   parseWarnings: string[];
   reviewIssues: string[];
   textWindows: Array<{ start: number; end: number; text: string }>;

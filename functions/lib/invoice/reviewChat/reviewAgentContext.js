@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.seedTermsFromAuthoritativeState = seedTermsFromAuthoritativeState;
 exports.extractTextWindows = extractTextWindows;
 exports.buildReviewAgentContextPacket = buildReviewAgentContextPacket;
 exports.findEvidenceSpan = findEvidenceSpan;
@@ -44,13 +45,49 @@ function tokenizeQuery(message) {
         .filter((t) => t.length >= 3)
         .slice(0, 12);
 }
+/** Seed terms from current header + applied corrections (always searched). */
+function seedTermsFromAuthoritativeState(input) {
+    const seeds = [];
+    const header = asRecord(input.parsedHeader);
+    for (const field of correctionAllowlist_1.INVOICE_CORRECTABLE_FIELD_KEYS) {
+        const value = (0, correctionAllowlist_1.headerFieldAsString)(header, field);
+        if (value)
+            seeds.push(value);
+    }
+    if (Array.isArray(input.fieldCorrectionLog)) {
+        for (const entry of input.fieldCorrectionLog) {
+            if (typeof entry?.newValue === "string" && entry.newValue.trim()) {
+                seeds.push(entry.newValue.trim());
+            }
+        }
+    }
+    // Always search common PO label so later "why missing?" turns still see evidence.
+    seeds.push("CUSTOMER P/O", "CUSTOMER PO");
+    return [...new Set(seeds.map((s) => s.trim()).filter(Boolean))];
+}
 /** Find bounded windows around query tokens in extracted invoice text. */
-function extractTextWindows(combinedExtractedText, message) {
+function extractTextWindows(combinedExtractedText, message, seedTerms = []) {
     const text = combinedExtractedText ?? "";
     if (!text.trim())
         return [];
     const upper = text.toUpperCase();
     const tokens = tokenizeQuery(message);
+    // Seeded authoritative values may be short (e.g. "22") — keep ≥2 when seeded.
+    for (const seed of seedTerms) {
+        const parts = seed
+            .toUpperCase()
+            .replace(/[^A-Z0-9\s./-]/g, " ")
+            .split(/\s+/)
+            .map((t) => t.trim())
+            .filter((t) => t.length >= 2);
+        for (const part of parts) {
+            if (!tokens.includes(part))
+                tokens.push(part);
+        }
+        const whole = seed.toUpperCase().trim();
+        if (whole.length >= 2 && !tokens.includes(whole))
+            tokens.push(whole);
+    }
     const hits = [];
     for (const token of tokens) {
         let from = 0;
@@ -128,17 +165,45 @@ function buildReviewAgentContextPacket(input) {
         }
     }
     const recentTurns = input.recentTurns.slice(-constants_1.REVIEW_CHAT_RECENT_TURNS);
+    const seedTerms = seedTermsFromAuthoritativeState({
+        parsedHeader: input.parsedHeader,
+        fieldCorrectionLog: input.fieldCorrectionLog,
+    });
     const packet = {
         parsedHeader: subsetHeader(input.parsedHeader),
         relevantLines: pickRelevantLines(input.parsedLines, input.dispatcherMessage),
         parseWarnings,
         reviewIssues,
-        textWindows: extractTextWindows(input.combinedExtractedText, input.dispatcherMessage),
+        textWindows: extractTextWindows(input.combinedExtractedText, input.dispatcherMessage, seedTerms),
         recentTurns,
         rollingSummary: (input.rollingSummary || "").slice(0, 1_500),
         sourceTextAvailable: Boolean(input.combinedExtractedText?.trim()),
         correctableFields: [...correctionAllowlist_1.INVOICE_CORRECTABLE_FIELD_KEYS],
     };
+    const originalSubset = subsetHeader(input.originalParsedHeader);
+    if (Object.keys(originalSubset).length > 0) {
+        packet.originalParsedHeader = originalSubset;
+    }
+    if (Array.isArray(input.fieldCorrectionLog) &&
+        input.fieldCorrectionLog.length > 0) {
+        packet.fieldCorrectionLog = input.fieldCorrectionLog.slice(-20).map((e) => ({
+            field: e.field,
+            newValue: e.newValue,
+            ...(typeof e.previousValue === "string"
+                ? { previousValue: e.previousValue }
+                : {}),
+            ...(typeof e.at === "string" ? { at: e.at } : {}),
+            ...(typeof e.correctionId === "string"
+                ? { correctionId: e.correctionId }
+                : {}),
+        }));
+    }
+    if (Array.isArray(input.originalParseWarnings)) {
+        const originals = input.originalParseWarnings.filter((w) => typeof w === "string" && Boolean(w.trim()));
+        if (originals.length > 0) {
+            packet.originalParseWarnings = originals;
+        }
+    }
     // Soft-trim if serialized packet is oversized.
     let serialized = JSON.stringify(packet);
     while (serialized.length > constants_1.MAX_REVIEW_CHAT_CONTEXT_CHARS &&
