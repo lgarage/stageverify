@@ -97,6 +97,7 @@ import {
   removeDispatcher,
 } from "./dispatcherUserAdmin";
 import { setAdminPin } from "./setAdminPin";
+import { bootstrapFirstAdmin } from "./bootstrapFirstAdmin";
 import { getTechnicianReleasedJobs } from "./getTechnicianReleasedJobs";
 import { releaseJobsToTechnician } from "./releaseJobsToTechnician";
 import { recordTechnicianJobOpen } from "./recordTechnicianJobOpen";
@@ -263,6 +264,7 @@ export {
   deactivateDispatcher,
   removeDispatcher,
   setAdminPin,
+  bootstrapFirstAdmin,
   getTechnicianReleasedJobs,
   recordTechnicianJobOpen,
   releaseJobsToTechnician,

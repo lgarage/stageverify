@@ -5,3 +5,4 @@ Append-only session log (Dan standing preference). Not a planning SSOT.
 | Date | Task type | Archetype | Tier | Cheapest model | confStart | confAfter | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-08-09 | Named Admin access-control redesign (auth/PIN/roles) | backend-write-critical | T3 | Composer 2.5 Fast (inline) + Sonnet D-60/D-38 | 92 | 98 | High-risk; Agree-with-revisions packet; PR #73; no deploy |
+| 2026-08-09 | Atomic bootstrap + Admin identity integrity (PR #73 required fixes) | backend-write-critical | T3 | Composer 2.5 Fast (inline) + Sonnet D-60/D-38 | 97 | 99 | Approved fix list; dedicated bootstrapFirstAdmin; no deploy |

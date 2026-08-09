@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.removeDispatcher = exports.deactivateDispatcher = exports.updateDispatcherAccess = exports.provisionDispatcher = exports.listDispatchers = void 0;
+exports.assertCanGrantAdminRole = assertCanGrantAdminRole;
+exports.assertCanMutateAdminIdentity = assertCanMutateAdminIdentity;
 /**
  * Manager/Admin dispatcher account provisioning (D-60).
  * Admin SDK creates Auth users + dispatcherRoles docs — no client writes.
@@ -49,18 +51,21 @@ async function actorFullName(uid) {
     return typeof data?.fullName === "string" ? data.fullName : undefined;
 }
 /**
- * Escalating to Admin requires an active Admin caller, OR zero-Admin bootstrap
- * by an active Manager (first Admin only).
+ * Escalating to Admin via provision/update requires an active Admin caller.
+ * Zero-Admin first grant is ONLY via atomic bootstrapFirstAdmin.
  */
 async function assertCanGrantAdminRole(callerUid) {
     if (await (0, dispatcherAuth_1.hasAdminRole)(callerUid))
         return;
-    const activeAdmins = await (0, humanAccessIdentity_1.countActiveAdmins)();
-    if (activeAdmins === 0) {
-        // Zero-Admin bootstrap: any Manager (including legacy manager flag) may create first Admin.
+    throw new https_1.HttpsError("permission-denied", "Only an Admin can grant the Admin role. Use bootstrapFirstAdmin when no Admin exists.");
+}
+/** Managers must not mutate Admin identity or privilege fields. */
+async function assertCanMutateAdminIdentity(callerUid, targetRole) {
+    if (targetRole !== "admin")
         return;
-    }
-    throw new https_1.HttpsError("permission-denied", "Only an Admin can grant the Admin role.");
+    if (await (0, dispatcherAuth_1.hasAdminRole)(callerUid))
+        return;
+    throw new https_1.HttpsError("permission-denied", "Only an Admin can change an Admin's identity or role.");
 }
 /** Manager lists all dispatcher role registry entries. */
 exports.listDispatchers = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
@@ -183,6 +188,7 @@ exports.provisionDispatcher = (0, https_1.onCall)({ region: "us-central1" }, asy
 /**
  * Update named identity fields / role on an existing Auth human (same uid).
  * Manager→Admin preserves identity; Admin→Manager strips Admin PIN secret.
+ * Managers cannot mutate Admin identity/role (Admin authorization required).
  */
 exports.updateDispatcherAccess = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
     const callerUid = await (0, dispatcherAuth_1.requireManagerAuth)(request);
@@ -190,6 +196,9 @@ exports.updateDispatcherAccess = (0, https_1.onCall)({ region: "us-central1" }, 
     const targetUid = typeof data.uid === "string" ? data.uid.trim() : "";
     if (!targetUid) {
         throw new https_1.HttpsError("invalid-argument", "Dispatcher uid is required.");
+    }
+    if (data.email !== undefined) {
+        throw new https_1.HttpsError("invalid-argument", "Email cannot be changed through access update.");
     }
     const roleRef = getDb().collection(DISPATCHER_ROLES_COLLECTION).doc(targetUid);
     const roleSnap = await roleRef.get();
@@ -202,11 +211,24 @@ exports.updateDispatcherAccess = (0, https_1.onCall)({ region: "us-central1" }, 
     }
     const prevRole = (0, dispatcherAuth_1.resolveDispatcherAccessRole)(existing);
     const nextRole = (0, humanAccessIdentity_1.parseDispatcherAccessRole)(data.role) ?? prevRole;
+    const callerIsAdmin = await (0, dispatcherAuth_1.hasAdminRole)(callerUid);
+    // Admin identity integrity: Managers cannot rename/re-role/demote Admins.
+    if (prevRole === "admin" && !callerIsAdmin) {
+        const touchingIdentity = data.fullName !== undefined ||
+            nextRole !== prevRole ||
+            data.adminPin !== undefined;
+        if (touchingIdentity) {
+            await assertCanMutateAdminIdentity(callerUid, prevRole);
+        }
+    }
     const patch = {
         updatedAt: new Date().toISOString(),
         updatedBy: callerUid,
     };
     if (data.fullName !== undefined) {
+        if (prevRole === "admin") {
+            await assertCanMutateAdminIdentity(callerUid, prevRole);
+        }
         patch.fullName = (0, humanAccessIdentity_1.validateHumanFullName)(data.fullName);
     }
     if (nextRole !== prevRole) {
@@ -218,10 +240,7 @@ exports.updateDispatcherAccess = (0, https_1.onCall)({ region: "us-central1" }, 
         }
         if (prevRole === "admin" && nextRole !== "admin") {
             await (0, humanAccessIdentity_1.assertNotLastActiveAdmin)(targetUid, existing);
-            // Only Admins may demote Admins (except self-bootstrap edge: last admin blocked above).
-            if (!(await (0, dispatcherAuth_1.hasAdminRole)(callerUid))) {
-                throw new https_1.HttpsError("permission-denied", "Only an Admin can change an Admin's role.");
-            }
+            await assertCanMutateAdminIdentity(callerUid, prevRole);
         }
         Object.assign(patch, (0, humanAccessIdentity_1.rolePatch)(nextRole));
     }

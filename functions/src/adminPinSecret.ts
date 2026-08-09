@@ -30,11 +30,12 @@ export type AdminPinSecretDoc = {
   updatedAt: string;
 };
 
-/** Persist caller's Admin PIN (hash-only). targetId always = uid. */
-export async function setOwnAdminPin(
+/** Build hash-only Admin PIN doc (for transactional writes). Never logs PIN. */
+export function buildAdminPinSecretDoc(
   uid: string,
   pinRaw: unknown,
-): Promise<void> {
+  updatedAt = new Date().toISOString(),
+): AdminPinSecretDoc {
   const pin = asAdminPin(pinRaw);
   if (!pin) {
     throw new HttpsError(
@@ -42,14 +43,21 @@ export async function setOwnAdminPin(
       "Admin PIN must be exactly 6 digits.",
     );
   }
-  const now = new Date().toISOString();
-  const doc: AdminPinSecretDoc = {
+  return {
     targetType: "admin",
     targetId: uid,
     pinHash: hashPinForStorage(pin),
     revealable: false,
-    updatedAt: now,
+    updatedAt,
   };
+}
+
+/** Persist caller's Admin PIN (hash-only). targetId always = uid. */
+export async function setOwnAdminPin(
+  uid: string,
+  pinRaw: unknown,
+): Promise<void> {
+  const doc = buildAdminPinSecretDoc(uid, pinRaw);
   await getDb()
     .collection(ACCESS_PIN_SECRETS_COLLECTION)
     .doc(adminPinSecretDocId(uid))

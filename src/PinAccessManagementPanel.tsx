@@ -18,12 +18,14 @@ import type {
 } from "./dispatcher/models";
 import {
   createTechnician,
+  getMyDispatcherRole,
   listTechnicians,
   listVendors,
   updateTechnician,
   updateVendor,
 } from "./dispatcher/firestoreService";
 import {
+  bootstrapFirstAdminClient,
   deactivateManagementPinClient,
   deactivateDispatcherClient,
   listDispatchersClient,
@@ -348,6 +350,11 @@ export function PinAccessManagementPanel({
     useState<DispatcherAccessRole>("dispatcher");
   const [authEditAdminPin, setAuthEditAdminPin] = useState("");
   const [wizardAdminPin, setWizardAdminPin] = useState("");
+  const [myAccessRole, setMyAccessRole] =
+    useState<DispatcherAccessRole | null>(null);
+  const [bootstrapFullName, setBootstrapFullName] = useState("");
+  const [bootstrapAdminPin, setBootstrapAdminPin] = useState("");
+  const [bootstrapBusy, setBootstrapBusy] = useState(false);
 
   const clearRevealHideTimer = useCallback(() => {
     if (revealHideTimerRef.current !== null) {
@@ -520,6 +527,31 @@ export function PinAccessManagementPanel({
   useEffect(() => {
     void Promise.resolve().then(reload);
   }, [reload]);
+
+  useEffect(() => {
+    void getMyDispatcherRole().then((role) => {
+      if (!role || role.active === false) {
+        setMyAccessRole(null);
+        return;
+      }
+      if (role.role === "admin") {
+        setMyAccessRole("admin");
+        return;
+      }
+      if (role.role === "manager" || role.manager === true) {
+        setMyAccessRole("manager");
+        return;
+      }
+      setMyAccessRole(role.role === "dispatcher" ? "dispatcher" : "dispatcher");
+    });
+  }, []);
+
+  const hasActiveAdmin = dispatchers.some(
+    (row) => row.active && row.role === "admin",
+  );
+  const showFirstAdminBootstrap =
+    canManageDispatchers && !hasActiveAdmin && !loading && !authLoading;
+  const iAmAdmin = myAccessRole === "admin";
 
   const rows: AccessRow[] = [
     ...dispatchers.map((dispatcher): AccessRow => ({
@@ -1126,7 +1158,7 @@ export function PinAccessManagementPanel({
           >
             {canManageDispatchers && (
               <>
-                <option value="admin">Admin</option>
+                {iAmAdmin && <option value="admin">Admin</option>}
                 <option value="manager">Manager</option>
                 <option value="dispatcher">Dispatcher</option>
               </>
@@ -1456,21 +1488,68 @@ export function PinAccessManagementPanel({
     }
   };
 
+  const runFirstAdminBootstrap = async () => {
+    if (isVagueHumanName(bootstrapFullName)) {
+      setError("Enter a full name (first and last).");
+      return;
+    }
+    if (!/^\d{6}$/.test(bootstrapAdminPin.trim())) {
+      setError("Admin PIN must be exactly 6 digits.");
+      return;
+    }
+    setBootstrapBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await bootstrapFirstAdminClient({
+        fullName: bootstrapFullName.trim(),
+        adminPin: bootstrapAdminPin.trim(),
+      });
+      setMessage(
+        `First Admin bootstrapped: ${result.fullName}. Admin Access is now available.`,
+      );
+      setBootstrapAdminPin("");
+      await reload();
+      setMyAccessRole("admin");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not bootstrap first Admin.",
+      );
+    } finally {
+      setBootstrapBusy(false);
+    }
+  };
+
   const renderAuthDetail = (account: DispatcherAccountSummary) => {
     const type = authTypeFromAccount(account);
+    const adminIdentityLocked = account.role === "admin" && !iAmAdmin;
     return (
       <div
         data-testid={`pin-access-auth-detail-${account.uid}`}
         style={{ display: "grid", gap: 14 }}
       >
+        {adminIdentityLocked && (
+          <p
+            data-testid={`pin-access-admin-identity-locked-${account.uid}`}
+            style={{ margin: 0, color: MUTED, fontSize: 13 }}
+          >
+            Admin identity is protected. Only an Admin can change this name or
+            role.
+          </p>
+        )}
         <label style={{ display: "grid", gap: 6, maxWidth: 520, color: TEXT }}>
           Full Name
           <input
             data-testid={`dispatcher-edit-full-name-${account.uid}`}
             type="text"
+            readOnly={adminIdentityLocked}
             value={authEditFullName}
             onChange={(event) => setAuthEditFullName(event.target.value)}
-            style={inputStyle}
+            style={{
+              ...inputStyle,
+              color: "var(--admin-text-data)",
+              opacity: adminIdentityLocked ? 0.85 : 1,
+            }}
           />
         </label>
         <label style={{ display: "grid", gap: 6, maxWidth: 520, color: TEXT }}>
@@ -1487,17 +1566,21 @@ export function PinAccessManagementPanel({
           <select
             data-testid={`dispatcher-edit-role-${account.uid}`}
             value={authEditRole}
+            disabled={adminIdentityLocked}
             onChange={(event) =>
               setAuthEditRole(event.target.value as DispatcherAccessRole)
             }
             style={inputStyle}
           >
-            <option value="admin">Admin</option>
+            {(iAmAdmin || account.role === "admin") && (
+              <option value="admin">Admin</option>
+            )}
             <option value="manager">Manager</option>
             <option value="dispatcher">Dispatcher</option>
           </select>
         </label>
         {(authEditRole === "admin" &&
+          iAmAdmin &&
           (account.role !== "admin" ||
             auth.currentUser?.uid === account.uid)) && (
           <label style={{ display: "grid", gap: 6, maxWidth: 320, color: TEXT }}>
@@ -1538,20 +1621,22 @@ export function PinAccessManagementPanel({
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button
-            data-testid={`dispatcher-save-${account.uid}`}
-            type="button"
-            disabled={busyId === account.uid}
-            onClick={() => void saveAuthEdits(account)}
-            style={primaryButtonStyle}
-          >
-            {busyId === account.uid ? "Saving…" : "Save Changes"}
-          </button>
+          {!adminIdentityLocked && (
+            <button
+              data-testid={`dispatcher-save-${account.uid}`}
+              type="button"
+              disabled={busyId === account.uid}
+              onClick={() => void saveAuthEdits(account)}
+              style={primaryButtonStyle}
+            >
+              {busyId === account.uid ? "Saving…" : "Save Changes"}
+            </button>
+          )}
           {account.active ? (
             <button
               data-testid={`dispatcher-deactivate-${account.uid}`}
               type="button"
-              disabled={busyId === account.uid}
+              disabled={busyId === account.uid || adminIdentityLocked}
               onClick={() =>
                 void toggleActive({
                   type,
@@ -2195,6 +2280,67 @@ export function PinAccessManagementPanel({
           </button>
         </div>
 
+        {showFirstAdminBootstrap && (
+          <div
+            data-testid="pin-access-first-admin-bootstrap"
+            style={{
+              margin: "16px 20px 0",
+              padding: 16,
+              border: "1px solid var(--admin-border)",
+              borderRadius: 8,
+              backgroundColor: "var(--admin-surface-2)",
+              display: "grid",
+              gap: 12,
+              maxWidth: 520,
+            }}
+          >
+            <strong style={{ color: "var(--admin-accent-soft)", fontSize: 14 }}>
+              Bootstrap first Admin
+            </strong>
+            <p style={{ margin: 0, color: MUTED, fontSize: 12 }}>
+              No active Admin exists. As a Manager, promote your signed-in
+              account to the first named Admin. This can succeed only once.
+            </p>
+            <label style={{ display: "grid", gap: 6, color: TEXT }}>
+              Full Name
+              <input
+                data-testid="bootstrap-admin-full-name"
+                type="text"
+                value={bootstrapFullName}
+                onChange={(event) => setBootstrapFullName(event.target.value)}
+                style={inputStyle}
+                placeholder="Dan Day"
+              />
+            </label>
+            <label style={{ display: "grid", gap: 6, color: TEXT }}>
+              Admin PIN (6 digits)
+              <input
+                data-testid="bootstrap-admin-pin"
+                type="password"
+                inputMode="numeric"
+                autoComplete="new-password"
+                maxLength={6}
+                value={bootstrapAdminPin}
+                onChange={(event) =>
+                  setBootstrapAdminPin(
+                    event.target.value.replace(/\D/g, "").slice(0, 6),
+                  )
+                }
+                style={inputStyle}
+                placeholder="••••••"
+              />
+            </label>
+            <button
+              data-testid="bootstrap-admin-submit"
+              type="button"
+              disabled={bootstrapBusy}
+              onClick={() => void runFirstAdminBootstrap()}
+              style={primaryButtonStyle}
+            >
+              {bootstrapBusy ? "Bootstrapping…" : "Bootstrap First Admin"}
+            </button>
+          </div>
+        )}
         {error && (
           <p
             role="alert"

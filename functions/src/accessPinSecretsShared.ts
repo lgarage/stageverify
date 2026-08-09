@@ -44,7 +44,11 @@ export type PinAccessAuditAction =
   | "role_changed_to_admin"
   | "role_changed_from_admin"
   | "admin_pin_set"
-  | "admin_pin_set_denied";
+  | "admin_pin_set_denied"
+  | "admin_bootstrap";
+
+export const ACCESS_CONTROL_LOCKS_COLLECTION = "accessControlLocks";
+export const FIRST_ADMIN_BOOTSTRAP_LOCK_ID = "firstAdmin";
 
 export type PinAccessAuditDoc = {
   action: PinAccessAuditAction;

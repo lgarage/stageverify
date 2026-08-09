@@ -268,6 +268,19 @@ export async function setAdminPinClient(
   return callCallable("setAdminPin", { ...input });
 }
 
+export async function bootstrapFirstAdminClient(input: {
+  uid?: string;
+  fullName: string;
+  adminPin: string;
+}): Promise<{
+  success: true;
+  uid: string;
+  fullName: string;
+  role: "admin";
+}> {
+  return callCallable("bootstrapFirstAdmin", { ...input });
+}
+
 export async function deactivateDispatcherClient(input: {
   uid: string;
 }): Promise<{ success: boolean }> {

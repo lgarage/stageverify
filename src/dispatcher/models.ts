@@ -1666,6 +1666,19 @@ export interface SetAdminPinResult {
   success: boolean;
 }
 
+export interface BootstrapFirstAdminRequest {
+  uid?: string;
+  fullName: string;
+  adminPin: string;
+}
+
+export interface BootstrapFirstAdminResult {
+  success: true;
+  uid: string;
+  fullName: string;
+  role: "admin";
+}
+
 export interface ConfirmVendorIgnoreRuleResult {
   vendorKey: string;
   ignoreCreditReturns?: boolean;

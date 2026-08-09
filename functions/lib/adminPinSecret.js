@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.asAdminPin = asAdminPin;
 exports.adminPinSecretDocId = adminPinSecretDocId;
+exports.buildAdminPinSecretDoc = buildAdminPinSecretDoc;
 exports.setOwnAdminPin = setOwnAdminPin;
 exports.verifyOwnAdminPinForSession = verifyOwnAdminPinForSession;
 exports.clearOwnAdminPin = clearOwnAdminPin;
@@ -25,20 +26,23 @@ function asAdminPin(value) {
 function adminPinSecretDocId(uid) {
     return `admin_${uid}`;
 }
-/** Persist caller's Admin PIN (hash-only). targetId always = uid. */
-async function setOwnAdminPin(uid, pinRaw) {
+/** Build hash-only Admin PIN doc (for transactional writes). Never logs PIN. */
+function buildAdminPinSecretDoc(uid, pinRaw, updatedAt = new Date().toISOString()) {
     const pin = asAdminPin(pinRaw);
     if (!pin) {
         throw new https_1.HttpsError("invalid-argument", "Admin PIN must be exactly 6 digits.");
     }
-    const now = new Date().toISOString();
-    const doc = {
+    return {
         targetType: "admin",
         targetId: uid,
         pinHash: (0, pinHashing_1.hashPinForStorage)(pin),
         revealable: false,
-        updatedAt: now,
+        updatedAt,
     };
+}
+/** Persist caller's Admin PIN (hash-only). targetId always = uid. */
+async function setOwnAdminPin(uid, pinRaw) {
+    const doc = buildAdminPinSecretDoc(uid, pinRaw);
     await (0, accessPinSecretsShared_1.getDb)()
         .collection(accessPinSecretsShared_1.ACCESS_PIN_SECRETS_COLLECTION)
         .doc(adminPinSecretDocId(uid))
