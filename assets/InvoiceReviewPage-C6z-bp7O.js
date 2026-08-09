@@ -1,0 +1,1 @@
+import{Kn as e,ya as t}from"./index-BCf8_3L6.js";var n=e();function r(){return(0,n.jsx)(t,{to:`/dispatcher?focus=needs-review`,replace:!0})}export{r as InvoiceReviewPage};
