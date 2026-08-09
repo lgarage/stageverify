@@ -3,6 +3,7 @@
  * Persistent per-import thread; no field mutation / ignore / approve side effects.
  */
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useAdminAppearance } from "../../adminAppearance";
 import {
   reviewAgentTurn,
   subscribeInvoiceReviewChatMessages,
@@ -34,6 +35,7 @@ export function InvoiceReviewChatPanel({
   importId: string;
   readOnly?: boolean;
 }) {
+  const { appearance } = useAdminAppearance();
   const [messages, setMessages] = useState<InvoiceReviewChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -44,14 +46,15 @@ export function InvoiceReviewChatPanel({
 
   useEffect(() => {
     setLoadError(null);
+    setMessages([]);
     const unsub = subscribeInvoiceReviewChatMessages(
       importId,
       (next) => {
         setMessages(next);
+        setLoadError(null);
       },
       (err) => {
         const raw = err.message || "Could not load chat history.";
-        // Pre-deploy / rules-not-live: show a clear ops message (PR-only branches).
         if (/insufficient permissions|permission-denied/i.test(raw)) {
           setLoadError(
             "Chat history unavailable until Invoice Review Chat rules are deployed.",
@@ -110,6 +113,8 @@ export function InvoiceReviewChatPanel({
   return (
     <section
       data-testid="invoice-review-chat-panel"
+      data-admin-appearance={appearance}
+      data-theme-appearance={appearance}
       style={{
         margin: "0 0 20px",
         border: "1px solid var(--admin-border)",
@@ -175,9 +180,9 @@ export function InvoiceReviewChatPanel({
             style={{
               padding: "10px 12px",
               borderRadius: 8,
-              border: "1px solid var(--admin-danger-border, #f1aeb5)",
-              backgroundColor: "var(--admin-danger-bg, #fff5f5)",
-              color: "var(--admin-danger-text, #9b1c1c)",
+              border: "1px solid var(--admin-danger-border)",
+              backgroundColor: "var(--admin-danger-bg)",
+              color: "var(--admin-danger-text)",
               fontSize: 13,
               fontWeight: 600,
             }}
@@ -236,9 +241,11 @@ export function InvoiceReviewChatPanel({
                   borderRadius: 10,
                   border: "1px solid var(--admin-border)",
                   backgroundColor: isUser
-                    ? "var(--admin-surface-2)"
-                    : "var(--admin-surface)",
-                  color: "var(--admin-text-data)",
+                    ? "var(--admin-info-bg)"
+                    : "var(--admin-surface-2)",
+                  color: isUser
+                    ? "var(--admin-info-text)"
+                    : "var(--admin-text-data)",
                   fontSize: 13,
                   fontWeight: 500,
                   lineHeight: 1.45,
@@ -254,7 +261,7 @@ export function InvoiceReviewChatPanel({
                   style={{
                     fontSize: 12,
                     fontWeight: 600,
-                    color: "var(--admin-danger-text, #9b1c1c)",
+                    color: "var(--admin-danger-text)",
                   }}
                 >
                   AI unavailable — fail-closed reply stored.
@@ -320,9 +327,9 @@ export function InvoiceReviewChatPanel({
             style={{
               padding: "8px 10px",
               borderRadius: 8,
-              border: "1px solid var(--admin-danger-border, #f1aeb5)",
-              backgroundColor: "var(--admin-danger-bg, #fff5f5)",
-              color: "var(--admin-danger-text, #9b1c1c)",
+              border: "1px solid var(--admin-danger-border)",
+              backgroundColor: "var(--admin-danger-bg)",
+              color: "var(--admin-danger-text)",
               fontSize: 12,
               fontWeight: 600,
             }}
@@ -368,7 +375,7 @@ export function InvoiceReviewChatPanel({
               borderRadius: 8,
               border: "none",
               backgroundColor: "var(--admin-navy, #0a3161)",
-              color: "#fff",
+              color: "var(--admin-on-navy, #fff)",
               fontSize: 13,
               fontWeight: 700,
               cursor:

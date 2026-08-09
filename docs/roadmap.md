@@ -136,7 +136,7 @@ _These fields are recommendations to evaluate at gate review — not committed s
 
 Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** (pickup resolution readback + `verify:phase4-integration`). **Active away queue** may prioritize work ahead of phase gates — see `PROJECT_STATUS/CURRENT_STATE.md` + `npm run away:next`.
 
-- **Lane C C1 (PR):** Invoice Review Chat — persistent per-import thread + `reviewAgentTurn` (read/explain only). Post-merge needs CF + `firestore.rules` deploy for live chat. C2 Apply / C3 learning not started; C3 blocked on D-59 #7/#8 amend.
+- **Lane C C1 (PR):** Invoice Review Chat — persistent per-import thread + `reviewAgentTurn` (read/explain only); Training note behind Advanced. In-modal multi-turn verified via mock+sessionStorage (prod schema). Post-merge needs CF + `firestore.rules` deploy for live chat. C2 Apply / C3 learning not started; C3 blocked on D-59 #7/#8 amend.
 
 ### Phase 3 Slice 1 — Report Issue + dispatcher visibility ✅ (shipped 2026-06-08)
 

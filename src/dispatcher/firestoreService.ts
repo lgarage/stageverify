@@ -99,6 +99,11 @@ import {
 } from "./models";
 import { findStagingLocationByCode } from "./stagingCode";
 import { isCreditReturnLinkedImport } from "./invoice/deliveryCreditReturn";
+import {
+  isReviewChatMockEnabled,
+  reviewAgentTurnMock,
+  subscribeReviewChatMock,
+} from "./invoice/reviewChatClientStore";
 import { resolvePickupClientOperationId } from "./pickupClientOperationId";
 import {
   computeJobReadiness,
@@ -2830,6 +2835,9 @@ export async function reviewAgentTurn(input: {
   vendorInvoiceImportId: string;
   message: string;
 }): Promise<ReviewAgentTurnResult> {
+  if (isReviewChatMockEnabled()) {
+    return reviewAgentTurnMock(input);
+  }
   const response = await reviewAgentTurnCallable(input);
   return response.data;
 }
@@ -2891,6 +2899,10 @@ export function subscribeInvoiceReviewChatMessages(
   onChange: (messages: InvoiceReviewChatMessage[]) => void,
   onError?: (err: Error) => void,
 ): () => void {
+  if (isReviewChatMockEnabled()) {
+    return subscribeReviewChatMock(importId, onChange);
+  }
+
   const q = query(
     collection(db, "vendorInvoiceImportChats", importId, "messages"),
     orderBy("createdAt", "asc"),
