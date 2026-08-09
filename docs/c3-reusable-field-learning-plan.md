@@ -14,12 +14,12 @@
 | ----- | ------ |
 | **C3-A** | **COMPLETE** — D-59 #7/#8 amend + threshold/invariants authoritative in `PROJECT_STATUS/DECISIONS.md` (2026-08-09) |
 | **C3-B** | **COMPLETE / LIVE** — Johnstone PO grid-bleed + INVOICE banner; CF syncInboundGmail + reparseVendorInvoiceImportCallable deployed |
-| **C3-C** | **IN PROGRESS — C3-C.1 implemented (indexing + deny-all rules + tests); CF/rules deploy NOT approved yet; C3-C.2 list/UI deferred** |
-| **C3-D** | not started |
+| **C3-C** | **C3-C.1 LIVE** (PR #125 merge `68ddc9b1`, D-81) — CF `applyInvoiceReviewFieldCorrection` + deny-all rules deployed; inert `vendorInvoiceFieldLessonExamples` with `archiveAfterAt` (no TTL/delete). **C3-C.2 list/UI remains deferred** |
+| **C3-D** | **NEXT** — not started (threshold / distinct-`sourceDocumentKey` lifecycle) |
 | **C3-E** | not started |
 | **C3-F** | not started |
 
-**NEXT C3 JOB (after C3-C.1 deploy approval + C3-C.2 or skip to C3-D design):** collect evidence in prod via C3-C.1, then C3-C.2 visibility and/or C3-D lifecycle. Do **not** start C3-E/F here.
+**NEXT C3 JOB:** **C3-D** design/implement (distinct-document ≥3 threshold) — do **not** start until Dan asks. C3-C.2 admin visibility remains deferred. Do **not** start C3-E/F here.
 
 ---
 
