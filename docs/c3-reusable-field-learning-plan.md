@@ -19,7 +19,7 @@
 | **C3-E** | not started |
 | **C3-F** | not started |
 
-**NEXT C3 JOB:** **C3-C** — collect/index verified C2 examples (no parse effect). Do **not** start C3-D/E/F in a C3-C conversation. C3-B engineering complete — CF deploy of parser still needs Dan approval.
+**NEXT C3 JOB:** **C3-C** — collect/index verified C2 examples (no parse effect). Do **not** start C3-D/E/F in a C3-C conversation. C3-B is COMPLETE / LIVE.
 
 ---
 
@@ -541,7 +541,7 @@ Do **not** skip to C3-E without A+D. Do **not** create a lesson store to avoid a
 | C3-E | not started |
 | C3-F | not started |
 
-**NEXT C3 JOB:** **C3-C** — collect/index verified C2 examples (no parse effect). Do not start C3-D/E/F here. C3-B engineering complete — CF deploy still needs Dan approval.
+**NEXT C3 JOB:** **C3-C** — collect/index verified C2 examples (no parse effect). Do not start C3-D/E/F here. C3-B is COMPLETE / LIVE.
 
 **Discovery:** This file is linked from `PROJECT_STATUS/CURRENT_STATE.md` (Queued product / Canonical references) and `docs/roadmap.md` (Lane C notes).
 

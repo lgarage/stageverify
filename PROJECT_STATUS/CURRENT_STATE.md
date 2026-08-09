@@ -84,12 +84,8 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-<<<<<<< HEAD
+- **C3-B Johnstone parser LIVE** — PR #111 merge `04031ca9`; CF `syncInboundGmail` + `reparseVendorInvoiceImportCallable` deployed (C3-B tip hashes then PR #97 redeploy live `ce70ab9f` / `6b5a443e`; srcGen `1786309783217144` / `1786309783253545`). Prod reparse `vii-19fe78ea427b3142-page-0` → PO `2205 EARLY` (not `…PICKUP`). Next **C3-C**. No firestore.rules.
 - **Settings PIN # updated badge LIVE (v0.0.271 / `index-DZiw9ihY.js` / merge `64197430`) — waiting Dan manual acceptance:** hard-refresh → Settings → PIN & Access → successful PIN save → toast `New PIN saved` + green **PIN # updated** right of Deactivate; stays for visit; clears when leaving Settings. Keep Cursor job open until Dan reports pass/fail.
-=======
-- **C3-B Johnstone parser LIVE** — PR #111 merge `04031ca9`; CF `syncInboundGmail` + `reparseVendorInvoiceImportCallable` deployed (hashes `3a168f79` / `295a9102`). Prod reparse `vii-19fe78ea427b3142-page-0` → PO `2205 EARLY` (not `…PICKUP`). Next **C3-C**. No firestore.rules.
-- **Settings PIN Save LIVE — waiting Dan manual acceptance (v0.0.268 / `index-CMA60mN0.js` / merge `3cb3a804`):** hard-refresh Settings → PIN & Access → Johnstone → Admin Access → Confirm New PIN → Save; then location-scan D-78 follow-through (rotate Johnstone off colliding `1234`). No CF/rules deploy. `verify:settings-admin-access` waived (no Admin PIN in Cursor). Keep this Cursor job open until Dan reports pass/fail.
->>>>>>> d5a3dbf6 (docs: mark C3-B LIVE after CF deploy (PR #111))
 - **Assign Location restore LIVE** (PR #96 `59c9221a` / packaged v0.0.264; currently served inside tip **v0.0.265**): hard-refresh dispatcher → Will-Call → Vendor Drop-Off → yellow Assign Location → Staging Map assign → confirm spot → drawer shows location.
 - **Dispatcher check after v0.0.263:** hard-refresh; open First Supply unplanned row (invoice/ref 12345679) — Delivery Details must load (Unplanned + Needs job match + staging), not “Unable to load delivery details.”
 - **Phone check after v0.0.262:** hard-refresh; Johnstone company PIN → Your deliveries: clear card gaps, Back above Delivered (not jammed under browser chrome), completed cards compact green + expand Undo; undelivered stay expanded; Don't see this delivery CTA still available with prior rows.
