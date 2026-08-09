@@ -14,12 +14,12 @@
 | ----- | ------ |
 | **C3-A** | **COMPLETE** — D-59 #7/#8 amend + threshold/invariants authoritative in `PROJECT_STATUS/DECISIONS.md` (2026-08-09) |
 | **C3-B** | **COMPLETE / LIVE** — Johnstone PO grid-bleed + INVOICE banner; CF syncInboundGmail + reparseVendorInvoiceImportCallable deployed |
-| **C3-C** | **NEXT** — not started |
+| **C3-C** | **IN PROGRESS — C3-C.1 implemented (indexing + deny-all rules + tests); CF/rules deploy NOT approved yet; C3-C.2 list/UI deferred** |
 | **C3-D** | not started |
 | **C3-E** | not started |
 | **C3-F** | not started |
 
-**NEXT C3 JOB:** **C3-C** — collect/index verified C2 examples (no parse effect). Do **not** start C3-D/E/F in a C3-C conversation. C3-B is COMPLETE / LIVE.
+**NEXT C3 JOB (after C3-C.1 deploy approval + C3-C.2 or skip to C3-D design):** collect evidence in prod via C3-C.1, then C3-C.2 visibility and/or C3-D lifecycle. Do **not** start C3-E/F here.
 
 ---
 
@@ -274,17 +274,31 @@ Important concepts / fields:
 
 ### Collection: examples / evidence (flexible name)
 
-Suggested: `vendorInvoiceFieldLessonExamples` (top-level or subcollection).
+**Authoritative C3-C.1 name:** `vendorInvoiceFieldLessonExamples` (top-level).
 
 | Concept | Intent |
 | ------- | ------ |
-| Link to C2 | `correctionId`, `vendorInvoiceImportId` |
+| Link to C2 | `correctionId` (= doc id), `vendorInvoiceImportId` |
+| **Distinct document identity** | **`sourceDocumentKey` = `vendorInvoiceImportId`** — required on every example |
 | Evidence class | `document_evidence` \| `dispatcher_assertion` |
-| Span / citation | Optional copy of C2 evidence span fields |
-| Scope denorm | vendorKey, parserFormatId, field, senderDomain, anchors observed |
-| Timestamps / actor | When confirmed, by whom |
+| Span / citation | Optional copy of C2 evidence span fields (bounded; no full PDF/text) |
+| Scope denorm | vendorKey, parserFormatId, field, senderDomain, `scopeKey` |
+| Timestamps / actor | When confirmed, by whom; `expireAt` native Timestamp (+365d) |
+| Immutability | `.create()` only; multiple corrections on one import → multiple example docs sharing one `sourceDocumentKey` |
 
 **Examples are evidence, not rules.** An example never affects parse by itself.
+
+#### C3-D threshold counting lock (D-80 — encode now, implement in C3-D)
+
+Future ≥3 qualification **MUST** mean independent documents, not correction-event volume:
+
+1. Count **DISTINCT `sourceDocumentKey`** within the same `vendorKey` + `parserFormatId` + `senderDomain` + `field` (+ consistent extraction pattern when C3-D adds anchors).
+2. Positive evidence allowlist for counting: **`document_evidence` only** (`dispatcher_assertion` / other types never count).
+3. **≤1 threshold vote per `sourceDocumentKey`** = the **latest** applied `document_evidence` correctedValue for that field on that document. Earlier same-doc corrections remain immutable history (contradiction/audit) but do not add votes.
+4. Consistent correctedValue across the distinct-document set is required for promotion; contradictory values across documents block promotion.
+5. Do **not** treat raw example-doc / `correctionId` cardinality as confidence.
+
+Residual v1 gap (accepted): a vendor re-send that creates a new `vendorInvoiceImportId` is a new `sourceDocumentKey` (no content-hash fingerprint in C3-C).
 
 ### Do not use as authoritative C3 store
 
@@ -485,7 +499,7 @@ Johnstone already has multi-path PO extraction (`pickPoValue`, tabular/stacked/l
 | **Likely risk tier** | **High-risk** (CF + `firestore.rules` for new collections) |
 | **Likely deploy surface** | Firebase functions + rules; optional Settings UI (gh-pages) |
 | **Prerequisites** | **C3-A** authoritative; preferably C3-B assessed |
-| **Completion status** | **NEXT** — not started |
+| **Completion status** | **C3-C.1 code ready — deploy pending Dan approval**; C3-C.2 (list callable + admin UI) **deferred** |
 
 ### C3-D — Proposed → active lifecycle + audit + circuit breaker
 
@@ -536,12 +550,12 @@ Do **not** skip to C3-E without A+D. Do **not** create a lesson store to avoid a
 | ----- | ------ |
 | C3-A | **COMPLETE** |
 | C3-B | **COMPLETE / LIVE** — PO bleed + INVOICE banner; CF deployed |
-| C3-C | **NEXT** — collect/index verified C2 examples (no parse effect) |
+| C3-C | **C3-C.1 code ready (deploy pending); C3-C.2 deferred** |
 | C3-D | not started |
 | C3-E | not started |
 | C3-F | not started |
 
-**NEXT C3 JOB:** **C3-C** — collect/index verified C2 examples (no parse effect). Do not start C3-D/E/F here. C3-B is COMPLETE / LIVE.
+**NEXT C3 JOB:** C3-C.1 CF/rules deploy (Dan approval) → optional C3-C.2 visibility → C3-D. Do not start C3-E/F here.
 
 **Discovery:** This file is linked from `PROJECT_STATUS/CURRENT_STATE.md` (Queued product / Canonical references) and `docs/roadmap.md` (Lane C notes).
 
@@ -603,7 +617,7 @@ Future agents **must** read this section before implementation.
 
 ```
 C3-A: COMPLETE
-C3-B: COMPLETE / LIVE; NEXT C3 JOB = C3-C
+C3-B: COMPLETE / LIVE; C3-C.1 code ready (deploy pending Dan); C3-C.2 deferred; NEXT after deploy = C3-C.2 or C3-D
 ```
 
 Update the Status table when each phase ships; keep amend wording in sync with `PROJECT_STATUS/DECISIONS.md`.*

@@ -21,6 +21,7 @@ import {
   reconcileImportStateAfterCorrection,
   type ReconciledImportState,
 } from "./reconcileAfterFieldCorrection";
+import { writeFieldLessonExampleIfEligible } from "./indexFieldLessonExample";
 
 export class ApplyCorrectionInputError extends Error {
   code:
@@ -687,6 +688,30 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
     proposed.field,
     sourceMessageId,
   );
+
+  // C3-C.1 — inert evidence index ONLY after real applied===true commit.
+  // Best-effort: never fail C2 Apply if indexing fails (see writeFieldLessonExampleIfEligible).
+  // Do NOT relocate this call into alreadyMatched / audit-exists paths.
+  if (result.applied && evidence.sourceType) {
+    void writeFieldLessonExampleIfEligible({
+      db: input.db,
+      correctionId: result.correctionId,
+      vendorInvoiceImportId: importId,
+      sourceChatMessageId: sourceMessageId,
+      field: proposed.field,
+      originalValue: result.previousValue,
+      correctedValue: result.newValue,
+      evidenceType: evidence.sourceType,
+      evidenceCitationText: evidence.evidenceCitationText,
+      evidenceSpanStart: evidence.evidenceSpanStart,
+      evidenceSpanEnd: evidence.evidenceSpanEnd,
+      actorUid: input.uid,
+      detectedVendorName: importDoc.detectedVendorName,
+      parserFormatId: importDoc.parserFormatId,
+      inboundEmailProcessingId: importDoc.inboundEmailProcessingId,
+      verifiedAt: appliedAt,
+    });
+  }
 
   return result;
 }
