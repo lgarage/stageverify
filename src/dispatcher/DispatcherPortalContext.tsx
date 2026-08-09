@@ -16,7 +16,7 @@ import {
   getEmailProviderConnection,
   triggerInboundGmailSync,
   listVendorInvoiceImports,
-  ensureApprovedUnlinkedInvoiceShells,
+  scheduleInvoiceShellBackfill,
   listVendors,
   listAllZones,
   mapActiveZoneOccupancyByCode,
@@ -50,19 +50,10 @@ type DispatcherPortalContextValue = {
 const DispatcherPortalContext =
   createContext<DispatcherPortalContextValue | null>(null);
 
-async function fetchInvoiceImports(): Promise<{
-  items: VendorInvoiceImportReview[];
-  backfillErrors: string[];
-}> {
+async function fetchInvoiceImports(): Promise<VendorInvoiceImportReview[]> {
   const items = await listVendorInvoiceImports({ limit: 50 });
   items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const { linkedCount, errors } = await ensureApprovedUnlinkedInvoiceShells(items);
-  if (linkedCount > 0) {
-    const refreshed = await listVendorInvoiceImports({ limit: 50 });
-    refreshed.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    return { items: refreshed, backfillErrors: errors };
-  }
-  return { items, backfillErrors: errors };
+  return items;
 }
 
 async function fetchZonesSnapshot(): Promise<DispatcherZonesSnapshot> {
@@ -102,18 +93,21 @@ export function DispatcherPortalProvider({ children }: { children: ReactNode }) 
   }, []);
 
   const refreshSharedData = useCallback(async () => {
-    const [importResult, vendorList, zones] = await Promise.all([
+    const [items, vendorList, zones] = await Promise.all([
       fetchInvoiceImports(),
       listVendors(),
       fetchZonesSnapshot(),
     ]);
-    setInvoiceImports(importResult.items);
-    setInvoiceShellBackfillErrors(
-      importResult.backfillErrors.length > 0 ? importResult.backfillErrors : null,
-    );
+    setInvoiceImports(items);
     setVendors(vendorList);
     setZonesSnapshot(zones);
     setRefreshGeneration((g) => g + 1);
+
+    // Do not block portal paint on serial create_shell CF calls.
+    scheduleInvoiceShellBackfill(items, ({ items: refreshed, errors }) => {
+      if (refreshed) setInvoiceImports(refreshed);
+      setInvoiceShellBackfillErrors(errors.length > 0 ? errors : null);
+    });
   }, []);
 
   const refreshPortalData = useCallback(async () => {

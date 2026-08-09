@@ -30,12 +30,16 @@ import {
   shouldRouteScanToPickup,
   type DeliveryDetails,
   type StagingLocation,
+  type VendorPinBootstrap,
 } from "./dispatcher/models";
+import { deliveryDetailsFromVendorPinBootstrap } from "./dispatcher/vendorPinBootstrap";
+import { shouldReinitItemQtys } from "./dispatcher/itemQtyInit";
 import { VendorNativeQrEntry } from "./VendorNativeQrEntry";
 import { VendorDeliveredHub } from "./VendorDeliveredHub";
 import { isOutsideShopGeofence } from "./geofence";
 import type { VendorDeliveryMode } from "./dispatcher/models";
 import { PublicNetworkErrorPanel } from "./PublicNetworkErrorPanel";
+import type { VendorPinVerifiedPayload } from "./VendorPinGate";
 
 type Step = "scan" | "pin" | "hub" | "items" | "zone" | "done";
 
@@ -109,6 +113,10 @@ export function ReceivingPage() {
   );
   const [pinUnlocking, setPinUnlocking] = useState(false);
   const [pinLoadError, setPinLoadError] = useState<string | null>(null);
+  const [detailsHydrating, setDetailsHydrating] = useState(false);
+  const [bootstrapItemCount, setBootstrapItemCount] = useState<
+    number | undefined
+  >(undefined);
   const [vendorDeliveryMode, setVendorDeliveryMode] =
     useState<VendorDeliveryMode>("full_checkin");
   const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
@@ -118,7 +126,10 @@ export function ReceivingPage() {
 
   const urlDeepLinkHandledRef = useRef(false);
   const activeDeliveryIdRef = useRef<string | null>(null);
-  const itemQtyInitDeliveryIdRef = useRef<string | null>(null);
+  /** Tracks last itemQty init: deliveryId + item count (0→N shell→hydrate re-inits). */
+  const itemQtyInitRef = useRef<{ deliveryId: string; itemCount: number } | null>(
+    null,
+  );
   const enrichedDeliveryIdRef = useRef<string | null>(null);
   const debounceTimersRef = useRef<
     Map<string, ReturnType<typeof setTimeout>>
@@ -140,8 +151,10 @@ export function ReceivingPage() {
   useEffect(() => {
     if (!deliveryDetails) return;
     const deliveryId = deliveryDetails.delivery.id;
-    if (itemQtyInitDeliveryIdRef.current === deliveryId) return;
-    itemQtyInitDeliveryIdRef.current = deliveryId;
+    const itemCount = deliveryDetails.items.length;
+    const prev = itemQtyInitRef.current;
+    if (!shouldReinitItemQtys(prev, deliveryId, itemCount)) return;
+    itemQtyInitRef.current = { deliveryId, itemCount };
     setItemQtys(
       deliveryDetails.items.map((item) => ({
         id: item.id,
@@ -211,7 +224,7 @@ export function ReceivingPage() {
 
   const handlePinSessionExpired = useCallback(() => {
     const deliveryId = activeDeliveryIdRef.current;
-    itemQtyInitDeliveryIdRef.current = null;
+    itemQtyInitRef.current = null;
     enrichedDeliveryIdRef.current = null;
     setDeliveryDetails(null);
     setItemQtys([]);
@@ -316,6 +329,7 @@ export function ReceivingPage() {
       setPinUnlocking(true);
       setPinLoadError(null);
       setLoading(true);
+      setDetailsHydrating(true);
       setError(null);
       let unlocked = false;
       try {
@@ -324,6 +338,7 @@ export function ReceivingPage() {
         if (!details) {
           setPinLoadError("Invalid code.");
           setPinUnlocking(false);
+          setDetailsHydrating(false);
           return;
         }
         const loaded = await loadDeliveryForReceive(details);
@@ -342,14 +357,77 @@ export function ReceivingPage() {
         );
       } finally {
         setLoading(false);
+        setDetailsHydrating(false);
         if (unlocked) {
           setPinUnlocking(false);
           setPendingDeliveryId(null);
           setDeepLinkPending(false);
+          setBootstrapItemCount(undefined);
         }
       }
     },
     [loadDeliveryForReceive],
+  );
+
+  /** Progressive hub: paint from PIN bootstrap, hydrate items in background. */
+  const applyBootstrapThenHydrate = useCallback(
+    async (deliveryId: string, bootstrap: VendorPinBootstrap) => {
+      setPinUnlocking(true);
+      setPinLoadError(null);
+      setError(null);
+      setDetailsHydrating(true);
+      setLoading(true);
+      setBootstrapItemCount(bootstrap.itemCount);
+
+      try {
+        const shell = deliveryDetailsFromVendorPinBootstrap(bootstrap);
+        const loaded = await loadDeliveryForReceive(shell);
+        if (!loaded) {
+          setPinUnlocking(false);
+          setLoading(false);
+          setDetailsHydrating(false);
+          return;
+        }
+        window.history.replaceState(null, "", "#/receive");
+        setPinUnlocking(false);
+        setPendingDeliveryId(null);
+        setDeepLinkPending(false);
+
+        const full = await getDeliveryDetailsPublicForVendorReceive(deliveryId);
+        if (full) {
+          setDeliveryDetails(full);
+          setBootstrapItemCount(undefined);
+        } else {
+          // Hub already painted from bootstrap — keep shell; block writes via loading cleared + empty items.
+          setError("Couldn't refresh delivery details. Pull to retry or re-scan.");
+        }
+      } catch (err) {
+        // If hub already shown, surface on hub; otherwise PIN unlock error.
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Couldn't load delivery. Check your connection and try again.",
+        );
+        setPinUnlocking(false);
+      } finally {
+        setLoading(false);
+        setDetailsHydrating(false);
+      }
+    },
+    [loadDeliveryForReceive],
+  );
+
+  const handlePinVerified = useCallback(
+    (payload: VendorPinVerifiedPayload) => {
+      const deliveryId = payload.deliveryId ?? pendingDeliveryId;
+      if (!deliveryId) return;
+      if (payload.bootstrap?.deliveryId === deliveryId) {
+        void applyBootstrapThenHydrate(deliveryId, payload.bootstrap);
+        return;
+      }
+      void loadDeliveryAfterPin(deliveryId);
+    },
+    [pendingDeliveryId, applyBootstrapThenHydrate, loadDeliveryAfterPin],
   );
 
   const beginDeliveryAccess = useCallback(
@@ -636,13 +714,15 @@ export function ReceivingPage() {
 
   const resetFlow = () => {
     urlDeepLinkHandledRef.current = false;
-    itemQtyInitDeliveryIdRef.current = null;
+    itemQtyInitRef.current = null;
     enrichedDeliveryIdRef.current = null;
     setStep("scan");
     setZoneMissCode(null);
     setPendingDeliveryId(null);
     setPinUnlocking(false);
     setPinLoadError(null);
+    setDetailsHydrating(false);
+    setBootstrapItemCount(undefined);
     setDeliveryDetails(null);
     setItemQtys([]);
     setStagingLocationId(null);
@@ -668,11 +748,13 @@ export function ReceivingPage() {
     (item) => item.qtyReceived + item.qtyDamaged < item.qtyOrdered,
   );
 
-  const allItemsFullyDelivered = itemQtys.every(
-    (item) =>
-      item.qtyReceived + item.qtyDamaged >= item.qtyOrdered &&
-      item.qtyOrdered > 0,
-  );
+  const allItemsFullyDelivered =
+    itemQtys.length > 0 &&
+    itemQtys.every(
+      (item) =>
+        item.qtyReceived + item.qtyDamaged >= item.qtyOrdered &&
+        item.qtyOrdered > 0,
+    );
 
   useEffect(() => {
     if (
@@ -717,10 +799,7 @@ export function ReceivingPage() {
     return (
       <VendorPinGate
         deliveryId={pendingDeliveryId}
-        onVerified={() => {
-          setPinUnlocking(true);
-          void loadDeliveryAfterPin(pendingDeliveryId);
-        }}
+        onVerified={handlePinVerified}
         onCancel={resetFlow}
       />
     );
@@ -777,7 +856,9 @@ export function ReceivingPage() {
           <div className="flex flex-1 min-h-0 flex-col">
             <VendorDeliveredHub
               deliveryDetails={deliveryDetails}
-              loading={loading}
+              loading={loading || detailsHydrating}
+              detailsHydrating={detailsHydrating}
+              expectedItemCount={bootstrapItemCount}
               error={error}
               reverting={reverting}
               geofenceOutside={outsideGeofence === true}
@@ -801,9 +882,21 @@ export function ReceivingPage() {
                 {deliveryDetails.job?.jobName ?? "Delivery"}
               </p>
 
+              {(loading || detailsHydrating) &&
+                deliveryDetails.items.length === 0 && (
+                  <p
+                    className="mb-4 text-center text-sm text-text-secondary"
+                    data-testid="items-hydrating"
+                  >
+                    {typeof bootstrapItemCount === "number"
+                      ? `Loading ${bootstrapItemCount} item${bootstrapItemCount === 1 ? "" : "s"}…`
+                      : "Loading item details…"}
+                  </p>
+                )}
+
               <div
                 className={`w-full bg-bg-surface rounded-2xl border overflow-hidden transition-colors ${
-                  allItemsFullyDelivered
+                  allItemsFullyDelivered && deliveryDetails.items.length > 0
                     ? "border-accent-green shadow-[0_0_0_1px_rgba(34,197,94,0.3)]"
                     : "border-border"
                 }`}
@@ -813,9 +906,13 @@ export function ReceivingPage() {
                     {deliveryDetails.vendor.name}
                   </p>
                   <p className="text-text-secondary text-sm">
-                    {deliveryDetails.items.length === 1
-                      ? "1 item"
-                      : `${deliveryDetails.items.length} items`}
+                    {detailsHydrating && deliveryDetails.items.length === 0
+                      ? typeof bootstrapItemCount === "number"
+                        ? `${bootstrapItemCount} item${bootstrapItemCount === 1 ? "" : "s"}`
+                        : "Loading items…"
+                      : deliveryDetails.items.length === 1
+                        ? "1 item"
+                        : `${deliveryDetails.items.length} items`}
                   </p>
                 </div>
 
@@ -969,6 +1066,11 @@ export function ReceivingPage() {
               )}
               <button
                 type="button"
+                disabled={
+                  loading ||
+                  detailsHydrating ||
+                  deliveryDetails.items.length === 0
+                }
                 onClick={() => setStep("zone")}
                 className={`action-btn action-btn-delivered w-full transition-all duration-300 ${
                   allItemsFullyDelivered
@@ -976,7 +1078,9 @@ export function ReceivingPage() {
                     : ""
                 }`}
               >
-                Next: Assign Zone →
+                {detailsHydrating && deliveryDetails.items.length === 0
+                  ? "Loading items…"
+                  : "Next: Assign Zone →"}
               </button>
               <button
                 type="button"

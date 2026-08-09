@@ -47,6 +47,122 @@ export function sanitizeDeliveryForPublic(
   return { ...rest, id: String(data.id ?? deliveryId) };
 }
 
+/**
+ * Allowlisted Vendor Drop-Off hub paint fields after successful PIN auth.
+ * Intentionally omits items (progressive hydrate via getVendorReceiveDetails)
+ * and all secrets / notes / pin fields.
+ */
+export interface VendorPinBootstrapPayload {
+  deliveryId: string;
+  orderNumber?: string;
+  vendorInvoiceNumber?: string;
+  status?: string;
+  invoiceFulfillmentMethod?: string;
+  vendorId: string;
+  vendorName: string;
+  jobId?: string;
+  jobName?: string;
+  purchaseOrderId?: string;
+  poNumber?: string;
+  stagingLocationId?: string;
+  stagingLocationCode?: string;
+  plannedStagingLocationIds?: string[];
+  vendorPhysicalDropoffConfirmed?: boolean;
+  vendorPhysicalDropoffConfirmedAt?: string;
+  itemCount?: number;
+  deliveryDate?: string;
+}
+
+function asOptionalString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function asOptionalStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const out = value
+    .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+    .map((v) => v.trim());
+  return out.length > 0 ? out : undefined;
+}
+
+/**
+ * Build hub bootstrap from a delivery already loaded during PIN verify.
+ * Parallel job + staging + item count — no notes/secrets.
+ */
+export async function buildVendorPinBootstrap(
+  db: admin.firestore.Firestore,
+  deliveryId: string,
+  delivery: admin.firestore.DocumentData,
+  vendorId: string,
+  vendorName: string,
+): Promise<VendorPinBootstrapPayload> {
+  const jobId = asOptionalString(delivery.jobId);
+  const stagingLocationId = asOptionalString(delivery.stagingLocationId);
+  const purchaseOrderId = asOptionalString(delivery.purchaseOrderId);
+
+  const [jobSnap, locSnap, poSnap, countSnap] = await Promise.all([
+    jobId ? db.collection("jobs").doc(jobId).get() : Promise.resolve(null),
+    stagingLocationId
+      ? db.collection("stagingLocations").doc(stagingLocationId).get()
+      : Promise.resolve(null),
+    purchaseOrderId
+      ? db.collection("purchaseOrders").doc(purchaseOrderId).get()
+      : Promise.resolve(null),
+    db
+      .collection("items")
+      .where("deliveryOrderId", "==", deliveryId)
+      .count()
+      .get()
+      .catch(() => null),
+  ]);
+
+  const jobName = jobSnap?.exists
+    ? asOptionalString((jobSnap.data() as { jobName?: unknown }).jobName)
+    : undefined;
+  const stagingLocationCode = locSnap?.exists
+    ? asOptionalString((locSnap.data() as { code?: unknown }).code)
+    : undefined;
+  const poNumber = poSnap?.exists
+    ? asOptionalString((poSnap.data() as { poNumber?: unknown }).poNumber)
+    : undefined;
+
+  let itemCount: number | undefined;
+  if (countSnap) {
+    const n = countSnap.data().count;
+    if (typeof n === "number" && Number.isFinite(n)) itemCount = n;
+  }
+
+  return {
+    deliveryId,
+    orderNumber: asOptionalString(delivery.orderNumber),
+    vendorInvoiceNumber: asOptionalString(delivery.vendorInvoiceNumber),
+    status: asOptionalString(delivery.status),
+    invoiceFulfillmentMethod: asOptionalString(
+      delivery.invoiceFulfillmentMethod,
+    ),
+    vendorId,
+    vendorName,
+    jobId,
+    jobName,
+    purchaseOrderId,
+    poNumber,
+    stagingLocationId,
+    stagingLocationCode,
+    plannedStagingLocationIds: asOptionalStringArray(
+      delivery.plannedStagingLocationIds,
+    ),
+    vendorPhysicalDropoffConfirmed:
+      delivery.vendorPhysicalDropoffConfirmed === true ? true : undefined,
+    vendorPhysicalDropoffConfirmedAt: asOptionalString(
+      delivery.vendorPhysicalDropoffConfirmedAt,
+    ),
+    itemCount,
+    deliveryDate: asOptionalString(delivery.deliveryDate),
+  };
+}
+
 export async function hydratePublicDeliveryDetails(
   db: admin.firestore.Firestore,
   deliveryId: string,

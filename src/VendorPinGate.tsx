@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { getAppSettings } from "./dispatcher/firestoreService";
 import { verifyVendorPin } from "./verifyVendorPinClient";
-import type { VerifyVendorPinInput } from "./dispatcher/models";
+import type {
+  VerifyVendorPinInput,
+  VendorPinBootstrap,
+} from "./dispatcher/models";
 import {
   setPinSession,
   setJobPinSession,
@@ -24,6 +27,8 @@ export interface VendorPinVerifiedPayload {
   deliveryId?: string;
   jobId?: string;
   sessionScope?: "job" | "delivery" | "vendor";
+  /** Present only after successful PIN when CF returns hub bootstrap. */
+  bootstrap?: VendorPinBootstrap;
 }
 
 interface VendorPinGateProps {
@@ -141,6 +146,7 @@ export function VendorPinGate({
           deliveryId: result.deliveryId,
           jobId: result.jobId,
           sessionScope: result.sessionScope,
+          bootstrap: result.bootstrap,
         });
       } catch (err) {
         setDigits([]);
@@ -152,6 +158,8 @@ export function VendorPinGate({
     [deliveryId, stagingLocationCode, jobId, onVerified],
   );
 
+  // Auto-submit only at public max length (6). Shorter valid PINs (4–5) use
+  // Verify / Enter — avoids guessing secret length and false early submits.
   useEffect(() => {
     if (digits.length !== MAX_PIN_LENGTH || submitting || verified) return;
     void submitPin(digits.join(""));
@@ -233,8 +241,21 @@ export function VendorPinGate({
           )}
 
           {locked && !error && (
-            <p className="text-sm text-center text-text-secondary mb-4">
+            <p
+              className="text-sm text-center text-text-secondary mb-4"
+              data-testid="vendor-pin-verifying"
+              role="status"
+            >
               {verified ? "Opening delivery…" : "Verifying PIN…"}
+            </p>
+          )}
+
+          {!locked && canVerify && (
+            <p
+              className="text-sm text-center text-accent mb-4 font-medium"
+              data-testid="vendor-pin-verify-hint"
+            >
+              Tap Verify to continue
             </p>
           )}
 
@@ -308,9 +329,12 @@ export function VendorPinGate({
             type="button"
             onClick={() => void submitPin(digits.join(""))}
             disabled={!canVerify}
-            className="tap-target w-full rounded-xl bg-accent-green py-3 text-base font-bold text-white mb-6 disabled:opacity-40"
+            data-testid="vendor-pin-verify"
+            className={`tap-target w-full rounded-xl bg-accent-green py-3 text-base font-bold text-white mb-6 disabled:opacity-40 ${
+              canVerify ? "ring-2 ring-accent-green/50 shadow-md" : ""
+            }`}
           >
-            Verify
+            {submitting ? "Verifying…" : "Verify"}
           </button>
 
           <p className="text-xs text-center text-text-secondary">
