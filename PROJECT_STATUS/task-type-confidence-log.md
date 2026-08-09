@@ -12,3 +12,4 @@ Append-only session log (Dan standing preference). Not a planning SSOT.
 | 2026-08-09 | Vendor-run multi-job card unify (hub shell/gaps/Back/green collapse+Undo) | ui-component / css-restyle | T1 | Sol Task→gpt-5.6-sol-high | 98 | 99 | Visual-judgment mobile D-27; monday-safe 63/63; v0.0.262 |
 | 2026-08-09 | ship-op (vendor-run card unify merge+deploy v0.0.262) | ship-op / mobile D-27 | T1 | Composer 2.5 Fast | 99 | 99 | LIVE index-GCr3QEjg.js; monday-safe prod 63/63 |
 | 2026-08-09 | Dispatcher Deliveries status legend/row wording+colors align | ui-component / css-restyle | T1 | Composer 2.5 Fast (simple-ui — D-65) | 98 | 99 | FE-only; legend green/orange/yellow/gray match badges; v0.0.265 |
+| 2026-08-09 | Review/merge/deploy/prod-verify PR #96 Assign Location restore | ship-op / prod-verify | T1 | Composer 2.5 Fast | 98 | 99 | Rebase conflict w/ #98; retarget 264; merge 59c9221a; smoke PASS under tip 265 |
