@@ -1,1 +1,0 @@
-import{Ca as e,Xn as t}from"./index-BFt4Qudd.js";var n=t();function r(){return(0,n.jsx)(e,{to:`/dispatcher?focus=needs-review`,replace:!0})}export{r as InvoiceReviewPage};
