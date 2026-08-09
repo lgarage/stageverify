@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAdminAppearance } from "../../adminAppearance";
 import type {
   ApplyInvoiceReviewFieldCorrectionResult,
@@ -50,15 +51,11 @@ import {
 } from "./invoiceRejectReasons";
 import { InvoiceRejectReasonDialog } from "./InvoiceRejectReasonDialog";
 import { InvoiceFulfillmentOverrideConfirmDialog } from "./InvoiceFulfillmentOverrideConfirmDialog";
-import { InvoiceStagingLocationPicker } from "./InvoiceStagingLocationPicker";
-import {
-  setInvoiceReviewDraftStagingLocations,
-  setInvoiceReviewFulfillmentOverride,
-} from "../firestoreService";
-import type {
-  SetInvoiceReviewDraftStagingLocationsResult,
-  SetInvoiceReviewFulfillmentOverrideResult,
-} from "../models";
+import { StagingLocationBanner } from "../drawer/StagingLocationBanner";
+import { setInvoiceReviewFulfillmentOverride } from "../firestoreService";
+import type { SetInvoiceReviewFulfillmentOverrideResult } from "../models";
+import { formatStagingCodeCanonical } from "../stagingCode";
+import { useLiveZoneOccupancy } from "../useLiveZoneOccupancy";
 import {
   extractDeliverToSiteLabel,
   fulfillmentDisplayLabel,
@@ -166,12 +163,12 @@ export function InvoiceParsedInspectModal({
       >,
   ) => void;
 }) {
+  const navigate = useNavigate();
   const [correctionNote, setCorrectionNote] = useState("");
   const [selectedStagingIds, setSelectedStagingIds] = useState<string[]>([]);
-  const [stagingPickerOpen, setStagingPickerOpen] = useState(false);
   const [fulfillmentConfirmOpen, setFulfillmentConfirmOpen] = useState(false);
   const [assignLocationLoading, setAssignLocationLoading] = useState(false);
-  const [draftPersistLoading, setDraftPersistLoading] = useState(false);
+  const liveZones = useLiveZoneOccupancy(true);
   const [toast, setToast] = useState<string | null>(null);
   const [saveLessonLoading, setSaveLessonLoading] = useState(false);
   const [teachPhase, setTeachPhase] = useState<TeachChatPhase>("idle");
@@ -461,22 +458,26 @@ export function InvoiceParsedInspectModal({
   const creditAdvisoryLabel = creditReturnAdvisoryLabel(importRow);
   const ignoreSuppressedLabel = ignoreRuleSuppressedAdvisoryLabel(importRow);
 
-  const stagingSkipped = useMemo(
-    () =>
-      isInvoiceShellNoShopStaging({
-        createdFromInvoiceImport: true,
-        invoiceImportStatus: importRow.importStatus,
-        invoiceFulfillmentMethod: normalizedHeader.fulfillmentMethod as
-          | InvoiceFulfillmentMethod
-          | undefined,
-        invoiceDeliverToSite: Boolean(extractDeliverToSiteLabel(orderNotes)),
-      }),
-    [
-      importRow.importStatus,
-      normalizedHeader.fulfillmentMethod,
-      orderNotes,
-    ],
-  );
+  const fulfillmentOverrideActive = importRow.fulfillmentOverride?.active === true;
+  const isNativeWillCall =
+    normalizedHeader.fulfillmentMethod === "will_call_pickup" && !fulfillmentOverrideActive;
+
+  const stagingSkipped = useMemo(() => {
+    if (fulfillmentOverrideActive) return false;
+    return isInvoiceShellNoShopStaging({
+      createdFromInvoiceImport: true,
+      invoiceImportStatus: importRow.importStatus,
+      invoiceFulfillmentMethod: normalizedHeader.fulfillmentMethod as
+        | InvoiceFulfillmentMethod
+        | undefined,
+      invoiceDeliverToSite: Boolean(extractDeliverToSiteLabel(orderNotes)),
+    });
+  }, [
+    fulfillmentOverrideActive,
+    importRow.importStatus,
+    normalizedHeader.fulfillmentMethod,
+    orderNotes,
+  ]);
   const fulfillmentLabel = fulfillmentDisplayLabel({
     invoiceImportStatus: importRow.importStatus,
     invoiceFulfillmentMethod: normalizedHeader.fulfillmentMethod as
@@ -492,9 +493,16 @@ export function InvoiceParsedInspectModal({
   useEffect(() => {
     if (stagingSkipped) {
       setSelectedStagingIds([]);
-      setStagingPickerOpen(false);
     }
   }, [stagingSkipped, importRow.id]);
+
+  const selectedStagingCodes = useMemo(() => {
+    const byId = new Map(liveZones.zones.map((z) => [z.id, z]));
+    return selectedStagingIds
+      .map((id) => byId.get(id)?.code)
+      .filter((code): code is string => Boolean(code?.trim()))
+      .map((code) => formatStagingCodeCanonical(code));
+  }, [liveZones.zones, selectedStagingIds]);
 
   const openRejectDialog = () => {
     setRejectReasonId(defaultRejectReasonId(Boolean(creditAdvisoryLabel)));
@@ -520,10 +528,6 @@ export function InvoiceParsedInspectModal({
     onReject?.(lessonNote);
   };
 
-  const fulfillmentOverrideActive = importRow.fulfillmentOverride?.active === true;
-  const isNativeWillCall =
-    normalizedHeader.fulfillmentMethod === "will_call_pickup" && !fulfillmentOverrideActive;
-
   const mergeOverrideResult = (result: SetInvoiceReviewFulfillmentOverrideResult) => {
     onImportRowMerged?.({
       parsedHeader: result.parsedHeader,
@@ -540,49 +544,15 @@ export function InvoiceParsedInspectModal({
     });
   };
 
-  const mergeDraftResult = (result: SetInvoiceReviewDraftStagingLocationsResult) => {
-    onImportRowMerged?.({
-      parsedHeader: importRow.parsedHeader ?? {},
-      importStatus: importRow.importStatus,
-      fulfillmentOverride: importRow.fulfillmentOverride,
-      draftPlannedStagingLocationIds: result.draftPlannedStagingLocationIds,
-    });
-  };
-
-  const handleStagingDone = async (ids: string[]) => {
-    const previousDraft = importRow.draftPlannedStagingLocationIds ?? [];
-    // Hold selection while persisting; on CF failure revert and rethrow so the
-    // picker stays open and FE never shows Change Location / Approve-ready
-    // for an unpersisted draft.
-    setSelectedStagingIds(ids);
-    setDraftPersistLoading(true);
-    try {
-      const result = await setInvoiceReviewDraftStagingLocations({
-        vendorInvoiceImportId: importRow.id,
-        stagingLocationIds: ids,
-      });
-      mergeDraftResult(result);
-      setSelectedStagingIds(result.draftPlannedStagingLocationIds);
-    } catch (err) {
-      setSelectedStagingIds(previousDraft);
-      setStagingPickerOpen(true);
-      showToast(
-        err instanceof Error ? err.message : "Could not save staging draft.",
-      );
-      throw err instanceof Error
-        ? err
-        : new Error("Could not save staging draft.");
-    } finally {
-      setDraftPersistLoading(false);
-    }
+  const handleNavigateToMapAssign = () => {
+    onClose();
+    navigate(`/zones?assignInvoiceImport=${encodeURIComponent(importRow.id)}`);
   };
 
   const handleAssignLocationClick = () => {
     if (isNativeWillCall) {
       setFulfillmentConfirmOpen(true);
-      return;
     }
-    setStagingPickerOpen(true);
   };
 
   const handleFulfillmentOverrideConfirm = async () => {
@@ -595,7 +565,6 @@ export function InvoiceParsedInspectModal({
       });
       mergeOverrideResult(result);
       setFulfillmentConfirmOpen(false);
-      setStagingPickerOpen(true);
     } catch (err) {
       showToast(
         err instanceof Error ? err.message : "Could not apply fulfillment override.",
@@ -605,14 +574,9 @@ export function InvoiceParsedInspectModal({
     }
   };
 
-  const showAssignLocation = isPending && Boolean(onApprove) && !readOnly;
-  const assignLocationBusy =
-    actionLoading || assignLocationLoading || draftPersistLoading;
-  const assignLocationLabel =
-    selectedStagingIds.length > 0 ||
-    (importRow.draftPlannedStagingLocationIds?.length ?? 0) > 0
-      ? "Change Location"
-      : "Assign Location";
+  const showFooterAssignLocation =
+    isPending && Boolean(onApprove) && !readOnly && isNativeWillCall;
+  const assignLocationBusy = actionLoading || assignLocationLoading;
 
   const showDeliveryInfo = !readOnly && (isPending || isRejected);
   const showActions =
@@ -1148,6 +1112,144 @@ export function InvoiceParsedInspectModal({
           </table>
         </div>
 
+        {(isPending || isRejected) && onApprove && (
+          <div
+            data-testid="invoice-parsed-inspect-staging-panel"
+            style={{
+              marginBottom: 20,
+              padding: "14px 16px",
+              backgroundColor: "var(--admin-surface-2)",
+              border: "1px solid var(--admin-border)",
+              borderRadius: 8,
+            }}
+          >
+            <h3
+              style={{
+                margin: "0 0 6px",
+                fontSize: 14,
+                fontWeight: 700,
+                color: "var(--admin-text-data)",
+                fontFamily: FONT,
+              }}
+            >
+              Fulfillment
+            </h3>
+            <p
+              data-testid="invoice-parsed-inspect-fulfillment-label"
+              style={{
+                margin: "0 0 12px",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--admin-text-data)",
+                fontFamily: FONT,
+              }}
+            >
+              {fulfillmentLabel}
+            </p>
+            <h3
+              style={{
+                margin: "0 0 8px",
+                fontSize: 14,
+                fontWeight: 700,
+                color: "var(--admin-text-data)",
+                fontFamily: FONT,
+              }}
+            >
+              Staging Location
+            </h3>
+            {stagingSkipped ? (
+              <p
+                data-testid="invoice-parsed-inspect-staging-na"
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: "var(--admin-text-secondary)",
+                  fontFamily: FONT,
+                }}
+              >
+                Not required for Will-Call / Pickup @ Vendor
+              </p>
+            ) : (
+              <>
+                {fulfillmentOverrideActive && (
+                  <p
+                    data-testid="invoice-parsed-inspect-fulfillment-override-note"
+                    style={{
+                      margin: "0 0 10px",
+                      fontSize: 12,
+                      lineHeight: 1.45,
+                      color: "var(--admin-text-secondary)",
+                      fontWeight: 500,
+                      fontFamily: FONT,
+                    }}
+                  >
+                    Fulfillment changed from Will-Call to Vendor Drop-Off for staging
+                    assignment.
+                  </p>
+                )}
+                {selectedStagingIds.length === 0 ? (
+                  <>
+                    <p
+                      data-testid="invoice-parsed-inspect-staging-required-note"
+                      style={{
+                        margin: "0 0 10px",
+                        fontSize: 12,
+                        lineHeight: 1.45,
+                        color: "var(--admin-text-secondary)",
+                        fontWeight: 500,
+                        fontFamily: FONT,
+                      }}
+                    >
+                      Staging location required — assign where this delivery will be
+                      staged before approving.
+                    </p>
+                    {!isNativeWillCall && (
+                      <StagingLocationBanner
+                        font={FONT}
+                        testIdPrefix="invoice-parsed-inspect-staging"
+                        onAssignLocation={handleNavigateToMapAssign}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p
+                      data-testid="invoice-parsed-inspect-staging-selected"
+                      style={{
+                        margin: "0 0 10px",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: "var(--admin-text-data)",
+                        fontFamily: FONT,
+                      }}
+                    >
+                      {selectedStagingCodes.length > 0
+                        ? selectedStagingCodes.join(", ")
+                        : selectedStagingIds.join(", ")}
+                    </p>
+                    {!isNativeWillCall && (
+                      <button
+                        type="button"
+                        data-testid="invoice-parsed-inspect-change-location"
+                        disabled={assignLocationBusy}
+                        onClick={handleNavigateToMapAssign}
+                        style={{
+                          ...HEADER_BTN,
+                          cursor: assignLocationBusy ? "not-allowed" : "pointer",
+                          opacity: assignLocationBusy ? 0.55 : 1,
+                        }}
+                      >
+                        Change Location
+                      </button>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
         <InvoiceReviewChatPanel
           importId={importRow.id}
           readOnly={readOnly}
@@ -1373,108 +1475,6 @@ export function InvoiceParsedInspectModal({
                 </div>
               </details>
             )}
-            {(isPending || isRejected) && onApprove && (
-              <div
-                data-testid="invoice-parsed-inspect-staging-panel"
-                style={{
-                  padding: "14px 16px",
-                  backgroundColor: "var(--admin-surface-2)",
-                  border: "1px solid var(--admin-border)",
-                  borderRadius: 8,
-                }}
-              >
-                <h3
-                  style={{
-                    margin: "0 0 6px",
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: "var(--admin-text-data)",
-                    fontFamily: FONT,
-                  }}
-                >
-                  Fulfillment
-                </h3>
-                <p
-                  data-testid="invoice-parsed-inspect-fulfillment-label"
-                  style={{
-                    margin: "0 0 12px",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "var(--admin-text-data)",
-                    fontFamily: FONT,
-                  }}
-                >
-                  {fulfillmentLabel}
-                </p>
-                <h3
-                  style={{
-                    margin: "0 0 8px",
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: "var(--admin-text-data)",
-                    fontFamily: FONT,
-                  }}
-                >
-                  Staging Location
-                </h3>
-                {stagingSkipped ? (
-                  <p
-                    data-testid="invoice-parsed-inspect-staging-na"
-                    style={{
-                      margin: 0,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: "var(--admin-text-secondary)",
-                      fontFamily: FONT,
-                    }}
-                  >
-                    Not required for Will-Call / Pickup @ Vendor
-                  </p>
-                ) : (
-                  <>
-                    {fulfillmentOverrideActive && (
-                      <p
-                        data-testid="invoice-parsed-inspect-fulfillment-override-note"
-                        style={{
-                          margin: "0 0 10px",
-                          fontSize: 12,
-                          lineHeight: 1.45,
-                          color: "var(--admin-text-secondary)",
-                          fontWeight: 500,
-                          fontFamily: FONT,
-                        }}
-                      >
-                        Fulfillment changed from Will-Call to Vendor Drop-Off for staging
-                        assignment.
-                      </p>
-                    )}
-                    <p
-                      data-testid="invoice-parsed-inspect-staging-required-note"
-                      style={{
-                        margin: "0 0 10px",
-                        fontSize: 12,
-                        lineHeight: 1.45,
-                        color: "var(--admin-text-secondary)",
-                        fontWeight: 500,
-                        fontFamily: FONT,
-                      }}
-                    >
-                      Staging location required — choose where this delivery will
-                      be staged before approving.
-                    </p>
-                    <InvoiceStagingLocationPicker
-                      selectedIds={selectedStagingIds}
-                      onChange={setSelectedStagingIds}
-                      disabled={actionLoading || draftPersistLoading}
-                      font={FONT}
-                      open={stagingPickerOpen}
-                      onOpenChange={setStagingPickerOpen}
-                      onDone={handleStagingDone}
-                    />
-                  </>
-                )}
-              </div>
-            )}
             <div
               style={{
                 display: "flex",
@@ -1485,7 +1485,7 @@ export function InvoiceParsedInspectModal({
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {showAssignLocation && (
+                {showFooterAssignLocation && (
                   <button
                     type="button"
                     data-testid="invoice-parsed-inspect-assign-location"
@@ -1497,7 +1497,7 @@ export function InvoiceParsedInspectModal({
                       opacity: assignLocationBusy ? 0.55 : 1,
                     }}
                   >
-                    {assignLocationLabel}
+                    Assign Location
                   </button>
                 )}
               </div>
