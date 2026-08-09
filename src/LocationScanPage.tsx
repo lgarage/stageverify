@@ -27,9 +27,10 @@ import type {
   JobVendorDeliverySummary,
   VendorRunDeliverySummary,
 } from "./dispatcher/models";
-import { VendorPinGate } from "./VendorPinGate";
-import { TechnicianPinGate } from "./TechnicianPinGate";
-import { ManagementPinGate } from "./ManagementPinGate";
+import {
+  LocationScanPinGate,
+  type LocationScanPinVerifiedPayload,
+} from "./LocationScanPinGate";
 import { ManagementCatchAllHub } from "./ManagementCatchAllHub";
 import {
   bindTechnicianSessionToJob,
@@ -91,7 +92,6 @@ type Step =
   | "hub"
   | "done";
 type SessionScope = "job" | "vendor" | "vendor_unplanned" | null;
-type PinRole = "vendor" | "technician" | "management";
 
 interface LocationBranding {
   code: string;
@@ -142,7 +142,6 @@ export function LocationScanPage() {
   const [vendorGeofenceEnforce, setVendorGeofenceEnforce] = useState(false);
   const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
   const [reverting, setReverting] = useState(false);
-  const [pinRole, setPinRole] = useState<PinRole>("vendor");
   const [technicianId, setTechnicianId] = useState<string | null>(null);
   const [technicianName, setTechnicianName] = useState<string | null>(null);
   const [releasedJobs, setReleasedJobs] = useState<TechnicianReleasedJobSummary[]>(
@@ -150,7 +149,6 @@ export function LocationScanPage() {
   );
   const [jobsRevalidating, setJobsRevalidating] = useState(false);
   const [isCatchAllParcelIntake, setIsCatchAllParcelIntake] = useState(false);
-  const [parcelIntakeEnabled, setParcelIntakeEnabled] = useState(false);
 
   const activeVendorRun = useMemo(() => {
     return vendorRunDeliveries.filter((d) => !d.vendorPhysicalDropoffConfirmed);
@@ -181,15 +179,11 @@ export function LocationScanPage() {
       const intakeEnabled =
         result.parcelIntakeEnabled === true ||
         settings?.parcelIntakeEnabled === true;
-      setParcelIntakeEnabled(intakeEnabled);
       setIsCatchAllParcelIntake(result.isCatchAllParcelIntake === true);
       if (intakeEnabled && isManagementPinSessionValid()) {
         setStep("mgmt-landing");
-      } else if (getActiveTechnicianSession()) {
-        // Same-shop resume: skip PIN; effect reloads day-release jobs.
-        setPinRole("technician");
-        setStep("pin");
       } else {
+        // PIN step: same-shop tech resume handled by effect when session exists.
         setStep("pin");
       }
     } catch {
@@ -575,11 +569,38 @@ export function LocationScanPage() {
   );
 
   useEffect(() => {
-    if (step !== "pin" || pinRole !== "technician") return;
+    if (step !== "pin") return;
     const active = getActiveTechnicianSession();
     if (!active) return;
     void loadTechnicianReleasedJobs(active.technicianId);
-  }, [step, pinRole, loadTechnicianReleasedJobs]);
+  }, [step, loadTechnicianReleasedJobs]);
+
+  const handleLocationScanPinVerified = useCallback(
+    (payload: LocationScanPinVerifiedPayload) => {
+      if (payload.accessType === "technician") {
+        handleTechnicianPinVerified({
+          technicianId: payload.technicianId,
+          technicianName: payload.technicianName,
+        });
+        return;
+      }
+      if (payload.accessType === "management") {
+        setStep("mgmt-landing");
+        return;
+      }
+      handlePinVerified({
+        jobId: payload.jobId,
+        vendorId: payload.vendorId,
+        vendorName: payload.vendorName,
+        sessionScope: payload.sessionScope,
+        noExpectedDelivery: payload.noExpectedDelivery,
+        sessionToken: payload.sessionToken,
+        expiresAt: payload.expiresAt,
+        scannedStagingLocationCode: payload.scannedStagingLocationCode,
+      });
+    },
+    [handlePinVerified, handleTechnicianPinVerified],
+  );
 
   const handlePinSessionExpired = useCallback(() => {
     setDeliveryDetails(null);
@@ -598,16 +619,10 @@ export function LocationScanPage() {
     setReleasedJobs([]);
     setSessionScope(null);
     setStep("pin");
-    setPinRole("management");
   }, [jobId, vendorId, technicianId]);
-
-  const handleManagementPinVerified = useCallback(() => {
-    setStep("mgmt-landing");
-  }, []);
 
   const handleManagementSessionExpired = useCallback(() => {
     clearManagementPinSession();
-    setPinRole("management");
     setStep("pin");
   }, []);
 
@@ -774,7 +789,6 @@ export function LocationScanPage() {
     setDeliveryDetails(null);
     setError(null);
     setStep("pin");
-    setPinRole("vendor");
   };
 
   if (step === "loading") {
@@ -846,7 +860,6 @@ export function LocationScanPage() {
             type="button"
             onClick={() => {
               clearManagementPinSession();
-              setPinRole("management");
               setStep("pin");
             }}
             className="action-btn action-btn-secondary w-full mt-auto"
@@ -875,6 +888,7 @@ export function LocationScanPage() {
         <div
           className="shrink-0 border-b border-border bg-bg-surface px-3 text-center"
           style={{ paddingBlock: "clamp(0px, 0.25svh, 2px)" }}
+          data-testid="location-scan-pin-header"
         >
           <p className="text-[10px] font-semibold uppercase leading-3 tracking-[0.18em] text-text-secondary [@media(max-height:600px)]:hidden">
             Staging location
@@ -891,72 +905,11 @@ export function LocationScanPage() {
           >
             {branding.label}
           </p>
-          <div
-            className="mx-auto flex w-full max-w-sm gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-0.5"
-            data-testid="pin-role-selector"
-            style={{ marginTop: "clamp(3px, 0.7svh, 6px)" }}
-          >
-            <button
-              type="button"
-              className={`min-h-8 min-w-0 flex-1 rounded-lg px-2 py-1 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                pinRole === "vendor"
-                  ? "bg-[#1d4ed8] text-white shadow-sm"
-                  : "bg-transparent text-[#cbd5e1] hover:bg-white/5 hover:text-white"
-              }`}
-              onClick={() => setPinRole("vendor")}
-              aria-pressed={pinRole === "vendor"}
-            >
-              Vendor
-            </button>
-            <button
-              type="button"
-              className={`min-h-8 min-w-0 flex-1 rounded-lg px-2 py-1 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                pinRole === "technician"
-                  ? "bg-[#1d4ed8] text-white shadow-sm"
-                  : "bg-transparent text-[#cbd5e1] hover:bg-white/5 hover:text-white"
-              }`}
-              onClick={() => setPinRole("technician")}
-              aria-pressed={pinRole === "technician"}
-            >
-              Technician
-            </button>
-            {parcelIntakeEnabled && (
-              <button
-                type="button"
-                className={`min-h-8 min-w-0 flex-1 rounded-lg px-2 py-1 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                  pinRole === "management"
-                    ? "bg-[#1d4ed8] text-white shadow-sm"
-                    : "bg-transparent text-[#cbd5e1] hover:bg-white/5 hover:text-white"
-                }`}
-                onClick={() => setPinRole("management")}
-                data-testid="pin-role-management"
-                aria-pressed={pinRole === "management"}
-              >
-                Office
-              </button>
-            )}
-          </div>
         </div>
-        {pinRole === "management" ? (
-          <ManagementPinGate
-            stagingLocationCode={locationCode}
-            onVerified={handleManagementPinVerified}
-          />
-        ) : pinRole === "vendor" ? (
-          <VendorPinGate
-            stagingLocationCode={locationCode}
-            title="Enter Job or Company PIN"
-            subtitle="Job PIN for one job, or company PIN when dispatch enabled multi-site run."
-            onVerified={handlePinVerified}
-            embedded
-          />
-        ) : (
-          <TechnicianPinGate
-            stagingLocationCode={locationCode}
-            onVerified={handleTechnicianPinVerified}
-            onBack={() => setPinRole("vendor")}
-          />
-        )}
+        <LocationScanPinGate
+          stagingLocationCode={locationCode}
+          onVerified={handleLocationScanPinVerified}
+        />
       </div>
     );
   }

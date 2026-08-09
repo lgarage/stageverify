@@ -139,15 +139,18 @@ async function migrateEntityCollection(
         const uniquenessRef = db
           .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
           .doc(
-            accessPinUniquenessDocId(
-              targetType,
-              pinLookupKeyForPin(plainPin),
-            ),
+            accessPinUniquenessDocId(pinLookupKeyForPin(plainPin)),
           );
         const uniquenessSnap = await tx.get(uniquenessRef);
         if (uniquenessSnap.exists) {
-          const existing = uniquenessSnap.data() as { targetId?: string };
-          if (existing.targetId && existing.targetId !== doc.id) {
+          const existing = uniquenessSnap.data() as {
+            targetId?: string;
+            targetType?: AccessPinTargetType;
+          };
+          if (
+            (existing.targetId && existing.targetId !== doc.id) ||
+            (existing.targetType && existing.targetType !== targetType)
+          ) {
             collisionSkipped = true;
             return;
           }

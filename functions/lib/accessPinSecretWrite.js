@@ -35,7 +35,7 @@ function prepareAccessPinSecretWrite(targetType, targetId, pin) {
             .doc((0, accessPinSecretsShared_1.accessPinSecretDocId)(targetType, targetId)),
         uniquenessRef: db
             .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
-            .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)(targetType, pinLookupKey)),
+            .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)(pinLookupKey)),
         entityRef: (0, accessPinTargetHelpers_1.entityRefForTarget)(targetType, targetId),
         pinHash: (0, pinHashing_1.hashPinForStorage)(pin),
         pinEncrypted: (0, accessPinCrypto_1.encryptPinForStorage)(pin),
@@ -47,7 +47,8 @@ async function applyAccessPinSecretWriteInTransaction(tx, db, input) {
     const { refs, targetType, targetId, now, pin } = input;
     if (input.uniquenessSnap.exists) {
         const existing = input.uniquenessSnap.data();
-        if (existing.targetId && existing.targetId !== targetId) {
+        if ((existing.targetId && existing.targetId !== targetId) ||
+            (existing.targetType && existing.targetType !== targetType)) {
             throw new https_1.HttpsError("already-exists", "Could not set PIN.");
         }
     }
@@ -61,7 +62,7 @@ async function applyAccessPinSecretWriteInTransaction(tx, db, input) {
                 if (oldPin !== pin) {
                     const oldUniquenessRef = db
                         .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
-                        .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)(targetType, (0, accessPinCrypto_1.pinLookupKeyForPin)(oldPin)));
+                        .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)((0, accessPinCrypto_1.pinLookupKeyForPin)(oldPin)));
                     tx.delete(oldUniquenessRef);
                 }
             }

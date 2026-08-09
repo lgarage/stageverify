@@ -837,10 +837,14 @@ async function assertPermanentSignUrl(browser) {
   await shot(page, "01-location-header");
 
   const pinHeading = page.getByRole("heading", {
-    name: "Enter Job or Company PIN",
+    name: "Enter PIN",
     exact: true,
   });
   await pinHeading.waitFor({ state: "visible", timeout: 30_000 });
+  // Neutral keypad — no Vendor/Technician/Office role selector.
+  if (await page.getByTestId("pin-role-selector").count()) {
+    throw new Error("pin-role-selector must not appear on location-scan PIN step");
+  }
   await enterPin(page, job1Pin);
   const bodyAfterPin = await page.locator("body").innerText();
   if (/Invalid code/i.test(bodyAfterPin)) {

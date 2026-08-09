@@ -567,6 +567,56 @@ export interface VerifyManagementPinResult {
   permissions?: Required<ManagementPinPermissions>;
 }
 
+export interface ResolveLocationScanPinInput {
+  pin: string;
+  stagingLocationCode: string;
+}
+
+export type ResolveLocationScanPinFailure = {
+  success: false;
+  message: string;
+};
+
+export type ResolveLocationScanPinTechnicianSuccess = {
+  success: true;
+  accessType: "technician";
+  technicianId: string;
+  technicianName: string;
+  sessionToken: string;
+  expiresAt: string;
+  scannedStagingLocationCode: string;
+};
+
+export type ResolveLocationScanPinVendorSuccess = {
+  success: true;
+  accessType: "vendor";
+  vendorId: string;
+  vendorName: string;
+  sessionToken: string;
+  expiresAt: string;
+  scannedStagingLocationCode: string;
+  sessionScope: VendorSessionScope;
+  deliveryId?: string;
+  jobId?: string;
+  noExpectedDelivery?: boolean;
+};
+
+export type ResolveLocationScanPinManagementSuccess = {
+  success: true;
+  accessType: "management";
+  sessionToken: string;
+  expiresAt: string;
+  scannedStagingLocationCode: string;
+  pinId: string;
+  permissions: Required<ManagementPinPermissions>;
+};
+
+export type ResolveLocationScanPinResult =
+  | ResolveLocationScanPinFailure
+  | ResolveLocationScanPinTechnicianSuccess
+  | ResolveLocationScanPinVendorSuccess
+  | ResolveLocationScanPinManagementSuccess;
+
 /** Row-scoped admin access — technician, vendor, or management PIN target. */
 export type AccessPinTargetType = "technician" | "vendor" | "management";
 

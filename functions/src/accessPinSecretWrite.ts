@@ -64,7 +64,7 @@ export function prepareAccessPinSecretWrite(
       .doc(accessPinSecretDocId(targetType, targetId)),
     uniquenessRef: db
       .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
-      .doc(accessPinUniquenessDocId(targetType, pinLookupKey)),
+      .doc(accessPinUniquenessDocId(pinLookupKey)),
     entityRef: entityRefForTarget(targetType, targetId),
     pinHash: hashPinForStorage(pin),
     pinEncrypted: encryptPinForStorage(pin),
@@ -98,8 +98,14 @@ export async function applyAccessPinSecretWriteInTransaction(
   const { refs, targetType, targetId, now, pin } = input;
 
   if (input.uniquenessSnap.exists) {
-    const existing = input.uniquenessSnap.data() as { targetId?: string };
-    if (existing.targetId && existing.targetId !== targetId) {
+    const existing = input.uniquenessSnap.data() as {
+      targetId?: string;
+      targetType?: AccessPinTargetType;
+    };
+    if (
+      (existing.targetId && existing.targetId !== targetId) ||
+      (existing.targetType && existing.targetType !== targetType)
+    ) {
       throw new HttpsError("already-exists", "Could not set PIN.");
     }
   }
@@ -117,10 +123,7 @@ export async function applyAccessPinSecretWriteInTransaction(
           const oldUniquenessRef = db
             .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
             .doc(
-              accessPinUniquenessDocId(
-                targetType,
-                pinLookupKeyForPin(oldPin),
-              ),
+              accessPinUniquenessDocId(pinLookupKeyForPin(oldPin)),
             );
           tx.delete(oldUniquenessRef);
         }
