@@ -189,3 +189,6 @@
 {"date":"2026-08-09","role":"security","verdict":"PASS","taskId":"3dee26bd-b58d-5647-838f-e8288def77e8","model":"claude-sonnet-5-thinking-high","real":"na","note":""}
 {"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-7579df93-48de-5c14-802d-1c77081353f2","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
 {"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-84888349-5b32-597c-bf08-9c8d7763d469","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-08-09","role":"security","verdict":"PASS","taskId":"5a93635f-e01e-5514-9125-bb4aa64a77fc","model":"claude-sonnet-5-thinking-high","real":"na","note":""}
+{"date":"2026-08-09","role":"ship","verdict":"FAIL","taskId":"bc-ab94e4ad-3db9-54a4-82ac-2b1f52c33afc","model":"cursor-grok-4.5-high-fast","real":"no","note":""}
+{"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-bcfa3c14-018d-5541-8b51-19337b5bbbcc","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
