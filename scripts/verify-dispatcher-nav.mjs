@@ -575,6 +575,33 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   await vendorCommsEntry.click();
   await page.getByTestId("vendor-communications-modal").waitFor({ timeout: 10_000 });
 
+  // Portal must load Firestore vendors without requiring Refresh Now first.
+  const vendorSelect = page.getByTestId("vendor-comms-vendor");
+  let vendorOptionCount = 0;
+  for (let i = 0; i < 40; i++) {
+    vendorOptionCount = await vendorSelect.locator("option").count();
+    if (vendorOptionCount > 1) break;
+    await page.waitForTimeout(250);
+  }
+  if (vendorOptionCount <= 1) {
+    throw new Error(
+      "Vendor Communications vendor dropdown empty — expected Firestore vendors from portal SoT (listVendors) without Refresh Now",
+    );
+  }
+  const vendorOptionLabels = await vendorSelect
+    .locator("option")
+    .evaluateAll((opts) =>
+      opts.map((o) => (o.textContent || "").trim()).filter(Boolean),
+    );
+  if (vendorOptionLabels.some((t) => t === "Loading vendors…")) {
+    throw new Error(
+      "Vendor Communications still showing Loading vendors… after wait",
+    );
+  }
+  console.log(
+    `PASS: Vendor Communications vendor dropdown populated (${vendorOptionCount - 1} vendors).`,
+  );
+
   const labelChecks = [
     ["vendor-comms-label-vendor", "Vendor"],
     ["vendor-comms-label-delivery", "Related StageVerify Job / Delivery — Optional"],

@@ -8,8 +8,12 @@ const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 export function VendorCommunicationsTopBarEntry() {
-  const { emailProviderConnected, vendors, refreshGeneration } =
-    useDispatcherPortal();
+  const {
+    emailProviderConnected,
+    vendors,
+    refreshGeneration,
+    refreshPortalData,
+  } = useDispatcherPortal();
   const [showModal, setShowModal] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [deliveries, setDeliveries] = useState<DeliveryListRow[]>([]);
@@ -28,6 +32,14 @@ export function VendorCommunicationsTopBarEntry() {
       cancelled = true;
     };
   }, [refreshGeneration]);
+
+  // If the modal opens before mount load finishes (or after a failed load),
+  // re-fetch the same portal SoT — still listVendors() via refreshPortalData.
+  useEffect(() => {
+    if (!showModal) return;
+    if (vendors != null) return;
+    void refreshPortalData();
+  }, [showModal, vendors, refreshPortalData]);
 
   return (
     <>

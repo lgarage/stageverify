@@ -121,6 +121,14 @@ export function DispatcherPortalProvider({ children }: { children: ReactNode }) 
     setLastUpdated(new Date().toLocaleString());
   }, [refreshSharedData]);
 
+  // Portal shared data (vendors / imports / zones) must load on mount.
+  // Vendor Communications reads vendors from this context; Vendors tab calls
+  // listVendors() itself — without a mount load the top-bar dropdown stayed empty
+  // until the user clicked Refresh Now.
+  useEffect(() => {
+    void refreshPortalData();
+  }, [refreshPortalData]);
+
   const handleRefreshNow = useCallback(async () => {
     if (refreshBusy) return;
     setRefreshBusy(true);
