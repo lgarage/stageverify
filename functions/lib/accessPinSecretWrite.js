@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.uniquenessBelongsToOtherTarget = void 0;
 exports.managementEntityPinPatch = managementEntityPinPatch;
 exports.technicianVendorEntityPinPatch = technicianVendorEntityPinPatch;
 exports.prepareAccessPinSecretWrite = prepareAccessPinSecretWrite;
@@ -8,6 +9,7 @@ const firestore_1 = require("firebase-admin/firestore");
 const https_1 = require("firebase-functions/v2/https");
 const accessPinCrypto_1 = require("./accessPinCrypto");
 const accessPinSecretsShared_1 = require("./accessPinSecretsShared");
+Object.defineProperty(exports, "uniquenessBelongsToOtherTarget", { enumerable: true, get: function () { return accessPinSecretsShared_1.uniquenessBelongsToOtherTarget; } });
 const accessPinTargetHelpers_1 = require("./accessPinTargetHelpers");
 const managementPinRegistry_1 = require("./managementPinRegistry");
 const pinHashing_1 = require("./pinHashing");
@@ -36,6 +38,9 @@ function prepareAccessPinSecretWrite(targetType, targetId, pin) {
         uniquenessRef: db
             .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
             .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)(pinLookupKey)),
+        legacyUniquenessRefs: accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_TARGET_TYPES.map((type) => db
+            .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
+            .doc((0, accessPinSecretsShared_1.legacyAccessPinUniquenessDocId)(type, pinLookupKey))),
         entityRef: (0, accessPinTargetHelpers_1.entityRefForTarget)(targetType, targetId),
         pinHash: (0, pinHashing_1.hashPinForStorage)(pin),
         pinEncrypted: (0, accessPinCrypto_1.encryptPinForStorage)(pin),
@@ -45,10 +50,15 @@ function prepareAccessPinSecretWrite(targetType, targetId, pin) {
 /** Secret + uniqueness + entity pinConfigured patch inside an open transaction. */
 async function applyAccessPinSecretWriteInTransaction(tx, db, input) {
     const { refs, targetType, targetId, now, pin } = input;
-    if (input.uniquenessSnap.exists) {
-        const existing = input.uniquenessSnap.data();
-        if ((existing.targetId && existing.targetId !== targetId) ||
-            (existing.targetType && existing.targetType !== targetType)) {
+    if ((0, accessPinSecretsShared_1.uniquenessBelongsToOtherTarget)(input.uniquenessSnap.exists
+        ? input.uniquenessSnap.data()
+        : undefined, targetType, targetId)) {
+        throw new https_1.HttpsError("already-exists", "Could not set PIN.");
+    }
+    for (const legacySnap of input.legacyUniquenessSnaps) {
+        if (!legacySnap.exists)
+            continue;
+        if ((0, accessPinSecretsShared_1.uniquenessBelongsToOtherTarget)(legacySnap.data(), targetType, targetId)) {
             throw new https_1.HttpsError("already-exists", "Could not set PIN.");
         }
     }
@@ -60,10 +70,25 @@ async function applyAccessPinSecretWriteInTransaction(tx, db, input) {
             try {
                 const oldPin = (0, accessPinCrypto_1.decryptPinFromStorage)(oldSecret.pinEncrypted);
                 if (oldPin !== pin) {
-                    const oldUniquenessRef = db
+                    const oldKey = (0, accessPinCrypto_1.pinLookupKeyForPin)(oldPin);
+                    const oldGlobalRef = db
                         .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
-                        .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)((0, accessPinCrypto_1.pinLookupKeyForPin)(oldPin)));
-                    tx.delete(oldUniquenessRef);
+                        .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)(oldKey));
+                    const oldGlobalSnap = await tx.get(oldGlobalRef);
+                    if (oldGlobalSnap.exists &&
+                        !(0, accessPinSecretsShared_1.uniquenessBelongsToOtherTarget)(oldGlobalSnap.data(), targetType, targetId)) {
+                        tx.delete(oldGlobalRef);
+                    }
+                    for (const type of accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_TARGET_TYPES) {
+                        const legacyRef = db
+                            .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
+                            .doc((0, accessPinSecretsShared_1.legacyAccessPinUniquenessDocId)(type, oldKey));
+                        const legacySnap = await tx.get(legacyRef);
+                        if (legacySnap.exists &&
+                            !(0, accessPinSecretsShared_1.uniquenessBelongsToOtherTarget)(legacySnap.data(), targetType, targetId)) {
+                            tx.delete(legacyRef);
+                        }
+                    }
                 }
             }
             catch {

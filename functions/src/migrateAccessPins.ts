@@ -9,7 +9,10 @@ import {
   accessPinSecretDocId,
   accessPinUniquenessDocId,
   ACCESS_PIN_UNIQUENESS_COLLECTION,
+  ACCESS_PIN_UNIQUENESS_TARGET_TYPES,
   getDb,
+  legacyAccessPinUniquenessDocId,
+  uniquenessBelongsToOtherTarget,
   type AccessPinTargetType,
 } from "./accessPinSecretsShared";
 import {
@@ -136,20 +139,42 @@ async function migrateEntityCollection(
       const now = new Date().toISOString();
 
       if (plainPin) {
+        const pinLookupKey = pinLookupKeyForPin(plainPin);
         const uniquenessRef = db
           .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
-          .doc(
-            accessPinUniquenessDocId(pinLookupKeyForPin(plainPin)),
-          );
+          .doc(accessPinUniquenessDocId(pinLookupKey));
         const uniquenessSnap = await tx.get(uniquenessRef);
-        if (uniquenessSnap.exists) {
-          const existing = uniquenessSnap.data() as {
-            targetId?: string;
-            targetType?: AccessPinTargetType;
-          };
+        if (
+          uniquenessBelongsToOtherTarget(
+            uniquenessSnap.exists
+              ? (uniquenessSnap.data() as {
+                  targetId?: string;
+                  targetType?: AccessPinTargetType;
+                })
+              : undefined,
+            targetType,
+            doc.id,
+          )
+        ) {
+          collisionSkipped = true;
+          return;
+        }
+        for (const type of ACCESS_PIN_UNIQUENESS_TARGET_TYPES) {
+          const legacyRef = db
+            .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
+            .doc(legacyAccessPinUniquenessDocId(type, pinLookupKey));
+          const legacySnap = await tx.get(legacyRef);
           if (
-            (existing.targetId && existing.targetId !== doc.id) ||
-            (existing.targetType && existing.targetType !== targetType)
+            uniquenessBelongsToOtherTarget(
+              legacySnap.exists
+                ? (legacySnap.data() as {
+                    targetId?: string;
+                    targetType?: AccessPinTargetType;
+                  })
+                : undefined,
+              targetType,
+              doc.id,
+            )
           ) {
             collisionSkipped = true;
             return;
@@ -160,7 +185,7 @@ async function migrateEntityCollection(
           targetId: doc.id,
           pinHash: hashPinForStorage(plainPin),
           pinEncrypted: encryptPinForStorage(plainPin),
-          pinLookupKey: pinLookupKeyForPin(plainPin),
+          pinLookupKey,
           revealable: true,
           updatedAt: now,
         });

@@ -248,10 +248,11 @@ async function upsertManagementPinDoc(input) {
         const db = (0, accessPinSecretsShared_1.getDb)();
         const refs = (0, accessPinSecretWrite_1.prepareAccessPinSecretWrite)("management", pinId, pin);
         await db.runTransaction(async (tx) => {
-            const [existingSecretSnap, uniquenessSnap, entitySnap] = await Promise.all([
+            const [existingSecretSnap, uniquenessSnap, entitySnap, ...legacyUniquenessSnaps] = await Promise.all([
                 tx.get(refs.secretRef),
                 tx.get(refs.uniquenessRef),
                 tx.get(refs.entityRef),
+                ...refs.legacyUniquenessRefs.map((ref) => tx.get(ref)),
             ]);
             await (0, accessPinSecretWrite_1.applyAccessPinSecretWriteInTransaction)(tx, db, {
                 targetType: "management",
@@ -261,6 +262,7 @@ async function upsertManagementPinDoc(input) {
                 refs,
                 existingSecretSnap,
                 uniquenessSnap,
+                legacyUniquenessSnaps,
                 entitySnap,
                 managementEntityFields: {
                     label,

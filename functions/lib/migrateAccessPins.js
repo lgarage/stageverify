@@ -81,14 +81,25 @@ async function migrateEntityCollection(targetType, collectionName, dryRun, remai
                 : null;
             const now = new Date().toISOString();
             if (plainPin) {
+                const pinLookupKey = (0, accessPinCrypto_1.pinLookupKeyForPin)(plainPin);
                 const uniquenessRef = db
                     .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
-                    .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)((0, accessPinCrypto_1.pinLookupKeyForPin)(plainPin)));
+                    .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)(pinLookupKey));
                 const uniquenessSnap = await tx.get(uniquenessRef);
-                if (uniquenessSnap.exists) {
-                    const existing = uniquenessSnap.data();
-                    if ((existing.targetId && existing.targetId !== doc.id) ||
-                        (existing.targetType && existing.targetType !== targetType)) {
+                if ((0, accessPinSecretsShared_1.uniquenessBelongsToOtherTarget)(uniquenessSnap.exists
+                    ? uniquenessSnap.data()
+                    : undefined, targetType, doc.id)) {
+                    collisionSkipped = true;
+                    return;
+                }
+                for (const type of accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_TARGET_TYPES) {
+                    const legacyRef = db
+                        .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
+                        .doc((0, accessPinSecretsShared_1.legacyAccessPinUniquenessDocId)(type, pinLookupKey));
+                    const legacySnap = await tx.get(legacyRef);
+                    if ((0, accessPinSecretsShared_1.uniquenessBelongsToOtherTarget)(legacySnap.exists
+                        ? legacySnap.data()
+                        : undefined, targetType, doc.id)) {
                         collisionSkipped = true;
                         return;
                     }
@@ -98,7 +109,7 @@ async function migrateEntityCollection(targetType, collectionName, dryRun, remai
                     targetId: doc.id,
                     pinHash: (0, pinHashing_1.hashPinForStorage)(plainPin),
                     pinEncrypted: (0, accessPinCrypto_1.encryptPinForStorage)(plainPin),
-                    pinLookupKey: (0, accessPinCrypto_1.pinLookupKeyForPin)(plainPin),
+                    pinLookupKey,
                     revealable: true,
                     updatedAt: now,
                 });

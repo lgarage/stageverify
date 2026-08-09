@@ -76,6 +76,37 @@ export function accessPinUniquenessDocId(pinLookupKey: string): string {
   return `global_${pinLookupKey}`;
 }
 
+/**
+ * Pre–D-74 per-type uniqueness doc id (`technician_|vendor_|management_` + lookup key).
+ * Retained for dual-check on write so legacy index rows still block cross-target reuse.
+ */
+export function legacyAccessPinUniquenessDocId(
+  targetType: AccessPinTargetType,
+  pinLookupKey: string,
+): string {
+  return `${targetType}_${pinLookupKey}`;
+}
+
+export const ACCESS_PIN_UNIQUENESS_TARGET_TYPES: AccessPinTargetType[] = [
+  "technician",
+  "vendor",
+  "management",
+];
+
+/** True when an uniqueness index row belongs to a different target. */
+export function uniquenessBelongsToOtherTarget(
+  existing:
+    | { targetId?: string; targetType?: AccessPinTargetType }
+    | undefined,
+  targetType: AccessPinTargetType,
+  targetId: string,
+): boolean {
+  if (!existing) return false;
+  if (existing.targetId && existing.targetId !== targetId) return true;
+  if (existing.targetType && existing.targetType !== targetType) return true;
+  return false;
+}
+
 export function parseAccessPinTargetType(
   value: unknown,
 ): AccessPinTargetType | null {

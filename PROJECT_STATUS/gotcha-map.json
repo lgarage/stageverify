@@ -1404,6 +1404,39 @@
         "Ready for Pickup order check"
       ],
       "warning": "verify:delivery-consistency may FAIL with a single check: \"Ready for Pickup row present for order check — skipped\" when no Ready for Pickup row is on the default live board (fixture/live-data absence). Pre-existing live-data flake — not a regression from drawer/banner/list UI ships. Do not treat that lone skip as a product bug; judge other asserts + targeted readiness/banner tests. Dan standing preference 2026-08-01."
+    },
+    {
+      "id": "prod-verify-must-teardown",
+      "match": [
+        "Unplanned Verify Vendor",
+        "vendor-unpl-",
+        "prod verify leftover",
+        "verify fixture cleanup",
+        "production test artifact",
+        "verify teardown",
+        "cleanup:vendor-unplanned-verify"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "ship-verify",
+      "files": [
+        "scripts/verify-vendor-unplanned-delivery.mjs",
+        "scripts/cleanup-vendor-unplanned-verify-fixtures.mjs",
+        "scripts/cleanup-mgmt-verify-fixtures.mjs"
+      ],
+      "rules": ["ship-loop.mdc § Done gate"],
+      "commands": [
+        "npm run cleanup:vendor-unplanned-verify",
+        "npm run verify:vendor-unplanned-delivery:prod"
+      ],
+      "gateCandidate": true,
+      "injectBefore": [
+        "prod Playwright",
+        ":prod verify",
+        "setAccessPin seed",
+        "Firestore seed in verify"
+      ],
+      "warning": "D-75: Production verification must clean up any Firestore data it creates unless intentionally retained and documented. Client rules deny vendor/accessPinSecrets deletes — use FIREBASE_TOKEN admin REST teardown in finally (or npm run cleanup:vendor-unplanned-verify -- --confirm). Prefer deterministic fixture ids over Date.now(). Pattern: cleanup-mgmt-verify-fixtures.mjs allowlist + safety checks. Pain: verify:vendor-unplanned-delivery:prod left multiple Unplanned Verify Vendor rows in Settings (2026-08-09)."
     }
   ]
 }

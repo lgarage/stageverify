@@ -1,9 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FIRST_ADMIN_BOOTSTRAP_LOCK_ID = exports.ACCESS_CONTROL_LOCKS_COLLECTION = exports.ADMIN_ACCESS_SESSIONS_COLLECTION = exports.ACCESS_PIN_SET_ATTEMPTS_COLLECTION = exports.ACCESS_PIN_REVEAL_ATTEMPTS_COLLECTION = exports.PIN_ACCESS_AUDIT_COLLECTION = exports.ACCESS_PIN_UNIQUENESS_COLLECTION = exports.ACCESS_PIN_SECRETS_COLLECTION = void 0;
+exports.ACCESS_PIN_UNIQUENESS_TARGET_TYPES = exports.FIRST_ADMIN_BOOTSTRAP_LOCK_ID = exports.ACCESS_CONTROL_LOCKS_COLLECTION = exports.ADMIN_ACCESS_SESSIONS_COLLECTION = exports.ACCESS_PIN_SET_ATTEMPTS_COLLECTION = exports.ACCESS_PIN_REVEAL_ATTEMPTS_COLLECTION = exports.PIN_ACCESS_AUDIT_COLLECTION = exports.ACCESS_PIN_UNIQUENESS_COLLECTION = exports.ACCESS_PIN_SECRETS_COLLECTION = void 0;
 exports.getDb = getDb;
 exports.accessPinSecretDocId = accessPinSecretDocId;
 exports.accessPinUniquenessDocId = accessPinUniquenessDocId;
+exports.legacyAccessPinUniquenessDocId = legacyAccessPinUniquenessDocId;
+exports.uniquenessBelongsToOtherTarget = uniquenessBelongsToOtherTarget;
 exports.parseAccessPinTargetType = parseAccessPinTargetType;
 exports.writePinAccessAudit = writePinAccessAudit;
 exports.writePinAccessAuditBestEffort = writePinAccessAuditBestEffort;
@@ -25,6 +27,28 @@ function accessPinSecretDocId(targetType, targetId) {
 /** Global uniqueness index doc id — arg is HMAC lookup key from pinLookupKeyForPin, not plaintext PIN. */
 function accessPinUniquenessDocId(pinLookupKey) {
     return `global_${pinLookupKey}`;
+}
+/**
+ * Pre–D-74 per-type uniqueness doc id (`technician_|vendor_|management_` + lookup key).
+ * Retained for dual-check on write so legacy index rows still block cross-target reuse.
+ */
+function legacyAccessPinUniquenessDocId(targetType, pinLookupKey) {
+    return `${targetType}_${pinLookupKey}`;
+}
+exports.ACCESS_PIN_UNIQUENESS_TARGET_TYPES = [
+    "technician",
+    "vendor",
+    "management",
+];
+/** True when an uniqueness index row belongs to a different target. */
+function uniquenessBelongsToOtherTarget(existing, targetType, targetId) {
+    if (!existing)
+        return false;
+    if (existing.targetId && existing.targetId !== targetId)
+        return true;
+    if (existing.targetType && existing.targetType !== targetType)
+        return true;
+    return false;
 }
 function parseAccessPinTargetType(value) {
     if (value === "technician" ||
