@@ -68,6 +68,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
+- **Invoice Review scoring Phase 1 (D-75) — PR open, CF NOT deployed** — CLEANUP/SPLIT-lite: after verified C2 `fieldCorrectionLog`, stale `confidenceScore<85` / sticky `humanReviewRequired` no longer independently veto Suggested Import when CURRENT readiness is otherwise clean; `confidenceScore` stays parse diagnostic. Await Dan CF deploy approval after merge.
 - **Neutral location-scan PIN LIVE (D-74)** — PR #83 merge `7703b024` / **v0.0.255** / `index-CvZU2kJN.js`; CF `resolveLocationScanPin` + uniqueness write path deployed. Hard-refresh phone and confirm bundle.
 - **Lane C C2 truth-state LIVE** — PR #81 merge `95897c3b`; CF revisions above; prod page-1 self-heal + page-2 isolation PASS. Do **not** start C3/C4 until D-59 #7/#8 amend. Dan/ops: Settings → **Reconnect Gmail**, then smoke one invoice through ingest → Inbox archive + View Original PDF.
 - **Technician Pickup FE consistency+speed (PR #78)** — already LIVE as **v0.0.252**. Remaining bottleneck: CF `verifyTechnicianPin` + sequential `getTechnicianReleasedJobs` N+1 (high-risk CF — needs Dan approve; do **not** enable `minInstances` yet).

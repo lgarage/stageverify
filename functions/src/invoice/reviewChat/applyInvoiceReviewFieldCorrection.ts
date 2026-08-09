@@ -77,6 +77,7 @@ function asRecord(value: unknown): Record<string, unknown> {
 function reconcileFromImportDoc(
   importDoc: Record<string, unknown>,
   parsedHeader: Record<string, unknown>,
+  fieldCorrectionLogOverride?: unknown,
 ): ReconciledImportState {
   return reconcileImportStateAfterCorrection({
     parsedHeader,
@@ -90,6 +91,8 @@ function reconcileFromImportDoc(
     pageId: importDoc.pageId,
     parserFormatId: importDoc.parserFormatId,
     orderNotes: importDoc.orderNotes,
+    fieldCorrectionLog:
+      fieldCorrectionLogOverride ?? importDoc.fieldCorrectionLog,
   });
 }
 
@@ -567,8 +570,6 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
       ...freshHeader,
       [proposed.field]: proposed.proposedValue,
     };
-    const reconciled = reconcileFromImportDoc(freshDoc, nextHeader);
-
     const priorLog = Array.isArray(freshDoc.fieldCorrectionLog)
       ? (freshDoc.fieldCorrectionLog as Array<Record<string, unknown>>)
       : [];
@@ -581,6 +582,9 @@ export async function runApplyInvoiceReviewFieldCorrectionCore(input: {
       correctionId,
     };
     const nextLog = [...priorLog, logEntry].slice(-20);
+    // Pass nextLog so the correction applied in this write is visible to the
+    // stale-veto gate immediately (not one cycle late).
+    const reconciled = reconcileFromImportDoc(freshDoc, nextHeader, nextLog);
 
     const updatePayload: Record<string, unknown> = {
       [`parsedHeader.${proposed.field}`]: proposed.proposedValue,

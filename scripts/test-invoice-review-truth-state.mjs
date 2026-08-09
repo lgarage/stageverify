@@ -392,6 +392,14 @@ function seedPageImports(db) {
     afterApply.originalParseWarnings.includes("missing customerPoOrReference"),
   );
   assert.equal(afterApply.fieldCorrectionLog.length, 1);
+  // Phase 1: truth-state seed keeps uncertain:shipVia → other blocker remains, so
+  // stale confidence/HRR may still list — assert Missing PO is gone (A clean-path
+  // covered in test-auto-import-eligibility / test-invoice-field-correction).
+  assert.ok(
+    !(applyResult.reviewRequiredReasons ?? []).some((r) =>
+      /Missing Customer P\/O/i.test(r),
+    ),
+  );
   ok("apply writes authoritative PO + clears current warnings + keeps history");
 
   // 3) Next turn wrongly claims blank — gate must rewrite
@@ -524,15 +532,40 @@ function seedPageImports(db) {
   );
   assert.equal(restoredHeader.customerPoOrReference, TARGET_PO);
   const restoredState = reconcileMod.reconcileImportStateAfterCorrection({
-    parsedHeader: restoredHeader,
-    parseWarnings: ["missing customerPoOrReference", "uncertain:shipVia"],
+    parsedHeader: {
+      ...restoredHeader,
+      orderDate: "2026-01-01",
+      customerAccountNumber: "12345",
+      vendorBranchName: "Johnstone Supply",
+      buyerName: "Acme HVAC",
+    },
+    parseWarnings: ["missing customerPoOrReference"],
     importStatus: "pickup_at_vendor",
     confidenceScore: 80,
     humanReviewRequired: true,
     duplicate: false,
+    parserFormatId: "johnstone",
+    parsedLines: [
+      {
+        lineType: "product",
+        excludeFromExpectedItems: false,
+        quantityOrdered: 1,
+        quantityShipped: 1,
+        quantityBackordered: 0,
+      },
+    ],
+    parsedLineCount: 1,
+    fieldCorrectionLog: afterApply.fieldCorrectionLog,
   });
   assert.ok(!restoredState.parseWarnings.includes("missing customerPoOrReference"));
-  ok("reparse re-applies fieldCorrectionLog (Refresh preserve)");
+  assert.equal(restoredState.importDecisionMode, "suggested_import");
+  assert.equal(restoredState.autoImportConfidence, 80);
+  assert.ok(
+    !restoredState.reviewRequiredReasons.some((r) =>
+      /Parser confidence|human review required/i.test(r),
+    ),
+  );
+  ok("reparse re-applies fieldCorrectionLog (Refresh preserve; no stale veto)");
 
   // 7) Audit recovery when log wiped
   const wiped = structuredClone(afterApply);
@@ -572,6 +605,38 @@ function seedPageImports(db) {
     }),
   );
   assert.ok(page2Windows.some((w) => /2205\s+EARLY|truck stock/i.test(w.text)));
+  // F — page-2 eligibility independent of page-1 apply activity
+  const page2Elig = reconcileMod.reconcileImportStateAfterCorrection({
+    parsedHeader: {
+      ...page2After.parsedHeader,
+      orderDate: "2026-01-01",
+      customerAccountNumber: "12345",
+      vendorBranchName: "Johnstone Supply",
+      buyerName: "Acme HVAC",
+    },
+    parseWarnings: page2After.parseWarnings,
+    importStatus: "pickup_at_vendor",
+    confidenceScore: page2After.confidenceScore,
+    humanReviewRequired: page2After.humanReviewRequired,
+    duplicate: false,
+    parserFormatId: "johnstone",
+    parsedLines: [
+      {
+        lineType: "product",
+        excludeFromExpectedItems: false,
+        quantityOrdered: 1,
+        quantityShipped: 1,
+        quantityBackordered: 0,
+      },
+    ],
+    parsedLineCount: 1,
+    fieldCorrectionLog: page2After.fieldCorrectionLog,
+  });
+  assert.equal(page2Elig.importDecisionMode, "suggested_import");
+  assert.notEqual(
+    page2After.parsedHeader.vendorInvoiceNumber,
+    afterApply.parsedHeader.vendorInvoiceNumber,
+  );
   ok("page-1/page-2 isolation; shared batch text is read-only evidence");
 
   // 9) Idempotent re-apply

@@ -39,6 +39,31 @@ function productLines(input) {
     const lines = input.parsedLines ?? [];
     return lines.filter((l) => l.lineType === "product" && !l.excludeFromExpectedItems);
 }
+/** Local allowlist mirror — do not import reviewChat/correctionAllowlist here. */
+const STALE_VETO_CORRECTABLE_FIELD_KEYS = [
+    "customerPoOrReference",
+    "vendorOrderNumber",
+    "vendorInvoiceNumber",
+];
+/** True when a confirmed allowlisted correction matches the CURRENT header value. */
+function hasVerifiedCorrectionForCurrentHeader(fieldCorrectionLog, header) {
+    if (!Array.isArray(fieldCorrectionLog))
+        return false;
+    return fieldCorrectionLog.some((raw) => {
+        if (!raw || typeof raw !== "object" || Array.isArray(raw))
+            return false;
+        const entry = raw;
+        const field = entry.field;
+        if (typeof field !== "string" ||
+            !STALE_VETO_CORRECTABLE_FIELD_KEYS.includes(field)) {
+            return false;
+        }
+        const newValue = typeof entry.newValue === "string" ? entry.newValue.trim() : "";
+        if (!newValue)
+            return false;
+        return headerStr(header, field) === newValue;
+    });
+}
 /** Deterministic eligibility — explains suggested vs review vs blocked. */
 function computeAutoImportEligibility(input) {
     const autoImportReasons = [];
@@ -169,14 +194,30 @@ function computeAutoImportEligibility(input) {
     else {
         autoImportReasons.push("No parse warnings");
     }
+    // CLEANUP / SPLIT-lite Phase 1: keep confidenceScore as parse-time diagnostic.
+    // When verified C2 corrections cover CURRENT header fields and no other
+    // operational blockers remain, do not let stale confidence/HRR independently veto.
+    const otherBlockersExist = reviewRequiredReasons.length > 0;
+    const canSkipStaleParserEraVetoes = !otherBlockersExist &&
+        hasVerifiedCorrectionForCurrentHeader(input.fieldCorrectionLog, header);
     if (confidence < types_1.INVOICE_AUTO_APPLY_CONFIDENCE) {
-        reviewRequiredReasons.push(`Parser confidence ${confidence} below threshold ${types_1.INVOICE_AUTO_APPLY_CONFIDENCE}`);
+        if (canSkipStaleParserEraVetoes) {
+            autoImportReasons.push(`Parser confidence ${confidence} below threshold ${types_1.INVOICE_AUTO_APPLY_CONFIDENCE} — not vetoed (verified correction confirmed for this import)`);
+        }
+        else {
+            reviewRequiredReasons.push(`Parser confidence ${confidence} below threshold ${types_1.INVOICE_AUTO_APPLY_CONFIDENCE}`);
+        }
     }
     else {
         autoImportReasons.push(`Parser confidence ${confidence} meets threshold (${types_1.INVOICE_AUTO_APPLY_CONFIDENCE}+)`);
     }
     if (input.humanReviewRequired) {
-        reviewRequiredReasons.push("Parser flagged human review required");
+        if (canSkipStaleParserEraVetoes) {
+            autoImportReasons.push("Parser flagged human review required — not vetoed (verified correction confirmed for this import)");
+        }
+        else {
+            reviewRequiredReasons.push("Parser flagged human review required");
+        }
     }
     const autoImportEligible = reviewRequiredReasons.length === 0;
     const importDecisionMode = autoImportEligible
@@ -250,6 +291,10 @@ function persistedEligibilityStaleAfterCorrection(row) {
         const m = match?.match(/\((\d+)\)/);
         if (m && Number(m[1]) !== unresolved.length)
             return true;
+    }
+    if (reasons.some((r) => /^Parser confidence .* below threshold|^Parser flagged human review required/i.test(r)) &&
+        hasVerifiedCorrectionForCurrentHeader(row.fieldCorrectionLog, header)) {
+        return true;
     }
     return false;
 }

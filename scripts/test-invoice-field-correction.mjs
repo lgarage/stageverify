@@ -706,6 +706,50 @@ function ok(label) {
     !state.reviewRequiredReasons.some((r) => /Missing Customer P\/O/i.test(r)),
   );
   ok("reconcileImportStateAfterCorrection updates warnings + review reasons");
+
+  // CLEANUP Phase 1 — score 80 + HRR + verified log + otherwise clean → suggested_import
+  const staleVetoCleared = reconcileMod.reconcileImportStateAfterCorrection({
+    parsedHeader: {
+      customerPoOrReference: "2205 EARLY",
+      vendorInvoiceNumber: "6169414",
+      vendorOrderNumber: "SO9",
+      orderDate: "2026-01-01",
+      customerAccountNumber: "12345",
+      vendorBranchName: "Johnstone Supply",
+      buyerName: "Acme",
+    },
+    parseWarnings: [],
+    importStatus: "pending",
+    confidenceScore: 80,
+    humanReviewRequired: true,
+    duplicate: false,
+    parserFormatId: "johnstone",
+    parsedLines: [
+      {
+        lineType: "product",
+        excludeFromExpectedItems: false,
+        quantityOrdered: 1,
+        quantityShipped: 1,
+        quantityBackordered: 0,
+      },
+    ],
+    parsedLineCount: 1,
+    fieldCorrectionLog: [
+      {
+        field: "customerPoOrReference",
+        previousValue: "",
+        newValue: "2205 EARLY",
+      },
+    ],
+  });
+  assert.equal(staleVetoCleared.importDecisionMode, "suggested_import");
+  assert.equal(staleVetoCleared.autoImportConfidence, 80);
+  assert.ok(
+    !staleVetoCleared.reviewRequiredReasons.some((r) =>
+      /Parser confidence|human review required/i.test(r),
+    ),
+  );
+  ok("Phase1: verified correction clears stale confidence/HRR veto (score stays 80)");
 }
 
 // Idempotent apply still returns reconciled parseWarnings for FE live merge
@@ -732,6 +776,41 @@ function ok(label) {
   assert.ok(!second.parseWarnings.includes("missing customerPoOrReference"));
   assert.deepEqual(first.parseWarnings, second.parseWarnings);
   ok("repeated apply remains idempotent and returns reconciled warnings");
+}
+
+// CLEANUP Phase 1 — apply path with score 80 + clean CURRENT reaches suggested_import
+{
+  const { db, importId, messageId } = seedImportAndProposal({
+    importId: "imp-phase1-score80",
+    confidenceScore: 80,
+    parseWarnings: ["missing customerPoOrReference"],
+    reviewRequiredReasons: [
+      "Missing Customer P/O",
+      "Parser confidence 80 below threshold 85",
+      "Parser flagged human review required",
+    ],
+  });
+  const r = await applyMod.runApplyInvoiceReviewFieldCorrectionCore({
+    db,
+    uid: "u1",
+    vendorInvoiceImportId: importId,
+    sourceMessageId: messageId,
+    idempotencyKey: "k-phase1-80",
+  });
+  assert.equal(r.applied, true);
+  assert.equal(r.parsedHeader.customerPoOrReference, "2205 EARLY");
+  assert.equal(r.autoImportConfidence, 80);
+  assert.equal(r.importDecisionMode, "suggested_import");
+  assert.ok(
+    !(r.reviewRequiredReasons ?? []).some((reason) =>
+      /Parser confidence|human review required/i.test(reason),
+    ),
+  );
+  const persisted = db._store.get(`vendorInvoiceImports/${importId}`);
+  assert.equal(persisted.confidenceScore, 80);
+  assert.equal(persisted.humanReviewRequired, true);
+  assert.equal(persisted.importDecisionMode, "suggested_import");
+  ok("Phase1 apply: score 80/HRR sticky on doc but CURRENT suggested_import");
 }
 
 console.log(`PASS: test-invoice-field-correction (${passed} checks)`);
