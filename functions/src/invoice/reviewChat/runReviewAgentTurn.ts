@@ -102,6 +102,7 @@ async function findPendingProposalMessageId(
   db: Firestore,
   importId: string,
   fieldFilter?: string,
+  excludeMessageId?: string,
 ): Promise<string | null> {
   const snap = await db
     .collection(REVIEW_CHAT_COLLECTION)
@@ -113,6 +114,7 @@ async function findPendingProposalMessageId(
 
   const matches: string[] = [];
   for (const doc of snap.docs) {
+    if (excludeMessageId && doc.id === excludeMessageId) continue;
     const data = doc.data() as Record<string, unknown>;
     if (data.role !== "agent") continue;
     if (data.correctionStatus !== "proposed") continue;
@@ -123,6 +125,7 @@ async function findPendingProposalMessageId(
     if (fieldFilter && field !== fieldFilter) continue;
     matches.push(doc.id);
   }
+  // Exactly one pending proposal — never guess when ambiguous.
   if (matches.length === 1) return matches[0]!;
   return null;
 }
@@ -361,6 +364,12 @@ export async function runReviewAgentTurnCore(input: {
 
   const intent = classifyCorrectionIntent(message);
 
+  // Confirmation turns apply an *existing* proposal — never persist a new one
+  // from the model on this turn (prevents arbitrary/extra pending cards).
+  if (intent.kind === "confirmation") {
+    proposedCorrection = undefined;
+  }
+
   // If dispatcher issued a direct command with a value but the model omitted
   // proposedCorrection, synthesize a proposal when evidence/classifier agree.
   if (
@@ -427,17 +436,15 @@ export async function runReviewAgentTurnCore(input: {
     autoApplyMessageId = agentMsgRef.id;
     autoApplyTriggerMode = "chat_direct_command";
   } else if (intent.kind === "confirmation") {
+    // Confirmation must target the sole *existing* pending proposal — never a
+    // newly synthesized proposal on this turn (avoids arbitrary mutation).
     const pendingId = await findPendingProposalMessageId(
       input.db,
       importId,
       intent.field,
+      agentMsgRef.id,
     );
-    // Prefer this turn's proposal if present; else earlier pending.
-    if (proposedCorrection) {
-      autoApplyEligible = true;
-      autoApplyMessageId = agentMsgRef.id;
-      autoApplyTriggerMode = "chat_confirmation";
-    } else if (pendingId) {
+    if (pendingId) {
       autoApplyEligible = true;
       autoApplyMessageId = pendingId;
       autoApplyTriggerMode = "chat_confirmation";

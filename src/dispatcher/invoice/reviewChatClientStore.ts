@@ -152,14 +152,16 @@ function buildAgentReply(
       ? header.customerPoOrReference
       : "";
 
-  const pending = [...prior]
+  const pendingAll = [...prior]
     .reverse()
-    .find(
+    .filter(
       (m) =>
         m.role === "agent" &&
         m.correctionStatus === "proposed" &&
-        m.proposedCorrection?.field === "customerPoOrReference",
+        Boolean(m.proposedCorrection),
     );
+  // Ambiguity safety: vague confirmation only when exactly one pending proposal.
+  const pending = pendingAll.length === 1 ? pendingAll[0] : undefined;
 
   if (isDirectPoCommand(dispatcherText)) {
     const proposed = buildPoProposal(currentPo);

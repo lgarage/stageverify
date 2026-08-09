@@ -56,7 +56,7 @@ async function loadRecentTurns(db, importId) {
     }
     return turns;
 }
-async function findPendingProposalMessageId(db, importId, fieldFilter) {
+async function findPendingProposalMessageId(db, importId, fieldFilter, excludeMessageId) {
     const snap = await db
         .collection(reviewAgentTypes_1.REVIEW_CHAT_COLLECTION)
         .doc(importId)
@@ -66,6 +66,8 @@ async function findPendingProposalMessageId(db, importId, fieldFilter) {
         .get();
     const matches = [];
     for (const doc of snap.docs) {
+        if (excludeMessageId && doc.id === excludeMessageId)
+            continue;
         const data = doc.data();
         if (data.role !== "agent")
             continue;
@@ -81,6 +83,7 @@ async function findPendingProposalMessageId(db, importId, fieldFilter) {
             continue;
         matches.push(doc.id);
     }
+    // Exactly one pending proposal — never guess when ambiguous.
     if (matches.length === 1)
         return matches[0];
     return null;
@@ -262,6 +265,11 @@ async function runReviewAgentTurnCore(input) {
         console.error("reviewAgentTurn model/parse failed:", err);
     }
     const intent = (0, correctionIntentClassifier_1.classifyCorrectionIntent)(message);
+    // Confirmation turns apply an *existing* proposal — never persist a new one
+    // from the model on this turn (prevents arbitrary/extra pending cards).
+    if (intent.kind === "confirmation") {
+        proposedCorrection = undefined;
+    }
     // If dispatcher issued a direct command with a value but the model omitted
     // proposedCorrection, synthesize a proposal when evidence/classifier agree.
     if (!proposedCorrection &&
@@ -318,14 +326,10 @@ async function runReviewAgentTurnCore(input) {
         autoApplyTriggerMode = "chat_direct_command";
     }
     else if (intent.kind === "confirmation") {
-        const pendingId = await findPendingProposalMessageId(input.db, importId, intent.field);
-        // Prefer this turn's proposal if present; else earlier pending.
-        if (proposedCorrection) {
-            autoApplyEligible = true;
-            autoApplyMessageId = agentMsgRef.id;
-            autoApplyTriggerMode = "chat_confirmation";
-        }
-        else if (pendingId) {
+        // Confirmation must target the sole *existing* pending proposal — never a
+        // newly synthesized proposal on this turn (avoids arbitrary mutation).
+        const pendingId = await findPendingProposalMessageId(input.db, importId, intent.field, agentMsgRef.id);
+        if (pendingId) {
             autoApplyEligible = true;
             autoApplyMessageId = pendingId;
             autoApplyTriggerMode = "chat_confirmation";
