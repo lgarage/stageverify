@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "command": "node plugins/stageverify-timekeeper/scripts/timekeeper.mjs"
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "node plugins/stageverify-timekeeper/scripts/timekeeper.mjs"
+      }
+    ],
+    "postToolUseFailure": [
+      {
+        "command": "node plugins/stageverify-timekeeper/scripts/timekeeper.mjs"
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "node plugins/stageverify-timekeeper/scripts/timekeeper.mjs"
+      }
+    ],
+    "afterShellExecution": [
+      {
+        "command": "node plugins/stageverify-timekeeper/scripts/timekeeper.mjs"
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "node plugins/stageverify-timekeeper/scripts/timekeeper.mjs"
+      }
+    ],
+    "subagentStart": [
+      {
+        "command": "node plugins/stageverify-timekeeper/scripts/timekeeper.mjs"
+      }
+    ],
+    "subagentStop": [
+      {
+        "command": "node plugins/stageverify-timekeeper/scripts/timekeeper.mjs"
+      }
+    ],
+    "stop": [
+      {
+        "command": "node plugins/stageverify-timekeeper/scripts/timekeeper.mjs",
+        "loop_limit": 2
+      }
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+---
+description: StageVerify Timekeeper (D-72) — project alwaysApply mirror so cloud/desktop agents honor anti-thrash without marketplace install.
+alwaysApply: true
+---
+
+# StageVerify Timekeeper (D-72) — project mirror
+
+Canonical detail: `plugins/stageverify-timekeeper/rules/timekeeper.mdc` + skill `stageverify-timekeeper`.
+
+Hooks auto-run via `.cursor/hooks.json`. When a `TIMEKEEPER` block appears, follow its `decision`.
+
+**Anti-thrash:** same op fails twice → stop repeating → classify → change method / D-19–D-50 / PARTIAL / BLOCKED.
+
+**Failure classes:** product | implementation | verification | measurement-tool | CI wait | deploy propagation | main drift — different recoveries.
+
+**Checkpoints:** ~10m stall · ~15m status · ~25m completion-focus · ~35m A/B/C/D + D-66 terminal.
+
+**HARD CONTRACT:** Never weaken or skip required D-38 / D-60 / D-42 / D-51 / named `verify:*` / D-50 because of Timekeeper advice. Green stamps only justify skipping *unchanged redundant* reruns under existing D-37/D-65 rules.

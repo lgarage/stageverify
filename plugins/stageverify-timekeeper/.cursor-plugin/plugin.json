@@ -1,0 +1,21 @@
+{
+  "name": "stageverify-timekeeper",
+  "displayName": "StageVerify Timekeeper",
+  "version": "0.1.0",
+  "description": "Harness anti-thrash timekeeper for StageVerify agent runs: wall-clock checkpoints, repeated-failure nudges, and bounded waiting — without weakening D-38/D-60/D-65/D-66/D-69.",
+  "author": {
+    "name": "StageVerify",
+    "email": "dan@stageverify.local"
+  },
+  "license": "MIT",
+  "keywords": [
+    "stageverify",
+    "harness",
+    "hooks",
+    "timekeeper",
+    "anti-thrash"
+  ],
+  "hooks": "./hooks/hooks.json",
+  "rules": "./rules",
+  "skills": "./skills"
+}

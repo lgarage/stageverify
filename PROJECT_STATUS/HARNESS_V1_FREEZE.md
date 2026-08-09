@@ -51,6 +51,7 @@ Voice-cheap — **"log pain: <what you wanted and couldn't do>"** in any channel
 - 2026-08-08: Dan-directed reopen (owner authority) + cost-audit pain: Pro+ Other Models burned by automatic multi-Grok stacks on routine T1 UI + Sol High Task tax + Ship FAIL loops on evidence-format gaps — Balanced trim D-65 (lane table; Sol visual-judgment only; conditional Solution/Build/UI-PW/Ship; Q&A consequential-only; `ship-evidence-preflight.mjs` addition justified by D-54 evidence-gap double-Ship pain logged prior). PROTECTED D-38/D-60/mechanical/D-50 unchanged.
 - 2026-08-08: Dan-directed reopen (owner authority): terminal status ambiguity (finished vs wait-on-Dan vs failed vs partial unfinished scope) — D-66 four-status block amends D-61; SSOT `done-signal.mdc`; shell notifications ≠ authoritative status.
 - 2026-08-09: Dan-directed reopen (owner authority): agents still needed occasional “follow the 97 rule” reminders — pre-edit-only framing let investigate/verify/DONE and subagent-inheritance miss D-47; harden universal alwaysApply SSOT + completion/honesty/subagent bars (D-69).
+- 2026-08-09: Dan-directed reopen (owner authority): agents burned wall-clock/model cost on repeated measurement timeouts, mistaken PIN autosubmit waits, and low-value verify/deploy poll loops — wanted in-run Timekeeper (advise-only hooks + rule) without weakening D-38/D-60/D-50 (D-72).
 
 ## Deferred designs (reviewed 2026-07-09, rounds 1-5; retrievable via pain ticket)
 
