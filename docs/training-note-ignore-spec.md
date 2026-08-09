@@ -130,7 +130,8 @@ Deferred structured-lesson schema (future phase, [Dan #7/#8]): `ruleCategory: "f
 
 1. **`document_ignore` (active):** set a *new* `vendorInvoiceImports` doc to `reviewStatus: "rejected"`, `skipReason: "document_ignore"`, `rejectedBy: "system:document_ignore_skip"`, plus `matchedRuleId` (P5). Nothing else.
 2. **Lane A:** append redacted prose to the vendor GCS MD (≤800 chars/note, ≤120 KB/file).
-3. **Deferred `fulfillment_mapping`:** *propose* `fulfillmentMethod` on a parse result; never bypasses review.
+3. **Deferred `fulfillment_mapping` (P8):** *propose* `fulfillmentMethod` on a parse result; never bypasses review.
+4. **Authorized later — `header_field_extraction` (Lane C / C3):** after C3-D/E implementation, fill-empty overlay on the three allowlisted header fields only; never auto-approve; never raises `confidenceScore` merely because a lesson exists; never inherits document-ignore skip semantics. Not implemented in P1–P7.
 
 ## 9. Exact prohibited effects
 
