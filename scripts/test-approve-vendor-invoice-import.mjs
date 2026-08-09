@@ -1054,17 +1054,19 @@ const preserveWillCallSnap = await getDoc(
   doc(db, "deliveries", preserveWillCallDeliveryId),
 );
 const preserveWillCallData = preserveWillCallSnap.data() ?? {};
+const preserveWillCallPlanned =
+  preserveWillCallData.plannedStagingLocationIds ?? [];
 if (
   preserveWillCallData.invoiceFulfillmentMethod === "will_call_pickup" &&
   preserveWillCallData.invoiceImportStatus === "pickup_at_vendor" &&
-  Array.isArray(preserveWillCallData.plannedStagingLocationIds) &&
-  preserveWillCallData.plannedStagingLocationIds[0] === "zone-fixture-g6"
+  Array.isArray(preserveWillCallPlanned) &&
+  preserveWillCallPlanned.length === 0
 ) {
   pass(
-    "Drop-Off import create_shell does not revert dispatcher Will-Call (+ keeps planned staging)",
+    "Drop-Off import create_shell preserves Will-Call ops and clears active staging (D-80)",
   );
 } else {
-  fail("Will-Call ops overwritten by create_shell", {
+  fail("Will-Call ops/staging after create_shell", {
     invoiceFulfillmentMethod: preserveWillCallData.invoiceFulfillmentMethod,
     invoiceImportStatus: preserveWillCallData.invoiceImportStatus,
     status: preserveWillCallData.status,
@@ -2123,6 +2125,62 @@ if (
     response: matchedReapprove?.data,
     notes: reMatchedSnap.data()?.notes,
     shellExists: reMatchedShell.exists(),
+  });
+}
+
+// D-79 + D-80: Will-Call-parsed import must not wipe dispatcher Drop-Off staging.
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await seedHighConfidenceMatchCase(adminDb, {
+    importId: "vii-matched-preserve-dropoff-vs-willcall-import",
+    orderNumber: "MATCH-ORD-A14",
+    poNumber: "PO-80014",
+    fulfillmentMethod: "will_call_pickup",
+    importStatus: "pickup_at_vendor",
+    deliveryExtras: {
+      invoiceFulfillmentMethod: "delivery",
+      invoiceImportStatus: "pending",
+      plannedStagingLocationIds: ["staging-g2"],
+      stagingLocationId: "staging-g2",
+      status: "arrived",
+      notes: "Keep Drop-Off staging",
+    },
+  });
+});
+let matchedPreserveDropOff;
+try {
+  matchedPreserveDropOff = await approveImport({
+    vendorInvoiceImportId: "vii-matched-preserve-dropoff-vs-willcall-import",
+    action: "approve",
+    plannedStagingLocationIds: ["staging-g1"],
+  });
+} catch (err) {
+  fail("preserve Drop-Off vs Will-Call import approve failed", err?.message);
+}
+const preserveDropOffId =
+  "delivery-for-vii-matched-preserve-dropoff-vs-willcall-import";
+const preserveDropOffVsWillSnap = await getDoc(
+  doc(db, "deliveries", preserveDropOffId),
+);
+const preserveDropOffVsWill = preserveDropOffVsWillSnap.data() ?? {};
+const preserveDropOffVsWillPlanned =
+  preserveDropOffVsWill.plannedStagingLocationIds ?? [];
+if (
+  matchedPreserveDropOff?.data?.deliveryMatched === true &&
+  preserveDropOffVsWill.invoiceFulfillmentMethod === "delivery" &&
+  Array.isArray(preserveDropOffVsWillPlanned) &&
+  preserveDropOffVsWillPlanned[0] === "staging-g2" &&
+  preserveDropOffVsWill.stagingLocationId === "staging-g2"
+) {
+  pass(
+    "Will-Call import approve does not clear dispatcher Drop-Off staging (D-79)",
+  );
+} else {
+  fail("preserve Drop-Off staging wiped by Will-Call import", {
+    response: matchedPreserveDropOff?.data,
+    fulfillment: preserveDropOffVsWill.invoiceFulfillmentMethod,
+    planned: preserveDropOffVsWillPlanned,
+    actual: preserveDropOffVsWill.stagingLocationId,
   });
 }
 

@@ -84,3 +84,49 @@ export function deliveryHasActiveShopStaging(
   if (nonEmptyIds(existing.combinationMemberLocationIds).length > 0) return true;
   return false;
 }
+
+/**
+ * Merge patch + existing to decide CURRENT fulfillment after an approve/create_shell write.
+ * Used so Will-Call staging clear never wipes Drop-Off staging when D-79 preserveOps wins.
+ */
+export function effectiveFulfillmentAfterPatch(
+  existing: Record<string, unknown> | undefined,
+  patch: Record<string, unknown>,
+): {
+  invoiceFulfillmentMethod?: string;
+  invoiceImportStatus?: string;
+  invoiceDeliverToSite?: boolean;
+  createdFromInvoiceImport?: boolean;
+  id?: string;
+  vendorInvoiceImportId?: string;
+} {
+  const base = existing ?? {};
+  return {
+    id: typeof base.id === "string" ? base.id : undefined,
+    vendorInvoiceImportId:
+      typeof patch.vendorInvoiceImportId === "string"
+        ? patch.vendorInvoiceImportId
+        : typeof base.vendorInvoiceImportId === "string"
+          ? base.vendorInvoiceImportId
+          : undefined,
+    createdFromInvoiceImport:
+      base.createdFromInvoiceImport === true ||
+      patch.createdFromInvoiceImport === true,
+    invoiceFulfillmentMethod:
+      typeof patch.invoiceFulfillmentMethod === "string"
+        ? patch.invoiceFulfillmentMethod
+        : typeof base.invoiceFulfillmentMethod === "string"
+          ? base.invoiceFulfillmentMethod
+          : undefined,
+    invoiceImportStatus:
+      typeof patch.invoiceImportStatus === "string"
+        ? patch.invoiceImportStatus
+        : typeof base.invoiceImportStatus === "string"
+          ? base.invoiceImportStatus
+          : undefined,
+    invoiceDeliverToSite:
+      patch.invoiceDeliverToSite === true || base.invoiceDeliverToSite === true
+        ? true
+        : undefined,
+  };
+}

@@ -20,7 +20,9 @@ import { isDeliveryOwnedByImportOrUnclaimed } from "./invoice/matchInvoiceToReco
 import {
   isInvoiceShellNoShopStaging,
   jobNameFromInvoiceContext,
+  skipsShopStaging,
 } from "./invoice/invoiceShellDisplayHelpers";
+import type { InvoiceFulfillmentMethod } from "./invoice/types";
 import { asParsedHeaderForImport } from "./invoice/parsedHeaderValidation";
 import {
   buildImportDecisionLogEntry,
@@ -40,7 +42,10 @@ import {
   shouldApplyNowDismissCreditImport,
 } from "./invoice/creditReturnSkip";
 import { sanitizePlannedStagingLocationIds } from "./invoice/fulfillmentOverride/sharedStagingIdSanitize";
-import { buildWillCallActiveStagingClearPatch } from "./invoice/clearActiveStagingOnWillCall";
+import {
+  buildWillCallActiveStagingClearPatch,
+  effectiveFulfillmentAfterPatch,
+} from "./invoice/clearActiveStagingOnWillCall";
 
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const MAX_DECISION_LOG = 20;
@@ -98,7 +103,7 @@ function approvePlannedStagingPatch(
   return { plannedStagingLocationIds: ids };
 }
 
-/** Clear active shop staging when approving a Will-Call / no-shop-staging import. */
+/** Clear active shop staging when CURRENT fulfillment skips shop staging. */
 function willCallStagingClearPatchFromDelivery(
   existing: Record<string, unknown> | undefined,
   meta: { releasedBy: string; releasedAt: string },
@@ -111,6 +116,29 @@ function willCallStagingClearPatchFromDelivery(
     );
   }
   return patch;
+}
+
+/** Only clear when post-write CURRENT skips shop staging (honors D-79 preserveOps). */
+function activeStagingPatchForCurrentFulfillment(
+  existing: Record<string, unknown> | undefined,
+  fulfillmentPatch: Record<string, unknown>,
+  dropOffStagingPatch: Record<string, unknown>,
+  meta: { releasedBy: string; releasedAt: string },
+): Record<string, unknown> {
+  const effective = effectiveFulfillmentAfterPatch(existing, fulfillmentPatch);
+  const currentSkips = skipsShopStaging({
+    id: effective.id,
+    vendorInvoiceImportId: effective.vendorInvoiceImportId,
+    createdFromInvoiceImport: effective.createdFromInvoiceImport,
+    invoiceFulfillmentMethod:
+      effective.invoiceFulfillmentMethod as InvoiceFulfillmentMethod | undefined,
+    invoiceImportStatus: effective.invoiceImportStatus,
+    invoiceDeliverToSite: effective.invoiceDeliverToSite,
+  });
+  if (currentSkips) {
+    return willCallStagingClearPatchFromDelivery(existing, meta);
+  }
+  return dropOffStagingPatch;
 }
 
 export const approveVendorInvoiceImport = onCall(
@@ -568,15 +596,26 @@ export const approveVendorInvoiceImport = onCall(
             linkedId === shell.deliveryOrderId ||
             delivery.createdFromInvoiceImport === true;
           if (isInvoiceShell) {
-            await deliveryRef.update(
-              buildInvoiceShellPatchDocument(
-                shell,
-                importId,
-                importDoc,
-                now,
-                deliverySnap.data(),
-              ),
+            const existingData =
+              (deliverySnap.data() as Record<string, unknown> | undefined) ??
+              {};
+            const shellPatch = buildInvoiceShellPatchDocument(
+              shell,
+              importId,
+              importDoc,
+              now,
+              deliverySnap.data(),
             );
+            const stagingClear = activeStagingPatchForCurrentFulfillment(
+              existingData,
+              shellPatch,
+              {},
+              { releasedBy: uid, releasedAt: now },
+            );
+            await deliveryRef.update({
+              ...shellPatch,
+              ...stagingClear,
+            });
           } else if (missingStamp) {
             await deliveryRef.update({
               vendorInvoiceImportId: importId,
@@ -674,16 +713,26 @@ export const approveVendorInvoiceImport = onCall(
             createdFromInvoiceImport?: boolean;
           };
           if (existingData.createdFromInvoiceImport === true) {
-            tx.update(
-              deliveryRef,
-              buildInvoiceShellPatchDocument(
-                shell,
-                importId,
-                fresh,
-                now,
-                existingDelivery.data(),
-              ),
+            const existingRecord =
+              (existingDelivery.data() as Record<string, unknown> | undefined) ??
+              {};
+            const shellPatch = buildInvoiceShellPatchDocument(
+              shell,
+              importId,
+              fresh,
+              now,
+              existingDelivery.data(),
             );
+            const stagingClear = activeStagingPatchForCurrentFulfillment(
+              existingRecord,
+              shellPatch,
+              {},
+              { releasedBy: uid, releasedAt: now },
+            );
+            tx.update(deliveryRef, {
+              ...shellPatch,
+              ...stagingClear,
+            });
           }
         }
 
@@ -856,50 +905,61 @@ export const approveVendorInvoiceImport = onCall(
             "Matched delivery is already linked to another invoice import. Reload and try again.",
           );
         }
-        const activeStagingPatch = stagingSkipped
-          ? willCallStagingClearPatchFromDelivery(
-              liveDelivery as Record<string, unknown>,
-              willCallClearMeta,
-            )
-          : stagingPatch;
+        const matchedFulfillmentPatch = buildInvoiceMatchedDeliveryPatchDocument(
+          shell,
+          importId,
+          fresh,
+          now,
+          liveDelivery,
+        );
+        const activeStagingPatch = activeStagingPatchForCurrentFulfillment(
+          liveDelivery as Record<string, unknown>,
+          matchedFulfillmentPatch,
+          stagingPatch,
+          willCallClearMeta,
+        );
         tx.update(deliveryRef, {
-          ...buildInvoiceMatchedDeliveryPatchDocument(
-            shell,
-            importId,
-            fresh,
-            now,
-            liveDelivery,
-          ),
+          ...matchedFulfillmentPatch,
           ...activeStagingPatch,
         });
       } else if (!existingDelivery.exists) {
         // Shell path: create delivery-vii-{importId}.
         const shellForWrite = { ...shell, deliveryOrderId: shellId };
-        const activeStagingPatch = stagingSkipped
-          ? willCallStagingClearPatchFromDelivery({}, willCallClearMeta)
-          : stagingPatch;
+        const shellDoc = buildDeliveryShellDocument(
+          shellForWrite,
+          importId,
+          fresh,
+          now,
+        );
+        const activeStagingPatch = activeStagingPatchForCurrentFulfillment(
+          {},
+          shellDoc,
+          stagingPatch,
+          willCallClearMeta,
+        );
         tx.set(deliveryRef, {
-          ...buildDeliveryShellDocument(shellForWrite, importId, fresh, now),
+          ...shellDoc,
           ...activeStagingPatch,
         });
       } else {
         const liveShellData =
           (existingDelivery.data() as Record<string, unknown> | undefined) ??
           {};
-        const activeStagingPatch = stagingSkipped
-          ? willCallStagingClearPatchFromDelivery(
-              liveShellData,
-              willCallClearMeta,
-            )
-          : stagingPatch;
+        const shellFulfillmentPatch = buildInvoiceShellPatchDocument(
+          { ...shell, deliveryOrderId: shellId },
+          importId,
+          fresh,
+          now,
+          existingDelivery.data(),
+        );
+        const activeStagingPatch = activeStagingPatchForCurrentFulfillment(
+          liveShellData,
+          shellFulfillmentPatch,
+          stagingPatch,
+          willCallClearMeta,
+        );
         tx.update(deliveryRef, {
-          ...buildInvoiceShellPatchDocument(
-            { ...shell, deliveryOrderId: shellId },
-            importId,
-            fresh,
-            now,
-            existingDelivery.data(),
-          ),
+          ...shellFulfillmentPatch,
           ...activeStagingPatch,
         });
       }
