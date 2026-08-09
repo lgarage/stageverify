@@ -348,6 +348,31 @@ export interface VerifyVendorPinInput {
   jobId?: string;
 }
 
+/**
+ * Allowlisted Vendor Drop-Off hub fields returned only after successful PIN.
+ * Items / history / issues hydrate via getVendorReceiveDetails.
+ */
+export interface VendorPinBootstrap {
+  deliveryId: string;
+  orderNumber?: string;
+  vendorInvoiceNumber?: string;
+  status?: string;
+  invoiceFulfillmentMethod?: string;
+  vendorId: string;
+  vendorName: string;
+  jobId?: string;
+  jobName?: string;
+  purchaseOrderId?: string;
+  poNumber?: string;
+  stagingLocationId?: string;
+  stagingLocationCode?: string;
+  plannedStagingLocationIds?: string[];
+  vendorPhysicalDropoffConfirmed?: boolean;
+  vendorPhysicalDropoffConfirmedAt?: string;
+  itemCount?: number;
+  deliveryDate?: string;
+}
+
 export interface VerifyVendorPinResult {
   success: boolean;
   message?: string;
@@ -361,6 +386,11 @@ export interface VerifyVendorPinResult {
   sessionToken?: string;
   /** ISO expiry from server session doc. */
   expiresAt?: string;
+  /**
+   * Optional hub paint payload (legacy delivery-receive PIN only).
+   * Absent until CF deploy — clients must fall back to getVendorReceiveDetails.
+   */
+  bootstrap?: VendorPinBootstrap;
 }
 
 /** Minimal technician permissions — not full RBAC (D-40 Slice A). */

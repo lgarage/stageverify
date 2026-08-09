@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.248",
+  "version": "0.0.249",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -136,6 +136,10 @@
     "test:firestore-rules": "firebase emulators:exec --only firestore \"node scripts/test-delivery-status-transitions.mjs\"",
     "test:access-pin-secrets": "npm run build:functions && node scripts/test-access-pin-secrets.mjs",
     "test:access-pin-length": "npm run build:functions && node scripts/test-access-pin-length.mjs",
+    "test:app-settings-cache": "npx tsx scripts/test-app-settings-cache.mjs",
+    "test:invoice-shell-backfill-defer": "npx tsx scripts/test-invoice-shell-backfill-defer.mjs",
+    "test:vendor-pin-bootstrap-client": "npx tsx scripts/test-vendor-pin-bootstrap-client.mjs",
+    "test:vendor-pin-bootstrap": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-vendor-pin-bootstrap.mjs\"",
     "test:upsert-management-pin-secrets": "npm run build:functions && firebase emulators:exec --only firestore \"node scripts/test-upsert-management-pin-secrets.mjs\"",
     "test:management-pin-write-auth": "npm run build:functions && firebase emulators:exec --only firestore \"node scripts/test-management-pin-write-auth.mjs\"",
     "test:admin-access-session": "npm run build:functions && firebase emulators:exec --only firestore \"node scripts/test-admin-access-session.mjs\"",

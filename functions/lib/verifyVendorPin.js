@@ -7,6 +7,7 @@ const https_1 = require("firebase-functions/v2/https");
 const accessPinCrypto_1 = require("./accessPinCrypto");
 const accessPinLookup_1 = require("./accessPinLookup");
 const pinMatching_1 = require("./pinMatching");
+const deliveryDetailsResponse_1 = require("./deliveryDetailsResponse");
 function getDb() {
     return admin.firestore();
 }
@@ -257,7 +258,8 @@ async function verifyLegacyDeliveryPin(deliveryId, pin) {
     if (!deliverySnap.exists) {
         throw new https_1.HttpsError("not-found", "Invalid code.");
     }
-    const delivery = deliverySnap.data();
+    const deliveryData = deliverySnap.data();
+    const delivery = deliveryData;
     const jobId = typeof delivery.jobId === "string" && delivery.jobId.trim()
         ? delivery.jobId.trim()
         : undefined;
@@ -279,6 +281,7 @@ async function verifyLegacyDeliveryPin(deliveryId, pin) {
                     deliveryId,
                     jobId,
                     pinMatchedVia: "job",
+                    deliveryData,
                 };
             }
         }
@@ -307,6 +310,7 @@ async function verifyLegacyDeliveryPin(deliveryId, pin) {
         deliveryId,
         jobId,
         pinMatchedVia: "vendor",
+        deliveryData,
     };
 }
 exports.verifyVendorPin = (0, https_1.onCall)({
@@ -432,6 +436,8 @@ exports.verifyVendorPin = (0, https_1.onCall)({
     catch {
         return { success: false, message: "Invalid code." };
     }
+    // Bootstrap in parallel with session writes — never blocks PIN success on failure.
+    const bootstrapPromise = (0, deliveryDetailsResponse_1.buildVendorPinBootstrap)(getDb(), verified.deliveryId, verified.deliveryData, verified.vendorId, verified.vendorName).catch(() => undefined);
     await clearRateLimitOnSuccess(attemptKey);
     await writePinVerifiedAudit({
         deliveryId: verified.deliveryId,
@@ -447,6 +453,7 @@ exports.verifyVendorPin = (0, https_1.onCall)({
         sessionScope,
         jobId: sessionScope === "job" ? verified.jobId : undefined,
     });
+    const bootstrap = await bootstrapPromise;
     return {
         success: true,
         vendorId: verified.vendorId,
@@ -456,6 +463,7 @@ exports.verifyVendorPin = (0, https_1.onCall)({
         sessionScope,
         sessionToken: session.sessionToken,
         expiresAt: session.expiresAt,
+        ...(bootstrap ? { bootstrap } : {}),
     };
 });
 //# sourceMappingURL=verifyVendorPin.js.map
