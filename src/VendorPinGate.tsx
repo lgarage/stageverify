@@ -202,127 +202,202 @@ export function VendorPinGate({
   };
 
   return (
-    <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden">
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-8">
-        <p className="text-center text-text-secondary text-sm mb-6">
-          Vendor Portal
-        </p>
-        <div className="w-full max-w-sm rounded-2xl border border-border bg-bg-surface p-6 shadow-lg">
-          <h1 className="text-xl font-bold text-center text-text-primary mb-2">
-            {title}
-          </h1>
-          <p className="text-sm text-center text-text-secondary mb-8">
-            {subtitle ?? defaultSubtitle}
-          </p>
+    <div className="app-container min-h-screen min-h-[100svh] bg-bg-primary">
+      <div
+        className="flex min-h-screen min-h-[100svh] flex-col items-center justify-center overflow-y-auto"
+        style={{ padding: "0.75rem 1rem" }}
+      >
+        <div
+          className="w-full max-w-[22rem] rounded-3xl border border-white/10 bg-bg-secondary shadow-xl shadow-black/20"
+          style={{ padding: "clamp(0.875rem, 2.6svh, 1.5rem)" }}
+        >
+          <div className="text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">
+              Vendor Portal
+            </p>
+            <h1
+              className="text-[clamp(1.35rem,3.2svh,1.75rem)] font-bold tracking-tight text-text-primary"
+              style={{ marginTop: "0.25rem" }}
+            >
+              {title}
+            </h1>
+            <p
+              className="max-w-[18rem] text-sm leading-5 text-text-secondary"
+              style={{ margin: "0.25rem auto 0" }}
+            >
+              {subtitle ?? defaultSubtitle}
+            </p>
+          </div>
 
           <div
-            className="flex items-center justify-center gap-3 mb-6"
-            aria-label={`PIN entry: ${pinLength} of 6 digits`}
+            className="relative flex min-h-8 items-center justify-center"
+            style={{ marginTop: "clamp(0.75rem, 2.1svh, 1.25rem)" }}
+            aria-label={`PIN entry: ${pinLength} ${
+              pinLength === 1 ? "digit" : "digits"
+            } entered`}
           >
-            {Array.from({ length: MAX_PIN_LENGTH }).map((_, index) => (
-              <span
-                key={index}
-                className={`size-4 rounded-full border-2 transition-colors ${
-                  index < pinLength
-                    ? "border-accent-green bg-accent-green"
-                    : "border-border bg-transparent"
-                }`}
-              />
-            ))}
-          </div>
-
-          {error && (
-            <p
-              className="text-sm text-center text-accent-red mb-4"
-              role="alert"
-            >
-              {error}
-            </p>
-          )}
-
-          {locked && !error && (
-            <p
-              className="text-sm text-center text-text-secondary mb-4"
-              data-testid="vendor-pin-verifying"
-              role="status"
-            >
-              {verified ? "Opening delivery…" : "Verifying PIN…"}
-            </p>
-          )}
-
-          {!locked && canVerify && (
-            <p
-              className="text-sm text-center text-accent mb-4 font-medium"
-              data-testid="vendor-pin-verify-hint"
-            >
-              Tap Verify to continue
-            </p>
-          )}
-
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            {KEYPAD.flat().map((key, index) => {
-              if (key === "") {
-                return <div key={`spacer-${index}`} />;
-              }
-              if (key === "back") {
-                return (
-                  <button
-                    key="back"
-                    type="button"
-                    onClick={backspace}
-                    disabled={locked || digits.length === 0}
-                    className="tap-target size-16 mx-auto rounded-full border border-border bg-bg-card text-text-primary flex items-center justify-center active:scale-95 disabled:opacity-40"
-                    aria-label="Backspace"
-                  >
-                    <svg
-                      className="size-6"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12h6m6 0h6"
-                      />
-                    </svg>
-                  </button>
-                );
-              }
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => pushDigit(key)}
-                  disabled={locked || digits.length >= MAX_PIN_LENGTH}
-                  className="tap-target size-16 mx-auto rounded-full border border-border bg-bg-card text-2xl font-medium text-text-primary active:scale-95 disabled:opacity-40"
+            <div className="inline-flex h-8 items-center gap-2 rounded-full border border-white/10 bg-bg-primary/55 px-3 text-xs font-medium text-text-primary">
+              {pinLength === 0 ? (
+                <svg
+                  className="size-3.5 text-text-secondary"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
-                  {key}
-                </button>
-              );
-            })}
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.8}
+                    d="M7.5 10V7.5a4.5 4.5 0 019 0V10m-10 0h11a1.5 1.5 0 011.5 1.5v7A1.5 1.5 0 0117.5 20h-11A1.5 1.5 0 015 18.5v-7A1.5 1.5 0 016.5 10z"
+                  />
+                </svg>
+              ) : (
+                <span
+                  className="flex items-center gap-1"
+                  aria-hidden="true"
+                >
+                  {Array.from({ length: pinLength }).map((_, index) => (
+                    <span
+                      key={index}
+                      className="size-1.5 rounded-full bg-accent-green"
+                    />
+                  ))}
+                </span>
+              )}
+              <span>
+                {pinLength === 0
+                  ? "PIN not entered"
+                  : `${pinLength} ${pinLength === 1 ? "digit" : "digits"} entered`}
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center justify-between text-sm mb-4">
-            <button
-              type="button"
-              onClick={clearAll}
-              disabled={locked || digits.length === 0}
-              className="text-text-secondary font-medium disabled:opacity-40"
+          <div
+            className="flex min-h-5 items-center justify-center"
+            style={{ marginTop: "0.375rem", paddingInline: "0.5rem" }}
+          >
+            {error ? (
+              <p
+                className="text-center text-sm leading-5 text-accent-red"
+                role="alert"
+              >
+                {error}
+              </p>
+            ) : locked ? (
+              <p
+                className="text-center text-sm font-medium leading-5 text-text-primary"
+                data-testid="vendor-pin-verifying"
+                role="status"
+              >
+                {verified ? "Opening delivery…" : "Verifying PIN…"}
+              </p>
+            ) : canVerify ? (
+              <div className="flex items-center justify-center gap-2 text-sm leading-5">
+                <p
+                  className="text-center font-medium text-[#93c5fd]"
+                  data-testid="vendor-pin-verify-hint"
+                >
+                  Tap Verify to continue
+                </p>
+                <span className="text-text-secondary" aria-hidden="true">
+                  ·
+                </span>
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="rounded text-xs font-semibold text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  Clear
+                </button>
+              </div>
+            ) : pinLength > 0 ? (
+              <div className="flex items-center justify-center gap-2 text-xs leading-5">
+                <p className="text-center text-text-secondary">
+                  PIN stays hidden
+                </p>
+                <span className="text-text-secondary" aria-hidden="true">
+                  ·
+                </span>
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="rounded font-semibold text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  Clear
+                </button>
+              </div>
+            ) : (
+              <p className="text-center text-xs leading-5 text-text-secondary">
+                Your PIN stays hidden
+              </p>
+            )}
+          </div>
+
+          <div
+            className="w-full max-w-[17.5rem]"
+            style={{
+              margin: "clamp(0.625rem, 1.8svh, 1rem) auto 0",
+            }}
+          >
+            <div className="grid grid-cols-3 place-items-center gap-[clamp(0.5rem,1.4svh,0.75rem)]">
+              {KEYPAD.slice(0, 3)
+                .flat()
+                .map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => pushDigit(key)}
+                    disabled={locked || digits.length >= MAX_PIN_LENGTH}
+                    className="tap-target mx-auto flex size-[clamp(3.25rem,8svh,4.25rem)] items-center justify-center rounded-full border border-white/10 bg-bg-surface/70 text-2xl font-medium tabular-nums text-text-primary shadow-sm transition-[background-color,border-color,transform] hover:border-white/20 hover:bg-bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary active:scale-95 disabled:opacity-40"
+                  >
+                    {key}
+                  </button>
+                ))}
+            </div>
+            <div
+              className="flex items-center justify-center gap-[clamp(0.875rem,2.5svh,1.25rem)]"
+              style={{
+                marginTop: "clamp(0.5rem, 1.4svh, 0.75rem)",
+              }}
             >
-              Clear
-            </button>
-            {onCancel && (
               <button
                 type="button"
-                onClick={onCancel}
-                disabled={locked}
-                className="text-text-secondary font-medium"
+                onClick={() => pushDigit("0")}
+                disabled={locked || digits.length >= MAX_PIN_LENGTH}
+                className="tap-target flex size-[clamp(3.25rem,8svh,4.25rem)] items-center justify-center rounded-full border border-white/10 bg-bg-surface/70 text-2xl font-medium tabular-nums text-text-primary shadow-sm transition-[background-color,border-color,transform] hover:border-white/20 hover:bg-bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary active:scale-95 disabled:opacity-40"
               >
-                Back
+                0
               </button>
-            )}
+              <button
+                type="button"
+                onClick={backspace}
+                disabled={locked || digits.length === 0}
+                className={`tap-target flex size-[clamp(3.25rem,8svh,4.25rem)] items-center justify-center rounded-full border border-white/10 bg-bg-surface/70 text-text-primary shadow-sm transition-[background-color,border-color,transform] hover:border-white/20 hover:bg-bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary active:scale-95 ${
+                  locked
+                    ? "opacity-40"
+                    : digits.length === 0
+                      ? "text-text-secondary"
+                      : ""
+                }`}
+                aria-label="Backspace"
+              >
+                <svg
+                  className="size-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.8}
+                    d="M9.5 7h9A2.5 2.5 0 0121 9.5v5a2.5 2.5 0 01-2.5 2.5h-9L3 12l6.5-5zm3.5 3l4 4m0-4l-4 4"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
 
           <button
@@ -330,17 +405,37 @@ export function VendorPinGate({
             onClick={() => void submitPin(digits.join(""))}
             disabled={!canVerify}
             data-testid="vendor-pin-verify"
-            className={`tap-target w-full rounded-xl bg-accent-green py-3 text-base font-bold text-white mb-6 disabled:opacity-40 ${
-              canVerify ? "ring-2 ring-accent-green/50 shadow-md" : ""
-            }`}
+            className="tap-target flex min-h-11 w-full items-center justify-center rounded-xl border border-transparent text-base font-bold text-white shadow-sm transition-[background-color,border-color,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-green focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary active:scale-[0.99]"
+            style={{
+              marginTop: "clamp(0.75rem, 2svh, 1.125rem)",
+              padding: "0.625rem 1rem",
+              backgroundColor:
+                canVerify || submitting ? "#047857" : "#334155",
+              color: "#f8fafc",
+            }}
           >
             {submitting ? "Verifying…" : "Verify"}
           </button>
 
-          <p className="text-xs text-center text-text-secondary">
+          <p
+            className="text-center text-xs leading-5 text-text-secondary"
+            style={{ marginTop: "0.5rem" }}
+          >
             Need help? Call dispatch.
           </p>
         </div>
+
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={locked}
+            className="rounded-lg text-sm font-medium text-text-secondary transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-40"
+            style={{ marginTop: "0.5rem", padding: "0.5rem 1rem" }}
+          >
+            Back
+          </button>
+        )}
       </div>
     </div>
   );
