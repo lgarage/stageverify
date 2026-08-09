@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ReviewAgentTurnInputError = void 0;
+exports.citationsForFirestoreWrite = citationsForFirestoreWrite;
 exports.runReviewAgentTurnCore = runReviewAgentTurnCore;
 const firestore_1 = require("firebase-admin/firestore");
 const constants_1 = require("../aiShadow/constants");
@@ -17,6 +18,22 @@ class ReviewAgentTurnInputError extends Error {
 exports.ReviewAgentTurnInputError = ReviewAgentTurnInputError;
 function isoNow() {
     return new Date().toISOString();
+}
+/** Firestore rejects `undefined` values — omit optional citation keys. */
+function citationsForFirestoreWrite(citations) {
+    return citations.map((c) => {
+        const out = {
+            sourceType: c.sourceType,
+            text: c.text,
+        };
+        if (typeof c.spanStart === "number")
+            out.spanStart = c.spanStart;
+        if (typeof c.spanEnd === "number")
+            out.spanEnd = c.spanEnd;
+        if (typeof c.field === "string" && c.field.trim())
+            out.field = c.field;
+        return out;
+    });
 }
 async function loadRecentTurns(db, importId) {
     const snap = await db
@@ -177,7 +194,7 @@ async function runReviewAgentTurnCore(input) {
         text: agentText,
         createdAt: firestore_1.FieldValue.serverTimestamp(),
         createdByUid: "system",
-        ...(citations ? { citations } : {}),
+        ...(citations ? { citations: citationsForFirestoreWrite(citations) } : {}),
         ...(actionType ? { actionType } : {}),
         ...(modelUsed ? { modelUsed } : {}),
         ...(droppedActionTypes ? { droppedActionTypes } : {}),

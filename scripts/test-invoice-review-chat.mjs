@@ -19,6 +19,9 @@ const context = await import(
 const prompt = await import(
   pathToFileURL(path.join(libRoot, "reviewAgentPrompt.js")).href
 );
+const core = await import(
+  pathToFileURL(path.join(libRoot, "runReviewAgentTurn.js")).href
+);
 
 const EXTRACTED = `
 JOHNSTONE SUPPLY
@@ -155,6 +158,38 @@ LINE 1  ABC123  FILTER  QTY 2
   assert.ok(!("ok" in parsed && parsed.ok === false));
   assert.equal(parsed.actionType, "answer");
   assert.deepEqual(parsed.droppedActionTypes, ["approve_invoice_now"]);
+}
+
+// Optional citation.field omitted when absent (Firestore rejects undefined)
+{
+  const raw = {
+    actionType: "cite_evidence",
+    answerText: "Found CUSTOMER P/O near the header.",
+    citations: [
+      {
+        sourceType: "document_evidence",
+        text: "CUSTOMER P/O",
+        // field intentionally omitted
+      },
+    ],
+  };
+  const parsed = prompt.parseAndValidateReviewAgentResponse(raw, EXTRACTED);
+  assert.ok(!("ok" in parsed && parsed.ok === false));
+  const cite = parsed.citations.find((c) => c.sourceType === "document_evidence");
+  assert.ok(cite, "document_evidence citation present");
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(cite, "field"),
+    false,
+    "field key must be omitted when undefined (Firestore write)",
+  );
+  const sanitized = core.citationsForFirestoreWrite(parsed.citations);
+  for (const row of sanitized) {
+    assert.equal(
+      Object.values(row).some((v) => v === undefined),
+      false,
+      "sanitized citations must not contain undefined values",
+    );
+  }
 }
 
 // Missing answer fails closed at parse layer

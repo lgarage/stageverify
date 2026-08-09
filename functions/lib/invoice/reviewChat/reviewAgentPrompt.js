@@ -92,7 +92,7 @@ function parseAndValidateReviewAgentResponse(raw, combinedExtractedText) {
                 citations.push({
                     sourceType: "agent_interpretation",
                     text,
-                    field,
+                    ...(field ? { field } : {}),
                 });
                 continue;
             }
@@ -101,7 +101,7 @@ function parseAndValidateReviewAgentResponse(raw, combinedExtractedText) {
                 text: span.matched,
                 spanStart: span.start,
                 spanEnd: span.end,
-                field,
+                ...(field ? { field } : {}),
             });
             continue;
         }

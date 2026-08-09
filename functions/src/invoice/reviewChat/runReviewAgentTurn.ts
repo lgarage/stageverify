@@ -45,6 +45,22 @@ function isoNow(): string {
   return new Date().toISOString();
 }
 
+/** Firestore rejects `undefined` values — omit optional citation keys. */
+export function citationsForFirestoreWrite(
+  citations: ReviewChatCitation[],
+): Array<Record<string, string | number>> {
+  return citations.map((c) => {
+    const out: Record<string, string | number> = {
+      sourceType: c.sourceType,
+      text: c.text,
+    };
+    if (typeof c.spanStart === "number") out.spanStart = c.spanStart;
+    if (typeof c.spanEnd === "number") out.spanEnd = c.spanEnd;
+    if (typeof c.field === "string" && c.field.trim()) out.field = c.field;
+    return out;
+  });
+}
+
 async function loadRecentTurns(
   db: Firestore,
   importId: string,
@@ -252,7 +268,7 @@ export async function runReviewAgentTurnCore(input: {
     text: agentText,
     createdAt: FieldValue.serverTimestamp(),
     createdByUid: "system",
-    ...(citations ? { citations } : {}),
+    ...(citations ? { citations: citationsForFirestoreWrite(citations) } : {}),
     ...(actionType ? { actionType } : {}),
     ...(modelUsed ? { modelUsed } : {}),
     ...(droppedActionTypes ? { droppedActionTypes } : {}),
