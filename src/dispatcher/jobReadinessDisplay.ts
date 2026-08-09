@@ -20,6 +20,19 @@ const STAGED_READY_LABEL = DELIVERY_STATUS_LABEL.ready_for_pickup;
 /** List + drawer status when shop is waiting for inbound material (0 received). */
 export const AWAITING_DELIVERY_STATUS_LABEL = "Assigned / Planned";
 
+/** Primary list/drawer status when vendor unplanned delivery needs job/PO match. */
+export const UNPLANNED_STATUS_LABEL = "Unplanned";
+
+export function deliveryNeedsUnplannedJobMatch(
+  delivery: Pick<DeliveryOrder, "unplanned" | "reviewFlag">,
+): boolean {
+  if (delivery.unplanned === true) return true;
+  return (
+    delivery.reviewFlag?.flagged === true &&
+    /unplanned/i.test(delivery.reviewFlag.reason ?? "")
+  );
+}
+
 export function deliveryReadinessDisplayLabel(
   delivery: DeliveryOrder,
   readiness: DeliveryReadinessResult,
@@ -37,6 +50,9 @@ export function deliveryReadinessDisplayLabel(
   }
   if (delivery.status === "complete") {
     return "Picked Up";
+  }
+  if (deliveryNeedsUnplannedJobMatch(delivery)) {
+    return UNPLANNED_STATUS_LABEL;
   }
   if (countOpenBlockingIssues(delivery, materialIssues) > 0) {
     return "Issue / Review Required";

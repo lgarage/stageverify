@@ -100,4 +100,8 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-09 | investigate+restore (drawer Assign Location → Staging Map) | T1 fast-safe multi-file-feature / simple UI | Composer 2.5 Fast | 98 | 99 | ok (PR) | Root=stale pickup_at_vendor + missing delivery.id; yellow CTA under fulfillment; no CF; retarget v0.0.264 after #98 took 263 |
 | 2026-08-09 | Dispatcher Deliveries status legend/row wording+colors align | ui-component / css-restyle | T1 | Composer 2.5 Fast (simple-ui — D-65) | 98 | 99 | FE-only; legend green/orange/yellow/gray match badges; v0.0.265 |
 | 2026-08-09 | ship-op (PR #96 merge + gh-pages + prod assign smoke) | T1 fast-safe FE ship-deploy-verify | Composer 2.5 Fast | 98 | 99 | ok | rebase after #98→v0.0.264; merge 59c9221a; LIVE under tip v0.0.265 index-CebOnuC6.js; smoke G2 PASS; no CF/rules |
+<<<<<<< HEAD
 | 2026-08-09 | harness (D-78 MANUAL TEST FOR DAN completion-report requirement) | T0 docs-update / rules | Composer 2.5 Fast | 98 | 99 | ok (PR) | SSOT orchestrator § Completion report + done-signal pointer; Critical Reviewer bc-f94b4d58 PARTIAL amendments adopted |
+=======
+| 2026-08-09 | Unplanned status single-badge + U1 fixture cleanup | ui-component / service-logic | T1 | Composer 2.5 Fast (simple-ui/non-UI — D-65) | 97 | 99 | FE display override; prod U1 deleted; teardown UV; v0.0.266 |
+>>>>>>> cursor/unplanned-status-u1-cleanup-d131

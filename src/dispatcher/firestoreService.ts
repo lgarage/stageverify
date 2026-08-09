@@ -128,7 +128,10 @@ import {
   isCompleteOverviewRow,
   rowMatchesOverviewStatusFilter,
 } from "./deliveryDisplayHelpers";
-import { collectDeliveryStagingCodes } from "./drawer/DrawerStagingLocationChips";
+import {
+  collectDeliveryStagingCodes,
+  hasUnresolvedStagingLocationRefs,
+} from "./drawer/DrawerStagingLocationChips";
 import {
   fulfillmentDisplayLabel,
   isWillCallPickupStagingListNa,
@@ -550,7 +553,9 @@ export class FirestoreDataService implements DispatcherDataService {
         itemsReceivedLabel: `${received}/${ordered}`,
         issueSummary,
         openIssueCount: display.openIssueCount,
-        missingStagingAssignment: display.missingStagingAssignment,
+        missingStagingAssignment:
+          display.missingStagingAssignment ||
+          hasUnresolvedStagingLocationRefs(delivery, locById),
         stagingLocationListNotApplicable:
           isWillCallPickupStagingListNa(delivery),
         creditReturnLinked,

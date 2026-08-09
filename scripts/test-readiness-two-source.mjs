@@ -15,7 +15,10 @@ import {
   sumItemQtyOrdered,
   sumItemQtyReceived,
 } from "../src/dispatcher/deliveryDisplayHelpers.ts";
-import { deliveryReadinessDisplayLabel } from "../src/dispatcher/jobReadinessDisplay.ts";
+import {
+  deliveryReadinessDisplayLabel,
+  UNPLANNED_STATUS_LABEL,
+} from "../src/dispatcher/jobReadinessDisplay.ts";
 
 const failures = [];
 
@@ -295,6 +298,34 @@ assert(
 assert(
   ord005Banner.showCallVendor === false && ord005Banner.showEmailVendor === false,
   "ORD-005 does not promote vendor contact for normal pending",
+);
+
+const unplannedZeroReceived = {
+  ...ord005Delivery,
+  unplanned: true,
+  reviewFlag: {
+    flagged: true,
+    reason: "Unplanned delivery received — needs job/PO match",
+    flaggedBy: "vendor",
+    flaggedAt: "2026-06-02T12:00:00Z",
+  },
+};
+const unplannedReadiness = computeDeliveryReadiness(
+  unplannedZeroReceived,
+  ord005Items,
+);
+assert(
+  deliveryReadinessDisplayLabel(
+    unplannedZeroReceived,
+    unplannedReadiness,
+    ord005Items,
+  ) === UNPLANNED_STATUS_LABEL,
+  "unplanned pending 0-received label is Unplanned not Assigned / Planned",
+);
+assert(
+  computeDeliveryDisplayState(unplannedZeroReceived, ord005Items, [])
+    .statusDisplayLabel === UNPLANNED_STATUS_LABEL,
+  "unplanned shell display state uses Unplanned primary label",
 );
 
 function zeroQtyItemsFromOrd005() {

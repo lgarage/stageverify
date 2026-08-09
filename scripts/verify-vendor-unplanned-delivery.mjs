@@ -54,7 +54,7 @@ if (existsSync(envPath)) {
   }
 }
 
-const locationCode = process.env.STAGEVERIFY_UNPLANNED_LOC ?? "U1";
+const locationCode = process.env.STAGEVERIFY_UNPLANNED_LOC ?? "UV";
 const email = process.env.STAGEVERIFY_TEST_EMAIL;
 const password = process.env.STAGEVERIFY_TEST_PASSWORD;
 
@@ -199,12 +199,29 @@ async function teardownUnplannedFixture() {
   }
 
   const accessToken = await getFirebaseAccessToken();
-  const paths = [
-    `deliveries/${vendorId}-anchor`,
-    `deliveries/${vendorId}-prior-active`,
+  const paths = new Set([
     `accessPinSecrets/vendor_${vendorId}`,
     `vendors/${vendorId}`,
-  ];
+    `jobs/${ANCHOR_JOB_ID}`,
+    `stagingLocations/${STAGING_LOC_ID}`,
+  ]);
+
+  // Delete ALL deliveries tied to this verify vendor (anchor, prior-active, CF shells).
+  const deliveries = await restListCollection(
+    accessToken,
+    PROJECT_ID,
+    "deliveries",
+  );
+  for (const docSnap of deliveries) {
+    const id = restDocId(docSnap.name);
+    const data = restFields(docSnap);
+    if (
+      data.vendorId === vendorId ||
+      data.vendorName === "Unplanned Verify Vendor"
+    ) {
+      paths.add(`deliveries/${id}`);
+    }
+  }
 
   // Delete uniqueness rows that point at this vendor (legacy or global).
   const uniqueness = await restListCollection(
@@ -216,23 +233,8 @@ async function teardownUnplannedFixture() {
     const id = restDocId(docSnap.name);
     const data = restFields(docSnap);
     if (data.targetType === "vendor" && data.targetId === vendorId) {
-      paths.push(`accessPinUniqueness/${id}`);
+      paths.add(`accessPinUniqueness/${id}`);
     }
-  }
-
-  // Shared job/location only if no other unpl vendors remain.
-  const vendors = await restListCollection(accessToken, PROJECT_ID, "vendors");
-  const otherUnpl = vendors
-    .map((d) => ({ id: restDocId(d.name), ...restFields(d) }))
-    .filter(
-      (v) =>
-        v.id !== vendorId &&
-        (v.id.startsWith("vendor-unpl-") ||
-          v.name === "Unplanned Verify Vendor"),
-    );
-  if (otherUnpl.length === 0) {
-    paths.push(`jobs/${ANCHOR_JOB_ID}`);
-    paths.push(`stagingLocations/${STAGING_LOC_ID}`);
   }
 
   let deleted = 0;

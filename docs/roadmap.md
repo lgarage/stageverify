@@ -62,6 +62,8 @@
 
 ## NOW (Phase 5 prototype)
 
+**Shipped (2026-08-09):** Unplanned status single-badge + U1 verify-fixture cleanup/teardown harden — **v0.0.266** gh-pages FE-only.
+
 **Shipped (2026-08-09):** Dispatcher Deliveries status legend + row wording/colors align (Assigned/Planned yellow, Staged green, Unplanned bright orange, Shop Stock gray) — **v0.0.265** gh-pages FE-only.
 
 **Shipped (2026-08-09):** Delivery Details Assign Location restore after Will-Call → Vendor Drop-Off — **v0.0.264** gh-pages FE-only.
