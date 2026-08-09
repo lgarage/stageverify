@@ -59,6 +59,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
+- **PR review (named Admin access):** branch `cursor/named-admin-access-model-492f` — D-68 named Admin + 6-digit Admin PIN reveal auth; **do not deploy** until Dan reviews/merges. After merge+CF deploy: bootstrap first Admin (zero-Admin Manager promote) + set Admin PIN before Admin Access works in prod.
 - **Lane C C1 LIVE** — no further C1 deploy. Do **not** start C2/C3/C4 until Dan asks. Dan/ops: Settings → **Reconnect Gmail**, then smoke one invoice through ingest → Inbox archive + View Original PDF.
 ## Queued product (deferred)
 - **away-138** — durable StageVerify PDF storage (D-64 TARGET); blocked until Dan queues post–Monday MVP.

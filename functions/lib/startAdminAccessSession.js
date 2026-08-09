@@ -3,10 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.startAdminAccessSession = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const adminAccessSession_1 = require("./adminAccessSession");
+const adminPinSecret_1 = require("./adminPinSecret");
 const accessPinSecretsShared_1 = require("./accessPinSecretsShared");
 const accessPinTargetHelpers_1 = require("./accessPinTargetHelpers");
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
-/** Manager mints a row-scoped admin access session (5 min TTL). */
+/** Active Admin + own Admin PIN mints a row-scoped admin access session (5 min TTL). */
 exports.startAdminAccessSession = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
     const data = (request.data ?? {});
     const targetType = (0, accessPinSecretsShared_1.parseAccessPinTargetType)(data.targetType);
@@ -16,7 +17,7 @@ exports.startAdminAccessSession = (0, https_1.onCall)({ region: "us-central1" },
     }
     let uid;
     try {
-        uid = await (0, dispatcherAuth_1.requireManagerAuth)(request);
+        uid = await (0, dispatcherAuth_1.requireAdminAuth)(request);
     }
     catch (err) {
         if (err instanceof https_1.HttpsError &&
@@ -31,6 +32,19 @@ exports.startAdminAccessSession = (0, https_1.onCall)({ region: "us-central1" },
         }
         throw err;
     }
+    const roleDoc = await (0, dispatcherAuth_1.readDispatcherRoleDoc)(uid);
+    const actorFullName = typeof roleDoc?.fullName === "string" ? roleDoc.fullName : undefined;
+    const pinOk = await (0, adminPinSecret_1.verifyOwnAdminPinForSession)(uid, data.adminPin);
+    if (!pinOk) {
+        await (0, accessPinSecretsShared_1.writePinAccessAudit)({
+            action: "admin_access_denied",
+            targetType,
+            targetId,
+            actorUid: uid,
+            actorFullName,
+        });
+        throw new https_1.HttpsError("permission-denied", "Invalid Admin PIN.");
+    }
     await (0, accessPinTargetHelpers_1.assertAccessPinTargetExists)(targetType, targetId);
     const session = await (0, adminAccessSession_1.createAdminAccessSession)({
         managerUid: uid,
@@ -42,6 +56,7 @@ exports.startAdminAccessSession = (0, https_1.onCall)({ region: "us-central1" },
         targetType,
         targetId,
         actorUid: uid,
+        actorFullName,
     });
     return {
         sessionToken: session.sessionToken,

@@ -175,11 +175,12 @@ async function ensureAuthenticated(page) {
 
     await typeSelect.selectOption("manager");
     await panel.getByTestId("pin-access-wizard-next").click();
+    await panel.getByTestId("dispatcher-provision-full-name").waitFor();
     await panel.getByTestId("dispatcher-provision-email").waitFor();
     await panel.getByTestId("dispatcher-provision-password").waitFor();
     await panel.getByTestId("dispatcher-provision-submit").waitFor();
     console.log(
-      "PASS: Manager Auth path shows email, optional password, and Save controls",
+      "PASS: Manager Auth path shows full name, email, optional password, and Save controls",
     );
 
     for (const type of ["manager", "dispatcher"]) {
@@ -200,7 +201,7 @@ async function ensureAuthenticated(page) {
       const n = await activeRows.count();
       for (let i = 0; i < n; i += 1) {
         const row = activeRows.nth(i);
-        const status = (await row.locator("td").nth(3).innerText()).trim();
+        const status = (await row.locator("td").nth(4).innerText()).trim();
         const testid = await row.getAttribute("data-testid");
         const uid = testid?.replace(`pin-access-row-${type}-`, "") ?? "";
         if (status === "Active") {
@@ -236,6 +237,7 @@ async function ensureAuthenticated(page) {
     await panel.getByTestId("pin-access-wizard-next").click();
     const throwawayEmail = `verify-remove-${Date.now()}@stageverify.dev`;
     await panel.getByTestId("dispatcher-provision-email").waitFor({ timeout: 10_000 });
+    await panel.getByTestId("dispatcher-provision-full-name").fill("Verify Remove");
     await panel.getByTestId("dispatcher-provision-email").fill(throwawayEmail);
     await panel.getByTestId("dispatcher-provision-password").fill("TempPass9!");
     await panel.getByTestId("dispatcher-provision-submit").click();

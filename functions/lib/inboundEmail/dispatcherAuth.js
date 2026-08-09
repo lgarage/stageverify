@@ -1,8 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.readDispatcherRoleDoc = readDispatcherRoleDoc;
+exports.resolveDispatcherAccessRole = resolveDispatcherAccessRole;
+exports.managerFlagForRole = managerFlagForRole;
 exports.hasManagerRole = hasManagerRole;
+exports.hasAdminRole = hasAdminRole;
 exports.requireDispatcherAuth = requireDispatcherAuth;
 exports.requireManagerAuth = requireManagerAuth;
+exports.requireAdminAuth = requireAdminAuth;
 exports.clampListLimit = clampListLimit;
 /**
  * Dispatcher-only callable auth — signed-in Firebase user with dispatcher role.
@@ -22,6 +27,24 @@ async function readDispatcherRoleDoc(uid) {
         return null;
     return roleSnap.data();
 }
+/** Resolve canonical role from role field + legacy manager boolean. */
+function resolveDispatcherAccessRole(data) {
+    if (!data)
+        return "dispatcher";
+    if (data.role === "admin")
+        return "admin";
+    if (data.role === "manager")
+        return "manager";
+    if (data.role === "dispatcher")
+        return "dispatcher";
+    // Legacy: manager flag only
+    if (data.manager === true)
+        return "manager";
+    return "dispatcher";
+}
+function managerFlagForRole(role) {
+    return role === "admin" || role === "manager";
+}
 async function hasDispatcherRole(uid) {
     const role = await readDispatcherRoleDoc(uid);
     if (role) {
@@ -35,12 +58,21 @@ async function hasDispatcherRole(uid) {
         return false;
     }
 }
-/** D-59 P2: manager flag on dispatcherRoles/{uid} — no customClaims.manager. */
+/** D-59 P2: manager flag on dispatcherRoles/{uid} — no customClaims.manager.
+ * Admin also satisfies manager-level ops (synced manager flag + role SSOT). */
 async function hasManagerRole(uid) {
     const role = await readDispatcherRoleDoc(uid);
-    if (!role || role.active === false)
+    if (!role || role.active === false || role.removed === true)
         return false;
-    return role.manager === true;
+    const accessRole = resolveDispatcherAccessRole(role);
+    return managerFlagForRole(accessRole) || role.manager === true;
+}
+/** Active named Admin — role SSOT only (not manager flag alone). */
+async function hasAdminRole(uid) {
+    const role = await readDispatcherRoleDoc(uid);
+    if (!role || role.active === false || role.removed === true)
+        return false;
+    return resolveDispatcherAccessRole(role) === "admin";
 }
 async function requireDispatcherAuth(request) {
     if (!request.auth?.uid) {
@@ -57,6 +89,14 @@ async function requireManagerAuth(request) {
     const uid = await requireDispatcherAuth(request);
     if (!(await hasManagerRole(uid))) {
         throw new https_1.HttpsError("permission-denied", "Manager role required for this action.");
+    }
+    return uid;
+}
+/** Signed-in active Admin (named person) — required for privileged PIN reveal. */
+async function requireAdminAuth(request) {
+    const uid = await requireDispatcherAuth(request);
+    if (!(await hasAdminRole(uid))) {
+        throw new https_1.HttpsError("permission-denied", "Admin role required for this action.");
     }
     return uid;
 }

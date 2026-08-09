@@ -487,6 +487,8 @@ export type AccessPinTargetType = "technician" | "vendor" | "management";
 export interface StartAdminAccessSessionInput {
   targetType: AccessPinTargetType;
   targetId: string;
+  /** Caller's own 6-digit Admin PIN (authorizing credential). */
+  adminPin: string;
 }
 
 export interface StartAdminAccessSessionResult {
@@ -1619,9 +1621,14 @@ export interface BulkReopenImportsSkippedByRuleResult {
   reopenCount?: number;
 }
 
+export type DispatcherAccessRole = "admin" | "manager" | "dispatcher";
+
 export interface DispatcherRoleDoc {
   active?: boolean;
   manager?: boolean;
+  /** SSOT Auth human privilege tier. */
+  role?: DispatcherAccessRole;
+  fullName?: string;
   email?: string;
   updatedAt?: string;
 }
@@ -1630,9 +1637,33 @@ export interface DispatcherRoleDoc {
 export interface DispatcherAccountSummary {
   uid: string;
   email: string | null;
+  fullName: string | null;
   active: boolean;
   manager: boolean;
+  role: DispatcherAccessRole;
   updatedAt: string | null;
+}
+
+export interface UpdateDispatcherAccessRequest {
+  uid: string;
+  fullName?: string;
+  role?: DispatcherAccessRole;
+  adminPin?: string;
+}
+
+export interface UpdateDispatcherAccessResult {
+  success: boolean;
+  uid: string;
+  role: DispatcherAccessRole;
+  fullName: string | null;
+}
+
+export interface SetAdminPinRequest {
+  adminPin: string;
+}
+
+export interface SetAdminPinResult {
+  success: boolean;
 }
 
 export interface ConfirmVendorIgnoreRuleResult {

@@ -92,9 +92,11 @@ import { listPinAccessAudit } from "./listPinAccessAudit";
 import {
   listDispatchers,
   provisionDispatcher,
+  updateDispatcherAccess,
   deactivateDispatcher,
   removeDispatcher,
 } from "./dispatcherUserAdmin";
+import { setAdminPin } from "./setAdminPin";
 import { getTechnicianReleasedJobs } from "./getTechnicianReleasedJobs";
 import { releaseJobsToTechnician } from "./releaseJobsToTechnician";
 import { recordTechnicianJobOpen } from "./recordTechnicianJobOpen";
@@ -257,8 +259,10 @@ export {
   listPinAccessAudit,
   listDispatchers,
   provisionDispatcher,
+  updateDispatcherAccess,
   deactivateDispatcher,
   removeDispatcher,
+  setAdminPin,
   getTechnicianReleasedJobs,
   recordTechnicianJobOpen,
   releaseJobsToTechnician,

@@ -1,13 +1,29 @@
 /**
- * Manager-only dispatcher account provisioning (D-60).
+ * Manager/Admin dispatcher account provisioning (D-60).
  * Admin SDK creates Auth users + dispatcherRoles docs — no client writes.
  */
 import * as admin from "firebase-admin";
 import { randomBytes } from "crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import {
+  hasAdminRole,
   requireManagerAuth,
+  resolveDispatcherAccessRole,
+  type DispatcherAccessRole,
+  type DispatcherRoleFields,
 } from "./inboundEmail/dispatcherAuth";
+import {
+  clearOwnAdminPin,
+  setOwnAdminPin,
+  asAdminPin,
+} from "./adminPinSecret";
+import {
+  assertNotLastActiveAdmin,
+  countActiveAdmins,
+  parseDispatcherAccessRole,
+  rolePatch,
+  validateHumanFullName,
+} from "./humanAccessIdentity";
 import { writePinAccessAudit } from "./accessPinSecretsShared";
 
 const DISPATCHER_ROLES_COLLECTION = "dispatcherRoles";
@@ -15,7 +31,7 @@ const DISPATCHER_ROLES_COLLECTION = "dispatcherRoles";
 /** Hard-blocked from permanent removal (ops / primary test identities). */
 const PROTECTED_DISPATCHER_EMAILS = new Set([
   "daday1974@gmail.com",
-  "test@stageverify.dev", // pragma: allowlist secret — ops allowlist, not a credential
+  "[REDACTED]", // pragma: allowlist secret — ops allowlist, not a credential
 ]);
 
 function getDb() {
@@ -44,11 +60,39 @@ function generateTemporaryPassword(): string {
   return out;
 }
 
+async function actorFullName(uid: string): Promise<string | undefined> {
+  const snap = await getDb()
+    .collection(DISPATCHER_ROLES_COLLECTION)
+    .doc(uid)
+    .get();
+  const data = snap.data() as DispatcherRoleFields | undefined;
+  return typeof data?.fullName === "string" ? data.fullName : undefined;
+}
+
+/**
+ * Escalating to Admin requires an active Admin caller, OR zero-Admin bootstrap
+ * by an active Manager (first Admin only).
+ */
+async function assertCanGrantAdminRole(callerUid: string): Promise<void> {
+  if (await hasAdminRole(callerUid)) return;
+  const activeAdmins = await countActiveAdmins();
+  if (activeAdmins === 0) {
+    // Zero-Admin bootstrap: any Manager (including legacy manager flag) may create first Admin.
+    return;
+  }
+  throw new HttpsError(
+    "permission-denied",
+    "Only an Admin can grant the Admin role.",
+  );
+}
+
 export interface DispatcherAccountSummary {
   uid: string;
   email: string | null;
+  fullName: string | null;
   active: boolean;
   manager: boolean;
+  role: DispatcherAccessRole;
   updatedAt: string | null;
 }
 
@@ -61,15 +105,12 @@ export const listDispatchers = onCall(
     const dispatchers: DispatcherAccountSummary[] = [];
 
     for (const roleDoc of snap.docs) {
-      const data = roleDoc.data() as {
-        active?: boolean;
-        manager?: boolean;
-        email?: string;
+      const data = roleDoc.data() as DispatcherRoleFields & {
         updatedAt?: string;
-        removed?: boolean;
       };
       if (data.removed === true) continue;
-      let email: string | null = data.email ?? null;
+      let email: string | null =
+        typeof data.email === "string" ? data.email : null;
       if (!email) {
         try {
           const user = await admin.auth().getUser(roleDoc.id);
@@ -78,18 +119,23 @@ export const listDispatchers = onCall(
           email = null;
         }
       }
+      const role = resolveDispatcherAccessRole(data);
       dispatchers.push({
         uid: roleDoc.id,
         email,
+        fullName: typeof data.fullName === "string" ? data.fullName : null,
         active: data.active !== false,
-        manager: data.manager === true,
+        manager: role === "admin" || role === "manager",
+        role,
         updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : null,
       });
     }
 
-    dispatchers.sort((a, b) =>
-      (a.email ?? a.uid).localeCompare(b.email ?? b.uid),
-    );
+    dispatchers.sort((a, b) => {
+      const aKey = (a.fullName ?? a.email ?? a.uid).toLowerCase();
+      const bKey = (b.fullName ?? b.email ?? b.uid).toLowerCase();
+      return aKey.localeCompare(bKey);
+    });
     return { dispatchers };
   },
 );
@@ -97,17 +143,38 @@ export const listDispatchers = onCall(
 interface ProvisionDispatcherRequest {
   email?: string;
   temporaryPassword?: string;
+  /** @deprecated prefer role */
   manager?: boolean;
+  role?: string;
+  fullName?: string;
+  /** Required when role === admin — exactly 6 digits. */
+  adminPin?: string;
 }
 
 /** Manager creates Firebase Auth user + dispatcherRoles doc. */
 export const provisionDispatcher = onCall(
   { region: "us-central1" },
   async (request) => {
-    await requireManagerAuth(request);
+    const callerUid = await requireManagerAuth(request);
     const data = (request.data ?? {}) as ProvisionDispatcherRequest;
     const email = normalizeEmail(data.email);
-    const grantManager = data.manager === true;
+    const fullName = validateHumanFullName(data.fullName);
+
+    let role = parseDispatcherAccessRole(data.role);
+    if (!role) {
+      role = data.manager === true ? "manager" : "dispatcher";
+    }
+
+    if (role === "admin") {
+      await assertCanGrantAdminRole(callerUid);
+      if (!asAdminPin(data.adminPin)) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Admin PIN must be exactly 6 digits.",
+        );
+      }
+    }
+
     const tempPassword =
       typeof data.temporaryPassword === "string" &&
       data.temporaryPassword.length >= 8
@@ -120,6 +187,7 @@ export const provisionDispatcher = onCall(
         email,
         password: tempPassword,
         emailVerified: false,
+        displayName: fullName,
       });
       uid = created.uid;
     } catch (err: unknown) {
@@ -145,22 +213,156 @@ export const provisionDispatcher = onCall(
       .doc(uid)
       .set(
         {
-          active: true,
-          email,
-          manager: grantManager,
-          updatedAt: now,
-          createdAt: now,
-          createdBy: request.auth?.uid ?? null,
+          ...rolePatch(role, {
+            active: true,
+            email,
+            fullName,
+            updatedAt: now,
+            createdAt: now,
+            createdBy: callerUid,
+          }),
         },
         { merge: true },
       );
+
+    if (role === "admin") {
+      await setOwnAdminPin(uid, data.adminPin);
+      const callerName = await actorFullName(callerUid);
+      await writePinAccessAudit({
+        action: "admin_created",
+        targetType: "dispatcher",
+        targetId: uid,
+        actorUid: callerUid,
+        actorFullName: callerName,
+      });
+      await writePinAccessAudit({
+        action: "admin_pin_set",
+        targetType: "dispatcher",
+        targetId: uid,
+        actorUid: callerUid,
+        actorFullName: callerName,
+      });
+    }
 
     return {
       success: true,
       uid,
       email,
+      fullName,
       temporaryPassword: tempPassword,
-      manager: grantManager,
+      manager: role === "admin" || role === "manager",
+      role,
+    };
+  },
+);
+
+interface UpdateDispatcherAccessRequest {
+  uid?: string;
+  fullName?: string;
+  role?: string;
+  adminPin?: string;
+}
+
+/**
+ * Update named identity fields / role on an existing Auth human (same uid).
+ * Manager→Admin preserves identity; Admin→Manager strips Admin PIN secret.
+ */
+export const updateDispatcherAccess = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const callerUid = await requireManagerAuth(request);
+    const data = (request.data ?? {}) as UpdateDispatcherAccessRequest;
+    const targetUid =
+      typeof data.uid === "string" ? data.uid.trim() : "";
+    if (!targetUid) {
+      throw new HttpsError("invalid-argument", "Dispatcher uid is required.");
+    }
+
+    const roleRef = getDb().collection(DISPATCHER_ROLES_COLLECTION).doc(targetUid);
+    const roleSnap = await roleRef.get();
+    if (!roleSnap.exists) {
+      throw new HttpsError("not-found", "Dispatcher account not found.");
+    }
+    const existing = roleSnap.data() as DispatcherRoleFields;
+    if (existing.removed === true) {
+      throw new HttpsError("failed-precondition", "Account already removed.");
+    }
+
+    const prevRole = resolveDispatcherAccessRole(existing);
+    const nextRole = parseDispatcherAccessRole(data.role) ?? prevRole;
+    const patch: Record<string, unknown> = {
+      updatedAt: new Date().toISOString(),
+      updatedBy: callerUid,
+    };
+
+    if (data.fullName !== undefined) {
+      patch.fullName = validateHumanFullName(data.fullName);
+    }
+
+    if (nextRole !== prevRole) {
+      if (nextRole === "admin") {
+        await assertCanGrantAdminRole(callerUid);
+        if (!asAdminPin(data.adminPin)) {
+          throw new HttpsError(
+            "invalid-argument",
+            "Admin PIN must be exactly 6 digits when granting Admin.",
+          );
+        }
+      }
+      if (prevRole === "admin" && nextRole !== "admin") {
+        await assertNotLastActiveAdmin(targetUid, existing);
+        // Only Admins may demote Admins (except self-bootstrap edge: last admin blocked above).
+        if (!(await hasAdminRole(callerUid))) {
+          throw new HttpsError(
+            "permission-denied",
+            "Only an Admin can change an Admin's role.",
+          );
+        }
+      }
+      Object.assign(patch, rolePatch(nextRole));
+    }
+
+    await roleRef.set(patch, { merge: true });
+
+    const callerName = await actorFullName(callerUid);
+
+    if (prevRole !== "admin" && nextRole === "admin") {
+      await setOwnAdminPin(targetUid, data.adminPin);
+      await writePinAccessAudit({
+        action: "role_changed_to_admin",
+        targetType: "dispatcher",
+        targetId: targetUid,
+        actorUid: callerUid,
+        actorFullName: callerName,
+      });
+      await writePinAccessAudit({
+        action: "admin_pin_set",
+        targetType: "dispatcher",
+        targetId: targetUid,
+        actorUid: callerUid,
+        actorFullName: callerName,
+      });
+    }
+
+    if (prevRole === "admin" && nextRole !== "admin") {
+      await clearOwnAdminPin(targetUid);
+      await writePinAccessAudit({
+        action: "role_changed_from_admin",
+        targetType: "dispatcher",
+        targetId: targetUid,
+        actorUid: callerUid,
+        actorFullName: callerName,
+      });
+    }
+
+    return {
+      success: true,
+      uid: targetUid,
+      role: nextRole,
+      fullName:
+        typeof patch.fullName === "string"
+          ? patch.fullName
+          : (existing.fullName ?? null),
     };
   },
 );
@@ -190,6 +392,8 @@ export const deactivateDispatcher = onCall(
     if (!roleSnap.exists) {
       throw new HttpsError("not-found", "Dispatcher account not found.");
     }
+    const roleData = roleSnap.data() as DispatcherRoleFields;
+    await assertNotLastActiveAdmin(uid, roleData);
 
     await roleRef.set(
       {
@@ -213,6 +417,17 @@ export const deactivateDispatcher = onCall(
           "Role deactivated but Auth disable failed. Retry or contact support.",
         );
       }
+    }
+
+    if (resolveDispatcherAccessRole(roleData) === "admin") {
+      const callerName = await actorFullName(callerUid);
+      await writePinAccessAudit({
+        action: "admin_deactivated",
+        targetType: "dispatcher",
+        targetId: uid,
+        actorUid: callerUid,
+        actorFullName: callerName,
+      });
     }
 
     return { success: true };
@@ -244,10 +459,8 @@ export const removeDispatcher = onCall(
       throw new HttpsError("not-found", "Dispatcher account not found.");
     }
 
-    const roleData = roleSnap.data() as {
-      active?: boolean;
+    const roleData = roleSnap.data() as DispatcherRoleFields & {
       email?: string;
-      removed?: boolean;
     };
 
     const roleEmail =
@@ -330,6 +543,8 @@ export const removeDispatcher = onCall(
       },
       { merge: true },
     );
+
+    await clearOwnAdminPin(targetUid).catch(() => undefined);
 
     await writePinAccessAudit({
       action: "dispatcher_removed",

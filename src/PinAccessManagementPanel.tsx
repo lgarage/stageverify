@@ -8,6 +8,7 @@ import {
 } from "react";
 import type {
   AccessPinTargetType,
+  DispatcherAccessRole,
   DispatcherAccountSummary,
   ManagementPinPermissions,
   ManagementPinPublic,
@@ -32,9 +33,12 @@ import {
   revealAccessPinClient,
   revokeAdminAccessSessionClient,
   setAccessPinClient,
+  setAdminPinClient,
   startAdminAccessSessionClient,
+  updateDispatcherAccessClient,
   upsertManagementPinClient,
 } from "./phase2CallableClients";
+import { auth } from "./firebase";
 import {
   technicianCanReceiveReleases,
   technicianCanUseDoor,
@@ -175,12 +179,13 @@ function isSessionValidityError(error: unknown): boolean {
 }
 
 type UserType =
+  | "admin"
   | "manager"
   | "dispatcher"
   | "technician"
   | "vendor"
   | "management";
-type AuthUserType = Extract<UserType, "manager" | "dispatcher">;
+type AuthUserType = Extract<UserType, "admin" | "manager" | "dispatcher">;
 type PinUserType = Exclude<UserType, AuthUserType>;
 
 type SelectedAccess =
@@ -188,6 +193,31 @@ type SelectedAccess =
   | { type: "technician"; id: string }
   | { type: "vendor"; id: string }
   | { type: "management"; id: string };
+
+function authTypeFromAccount(
+  account: DispatcherAccountSummary,
+): AuthUserType {
+  if (account.role === "admin") return "admin";
+  if (account.role === "manager" || account.manager) return "manager";
+  return "dispatcher";
+}
+
+function isVagueHumanName(name: string): boolean {
+  const normalized = name.trim().replace(/\s+/g, " ").toLowerCase();
+  if (normalized.split(" ").length < 2) return true;
+  return [
+    "dan",
+    "test",
+    "user",
+    "admin",
+    "manager",
+    "dispatcher",
+    "technician",
+    "manager pin",
+    "management pin",
+    "management",
+  ].includes(normalized);
+}
 
 type PinEditorDraft =
   | {
@@ -223,6 +253,7 @@ type AccessRow =
       type: AuthUserType;
       id: string;
       name: string;
+      email: string | null;
       active: boolean;
       accessMethod: "Email / Firebase Auth";
     }
@@ -230,12 +261,14 @@ type AccessRow =
       type: PinUserType;
       id: string;
       name: string;
+      email: string | null;
       active: boolean;
       accessMethod: "PIN";
       hasPin: boolean;
     };
 
 const typeLabels: Record<UserType, string> = {
+  admin: "Admin",
   manager: "Manager",
   dispatcher: "Dispatcher",
   technician: "Technician",
@@ -245,6 +278,10 @@ const typeLabels: Record<UserType, string> = {
 
 function TypeChip({ type }: { type: UserType }) {
   const colors: Record<UserType, { bg: string; color: string }> = {
+    admin: {
+      bg: "var(--admin-danger-bg, #fee2e2)",
+      color: "var(--admin-danger-text, #991b1b)",
+    },
     manager: {
       bg: "var(--admin-success-bg)",
       color: "var(--admin-success-text)",
@@ -300,6 +337,17 @@ export function PinAccessManagementPanel({
   const revealHideTimerRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
   const [adminAccessBusy, setAdminAccessBusy] = useState(false);
+  const [adminPinPrompt, setAdminPinPrompt] = useState<{
+    targetType: AccessPinTargetType;
+    targetId: string;
+  } | null>(null);
+  const [adminPinDraft, setAdminPinDraft] = useState("");
+  const [adminPinError, setAdminPinError] = useState<string | null>(null);
+  const [authEditFullName, setAuthEditFullName] = useState("");
+  const [authEditRole, setAuthEditRole] =
+    useState<DispatcherAccessRole>("dispatcher");
+  const [authEditAdminPin, setAuthEditAdminPin] = useState("");
+  const [wizardAdminPin, setWizardAdminPin] = useState("");
 
   const clearRevealHideTimer = useCallback(() => {
     if (revealHideTimerRef.current !== null) {
@@ -475,9 +523,10 @@ export function PinAccessManagementPanel({
 
   const rows: AccessRow[] = [
     ...dispatchers.map((dispatcher): AccessRow => ({
-      type: dispatcher.manager ? "manager" : "dispatcher",
+      type: authTypeFromAccount(dispatcher),
       id: dispatcher.uid,
-      name: dispatcher.email ?? dispatcher.uid,
+      name: dispatcher.fullName?.trim() || dispatcher.email || dispatcher.uid,
+      email: dispatcher.email,
       active: dispatcher.active,
       accessMethod: "Email / Firebase Auth",
     })),
@@ -485,6 +534,7 @@ export function PinAccessManagementPanel({
       type: "technician",
       id: technician.id,
       name: technician.name,
+      email: null,
       active: technician.active !== false,
       accessMethod: "PIN",
       hasPin: entityHasConfiguredPin(technician),
@@ -495,6 +545,7 @@ export function PinAccessManagementPanel({
         type: "vendor",
         id: vendor.id,
         name: formatVendorDisplayName(vendor),
+        email: null,
         active: vendor.active !== false,
         accessMethod: "PIN",
         hasPin: true,
@@ -503,6 +554,7 @@ export function PinAccessManagementPanel({
       type: "management",
       id: pin.id,
       name: pin.label,
+      email: null,
       active: pin.active,
       accessMethod: "PIN",
       hasPin: pin.hasPin,
@@ -510,7 +562,9 @@ export function PinAccessManagementPanel({
   ].sort((a, b) => a.name.localeCompare(b.name));
 
   const selectedDispatcher =
-    selected?.type === "manager" || selected?.type === "dispatcher"
+    selected?.type === "admin" ||
+    selected?.type === "manager" ||
+    selected?.type === "dispatcher"
       ? dispatchers.find((row) => row.uid === selected.id)
       : undefined;
   const selectedTechnician =
@@ -530,10 +584,23 @@ export function PinAccessManagementPanel({
     adminAccessRequestRef.current += 1;
     setAdminAccessBusy(false);
     await revokeCurrentAdminAccess();
+    setAdminPinPrompt(null);
+    setAdminPinDraft("");
+    setAdminPinError(null);
     setSelected({ type: row.type, id: row.id });
     setPinDraft("");
     setError(null);
     setMessage(null);
+    if (
+      row.type === "admin" ||
+      row.type === "manager" ||
+      row.type === "dispatcher"
+    ) {
+      const account = dispatchers.find((item) => item.uid === row.id);
+      setAuthEditFullName(account?.fullName ?? "");
+      setAuthEditRole(account?.role ?? (account?.manager ? "manager" : "dispatcher"));
+      setAuthEditAdminPin("");
+    }
     if (row.type === "technician") {
       const technician = technicians.find((item) => item.id === row.id);
       setEditorDraft(
@@ -601,7 +668,13 @@ export function PinAccessManagementPanel({
   };
 
   const removeAccess = async (row: AccessRow) => {
-    if (row.type !== "manager" && row.type !== "dispatcher") return;
+    if (
+      row.type !== "admin" &&
+      row.type !== "manager" &&
+      row.type !== "dispatcher"
+    ) {
+      return;
+    }
     if (row.active) return;
     const identity = row.name;
     const confirmed = window.confirm(
@@ -618,7 +691,11 @@ export function PinAccessManagementPanel({
   };
 
   const toggleActive = async (row: AccessRow) => {
-    if (row.type === "manager" || row.type === "dispatcher") {
+    if (
+      row.type === "admin" ||
+      row.type === "manager" ||
+      row.type === "dispatcher"
+    ) {
       if (!row.active) return;
       await runMutation(
         row.id,
@@ -669,19 +746,32 @@ export function PinAccessManagementPanel({
     });
   };
 
+  const openAdminPinPrompt = (
+    targetType: AccessPinTargetType,
+    targetId: string,
+  ) => {
+    setAdminPinPrompt({ targetType, targetId });
+    setAdminPinDraft("");
+    setAdminPinError(null);
+    setError(null);
+  };
+
   const startAdminAccess = async (
     targetType: AccessPinTargetType,
     targetId: string,
+    adminPin: string,
   ) => {
     const requestId = adminAccessRequestRef.current + 1;
     adminAccessRequestRef.current = requestId;
     setAdminAccessBusy(true);
     setError(null);
+    setAdminPinError(null);
     try {
       await revokeCurrentAdminAccess();
       const session = await startAdminAccessSessionClient({
         targetType,
         targetId,
+        adminPin,
       });
       if (
         !mountedRef.current ||
@@ -694,6 +784,8 @@ export function PinAccessManagementPanel({
         }).catch(() => undefined);
         return;
       }
+      setAdminPinPrompt(null);
+      setAdminPinDraft("");
       const elevation: AdminAccessElevation = {
         token: session.sessionToken,
         targetType,
@@ -756,9 +848,10 @@ export function PinAccessManagementPanel({
         mountedRef.current &&
         adminAccessRequestRef.current === requestId
       ) {
-        setError(
-          err instanceof Error ? err.message : "Could not start Admin Access.",
-        );
+        const message =
+          err instanceof Error ? err.message : "Could not start Admin Access.";
+        setAdminPinError(message);
+        setError(message);
       }
     } finally {
       if (
@@ -871,6 +964,7 @@ export function PinAccessManagementPanel({
     setWizardPin("");
     setWizardEmail("");
     setWizardTemporaryPassword("");
+    setWizardAdminPin("");
     setWizardTechPermissions(defaultTechnicianPermissions());
     setWizardBadgeColor(TECHNICIAN_BADGE_PALETTE[0]?.bg ?? "#e0f2fe");
     setWizardVendorCompanyWide(false);
@@ -879,7 +973,9 @@ export function PinAccessManagementPanel({
   };
 
   const wizardIsAuthType =
-    wizardType === "manager" || wizardType === "dispatcher";
+    wizardType === "admin" ||
+    wizardType === "manager" ||
+    wizardType === "dispatcher";
   const wizardNameIsValid =
     wizardType === "vendor"
       ? Boolean(wizardVendorId)
@@ -890,18 +986,30 @@ export function PinAccessManagementPanel({
       setError("Email is required.");
       return;
     }
+    if (isVagueHumanName(wizardName)) {
+      setError("Enter a full name (first and last).");
+      return;
+    }
+    if (wizardType === "admin" && !/^\d{6}$/.test(wizardAdminPin.trim())) {
+      setError("Admin PIN must be exactly 6 digits.");
+      return;
+    }
     setBusyId("__wizard__");
     setError(null);
     setMessage(null);
     setLastTempPassword(null);
     try {
+      const role = wizardType as DispatcherAccessRole;
       const result = await provisionDispatcherClient({
         email: wizardEmail.trim(),
         temporaryPassword: wizardTemporaryPassword.trim() || undefined,
-        manager: wizardType === "manager",
+        fullName: wizardName.trim(),
+        role,
+        manager: role === "manager" || role === "admin",
+        adminPin: role === "admin" ? wizardAdminPin.trim() : undefined,
       });
       setMessage(
-        `${typeLabels[wizardType]} account created for ${result.email}. Share the temporary password securely.`,
+        `${typeLabels[wizardType]} account created for ${result.fullName} (${result.email}). Share the temporary password securely.`,
       );
       setLastTempPassword(result.temporaryPassword);
       resetWizard();
@@ -1018,8 +1126,9 @@ export function PinAccessManagementPanel({
           >
             {canManageDispatchers && (
               <>
-                <option value="dispatcher">Dispatcher</option>
+                <option value="admin">Admin</option>
                 <option value="manager">Manager</option>
+                <option value="dispatcher">Dispatcher</option>
               </>
             )}
             <option value="technician">Technician</option>
@@ -1035,6 +1144,17 @@ export function PinAccessManagementPanel({
           style={{ display: "grid", gap: 12, maxWidth: 520 }}
         >
           <label style={{ display: "grid", gap: 6, color: TEXT }}>
+            Full Name
+            <input
+              data-testid="dispatcher-provision-full-name"
+              type="text"
+              value={wizardName}
+              onChange={(event) => setWizardName(event.target.value)}
+              style={inputStyle}
+              placeholder="Dan Day"
+            />
+          </label>
+          <label style={{ display: "grid", gap: 6, color: TEXT }}>
             Email
             <input
               data-testid="dispatcher-provision-email"
@@ -1045,6 +1165,24 @@ export function PinAccessManagementPanel({
               placeholder="dispatcher@example.com"
             />
           </label>
+          {wizardType === "admin" && (
+            <label style={{ display: "grid", gap: 6, color: TEXT }}>
+              Admin PIN (6 digits)
+              <input
+                data-testid="dispatcher-provision-admin-pin"
+                type="password"
+                inputMode="numeric"
+                autoComplete="new-password"
+                maxLength={6}
+                value={wizardAdminPin}
+                onChange={(event) =>
+                  setWizardAdminPin(event.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                style={inputStyle}
+                placeholder="••••••"
+              />
+            </label>
+          )}
           <label style={{ display: "grid", gap: 6, color: TEXT }}>
             Temporary password (optional)
             <input
@@ -1273,13 +1411,68 @@ export function PinAccessManagementPanel({
     </div>
   );
 
+  const saveAuthEdits = async (account: DispatcherAccountSummary) => {
+    if (isVagueHumanName(authEditFullName)) {
+      setError("Enter a full name (first and last).");
+      return;
+    }
+    if (
+      authEditRole === "admin" &&
+      account.role !== "admin" &&
+      !/^\d{6}$/.test(authEditAdminPin.trim())
+    ) {
+      setError("Admin PIN must be exactly 6 digits when granting Admin.");
+      return;
+    }
+    setBusyId(account.uid);
+    setError(null);
+    setMessage(null);
+    try {
+      await updateDispatcherAccessClient({
+        uid: account.uid,
+        fullName: authEditFullName.trim(),
+        role: authEditRole,
+        adminPin:
+          authEditRole === "admin" && account.role !== "admin"
+            ? authEditAdminPin.trim()
+            : undefined,
+      });
+      // Admin PIN reset is self-targeted only (setAdminPin CF).
+      if (
+        account.role === "admin" &&
+        authEditRole === "admin" &&
+        auth.currentUser?.uid === account.uid &&
+        /^\d{6}$/.test(authEditAdminPin.trim())
+      ) {
+        await setAdminPinClient({ adminPin: authEditAdminPin.trim() });
+      }
+      setMessage("Access updated.");
+      setAuthEditAdminPin("");
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update access.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const renderAuthDetail = (account: DispatcherAccountSummary) => {
-    const type: AuthUserType = account.manager ? "manager" : "dispatcher";
+    const type = authTypeFromAccount(account);
     return (
       <div
         data-testid={`pin-access-auth-detail-${account.uid}`}
         style={{ display: "grid", gap: 14 }}
       >
+        <label style={{ display: "grid", gap: 6, maxWidth: 520, color: TEXT }}>
+          Full Name
+          <input
+            data-testid={`dispatcher-edit-full-name-${account.uid}`}
+            type="text"
+            value={authEditFullName}
+            onChange={(event) => setAuthEditFullName(event.target.value)}
+            style={inputStyle}
+          />
+        </label>
         <label style={{ display: "grid", gap: 6, maxWidth: 520, color: TEXT }}>
           Email
           <input
@@ -1289,18 +1482,72 @@ export function PinAccessManagementPanel({
             style={{ ...inputStyle, color: "var(--admin-text-data)" }}
           />
         </label>
+        <label style={{ display: "grid", gap: 6, maxWidth: 320, color: TEXT }}>
+          User Type
+          <select
+            data-testid={`dispatcher-edit-role-${account.uid}`}
+            value={authEditRole}
+            onChange={(event) =>
+              setAuthEditRole(event.target.value as DispatcherAccessRole)
+            }
+            style={inputStyle}
+          >
+            <option value="admin">Admin</option>
+            <option value="manager">Manager</option>
+            <option value="dispatcher">Dispatcher</option>
+          </select>
+        </label>
+        {(authEditRole === "admin" &&
+          (account.role !== "admin" ||
+            auth.currentUser?.uid === account.uid)) && (
+          <label style={{ display: "grid", gap: 6, maxWidth: 320, color: TEXT }}>
+            {account.role === "admin"
+              ? "Reset your Admin PIN (optional, 6 digits)"
+              : "Admin PIN (6 digits)"}
+            <input
+              data-testid={`dispatcher-edit-admin-pin-${account.uid}`}
+              type="password"
+              inputMode="numeric"
+              autoComplete="new-password"
+              maxLength={6}
+              value={authEditAdminPin}
+              onChange={(event) =>
+                setAuthEditAdminPin(
+                  event.target.value.replace(/\D/g, "").slice(0, 6),
+                )
+              }
+              style={inputStyle}
+              placeholder="••••••"
+            />
+          </label>
+        )}
         <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
           <p style={{ margin: 0, color: TEXT }}>
+            <span style={{ color: MUTED }}>Identity:</span>{" "}
+            <strong data-testid={`pin-access-identity-${account.uid}`}>
+              {authEditFullName.trim() || account.fullName || "—"}
+            </strong>
+          </p>
+          <p style={{ margin: 0, color: TEXT }}>
             <span style={{ color: MUTED }}>Role:</span>{" "}
-            <strong>{typeLabels[type]}</strong>
+            <strong>{typeLabels[authEditRole]}</strong>
           </p>
           <p style={{ margin: 0, color: TEXT }}>
             <span style={{ color: MUTED }}>Status:</span>{" "}
             <strong>{account.active ? "Active" : "Inactive"}</strong>
           </p>
         </div>
-        {account.active ? (
-          <div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button
+            data-testid={`dispatcher-save-${account.uid}`}
+            type="button"
+            disabled={busyId === account.uid}
+            onClick={() => void saveAuthEdits(account)}
+            style={primaryButtonStyle}
+          >
+            {busyId === account.uid ? "Saving…" : "Save Changes"}
+          </button>
+          {account.active ? (
             <button
               data-testid={`dispatcher-deactivate-${account.uid}`}
               type="button"
@@ -1309,7 +1556,8 @@ export function PinAccessManagementPanel({
                 void toggleActive({
                   type,
                   id: account.uid,
-                  name: account.email ?? account.uid,
+                  name: account.fullName ?? account.email ?? account.uid,
+                  email: account.email,
                   active: account.active,
                   accessMethod: "Email / Firebase Auth",
                 })
@@ -1318,9 +1566,7 @@ export function PinAccessManagementPanel({
             >
               {busyId === account.uid ? "Deactivating…" : "Deactivate"}
             </button>
-          </div>
-        ) : (
-          <div>
+          ) : (
             <button
               data-testid={`dispatcher-remove-${account.uid}`}
               type="button"
@@ -1329,7 +1575,8 @@ export function PinAccessManagementPanel({
                 void removeAccess({
                   type,
                   id: account.uid,
-                  name: account.email ?? account.uid,
+                  name: account.fullName ?? account.email ?? account.uid,
+                  email: account.email,
                   active: account.active,
                   accessMethod: "Email / Firebase Auth",
                 })
@@ -1338,8 +1585,8 @@ export function PinAccessManagementPanel({
             >
               {busyId === account.uid ? "Removing…" : "Remove"}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
   };
@@ -1716,23 +1963,97 @@ export function PinAccessManagementPanel({
                   {row.hasPin ? "••••" : "Not configured"}
                 </strong>
               </div>
-              <div>
-                <button
-                  data-testid="pin-access-admin-button"
-                  type="button"
-                  disabled={adminAccessBusy || busyId === row.id}
-                  onClick={() => void startAdminAccess(row.type, row.id)}
-                  style={{
-                    ...secondaryButtonStyle,
-                    minHeight: 36,
-                    color: "var(--admin-accent-soft)",
-                    opacity:
-                      adminAccessBusy || busyId === row.id ? 0.55 : 1,
-                  }}
+              {adminPinPrompt &&
+              adminPinPrompt.targetType === row.type &&
+              adminPinPrompt.targetId === row.id ? (
+                <div
+                  data-testid="pin-access-admin-pin-prompt"
+                  style={{ display: "grid", gap: 10 }}
                 >
-                  {adminAccessBusy ? "Starting…" : "Admin Access"}
-                </button>
-              </div>
+                  <label style={{ display: "grid", gap: 6, color: TEXT }}>
+                    Enter your 6-digit Admin PIN
+                    <input
+                      data-testid="pin-access-admin-pin-input"
+                      type="password"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={adminPinDraft}
+                      onChange={(event) =>
+                        setAdminPinDraft(
+                          event.target.value.replace(/\D/g, "").slice(0, 6),
+                        )
+                      }
+                      style={inputStyle}
+                      placeholder="••••••"
+                    />
+                  </label>
+                  {adminPinError && (
+                    <p
+                      data-testid="pin-access-admin-pin-error"
+                      style={{ margin: 0, color: "var(--admin-danger-text, #b91c1c)", fontSize: 13 }}
+                    >
+                      {adminPinError}
+                    </p>
+                  )}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      data-testid="pin-access-admin-pin-submit"
+                      type="button"
+                      disabled={
+                        adminAccessBusy || !/^\d{6}$/.test(adminPinDraft)
+                      }
+                      onClick={() =>
+                        void startAdminAccess(
+                          row.type,
+                          row.id,
+                          adminPinDraft,
+                        )
+                      }
+                      style={{
+                        ...primaryButtonStyle,
+                        opacity:
+                          adminAccessBusy || !/^\d{6}$/.test(adminPinDraft)
+                            ? 0.55
+                            : 1,
+                      }}
+                    >
+                      {adminAccessBusy ? "Verifying…" : "Reveal PIN"}
+                    </button>
+                    <button
+                      data-testid="pin-access-admin-pin-cancel"
+                      type="button"
+                      disabled={adminAccessBusy}
+                      onClick={() => {
+                        setAdminPinPrompt(null);
+                        setAdminPinDraft("");
+                        setAdminPinError(null);
+                      }}
+                      style={secondaryButtonStyle}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <button
+                    data-testid="pin-access-admin-button"
+                    type="button"
+                    disabled={adminAccessBusy || busyId === row.id}
+                    onClick={() => openAdminPinPrompt(row.type, row.id)}
+                    style={{
+                      ...secondaryButtonStyle,
+                      minHeight: 36,
+                      color: "var(--admin-accent-soft)",
+                      opacity:
+                        adminAccessBusy || busyId === row.id ? 0.55 : 1,
+                    }}
+                  >
+                    {adminAccessBusy ? "Starting…" : "Admin Access"}
+                  </button>
+                </div>
+              )}
               {!row.hasPin && renderNewPinInput()}
             </>
           )}
@@ -1856,7 +2177,7 @@ export function PinAccessManagementPanel({
               data-testid="pin-access-helper"
               style={{ margin: "5px 0 0", color: MUTED, fontSize: 12 }}
             >
-              Manage access for managers, dispatchers, technicians, vendors, and
+              Manage access for admins, managers, dispatchers, technicians, vendors, and
               management PINs in one place.
             </p>
           </div>
@@ -1957,7 +2278,8 @@ export function PinAccessManagementPanel({
                   <thead>
                     <tr style={{ backgroundColor: NAVY }}>
                       {[
-                        "User Name / Email",
+                        "Name",
+                        "Email",
                         "User Type",
                         "Access Method",
                         "Status",
@@ -2001,7 +2323,30 @@ export function PinAccessManagementPanel({
                             fontWeight: 700,
                           }}
                         >
-                          {row.name}
+                          <span data-testid={`pin-access-name-${row.type}-${row.id}`}>
+                            {row.name}
+                          </span>
+                          <span
+                            style={{
+                              display: "block",
+                              marginTop: 2,
+                              fontSize: 11,
+                              fontWeight: 600,
+                              color: MUTED,
+                            }}
+                          >
+                            {typeLabels[row.type]}
+                          </span>
+                        </td>
+                        <td
+                          data-testid={`pin-access-email-${row.type}-${row.id}`}
+                          style={{
+                            padding: 12,
+                            borderBottom: "1px solid var(--admin-border)",
+                            color: MUTED,
+                          }}
+                        >
+                          {row.email?.trim() ? row.email : "—"}
                         </td>
                         <td
                           style={{
@@ -2047,7 +2392,8 @@ export function PinAccessManagementPanel({
                           >
                             Edit
                           </button>
-                          {(row.type === "manager" ||
+                          {(row.type === "admin" ||
+                            row.type === "manager" ||
                             row.type === "dispatcher") ? (
                             row.active ? (
                               <button
@@ -2095,7 +2441,7 @@ export function PinAccessManagementPanel({
                               }}
                             >
                               <td
-                                colSpan={5}
+                                colSpan={6}
                                 style={{
                                   padding: 16,
                                   borderBottom:

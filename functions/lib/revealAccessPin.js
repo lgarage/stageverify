@@ -43,7 +43,7 @@ async function checkRevealRateLimit(attemptKey) {
         }, { merge: true });
     });
 }
-/** Manager reveals a configured PIN (25s client auto-hide). Requires live admin session. */
+/** Active Admin reveals a configured PIN (25s client auto-hide). Requires live admin session. */
 exports.revealAccessPin = (0, https_1.onCall)({
     region: "us-central1",
     secrets: [accessPinCrypto_1.accessPinEncryptionKey],
@@ -57,7 +57,7 @@ exports.revealAccessPin = (0, https_1.onCall)({
     }
     let uid;
     try {
-        uid = await (0, dispatcherAuth_1.requireManagerAuth)(request);
+        uid = await (0, dispatcherAuth_1.requireAdminAuth)(request);
     }
     catch (err) {
         if (err instanceof https_1.HttpsError &&
@@ -72,6 +72,8 @@ exports.revealAccessPin = (0, https_1.onCall)({
         }
         throw err;
     }
+    const roleDoc = await (0, dispatcherAuth_1.readDispatcherRoleDoc)(uid);
+    const actorFullName = typeof roleDoc?.fullName === "string" ? roleDoc.fullName : undefined;
     const sessionCheck = await (0, adminAccessSession_1.validateAdminAccessSession)({
         sessionToken,
         managerUid: uid,
@@ -118,6 +120,7 @@ exports.revealAccessPin = (0, https_1.onCall)({
         targetType,
         targetId,
         actorUid: uid,
+        actorFullName,
     });
     return { pin, revealedForMs: REVEALED_FOR_MS };
 });

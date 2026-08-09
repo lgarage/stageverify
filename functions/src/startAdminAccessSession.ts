@@ -1,19 +1,25 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { createAdminAccessSession } from "./adminAccessSession";
+import { verifyOwnAdminPinForSession } from "./adminPinSecret";
 import {
   parseAccessPinTargetType,
   writePinAccessAudit,
   writePinAccessAuditBestEffort,
 } from "./accessPinSecretsShared";
 import { assertAccessPinTargetExists } from "./accessPinTargetHelpers";
-import { requireManagerAuth } from "./inboundEmail/dispatcherAuth";
+import {
+  readDispatcherRoleDoc,
+  requireAdminAuth,
+} from "./inboundEmail/dispatcherAuth";
 
 interface StartAdminAccessSessionRequest {
   targetType?: string;
   targetId?: string;
+  /** Caller's own 6-digit Admin PIN — authorizing credential, never logged. */
+  adminPin?: string;
 }
 
-/** Manager mints a row-scoped admin access session (5 min TTL). */
+/** Active Admin + own Admin PIN mints a row-scoped admin access session (5 min TTL). */
 export const startAdminAccessSession = onCall(
   { region: "us-central1" },
   async (request) => {
@@ -28,7 +34,7 @@ export const startAdminAccessSession = onCall(
 
     let uid: string;
     try {
-      uid = await requireManagerAuth(request);
+      uid = await requireAdminAuth(request);
     } catch (err) {
       if (
         err instanceof HttpsError &&
@@ -45,6 +51,25 @@ export const startAdminAccessSession = onCall(
       throw err;
     }
 
+    const roleDoc = await readDispatcherRoleDoc(uid);
+    const actorFullName =
+      typeof roleDoc?.fullName === "string" ? roleDoc.fullName : undefined;
+
+    const pinOk = await verifyOwnAdminPinForSession(uid, data.adminPin);
+    if (!pinOk) {
+      await writePinAccessAudit({
+        action: "admin_access_denied",
+        targetType,
+        targetId,
+        actorUid: uid,
+        actorFullName,
+      });
+      throw new HttpsError(
+        "permission-denied",
+        "Invalid Admin PIN.",
+      );
+    }
+
     await assertAccessPinTargetExists(targetType, targetId);
 
     const session = await createAdminAccessSession({
@@ -58,6 +83,7 @@ export const startAdminAccessSession = onCall(
       targetType,
       targetId,
       actorUid: uid,
+      actorFullName,
     });
 
     return {

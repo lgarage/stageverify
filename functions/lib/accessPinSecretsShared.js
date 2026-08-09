@@ -43,6 +43,9 @@ async function writePinAccessAudit(input) {
         actorUid: input.actorUid,
         createdAt,
     };
+    if (typeof input.actorFullName === "string" && input.actorFullName.trim()) {
+        doc.actorFullName = input.actorFullName.trim();
+    }
     await ref.set(doc);
     return ref.id;
 }
