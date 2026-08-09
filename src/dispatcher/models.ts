@@ -1470,6 +1470,46 @@ export interface SaveInvoiceTrainingLessonResult {
   reviewStatus?: string;
 }
 
+/** Lane C C1 — Invoice Review Chat (read/explain only; no field mutation). */
+export type InvoiceReviewChatCitationSource =
+  | "document_evidence"
+  | "parser_value"
+  | "dispatcher_assertion"
+  | "agent_interpretation";
+
+export type InvoiceReviewChatActionType =
+  | "answer"
+  | "cite_evidence"
+  | "explain_parser"
+  | "identify_mismatch"
+  | "suggest_correction_may_be_needed";
+
+export interface InvoiceReviewChatCitation {
+  sourceType: InvoiceReviewChatCitationSource;
+  text: string;
+  spanStart?: number;
+  spanEnd?: number;
+  field?: string;
+}
+
+export interface InvoiceReviewChatMessage {
+  id: string;
+  role: "dispatcher" | "agent";
+  text: string;
+  createdAt: string;
+  createdByUid: string;
+  citations?: InvoiceReviewChatCitation[];
+  actionType?: InvoiceReviewChatActionType;
+  modelUsed?: string;
+  droppedActionTypes?: string[];
+  error?: string;
+}
+
+export interface ReviewAgentTurnResult {
+  messageId: string;
+  agentMessage: InvoiceReviewChatMessage;
+}
+
 /** Firestore vendorInvoiceIgnoreRules — CF-managed fingerprint rules. */
 export type VendorIgnoreRuleStatus =
   | "proposed"

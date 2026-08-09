@@ -26,6 +26,7 @@ import { buildExpectedJohnstoneFieldChecklist } from "./invoiceExpectedFieldsChe
 import { useVendorInvoicePdfViewer } from "./useVendorInvoicePdfViewer";
 import { AutoImportSuggestionPanel } from "./autoImportSuggestionUi";
 import { InvoiceDeliveryMatchSection } from "./InvoiceDeliveryMatchSection";
+import { InvoiceReviewChatPanel } from "./InvoiceReviewChatPanel";
 import {
   buildHeaderDisplayRows,
   INVOICE_HEADER_FIELD_LABELS,
@@ -1005,6 +1006,8 @@ export function InvoiceParsedInspectModal({
             </tbody>
           </table>
         </div>
+
+        <InvoiceReviewChatPanel importId={importRow.id} readOnly={readOnly} />
 
         <details>
           <summary

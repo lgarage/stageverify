@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.244",
+  "version": "0.0.245",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -62,6 +62,8 @@
     "verify:catch-all-map": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map scripts/verify-catch-all-map.mjs",
     "verify:catch-all-map:prod": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map:prod scripts/verify-catch-all-map.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-review": "node scripts/verify-invoice-review.mjs",
+    "verify:invoice-review-chat": "node scripts/verify-invoice-review-chat.mjs",
+    "verify:invoice-review-chat:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-review-chat:prod scripts/verify-invoice-review-chat.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-reject-reason": "node scripts/verify-invoice-review.mjs",
     "verify:invoice-review:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-review:prod scripts/verify-invoice-review.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-training-settings": "node scripts/run-verify-with-learning.mjs --script verify:invoice-training-settings scripts/verify-invoice-training-settings.mjs",
@@ -153,6 +155,7 @@
     "test:vendor-email-reply-router": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"npx tsx scripts/test-vendor-email-reply-router.mjs\"",
     "test:invoice-parser": "npx tsx scripts/test-invoice-parser.mjs",
     "test:invoice-ai-shadow": "cd functions && npm run build && cd .. && node scripts/test-invoice-ai-shadow.mjs",
+    "test:invoice-review-chat": "cd functions && npm run build && cd .. && node scripts/test-invoice-review-chat.mjs",
     "test:training-note-p7": "cd functions && npm run build && cd .. && node scripts/test-training-note-p7.mjs",
     "test:invoice-training-admin": "cd functions && npm run build && cd .. && node scripts/test-invoice-training-admin.mjs",
     "test:reopen-ignore-circuit-breaker": "cd functions && npm run build && cd .. && node scripts/test-reopen-ignore-circuit-breaker.mjs",

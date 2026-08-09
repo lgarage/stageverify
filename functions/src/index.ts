@@ -53,6 +53,7 @@ import {
   saveVendorTrainingPlaybook,
   updateVendorIgnoreRuleCallable,
 } from "./invoiceTrainingAdminApi";
+import { reviewAgentTurn } from "./invoiceReviewChatApi";
 import { reparseVendorInvoiceImportCallable } from "./reparseVendorInvoiceImportCallable";
 import { dismissVendorEmailEventCallable } from "./dismissVendorEmailEventCallable";
 import { reopenVendorEmailEventCallable } from "./reopenVendorEmailEventCallable";
@@ -295,6 +296,7 @@ export {
   saveInvoiceTrainingLesson,
   saveVendorTrainingPlaybook,
   updateVendorIgnoreRuleCallable,
+  reviewAgentTurn,
   reparseVendorInvoiceImportCallable,
   dismissVendorEmailEventCallable,
   reopenVendorEmailEventCallable,

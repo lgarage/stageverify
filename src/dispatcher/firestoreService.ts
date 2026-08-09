@@ -6,12 +6,14 @@ import {
   getDoc,
   getDocs,
   onSnapshot,
+  orderBy,
   setDoc,
   updateDoc,
   writeBatch,
   query,
   where,
   limit,
+  Timestamp,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { db } from "../firebase";
@@ -75,6 +77,8 @@ import type {
   ApproveVendorInvoiceImportResult,
   InvoiceTrainingAdminStatus,
   SaveInvoiceTrainingLessonResult,
+  InvoiceReviewChatMessage,
+  ReviewAgentTurnResult,
   ConfirmVendorIgnoreRuleResult,
   ProposeVendorIgnoreRuleResult,
   VendorIgnoreRule,
@@ -2514,6 +2518,11 @@ const saveInvoiceTrainingLessonCallable = httpsCallable<
   SaveInvoiceTrainingLessonResult
 >(functions, "saveInvoiceTrainingLesson");
 
+const reviewAgentTurnCallable = httpsCallable<
+  { vendorInvoiceImportId: string; message: string },
+  ReviewAgentTurnResult
+>(functions, "reviewAgentTurn");
+
 const getVendorTrainingPlaybookCallable = httpsCallable<
   { password: string; vendorKey?: string; vendorInvoiceImportId?: string },
   { vendorKey: string; markdown: string }
@@ -2814,6 +2823,91 @@ export async function configureInvoiceTrainingAdmin(input: {
 }): Promise<InvoiceTrainingAdminStatus & { success: boolean }> {
   const response = await configureInvoiceTrainingAdminCallable(input);
   return response.data;
+}
+
+/** Lane C C1 — send one Invoice Review Chat turn (CF persists both messages). */
+export async function reviewAgentTurn(input: {
+  vendorInvoiceImportId: string;
+  message: string;
+}): Promise<ReviewAgentTurnResult> {
+  const response = await reviewAgentTurnCallable(input);
+  return response.data;
+}
+
+function mapReviewChatMessageDoc(
+  id: string,
+  data: Record<string, unknown>,
+): InvoiceReviewChatMessage {
+  const createdAtRaw = data.createdAt;
+  let createdAt = "";
+  if (createdAtRaw instanceof Timestamp) {
+    createdAt = createdAtRaw.toDate().toISOString();
+  } else if (
+    createdAtRaw &&
+    typeof createdAtRaw === "object" &&
+    "toDate" in createdAtRaw &&
+    typeof (createdAtRaw as { toDate?: unknown }).toDate === "function"
+  ) {
+    createdAt = (createdAtRaw as Timestamp).toDate().toISOString();
+  } else if (typeof createdAtRaw === "string") {
+    createdAt = createdAtRaw;
+  }
+
+  return {
+    id,
+    role: data.role === "agent" ? "agent" : "dispatcher",
+    text: typeof data.text === "string" ? data.text : "",
+    createdAt,
+    createdByUid:
+      typeof data.createdByUid === "string" ? data.createdByUid : "",
+    ...(Array.isArray(data.citations)
+      ? {
+          citations: data.citations as InvoiceReviewChatMessage["citations"],
+        }
+      : {}),
+    ...(typeof data.actionType === "string"
+      ? {
+          actionType:
+            data.actionType as InvoiceReviewChatMessage["actionType"],
+        }
+      : {}),
+    ...(typeof data.modelUsed === "string"
+      ? { modelUsed: data.modelUsed }
+      : {}),
+    ...(Array.isArray(data.droppedActionTypes)
+      ? {
+          droppedActionTypes: data.droppedActionTypes.filter(
+            (x): x is string => typeof x === "string",
+          ),
+        }
+      : {}),
+    ...(typeof data.error === "string" ? { error: data.error } : {}),
+  };
+}
+
+/** Subscribe to durable Invoice Review Chat messages for one import (newest last). */
+export function subscribeInvoiceReviewChatMessages(
+  importId: string,
+  onChange: (messages: InvoiceReviewChatMessage[]) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  const q = query(
+    collection(db, "vendorInvoiceImportChats", importId, "messages"),
+    orderBy("createdAt", "asc"),
+    limit(200),
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const messages = snap.docs.map((d) =>
+        mapReviewChatMessageDoc(d.id, d.data() as Record<string, unknown>),
+      );
+      onChange(messages);
+    },
+    (err) => {
+      onError?.(err instanceof Error ? err : new Error(String(err)));
+    },
+  );
 }
 
 export async function saveInvoiceTrainingLesson(input: {

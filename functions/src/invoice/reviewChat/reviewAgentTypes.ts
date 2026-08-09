@@ -1,0 +1,71 @@
+/**
+ * Lane C C1 — Invoice Review Chat types (read/explain only).
+ * No field mutation, knowledge writes, or ignore-rule effects.
+ */
+
+export const REVIEW_CHAT_COLLECTION = "vendorInvoiceImportChats";
+export const REVIEW_CHAT_MESSAGES_SUB = "messages";
+export const REVIEW_CHAT_RATE_LIMIT_COLLECTION = "invoiceReviewChatRateLimits";
+
+export const ALLOWED_REVIEW_ACTION_TYPES = [
+  "answer",
+  "cite_evidence",
+  "explain_parser",
+  "identify_mismatch",
+  "suggest_correction_may_be_needed",
+] as const;
+
+export type ReviewAgentActionType = (typeof ALLOWED_REVIEW_ACTION_TYPES)[number];
+
+export const CITATION_SOURCE_TYPES = [
+  "document_evidence",
+  "parser_value",
+  "dispatcher_assertion",
+  "agent_interpretation",
+] as const;
+
+export type ReviewCitationSourceType = (typeof CITATION_SOURCE_TYPES)[number];
+
+export type ReviewChatMessageRole = "dispatcher" | "agent";
+
+export interface ReviewChatCitation {
+  sourceType: ReviewCitationSourceType;
+  text: string;
+  spanStart?: number;
+  spanEnd?: number;
+  field?: string;
+}
+
+export interface ReviewAgentModelResponse {
+  actionType: ReviewAgentActionType;
+  answerText: string;
+  citations: ReviewChatCitation[];
+  droppedActionTypes: string[];
+}
+
+export interface ReviewAgentContextPacket {
+  parsedHeader: Record<string, unknown>;
+  relevantLines: Array<Record<string, unknown>>;
+  parseWarnings: string[];
+  reviewIssues: string[];
+  textWindows: Array<{ start: number; end: number; text: string }>;
+  recentTurns: Array<{ role: ReviewChatMessageRole; text: string }>;
+  rollingSummary: string;
+  sourceTextAvailable: boolean;
+}
+
+export interface ReviewAgentTurnResult {
+  messageId: string;
+  agentMessage: {
+    id: string;
+    role: "agent";
+    text: string;
+    createdAt: string;
+    createdByUid: string;
+    citations?: ReviewChatCitation[];
+    actionType?: ReviewAgentActionType;
+    modelUsed?: string;
+    droppedActionTypes?: string[];
+    error?: string;
+  };
+}
