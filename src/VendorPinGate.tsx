@@ -41,6 +41,8 @@ interface VendorPinGateProps {
   subtitle?: string;
   onVerified: (payload: VendorPinVerifiedPayload) => void;
   onCancel?: () => void;
+  /** Use the parent page's viewport shell instead of centering in a second one. */
+  embedded?: boolean;
 }
 
 function pinVerifyErrorMessage(err: unknown): string {
@@ -64,6 +66,7 @@ export function VendorPinGate({
   subtitle,
   onVerified,
   onCancel,
+  embedded = false,
 }: VendorPinGateProps) {
   const [digits, setDigits] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -202,21 +205,45 @@ export function VendorPinGate({
   };
 
   return (
-    <div className="app-container min-h-screen min-h-[100svh] bg-bg-primary">
+    <div
+      className={
+        embedded
+          ? "app-container flex min-h-0 flex-1 bg-bg-primary"
+          : "app-container min-h-screen min-h-[100svh] bg-bg-primary"
+      }
+      data-testid="vendor-pin-shell"
+    >
       <div
-        className="flex min-h-screen min-h-[100svh] flex-col items-center justify-center overflow-y-auto"
-        style={{ padding: "0.75rem 1rem" }}
+        className={
+          embedded
+            ? "flex min-h-0 flex-1 flex-col items-center overflow-y-auto"
+            : "flex min-h-screen min-h-[100svh] flex-col items-center justify-center overflow-y-auto"
+        }
+        style={{
+          padding: embedded
+            ? "clamp(0.5rem, 1.4svh, 0.75rem) 1rem max(0.75rem, env(safe-area-inset-bottom))"
+            : "0.75rem 1rem",
+        }}
       >
         <div
           className="w-full max-w-[22rem] rounded-3xl border border-white/10 bg-bg-secondary shadow-xl shadow-black/20"
-          style={{ padding: "clamp(0.875rem, 2.6svh, 1.5rem)" }}
+          data-testid="vendor-pin-card"
+          style={{
+            padding: embedded
+              ? "clamp(0.5rem, 1.5svh, 1rem)"
+              : "clamp(0.875rem, 2.6svh, 1.5rem)",
+          }}
         >
           <div className="text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">
               Vendor Portal
             </p>
             <h1
-              className="text-[clamp(1.35rem,3.2svh,1.75rem)] font-bold tracking-tight text-text-primary"
+              className={`text-[clamp(1.35rem,3.2svh,1.75rem)] font-bold tracking-tight text-text-primary ${
+                embedded
+                  ? "[@media(max-height:600px)]:text-[1.2rem] [@media(max-height:600px)]:leading-tight"
+                  : ""
+              }`}
               style={{ marginTop: "0.25rem" }}
             >
               {title}
@@ -231,7 +258,11 @@ export function VendorPinGate({
 
           <div
             className="relative flex min-h-8 items-center justify-center"
-            style={{ marginTop: "clamp(0.75rem, 2.1svh, 1.25rem)" }}
+            style={{
+              marginTop: embedded
+                ? "clamp(0.375rem, 1.2svh, 0.75rem)"
+                : "clamp(0.75rem, 2.1svh, 1.25rem)",
+            }}
             aria-label={`PIN entry: ${pinLength} ${
               pinLength === 1 ? "digit" : "digits"
             } entered`}
@@ -275,7 +306,10 @@ export function VendorPinGate({
 
           <div
             className="flex min-h-5 items-center justify-center"
-            style={{ marginTop: "0.375rem", paddingInline: "0.5rem" }}
+            style={{
+              marginTop: embedded ? "0.25rem" : "0.375rem",
+              paddingInline: "0.5rem",
+            }}
           >
             {error ? (
               <p
@@ -336,11 +370,22 @@ export function VendorPinGate({
 
           <div
             className="w-full max-w-[17.5rem]"
+            data-testid="vendor-pin-keypad"
             style={{
-              margin: "clamp(0.625rem, 1.8svh, 1rem) auto 0",
+              margin: `${
+                embedded
+                  ? "clamp(0.375rem, 1.2svh, 0.75rem)"
+                  : "clamp(0.625rem, 1.8svh, 1rem)"
+              } auto 0`,
             }}
           >
-            <div className="grid grid-cols-3 place-items-center gap-[clamp(0.5rem,1.4svh,0.75rem)]">
+            <div
+              className={
+                embedded
+                  ? "grid grid-cols-3 place-items-center gap-[clamp(0.375rem,1.2svh,0.75rem)]"
+                  : "grid grid-cols-3 place-items-center gap-[clamp(0.5rem,1.4svh,0.75rem)]"
+              }
+            >
               {KEYPAD.slice(0, 3)
                 .flat()
                 .map((key) => (
@@ -358,7 +403,9 @@ export function VendorPinGate({
             <div
               className="flex items-center justify-center gap-[clamp(0.875rem,2.5svh,1.25rem)]"
               style={{
-                marginTop: "clamp(0.5rem, 1.4svh, 0.75rem)",
+                marginTop: embedded
+                  ? "clamp(0.375rem, 1.2svh, 0.75rem)"
+                  : "clamp(0.5rem, 1.4svh, 0.75rem)",
               }}
             >
               <button
@@ -407,7 +454,9 @@ export function VendorPinGate({
             data-testid="vendor-pin-verify"
             className="tap-target flex min-h-11 w-full items-center justify-center rounded-xl border border-transparent text-base font-bold text-white shadow-sm transition-[background-color,border-color,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-green focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary active:scale-[0.99]"
             style={{
-              marginTop: "clamp(0.75rem, 2svh, 1.125rem)",
+              marginTop: embedded
+                ? "clamp(0.5rem, 1.4svh, 0.875rem)"
+                : "clamp(0.75rem, 2svh, 1.125rem)",
               padding: "0.625rem 1rem",
               backgroundColor:
                 canVerify || submitting ? "#047857" : "#334155",
@@ -418,7 +467,9 @@ export function VendorPinGate({
           </button>
 
           <p
-            className="text-center text-xs leading-5 text-text-secondary"
+            className={`text-center text-xs leading-5 text-text-secondary ${
+              embedded ? "[@media(max-height:600px)]:hidden" : ""
+            }`}
             style={{ marginTop: "0.5rem" }}
           >
             Need help? Call dispatch.

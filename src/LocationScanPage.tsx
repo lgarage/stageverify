@@ -771,7 +771,7 @@ export function LocationScanPage() {
             {branding.label}
           </p>
           <div
-            className="mx-auto flex w-full max-w-sm gap-1 rounded-xl border border-white/10 bg-bg-primary/55 p-0.5"
+            className="mx-auto flex w-full max-w-sm gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-0.5"
             data-testid="pin-role-selector"
             style={{ marginTop: "clamp(3px, 0.7svh, 6px)" }}
           >
@@ -827,6 +827,7 @@ export function LocationScanPage() {
             title="Enter Job or Company PIN"
             subtitle="Job PIN for one job, or company PIN when dispatch enabled multi-site run."
             onVerified={handlePinVerified}
+            embedded
           />
         ) : (
           <TechnicianPinGate
