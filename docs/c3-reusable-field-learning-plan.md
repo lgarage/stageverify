@@ -14,7 +14,7 @@
 | ----- | ------ |
 | **C3-A** | **COMPLETE** — D-59 #7/#8 amend + threshold/invariants authoritative in `PROJECT_STATUS/DECISIONS.md` (2026-08-09) |
 | **C3-B** | **COMPLETE / LIVE** — Johnstone PO grid-bleed + INVOICE banner; CF syncInboundGmail + reparseVendorInvoiceImportCallable deployed |
-| **C3-C** | not started |
+| **C3-C** | **NEXT** — not started |
 | **C3-D** | not started |
 | **C3-E** | not started |
 | **C3-F** | not started |
@@ -485,7 +485,7 @@ Johnstone already has multi-path PO extraction (`pickPoValue`, tabular/stacked/l
 | **Likely risk tier** | **High-risk** (CF + `firestore.rules` for new collections) |
 | **Likely deploy surface** | Firebase functions + rules; optional Settings UI (gh-pages) |
 | **Prerequisites** | **C3-A** authoritative; preferably C3-B assessed |
-| **Completion status** | not started |
+| **Completion status** | **NEXT** — not started |
 
 ### C3-D — Proposed → active lifecycle + audit + circuit breaker
 
