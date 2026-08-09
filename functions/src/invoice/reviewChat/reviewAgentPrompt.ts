@@ -116,7 +116,7 @@ export function parseAndValidateReviewAgentResponse(
         citations.push({
           sourceType: "agent_interpretation",
           text,
-          field,
+          ...(field ? { field } : {}),
         });
         continue;
       }
@@ -125,7 +125,7 @@ export function parseAndValidateReviewAgentResponse(
         text: span.matched,
         spanStart: span.start,
         spanEnd: span.end,
-        field,
+        ...(field ? { field } : {}),
       });
       continue;
     }
