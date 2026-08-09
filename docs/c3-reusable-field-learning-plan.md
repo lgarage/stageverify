@@ -13,13 +13,13 @@
 | Phase | Status |
 | ----- | ------ |
 | **C3-A** | **COMPLETE** — D-59 #7/#8 amend + threshold/invariants authoritative in `PROJECT_STATUS/DECISIONS.md` (2026-08-09) |
-| **C3-B** | **NEXT** — harden universal Johnstone parser misses before building any lesson store |
+| **C3-B** | **COMPLETE** (PR pending CF deploy) — Johnstone PO grid-bleed + INVOICE banner harden; no lesson store |
 | **C3-C** | not started |
 | **C3-D** | not started |
 | **C3-E** | not started |
 | **C3-F** | not started |
 
-**NEXT C3 JOB:** **C3-B** — harden universal Johnstone parser misses from the real miss corpus before any lesson store / overlay work. Do **not** start C3-C/D/E in a C3-B conversation.
+**NEXT C3 JOB:** **C3-C** — collect/index verified C2 examples (no parse effect). Do **not** start C3-D/E/F in a C3-C conversation. C3-B engineering complete — CF deploy of parser still needs Dan approval.
 
 ---
 
@@ -474,7 +474,7 @@ Johnstone already has multi-path PO extraction (`pickPoValue`, tabular/stacked/l
 | **Likely risk tier** | Fast-safe if client-only parse parity; **high-risk** when `functions/**` parser deploy |
 | **Likely deploy surface** | CF and/or gh-pages if dual client/server parsers |
 | **Prerequisites** | Prefer C3-A landed; Dan may allow independent parser harden |
-| **Completion status** | not started |
+| **Completion status** | **COMPLETE** (engineering) — awaiting Dan CF deploy approval for `syncInboundGmail` + `reparseVendorInvoiceImportCallable` |
 
 ### C3-C — Collect/index verified C2 examples (no parse effect)
 
@@ -535,13 +535,13 @@ Do **not** skip to C3-E without A+D. Do **not** create a lesson store to avoid a
 | Phase | Status |
 | ----- | ------ |
 | C3-A | **COMPLETE** |
-| C3-B | **NEXT** — harden universal Johnstone parser misses before building any lesson store |
+| C3-B | **COMPLETE** (eng; CF deploy pending Dan) — PO bleed + INVOICE banner |
 | C3-C | not started |
 | C3-D | not started |
 | C3-E | not started |
 | C3-F | not started |
 
-**NEXT C3 JOB:** **C3-B** — harden universal Johnstone parser misses from the real miss corpus before any lesson store / overlay. Do not start C3-C/D/E here.
+**NEXT C3 JOB:** **C3-C** — collect/index verified C2 examples (no parse effect). Do not start C3-D/E/F here. C3-B engineering complete — CF deploy still needs Dan approval.
 
 **Discovery:** This file is linked from `PROJECT_STATUS/CURRENT_STATE.md` (Queued product / Canonical references) and `docs/roadmap.md` (Lane C notes).
 
@@ -603,7 +603,7 @@ Future agents **must** read this section before implementation.
 
 ```
 C3-A: COMPLETE
-C3-B: NEXT — harden universal Johnstone parser misses before building any lesson store
+C3-B: COMPLETE (eng) — awaiting CF deploy approval; NEXT C3 JOB = C3-C
 ```
 
 Update the Status table when each phase ships; keep amend wording in sync with `PROJECT_STATUS/DECISIONS.md`.*

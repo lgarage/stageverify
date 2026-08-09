@@ -109,4 +109,9 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-09 | docs-governance / product decision (C3-A D-59 #7/#8 amend) | T0 docs-update | Composer 2.5 Fast | 98 | 99 | ok (PR) | Narrow header_field_extraction + deterministic C3 carve-out; no product code |
 | 2026-08-09 | ship-op (PR #107 merge C3-A D-59 #7/#8 amend) | T0 docs-update | Composer 2.5 Fast | 99 | 99 | ok | merge to main; docs-only; no deploy; C3-B next |
 | 2026-08-09 | docs-governance / D-60 Sonnet+Grok iterative high-risk review | T0/T1 harness | Composer 2.5 Fast (+ Grok Critical Reviewer) | 98 | 99 | ok (PR) | Amend D-60: Sonnet pre → builder → high-risk-adversarial → Sonnet final → D-38; discovery A–I PASS; no product/deploy |
+<<<<<<< HEAD
 | 2026-08-09 | harness-tooling (Timekeeper D-72 visibility + cadence) | T0/T1 harness | Composer 2.5 Fast | 98 | 99 | ok (PR) | pending→delivered; ~10–35m elapsed; policy B supersession; 37/37 tests; no product/deploy |
+=======
+| 2026-08-09 | backend-write-critical (C3-B Johnstone parser harden) | T3 | Composer 2.5 Fast + Sonnet D-60×2 + Grok adversarial + D-38 | 98 | 99 | ok (PR; CF deploy pending Dan) | PO bleed+banner; no lesson store; no CF/rules deploy |
+>>>>>>> 1b19833d (feat: C3-B harden Johnstone PO bleed + INVOICE banner parse)
+| 2026-08-09 | ship-op (C3-B PR #111 rebase + D-38 final-candidate rerun) | T3 backend-write-critical | Composer 2.5 Fast + Sonnet D-38 | 99 | 99 | ok (shipping) | gate UUID format fix; prior bc-2927d76e validated via MCP; new gate 4490e262 |
