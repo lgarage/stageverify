@@ -136,6 +136,50 @@ async function ensureAuthenticated(page) {
     ],
   });
 
+  // Visit-scoped "PIN # updated" badge must not appear until a confirmed PIN save.
+  if ((await page.locator('[data-testid^="pin-access-pin-updated-"]').count()) !== 0) {
+    throw new Error(
+      "PIN # updated badge must not appear before a confirmed PIN save.",
+    );
+  }
+
+  // D-42: inject Sol-approved success badge styles into actions cell for contrast.
+  const actions = page.locator('[data-testid^="pin-access-actions-"]').first();
+  await actions.waitFor({ timeout: 10_000 });
+  await actions.evaluate((node) => {
+    const span = document.createElement("span");
+    span.setAttribute("data-testid", "pin-access-pin-updated-contrast-probe");
+    span.textContent = "PIN # updated";
+    span.style.display = "inline-flex";
+    span.style.alignItems = "center";
+    span.style.boxSizing = "border-box";
+    span.style.flex = "0 0 auto";
+    span.style.minHeight = "32px";
+    span.style.padding = "6px 10px";
+    span.style.borderRadius = "6px";
+    span.style.border = "1px solid var(--admin-success-border)";
+    span.style.backgroundColor = "var(--admin-success-bg)";
+    span.style.color = "var(--admin-success-text)";
+    span.style.fontSize = "13px";
+    span.style.fontWeight = "700";
+    span.style.lineHeight = "1.2";
+    span.style.whiteSpace = "nowrap";
+    node.appendChild(span);
+  });
+  await assertReadableTextContrast(page, {
+    rootSelector: '[data-testid="pin-access-management-panel"]',
+    elements: [
+      {
+        name: "PIN # updated badge",
+        selector: '[data-testid="pin-access-pin-updated-contrast-probe"]',
+        minRatio: MIN_TEXT_CONTRAST,
+      },
+    ],
+  });
+  await page
+    .getByTestId("pin-access-pin-updated-contrast-probe")
+    .evaluate((el) => el.remove());
+
   await page.screenshot({
     path: resolve(outDir, "settings-technicians-panel.png"),
   });
