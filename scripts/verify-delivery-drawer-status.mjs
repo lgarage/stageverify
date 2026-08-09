@@ -9,6 +9,15 @@
 import { chromium } from "playwright";
 import { existsSync, mkdirSync } from "fs";
 import { resolve } from "path";
+import { initializeApp } from "firebase/app";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  updateDoc,
+  deleteField,
+} from "firebase/firestore";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import {
   assertReadableTextContrast,
@@ -35,6 +44,64 @@ const appBase = resolveAppBase(baseUrl);
 const authState = resolve(process.cwd(), "playwright/.auth/state.json");
 const outDir = resolve(process.cwd(), "screenshots/delivery-drawer-status");
 loadEnvLocal();
+
+/** Clear/pollute staging fields on delivery-2 so CASE A/E are not fixture-drift flaky. */
+async function patchDelivery2StagingFixture(mode) {
+  const email = process.env.STAGEVERIFY_TEST_EMAIL;
+  const password = process.env.STAGEVERIFY_TEST_PASSWORD;
+  if (!email || !password) {
+    throw new Error(
+      "Missing STAGEVERIFY_TEST_EMAIL / STAGEVERIFY_TEST_PASSWORD for fixture patch",
+    );
+  }
+  const app = initializeApp(
+    {
+      apiKey: "AIzaSyALKllET2wQoAm7-3RiHrRJjMsVq315WaE",
+      authDomain: "stageverify-db.firebaseapp.com",
+      projectId: "stageverify-db",
+      storageBucket: "stageverify-db.firebasestorage.app",
+      messagingSenderId: "784751243681",
+      appId: "1:784751243681:web:31fa71762b94f878fd1be0",
+    },
+    `drawer-status-fixture-${mode}-${Date.now()}`,
+  );
+  const auth = getAuth(app);
+  await signInWithEmailAndPassword(auth, email, password);
+  const db = getFirestore(app);
+  const base = {
+    stagingLocationId: deleteField(),
+    additionalStagingLocationIds: deleteField(),
+    invoiceFulfillmentMethod: "delivery",
+    updatedAt: new Date().toISOString(),
+  };
+  const ref = doc(db, "deliveries", FIXTURE_NO_STAGING_ID);
+  if (mode === "clear") {
+    await updateDoc(ref, {
+      ...base,
+      plannedStagingLocationIds: deleteField(),
+    });
+  } else if (mode === "stale") {
+    await updateDoc(ref, {
+      ...base,
+      plannedStagingLocationIds: ["missing-zone-stale-xyz"],
+    });
+  } else {
+    throw new Error(`Unknown fixture mode: ${mode}`);
+  }
+  const verifySnap = await getDoc(ref);
+  const planned = verifySnap.data()?.plannedStagingLocationIds;
+  if (mode === "stale") {
+    if (!Array.isArray(planned) || planned[0] !== "missing-zone-stale-xyz") {
+      throw new Error(
+        `Fixture patch stale failed — plannedStagingLocationIds=${JSON.stringify(planned)}`,
+      );
+    }
+  } else if (mode === "clear" && Array.isArray(planned) && planned.length > 0) {
+    throw new Error(
+      `Fixture patch clear failed — plannedStagingLocationIds still ${JSON.stringify(planned)}`,
+    );
+  }
+}
 
 const STATUS_CONTROL_CONTRAST = {
   rootSelector: '[data-testid="delivery-status-controls"]',
@@ -418,7 +485,20 @@ const ASSIGN_LOCATION_CONTRAST = {
     "delivery-basics-complete-pickup",
   );
   const completePickupCount = await completePickupButton.count();
-  if ((await pickedUpOption.count()) > 0 && !(await pickedUpOption.isDisabled())) {
+  const statusPickedUpEnabled =
+    (await pickedUpOption.count()) > 0 && !(await pickedUpOption.isDisabled());
+  const ctaEnabled =
+    completePickupCount > 0 && !(await completePickupButton.isDisabled());
+  // Actionability SoT: Status→Picked Up and Complete Pickup share isPickupEligible + jobId.
+  if (statusPickedUpEnabled !== ctaEnabled) {
+    throw new Error(
+      `FAIL: Status Picked Up enabled=${statusPickedUpEnabled} but Complete Pickup enabled=${ctaEnabled} — eligibility SoT mismatch.`,
+    );
+  }
+  console.log(
+    "PASS: Status→Picked Up and Complete Pickup actionability match",
+  );
+  if (statusPickedUpEnabled) {
     if (completePickupCount === 0) {
       throw new Error(
         "FAIL: Complete Pickup CTA should show when picked_up transition is enabled.",
@@ -450,12 +530,19 @@ const ASSIGN_LOCATION_CONTRAST = {
       .click();
     await page.waitForTimeout(200);
   } else if (completePickupCount > 0) {
+    // Visible but disabled (e.g. missing jobId) is allowed; Status must also be disabled.
+    const hint = page.getByTestId("delivery-basics-complete-pickup-hint");
+    if ((await hint.count()) === 0) {
+      throw new Error(
+        "FAIL: Complete Pickup visible+disabled should show job-link hint.",
+      );
+    }
     console.log(
-      "WARN: Complete Pickup visible but picked_up option disabled — unexpected",
+      "PASS: Complete Pickup visible but disabled (hint shown); Status Picked Up also disabled",
     );
   } else {
     console.log(
-      "SKIP: Complete Pickup CTA hidden (picked_up transition not available)",
+      "SKIP: Complete Pickup CTA hidden (pickup not eligible via isPickupEligible)",
     );
   }
 
@@ -525,6 +612,7 @@ const ASSIGN_LOCATION_CONTRAST = {
   }
 
   // ── CASE A — Vendor Drop-Off + no location (seed delivery-2 / ORD-002) ──
+  await patchDelivery2StagingFixture("clear");
   await openDeliveryDrawerByDeepLink(page, appBase, FIXTURE_NO_STAGING_ID);
   // Seed may be left on Will-Call from a prior interrupted CASE D (shared Firestore).
   const caseAEnsureDropOff = page.getByTestId("delivery-fulfillment-delivery");
@@ -588,6 +676,78 @@ const ASSIGN_LOCATION_CONTRAST = {
   await assertReadableTextContrast(page, ASSIGN_LOCATION_CONTRAST);
   console.log(
     "PASS CASE A: Vendor Drop-Off + no location — yellow Assign Location below fulfillment",
+  );
+
+  // ── CASE E — stale/unresolvable planned staging ids still show staging-needed card ──
+  await patchDelivery2StagingFixture("stale");
+  // Force a fresh detail fetch (same openDelivery= URL can keep stale drawer state).
+  await page.goto(`${appBase}/#/dispatcher`, {
+    waitUntil: "domcontentloaded",
+  });
+  await page.waitForTimeout(400);
+  await openDeliveryDrawerByDeepLink(page, appBase, FIXTURE_NO_STAGING_ID);
+  await page.getByTestId("delivery-fulfillment-delivery").waitFor({
+    timeout: 10_000,
+  });
+  if (
+    (await page
+      .getByTestId("delivery-fulfillment-delivery")
+      .getAttribute("data-selected")) !== "true"
+  ) {
+    await page.getByTestId("delivery-fulfillment-delivery").click();
+    await page.waitForTimeout(1200);
+  }
+  await page
+    .getByTestId("drawer-staging-location-banner")
+    .waitFor({ state: "visible", timeout: 15_000 });
+  const caseEAssigned = await page
+    .getByTestId("delivery-basics-staging-locations")
+    .getAttribute("data-has-assigned-staging");
+  if (caseEAssigned !== "false") {
+    throw new Error(
+      `FAIL CASE E: stale planned ids must not count as active staging — data-has-assigned-staging="${caseEAssigned}".`,
+    );
+  }
+  if ((await page.getByTestId("drawer-staging-location-assign").count()) === 0) {
+    throw new Error(
+      "FAIL CASE E: Assign Location must render for drop-off with no active staging.",
+    );
+  }
+  // Chip copy may be "Staging location missing" (stale refs hydrated) or
+  // "Not Assigned" if the detail snapshot lags the fixture write — banner is SSOT.
+  const caseEMissingCount = await page
+    .getByTestId("delivery-basics-staging-unresolved")
+    .count();
+  const caseEUnassignedCount = await page
+    .getByTestId("delivery-basics-staging-unassigned")
+    .count();
+  if (caseEMissingCount === 0 && caseEUnassignedCount === 0) {
+    throw new Error(
+      "FAIL CASE E: expected Staging Locations missing/unassigned copy with banner.",
+    );
+  }
+  if (caseEMissingCount > 0) {
+    const caseEMissingText = (
+      await page.getByTestId("delivery-basics-staging-unresolved").innerText()
+    ).trim();
+    if (caseEMissingText !== "Staging location missing") {
+      throw new Error(
+        `FAIL CASE E: expected "Staging location missing" — got "${caseEMissingText}".`,
+      );
+    }
+  }
+  // Restore clean no-staging fixture for CASE D / other verifies.
+  await patchDelivery2StagingFixture("clear");
+  await page.goto(`${appBase}/#/dispatcher`, {
+    waitUntil: "domcontentloaded",
+  });
+  await page.waitForTimeout(400);
+  await openDeliveryDrawerByDeepLink(page, appBase, FIXTURE_NO_STAGING_ID);
+  await page
+    .getByTestId("drawer-staging-location-banner")
+    .waitFor({ state: "visible", timeout: 15_000 });
+  console.log(
+    "PASS CASE E: stale planned staging ids → Staging location missing + Assign Location card",
   );
 
   // ── CASE D — switch Vendor Drop-Off ↔ Will-Call / Pickup from Vendor updates warning ──

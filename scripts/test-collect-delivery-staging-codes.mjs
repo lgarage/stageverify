@@ -1,7 +1,12 @@
 /**
  * Unit: collectDeliveryStagingCodes + fulfillment/staging display helpers.
  */
-import { collectDeliveryStagingCodes } from "../src/dispatcher/drawer/DrawerStagingLocationChips.tsx";
+import {
+  collectDeliveryStagingCodes,
+  hasActiveShopStagingAssignment,
+  hasUnresolvedStagingLocationRefs,
+  isShopStagingAssignmentMissing,
+} from "../src/dispatcher/drawer/DrawerStagingLocationChips.tsx";
 import {
   fulfillmentDisplayLabel,
   isWillCallPickupStagingListNa,
@@ -98,6 +103,74 @@ assert(
     status: "pending",
     invoiceFulfillmentMethod: "will_call_pickup",
   }) === false,
+);
+
+assert(
+  "stale planned id alone → no active staging",
+  hasActiveShopStagingAssignment(
+    { plannedStagingLocationIds: ["missing-zone"] },
+    locById,
+  ) === false,
+);
+assert(
+  "stale planned id → staging assignment missing (drop-off)",
+  isShopStagingAssignmentMissing(
+    {
+      status: "pending",
+      invoiceFulfillmentMethod: "delivery",
+      plannedStagingLocationIds: ["missing-zone"],
+    },
+    locById,
+  ) === true,
+);
+assert(
+  "stale planned id → unresolved refs when nothing resolves",
+  hasUnresolvedStagingLocationRefs(
+    { plannedStagingLocationIds: ["missing-zone"] },
+    locById,
+  ) === true,
+);
+assert(
+  "active + stale extra ref → still active (not missing)",
+  isShopStagingAssignmentMissing(
+    {
+      status: "pending",
+      invoiceFulfillmentMethod: "delivery",
+      stagingLocationId: "staging-1",
+      plannedStagingLocationIds: ["missing-zone"],
+    },
+    locById,
+  ) === false,
+);
+assert(
+  "active + stale extra → unresolved helper false (codes exist)",
+  hasUnresolvedStagingLocationRefs(
+    {
+      stagingLocationId: "staging-1",
+      plannedStagingLocationIds: ["missing-zone"],
+    },
+    locById,
+  ) === false,
+);
+assert(
+  "Received + drop-off + no staging → missing",
+  isShopStagingAssignmentMissing(
+    {
+      status: "arrived",
+      invoiceFulfillmentMethod: "delivery",
+    },
+    locById,
+  ) === true,
+);
+assert(
+  "Will-Call + no staging → not missing (no card)",
+  isShopStagingAssignmentMissing(
+    {
+      status: "pending",
+      invoiceFulfillmentMethod: "will_call_pickup",
+    },
+    locById,
+  ) === false,
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.274",
+  "version": "0.0.278",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -63,6 +63,8 @@
     "verify:shop-map:prod": "node scripts/run-verify-with-learning.mjs --script verify:shop-map:prod scripts/verify-shop-map.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:shop-map-zoom": "node scripts/run-verify-with-learning.mjs --script verify:shop-map-zoom scripts/verify-shop-map-zoom.mjs",
     "verify:shop-map-zoom:prod": "node scripts/run-verify-with-learning.mjs --script verify:shop-map-zoom:prod scripts/verify-shop-map-zoom.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:shop-map-toolbar": "node scripts/run-verify-with-learning.mjs --script verify:shop-map-toolbar scripts/verify-shop-map-toolbar.mjs",
+    "verify:shop-map-toolbar:prod": "node scripts/run-verify-with-learning.mjs --script verify:shop-map-toolbar:prod scripts/verify-shop-map-toolbar.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:catch-all-map": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map scripts/verify-catch-all-map.mjs",
     "verify:catch-all-map:prod": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map:prod scripts/verify-catch-all-map.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-review": "node scripts/verify-invoice-review.mjs",

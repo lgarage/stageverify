@@ -929,31 +929,6 @@
       "sourceTask": null
     },
     {
-      "id": "vfl-021",
-      "scriptName": "verify:delivery-drawer-status",
-      "fingerprint": "7f6e56072c4ca394",
-      "exitCode": 1,
-      "category": "gotcha",
-      "summary": "verify:delivery-drawer-status Playwright timeout — check dev server, auth state, or prod propagation lag",
-      "triggerTerms": [
-        "playwright",
-        "timeout",
-        "verify"
-      ],
-      "type": "service-logic",
-      "subtype": "verify",
-      "gateCandidate": false,
-      "domain": "verify",
-      "source": "verify-auto-capture",
-      "taskHint": null,
-      "stderrTail": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByTestId('drawer-staging-location-banner') to be visible\n",
-      "stdoutTail": "Opening http://localhost:5173/stageverify/#/dispatcher\nDiagnostics: searchTerm=\"4046362\", rowCount=1\nPASS: Opened delivery drawer\nPASS: Status dropdown present under Delivery Basics\nPASS: Fulfillment control present\nPASS: Fulfillment buttons use dispatcher-facing wording\nPASS: Status context uses \"Vendor Drop-Off\" for active fixture\nPASS: Status controls positioned under PO #\nPASS: Status controls precede staging location chips\nPASS: Staging banner absent for assigned staging IDs fixture\nPASS: Advanced Manual Controls removed\nPASS: Report Issue path accessible\nPASS: Staged — Ready for Pickup grayed/disabled on will-call delivery\nPASS: D-42 contrast on status + fulfillment controls\nPASS: Reject action option present in status dropdown\nPASS: Reject shows cannot-reject message — \"Linked import is approved — only pending or credit/return sl…\"\nPASS: Dropdown retains delivery status after Reject action\nSKIP: No credit/return delivery in fixture — banner testids not exercised this run\nSKIP: No credit/return rows in deliveries list this run\nPASS: Email Vendor button present in Delivery Basics\nPASS: Complete Pickup CTA visible below Email Vendor\nPASS: Complete Pickup opens shared Who picked up? form\nPASS: Drawer stays open while pickup form is pending\nPASS: Status label shows Picked Up after dropdown selection\nPASS: Dropdown value is picked_up while pickup form pending\nPASS: Who picked up? form visible after Picked Up selection\nPASS: Drawer remains open after canceling pending pickup\nSKIP: Drawer close-on-success (set STAGEVERIFY_DRAWER_STATUS_CLOSE_VERIFY=1 to enable)",
-      "createdAt": "2026-08-09T21:48:56.595Z",
-      "mergedAt": null,
-      "mergedToId": null,
-      "sourceTask": null
-    },
-    {
       "id": "dfl-023",
       "scriptName": "deploy",
       "fingerprint": "44eea17ce43e1c90",

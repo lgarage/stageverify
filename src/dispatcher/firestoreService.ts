@@ -133,7 +133,7 @@ import {
 } from "./deliveryDisplayHelpers";
 import {
   collectDeliveryStagingCodes,
-  hasUnresolvedStagingLocationRefs,
+  isShopStagingAssignmentMissing,
 } from "./drawer/DrawerStagingLocationChips";
 import {
   fulfillmentDisplayLabel,
@@ -556,9 +556,10 @@ export class FirestoreDataService implements DispatcherDataService {
         itemsReceivedLabel: `${received}/${ordered}`,
         issueSummary,
         openIssueCount: display.openIssueCount,
-        missingStagingAssignment:
-          display.missingStagingAssignment ||
-          hasUnresolvedStagingLocationRefs(delivery, locById),
+        missingStagingAssignment: isShopStagingAssignmentMissing(
+          delivery,
+          locById,
+        ),
         stagingLocationListNotApplicable:
           isWillCallPickupStagingListNa(delivery),
         creditReturnLinked,
