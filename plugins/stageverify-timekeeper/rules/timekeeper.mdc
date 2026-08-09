@@ -9,7 +9,9 @@ Harness tool. Optimizes for **correctness + reliability + wall-clock + model-cos
 
 ## Auto machinery
 
-Project hooks (`.cursor/hooks.json` → plugin runner) observe tools/shell/subagents and inject a `TIMEKEEPER` block **only on intervention**. Honor those blocks.
+Project hooks (`.cursor/hooks.json` → plugin runner) observe tools/shell/subagents and inject a short `TIMEKEEPER` line **only on intervention**. Honor those blocks.
+
+**Delivery:** checkpoints are `pending` until an agent-visible hook can carry them (`postToolUse` → `additional_context`; `preToolUse` / `beforeShellExecution` → `agent_message`; `stop` → `followup_message`). Unreliable channels (`afterShellExecution`, `afterFileEdit`, `postToolUseFailure`, subagent hooks) must not consume a checkpoint.
 
 ## Failure classes (do not use one recovery for all)
 
@@ -28,12 +30,22 @@ Same operation fails twice → **STOP repeating**. Classify → change method / 
 
 Benchmark budget: 3–5 clean samples (median/range/confidence). Stop when the decision is clear.
 
-## Timed checkpoints (also enforced by hooks when possible)
+## Timed checkpoints (elapsed — progress does NOT suppress these)
 
-- ~10m no material progress → strategy checkpoint
-- ~15m → status / shortest safe path
-- ~25m → completion-focus (no redo of approved work / green gates)
-- ~35m → choose A finish / B continue (name progress) / C PARTIAL / D BLOCKED + D-66 terminal status
+Lightweight focus nudges (once each per conversation):
+
+- ~10m `status10` — objective + last progress + shortest safe path
+- ~15m `focus15` — confirm objective; do not expand scope
+- ~20m `focus20` — keep shortest path; do not redo green work
+- ~25m `focus25` — completion focus
+- ~30m `completion30` — finish / blocker / PARTIAL|BLOCKED; no scope expansion
+- ~35m `force35` — D-66 terminal: DONE / BLOCKED / FAILED / PARTIAL
+
+If several elapsed checkpoints are pending, emit the **highest** only (lower superseded).
+
+## Stall (separate — suppressed by healthy progress)
+
+- ~10m **no material progress** → `stall10`
 
 ## Hard non-weaken contract
 

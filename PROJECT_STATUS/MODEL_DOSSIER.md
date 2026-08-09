@@ -16,8 +16,8 @@
 | `encode-qr` | building QR URLs | `buildEslTagQrUrl` + `EslQrCode` — dispatcher print = zone e-tag; `forPrint` → prod base; long `#/receive?` / `#/pickup?` forms emitted (compact `#/r?` / `#/p?` parse-only legacy) |
 | `html5-qr-type` | camera scanner | `Html5QrcodeInstance` from `qrScannerTypes.ts` — no `any` |
 | `delivery-status` | new `DeliveryStatus` | update `RECEIVE_BLOCKED` and `ZONE_CLEARED` in same change |
-| `backend-critical` | rules, CF writes, schema | archetype `backend-write-critical`; Sonnet gate before deploy |
-| `billing` | model / tier pick | D-65: simple UI → Composer; visual-judgment UI → Sol High Task; ≤1 Grok on routine T1; Sonnet PROTECTED (D-38/D-60) |
+| `backend-critical` | rules, CF writes, schema, auth/PIN, security-sensitive | archetype `backend-write-critical` / T3; **D-60** Sonnet pre → builder → Grok adversarial → Sonnet final → **D-38**; CF/rules deploy need Dan approval |
+| `billing` | model / tier pick | D-65: simple UI → Composer; visual-judgment UI → Sol High Task; ≤1 Grok on routine T1; T3/high-risk PROTECTED D-60 (Sonnet+Grok adversarial+Sonnet) + D-38 |
 | `agent-lessons` | repeating mistakes, QR/hash races, "say fixed" too early | Read **§ agent-lessons** (+ Diagnose before tweak) before public routes / scan fixes |
 | `delivery-display-wiring` | list filter, drawer status, partial @ qty=0, unit counts | Read **§ delivery-display-wiring** before dispatcher list/drawer readiness edits |
 | `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
@@ -45,12 +45,13 @@
 ## § billing
 - **D-65:** Simple UI → Composer + mechanical verify; visual-judgment UI → Sol (`gpt-5.6-sol-high` Task directly); do not stack 3–4 Grok lanes on routine T1.
 - **Non-UI:** Composer 2.5 = orchestrator + default worker.
-- Sonnet 5 (`claude-sonnet-5-thinking-high`) = **PROTECTED** D-38/D-60 only (on-demand).
-- **Public Firestore writes:** code fix + `firebase deploy --only firestore:rules` in the same session — `npm run deploy` (gh-pages) does not ship rules.
+- Sonnet 5 (`claude-sonnet-5-thinking-high`) = **PROTECTED** D-38 + D-60 (on-demand). D-65 must not N/A the T3 loop.
+- **Public Firestore writes:** code fix + `firebase deploy --only firestore:rules` in the same session — `npm run deploy` (gh-pages) does not ship rules. CF/rules deploy still need explicit Dan approval.
 
 ## § backend-critical
-- Trial: Composer implements; Sonnet grades. 3/5 clean passes.
-- Mandatory Sonnet gate after rules/CF/schema **and** multi-file route/Firestore read changes.
+- **D-60 sequence (mandatory):** Sonnet 5 pre-review (`sonnet-instruct:`) → cheapest D-65 builder → Grok adversarial (`high-risk-adversarial:`) + iterate → Sonnet 5 final (`sonnet-verify:` PASS|FAIL|PARTIAL) → D-38 (`security-gate-id`) → Dan deploy approval for CF/rules.
+- Fail-closed if any mandatory reviewer cannot run; do not downgrade to cheap path.
+- SSOT: `.cursor/rules/high-risk-sonnet-loop.mdc`; discovery: `node scripts/verify-high-risk-loop-discovery.mjs`.
 
 ## § agent-lessons (2026-06-02 — pickup portal arc)
 

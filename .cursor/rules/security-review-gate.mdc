@@ -69,4 +69,4 @@ If `security-review` ignores `model` param, note **`model execution: unverified`
 
 `model-gates.mdc` and `composer-orchestrator.mdc` point here. On conflict about which model runs security-review, **this file wins**.
 
-**D-60 high-risk loop:** `high-risk-sonnet-loop.mdc` Phase 1 (instruct) + Phase 3 (verify) run **before commit**; this gate (Phase 4 step 5) remains the sole **pre-push security diff verdict** — distinct Task, distinct evidence (`security-gate-id` vs `sonnet-instruct:` / `sonnet-verify:`).
+**D-60 high-risk loop:** `high-risk-sonnet-loop.mdc` Phase 1 (Sonnet pre-review) + Phase 3 (`high-risk-adversarial:`) + Phase 4 (`sonnet-verify:`) run **before commit**; this gate is **Phase 5 pre-push** — the sole **pre-push security diff verdict** — distinct Task, distinct evidence (`security-gate-id` vs `sonnet-instruct:` / `high-risk-adversarial:` / `sonnet-verify:`).

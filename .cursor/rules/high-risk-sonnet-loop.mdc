@@ -1,71 +1,202 @@
 ---
-description: High-risk ships — Sonnet instruct → Composer implement → Sonnet verify (blocking before commit).
+description: High-risk/T3 — Sonnet pre-review → builder → Grok adversarial → Sonnet final verify → D-38 (blocking).
 alwaysApply: true
 ---
 
-# High-risk Sonnet instruct→verify loop (D-60)
+# High-risk iterative multi-model review (D-60)
 
-**Authority:** Dan 2026-08-05 standing preference. **Platform parity:** D-32 — desktop PC, mobile Cursor, cloud VM identical.
+**Authority:** Dan 2026-08-05 standing preference; **amended 2026-08-09** — mandatory Grok adversarial review between builder and Sonnet final verify. **Platform parity:** D-32 — desktop PC, mobile Cursor, cloud VM identical.
 
-## Trigger (same class as `ship-loop.mdc` high-risk)
+**SSOT:** this file. Discover via `alwaysApply`, `DECISIONS.md` D-60, `model-gates.mdc` T3 row, `npm run dossier:slice -- --tag backend-critical`. Classification examples: `scripts/verify-high-risk-loop-discovery.mjs`.
 
-Any ship touching: `firestore.rules` (any diff); `functions/**` deploy/write paths; auth/session/token/route guards in `src/`; secrets/config (`firebase.json`, `.github/workflows/`); schema migrations; billing; data deletion; Gmail watch/Pub/Sub; `functions/package.json`; root `package.json` `scripts`/deploy wiring.
+## Trigger (T3 / high-risk / security-sensitive)
 
-**When tier is ambiguous → high-risk.** Dan explicit approval still required before Phase 1 (`ship-loop.mdc`).
+Same class as `ship-loop.mdc` high-risk, plus explicit security-sensitive product surfaces. Fire when the task touches **any** of:
+
+| Surface | Examples |
+|---------|----------|
+| Cloud Functions | `functions/**`, CF deploy/write paths, server-authoritative callables |
+| Firestore rules | `firestore.rules` (any diff, including comment-only) |
+| Auth / session / access | PIN, session, token, route guards, authorization, Admin/Manager access |
+| Secrets / config | `firebase.json`, `.github/workflows/`, env/secrets wiring |
+| Schema / migrations | data model migrations, destructive or irreversible mutation |
+| Billing / payments | billing-sensitive logic if added later |
+| Security boundaries | cross-vendor / cross-tenant isolation, permission boundaries |
+| High-risk persistence | reconciliation, replay/idempotency, parser/reparse overwrite paths |
+| Reusable learning | C3+ activation/write behavior that can affect future invoices |
+| Ambiguous tier | **When tier is ambiguous → high-risk** |
+
+**Does NOT fire (stay on D-65 cheap path):** CSS-only / FE-only layout/copy with no auth/session/token/route-guard (e.g. login page **copy-only** / badge color); docs-only architecture notes with no product/CF/rules code; routine T0/T1 presentation.
+
+**Does fire when FE touches access control:** any `src/` change implementing auth, route guards, session/token/PIN persistence, or login **logic** (not mere wording) — path prefix `src/` alone is not enough; the access-control surface is.
+
+**Dan explicit approval** still required before Phase 1 implementation on high-risk product/CF/rules work (`ship-loop.mdc`). This loop does **not** grant deploy authority.
+
+## Model sequence (mandatory — fail-closed)
+
+```text
+Sonnet 5 pre-implementation review (Agree)
+  → cheapest sufficient builder (D-65; Composer when appropriate)
+  → Grok adversarial critical review (+ iterate/fix until material findings closed)
+  → Sonnet 5 final verification (PASS|FAIL|PARTIAL)
+  → D-38 security gate (when triggered — never skipped/weakened)
+  → deploy only inside existing Dan approval boundaries
+```
+
+Do **not** substitute a cheaper model for mandatory Sonnet 5 or Grok roles on this class. Do **not** stack extra premium models outside this loop. D-65 cost trim does **not** N/A this path.
 
 ## Orthogonal roles (do not conflate)
 
 | Lane | When | Role |
 |------|------|------|
-| **D-60 Phase 1–3** | After Dan approval, before commit | Sonnet instruction packet + post-implement verify loop |
-| **D-38 security gate** | Before push | `security-review` diff security verdict — see `security-review-gate.mdc` |
-| **D-43 Grok lanes** | After Phase 3 PASS | Build Checker, Ship Verifier; UI Playwright **N/A** on high-risk (Sonnet owns Playwright here) |
+| **D-60 Phase 1** | After Dan approval, before first product edit | Sonnet 5 pre-review → concrete constraints / instruction packet |
+| **D-60 Phase 2** | After Phase 1 Agree | Builder implements under constraints (D-65 cheapest sufficient) |
+| **D-60 Phase 3** | After implement + mechanical build/tests | **Grok adversarial** critical review of actual diff/behavior (iterate) |
+| **D-60 Phase 4** | After Grok material findings closed | Sonnet 5 **final verification** vs intent + constraints + Grok findings |
+| **D-38 security gate** | After Phase 4 PASS, before push | `security-review` diff security verdict — see `security-review-gate.mdc` |
+| **Ship Verifier** | After push (high-risk) | Post-ship scope check — does not replace Phases 1–4 or D-38 |
+| **Grok Critical Reviewer** | Harness/architecture decisions | Orthogonal governance lane — not a substitute for Phase 3 on product T3 |
 
-Phase 3 judges **packet compliance + acceptance scripts** — not a second D-38 security verdict.
+Phase 4 judges **packet/intent compliance + acceptance scripts + security/authority boundaries** — not a second D-38 security verdict. D-38 remains the sole pre-push security-gate Task.
 
-## Phase 1 — Instruct (Sonnet, readonly Task, before first product edit)
+## Phase 1 — Sonnet 5 pre-implementation review
 
 After Dan approval, **before any product/code edit** in scope:
 
 1. Dispatch Sonnet 5 Task (`generalPurpose`, D-38 allowlist slug per `security-review-gate.mdc` — first accepted slug only).
-2. Sonnet drafts an **instruction packet** for Composer: files, constraints, security invariants from packet (not a gate verdict), acceptance = named `verify:*` / `test:*` scripts (+ Playwright routes if UI).
-3. Composer ↔ Sonnet peer deliberate (D-30) until **Agree** on packet. Max 3 cycles; unresolved → present both positions to Dan.
+2. Sonnet reviews: proposed architecture; authority boundaries; persistence/source-of-truth; security implications; rollback/recovery; data integrity; race/reconciliation risks; whether the change is the **smallest safe** implementation.
+3. Sonnet produces **concrete implementation constraints** (instruction packet): files, invariants, forbidden patterns, acceptance = named `verify:*` / `test:*` (+ Playwright routes if UI).
+4. Composer ↔ Sonnet peer deliberate (D-30) until **Agree** on packet. Max 3 cycles; unresolved → present both positions to Dan.
 
 **Subsumes D-36 on this scope:** `solution-verifier: N/A (high-risk — D-60 sonnet-instruct)`.
 
-**Evidence (mandatory):** `sonnet-instruct: <task-id>` + `model:` + verdict **Agree**. Missing = **NOT RUN** — no implementation.
+**Evidence (mandatory):** `sonnet-instruct: <task-id>` + `model:` + verdict **Agree** (+ key constraints summary in the ship report). Missing = **NOT RUN** — no implementation.
 
-## Phase 2 — Implement (Composer default)
+## Phase 2 — Builder implementation
 
-Composer implements **only** the agreed packet (D-43 implementer lock). **D-50 carve-out unchanged:** after stuck-task Agree, Grok may implement that stuck scope only; Phase 3 Sonnet verify still required before commit.
+Use the **cheapest sufficient builder under D-65** (Composer for non-UI / simple UI; Sol only if a visual-judgment UI slice is inside an already-approved high-risk ship).
 
-## Phase 3 — Verify loop (Sonnet, blocking before commit)
+Builder implements **only** the agreed Sonnet constraints. **D-50 carve-out unchanged:** after stuck-task Agree, Grok may implement that stuck scope only — Phases 3–4 still required before commit.
 
-After Composer implements + `npm run build` clean:
+After implement: `npm run build` clean + named acceptance scripts from the packet.
 
-1. Dispatch Sonnet Task (same D-38 allowlist, readonly).
-2. Sonnet (a) reviews **uncommitted diff vs agreed packet**; (b) requires **named acceptance scripts PASS** — Composer/shell runs `verify:*` / `test:*`; Sonnet judges PASS/FAIL from evidence (D-37; Sonnet Task need not execute Playwright when worker evidence is complete).
-3. FAIL → exact fix list → Composer fixes → **same Sonnet** re-verifies (fix-closure). **Two consecutive Phase-3 FAILs** on scope → **D-50** (D-55); no unbounded Composer-only loops.
-4. **PASS required before `git commit`.** Composer never self-closes Sonnet verify findings.
+## Phase 3 — Grok adversarial critical review (mandatory)
 
-**Evidence (mandatory):** `sonnet-verify: <task-id>` + `model:` + verdict **PASS** + script names (e.g. `verify:firestore-rules PASS`). Missing = **NOT RUN** — do not commit/push.
+After implementation + mechanical green, dispatch **Grok** (`cursor-grok-4.5-high-fast`, `generalPurpose`, readonly) to critically inspect the **actual diff/behavior**.
 
-## Phase 4 — Existing ladder (after Phase 3 PASS, ordered)
+Grok must **actively search** for failure modes, including:
 
-1. **UI:** `ui-playwright-verifier: N/A (high-risk — D-60 sonnet-verify owns Playwright)` — Grok D-45 does **not** replace Sonnet on high-risk. Valid N/A for D-54 Ship Verifier fingerprint (`missing:ui-playwright`).
-2. **D-51** before/after when visible UI in scope (complements Sonnet acceptance scripts).
-3. **Build Checker** (Grok) on uncommitted diff when D-43 triggers — after Phase 3 PASS.
-4. **`git commit`**
-5. **D-38 security gate** before push (`security-gate-id`) — mandatory on high-risk.
-6. Push/deploy → **Ship Verifier**.
+- auth bypass; unauthorized writes
+- stale-state overwrite; client/server authority mistakes
+- cross-vendor / cross-tenant leakage
+- race conditions; partial-write states; reconciliation regressions
+- replay/idempotency issues; rollback failures
+- parser/reparse overwrite; learning poisoning/generalization risk
+- test fixture contamination; security regressions
+- fixes that look correct initially but fail after refresh/reload/reconciliation
+- missing negative tests
 
-## Hard stops
+Grok is an **adversarial reviewer**, not a rubber stamp. Prefer `PASS` only when no material issues remain.
 
-- **NEVER** commit/push high-risk without Phase 1 **Agree** + Phase 3 **PASS** + D-38 gate when triggered.
-- **NEVER** substitute Composer/Grok/Opus for Sonnet **instruct or verify** on high-risk (D-50 Grok **implement** carve-out unchanged).
-- **NEVER** weaken D-38 allowlist or substitute Composer/Grok/Sol/Opus for Sonnet instruct/verify.
-- Mechanical CI/hooks (`gate-check`, pre-push) enforce D-38 evidence today; D-60 evidence is **report-line mandatory** until scripts updated.
+### Iterate (fix-closure)
+
+If Grok identifies a **material** issue:
+
+1. Return findings to the builder
+2. Fix the implementation
+3. Re-run affected tests
+4. **Same Grok** re-reviews material fixes (`fix-verified:`)
+
+Continue until material findings are resolved **or** the task is explicitly **BLOCKED** / **PARTIAL** (D-66). Do not stop after one independent opinion if material concerns remain.
+
+**Hard cap:** **≤3 Grok adversarial review rounds** on the same scope (initial + up to 2 re-reviews after material fixes). Still unresolved material findings → **STOP — do not ship** (BLOCKED/PARTIAL/FAILED per `done-signal.mdc`). Phase 4 Sonnet FAIL that returns to Phase 3 for material re-review **counts toward this same 3-round Grok cap**; two consecutive Phase-4 FAILs still escalate to **D-50** (D-55). No nested unbounded loops.
+
+**Orthogonal to Critical Reviewer:** one Task **never** satisfies both harness **Critical Reviewer** and product **`high-risk-adversarial:`** — distinct roles, distinct evidence lines.
+
+**Evidence (mandatory):** `high-risk-adversarial: <task-id>` + `model: cursor-grok-4.5-high-fast` + verdict **PASS** (or FAIL with open findings). When re-review ran: `fix-verified: <re-verify task-id>`. Missing when trigger fired = **NOT RUN** — do not proceed to Phase 4 / commit.
+
+**Build Checker:** `build-checker: N/A (high-risk — D-60 high-risk-adversarial owns diff judgment)` — do not double-stack a second cheap Grok Build Checker on the same high-risk diff unless Dan asks.
+
+**UI Playwright (D-45):** `ui-playwright-verifier: N/A (high-risk — D-60 sonnet-verify owns Playwright)` — Sonnet Phase 4 still owns Playwright acceptance on high-risk when UI is in scope. Valid N/A for D-54 (`missing:ui-playwright`).
+
+## Phase 4 — Sonnet 5 final verification (blocking before commit)
+
+After Grok material findings are closed + mechanical green:
+
+1. Dispatch Sonnet 5 Task (same D-38 allowlist, readonly).
+2. Sonnet verifies against: original user/task intent; authoritative decisions; Phase 1 constraints; final implementation; Grok findings + fixes; regression/negative tests; security and authority boundaries.
+3. Sonnet returns explicit **PASS** | **FAIL** | **PARTIAL**.
+4. **FAIL** → exact fix list → builder fixes → return to Phase 3 (Grok re-review material fixes) → Phase 4 again. **Two consecutive Phase-4 FAILs** on scope → **D-50** (D-55); no unbounded Composer-only loops.
+5. **PASS required before `git commit`.** Composer never self-closes Sonnet verify findings. **PARTIAL** → do not ship unless Dan explicitly accepts the residual scope (else BLOCKED/PARTIAL terminal).
+
+**Evidence (mandatory):** `sonnet-verify: <task-id>` + `model:` + verdict **PASS|FAIL|PARTIAL** + script names (e.g. `verify:firestore-rules PASS`). Missing = **NOT RUN** — do not commit/push.
+
+## Phase 5 — D-38 + ship ladder (after Phase 4 PASS)
+
+Ordered:
+
+1. **D-51** before/after when visible UI in scope (complements Sonnet acceptance scripts).
+2. **`git commit`** (only after Phase 1 Agree + Phase 3 PASS + Phase 4 PASS).
+3. **D-38 security gate** before push (`security-gate-id`) — mandatory on high-risk. This loop **must not** weaken, replace, or bypass D-38.
+4. Push → **Ship Verifier** (high-risk class — required).
+5. **Deploy** only per § Deploy approval boundary below.
+
+## Deploy approval boundary (unchanged — hard STOP)
+
+Even if Sonnet PASS + Grok PASS + D-38 PASS + tests PASS:
+
+- **NEVER** deploy Cloud Functions without Dan's **explicit** approval.
+- **NEVER** deploy Firestore rules without Dan's **explicit** approval.
+
+Before asking Dan for deploy approval, report:
+
+- exact Cloud Functions to be deployed
+- exact rules surface if any
+- why deployment is required
+- risk summary
+- rollback/recovery plan
+- review results (Phases 1–4 + D-38)
+
+gh-pages frontend deploy still follows `ship-loop.mdc` / D-27 for the FE bundle class — CF/rules remain approval-gated.
+
+## Fail-closed behavior
+
+If any mandatory reviewer **cannot run** (platform rejection of every allowlist slug, Task failure, missing evidence):
+
+- do **not** silently skip
+- do **not** downgrade the task to a cheaper D-65 path
+- mark **BLOCKED** / **PARTIAL** unless a safe documented exception already exists in authoritative harness (none for skipping Sonnet/Grok on this class)
+
+Hard stops:
+
+- Sonnet final **FAIL** → do not ship
+- Unresolved material Grok findings → do not ship
+- D-38 FAIL / HIGH unfixed / NOT RUN → do not push/deploy
+- Missing `sonnet-instruct:` / `high-risk-adversarial:` / `sonnet-verify:` when triggered → **NOT RUN** → do not commit/push
+- **NEVER** substitute Composer/Grok/Sol/Opus for Sonnet **pre-review or final verify** (D-50 Grok **implement** carve-out unchanged)
+- **NEVER** substitute Composer/Sonnet/Sol/Opus for Grok **adversarial** on this class
+- Mechanical CI/hooks enforce D-38 evidence today; D-60 evidence (`sonnet-instruct` / `high-risk-adversarial` / `sonnet-verify`) is **report-line mandatory** + `ship:evidence-preflight --class high-risk`
+
+## Final-report evidence (mandatory on T3 / high-risk / security-sensitive)
+
+Ship/completion reports must include:
+
+1. **classification / why T3** (paths or security surface)
+2. **`sonnet-instruct:`** ID + key constraints/findings
+3. **builder model** (cheapest sufficient under D-65)
+4. **`high-risk-adversarial:`** ID + key findings
+5. **fixes made because of Grok** (or `none`)
+6. **whether Grok re-review was required** + `fix-verified:` when yes
+7. **`sonnet-verify:`** ID + **PASS|FAIL|PARTIAL**
+8. **`security-gate-id`** + result (D-38)
+9. **remaining known risks**
+10. **exact deploy surface** (CF names / rules / gh-pages / none)
+11. **whether explicit Dan approval is still required** for deploy
+
+Also keep existing lines as applicable: `solution-verifier: N/A (high-risk — D-60 sonnet-instruct)`, `build-checker: N/A (high-risk — D-60 high-risk-adversarial…)`, `ui-playwright-verifier: N/A (high-risk — D-60 sonnet-verify owns Playwright)`, `ship-verifier:`.
 
 ## Relation
 
-`ship-loop.mdc` (tier + approval) · `security-review-gate.mdc` (D-38) · `model-gates.mdc` (ladder) · `composer-grok-collab.mdc` (D-43 ordering) · `composer-orchestrator.mdc` (completion lines). On conflict about high-risk pre-commit verify, **this file wins** over Grok UI Playwright for Playwright ownership.
+`ship-loop.mdc` (tier + approval) · `security-review-gate.mdc` (D-38) · `model-gates.mdc` (D-65 lane table — T3 PROTECTED path) · `composer-grok-collab.mdc` (D-43; high-risk uses this file’s sequence) · `composer-orchestrator.mdc` (completion evidence lines) · `done-signal.mdc` (BLOCKED/PARTIAL when fail-closed).
+
+On conflict about high-risk pre-commit review order, **this file wins**. D-65 must not N/A Phases 1–4. D-38 remains the sole pre-push security-gate Task.

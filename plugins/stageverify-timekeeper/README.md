@@ -24,12 +24,31 @@ Small Cursor harness plugin that reduces wall-clock and model-cost thrash inside
 | PR/branch state | Partial | `subagentStart.git_branch`; shell `git` output heuristics |
 | Supervise another Cloud Agent | **No** | In-run only |
 
+## Delivery reliability (D-72 amend)
+
+| Hook | Inject field | Reliability |
+| --- | --- | --- |
+| `postToolUse` | `additional_context` | **Reliable** — mark delivered |
+| `preToolUse` | `agent_message` (+ `permission: allow`) | **Reliable** — mark delivered |
+| `beforeShellExecution` | `agent_message` (+ `permission: allow`) | **Reliable** — mark delivered |
+| `stop` | `followup_message` | **Reliable** — mark delivered |
+| `afterShellExecution` / `afterFileEdit` / `postToolUseFailure` / subagent hooks | best-effort / none | **Unreliable** — queue `pending` only |
+
+Platform does not ack model receipt — “delivered” means the response included an agent-visible advice field (strongest deterministic approximation).
+
+**Multi-pending elapsed policy B:** emit the highest due elapsed checkpoint only; mark lower pending as `superseded`.
+
+## Cadence
+
+Elapsed (not suppressed by healthy progress): ~10 / 15 / 20 / 25 / 30 / 35m.  
+Stall: ~10m with **no** material progress. Thrash: same signature fail×2 → D-19/D-50.
+
 ## Install / activation
 
 1. **StageVerify repo (default):** commit includes `.cursor/hooks.json` → cloud + trusted IDE runs pick it up automatically.
 2. **IDE plugin install (optional):** Customize → add this folder as a Cursor Plugin (manifest `.cursor-plugin/plugin.json`).
 
-State files (gitignored): `.cursor/hooks/state/timekeeper/*.json`
+State + optional `trace.jsonl` (gitignored): `.cursor/hooks/state/timekeeper/`
 
 ## Test
 
