@@ -16,3 +16,5 @@ Append-only session log (Dan standing preference). Not a planning SSOT.
 | 2026-08-09 | Review/merge/deploy/prod-verify PR #96 Assign Location restore | ship-op / prod-verify | T1 | Composer 2.5 Fast | 98 | 99 | Rebase conflict w/ #98; retarget 264; merge 59c9221a; smoke PASS under tip 265 |
 | 2026-08-09 | Add MANUAL TEST FOR DAN harness requirement (D-78) | docs-update / harness-rules | T0 | Composer 2.5 Fast | 98 | 99 | No product code; Critical Reviewer amendments adopted |
 | 2026-08-09 | Unplanned status single-badge + U1 fixture cleanup | ui-component / service-logic | T1 | Composer 2.5 Fast (simple-ui/non-UI — D-65) | 97 | 99 | FE display override; prod U1 deleted; teardown UV; v0.0.266 |
+| 2026-08-09 | Timekeeper D-72 visibility + cadence hardening | harness-tooling | T0/T1 | Composer 2.5 Fast | 98 | 99 | pending→delivered; denser ~10–35m; 37/37 tests; PR only; no product deploy |
+| 2026-08-09 | ship-op merge PR #109 (Timekeeper harness) | ship-op / harness | T0 | Composer 2.5 Fast | 99 | 99 | ready→MERGED `6ea99d1f`; no gh-pages/CF/rules |

@@ -152,6 +152,7 @@ export const setAccessPin = onCall(
     const now = new Date().toISOString();
 
     await db.runTransaction(async (tx) => {
+      // ALL reads before ANY writes (incl. session consume for existing-PIN rotate).
       const entitySnap = await tx.get(refs.entityRef);
       if (!entitySnap.exists && targetType !== "management") {
         throw new HttpsError("not-found", "Target not found.");
@@ -163,41 +164,13 @@ export const setAccessPin = onCall(
         refs.legacyUniquenessRefs.map((ref) => tx.get(ref)),
       );
 
-      await applyAccessPinSecretWriteInTransaction(tx, db, {
-        targetType,
-        targetId,
-        pin,
-        now,
-        refs,
-        existingSecretSnap,
-        uniquenessSnap,
-        legacyUniquenessSnaps,
-        entitySnap,
-      });
-
-      if (targetType === "management") {
-        tx.set(
-          db.collection("appSettings").doc("config"),
-          {
-            managementPinConfigured: true,
-            updatedAt: now,
-          },
-          { merge: true },
-        );
-      }
-      tx.set(auditRef, {
-        action: "pin_changed",
-        targetType,
-        targetId,
-        actorUid: uid,
-        createdAt: now,
-      });
-
+      let sessionRef: FirebaseFirestore.DocumentReference | null = null;
+      let sessionSnap: FirebaseFirestore.DocumentSnapshot | null = null;
       if (validatedSessionId && validatedSessionRaw) {
-        const sessionRef = db
+        sessionRef = db
           .collection(ADMIN_ACCESS_SESSIONS_COLLECTION)
           .doc(validatedSessionId);
-        const sessionSnap = await tx.get(sessionRef);
+        sessionSnap = await tx.get(sessionRef);
         if (!sessionSnap.exists) {
           throw new HttpsError(
             "failed-precondition",
@@ -240,6 +213,39 @@ export const setAccessPin = onCall(
             "Invalid admin access session.",
           );
         }
+      }
+
+      await applyAccessPinSecretWriteInTransaction(tx, db, {
+        targetType,
+        targetId,
+        pin,
+        now,
+        refs,
+        existingSecretSnap,
+        uniquenessSnap,
+        legacyUniquenessSnaps,
+        entitySnap,
+      });
+
+      if (targetType === "management") {
+        tx.set(
+          db.collection("appSettings").doc("config"),
+          {
+            managementPinConfigured: true,
+            updatedAt: now,
+          },
+          { merge: true },
+        );
+      }
+      tx.set(auditRef, {
+        action: "pin_changed",
+        targetType,
+        targetId,
+        actorUid: uid,
+        createdAt: now,
+      });
+
+      if (sessionRef) {
         tx.set(sessionRef, { consumedAt: now }, { merge: true });
       }
     });

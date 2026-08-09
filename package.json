@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.268",
+  "version": "0.0.269",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -139,6 +139,7 @@
     "test:firestore-rules": "firebase emulators:exec --only firestore \"node scripts/test-delivery-status-transitions.mjs\"",
     "test:access-pin-secrets": "npm run build:functions && node scripts/test-access-pin-secrets.mjs",
     "test:access-pin-uniqueness-dual-check": "npm run build:functions && node scripts/test-access-pin-uniqueness-dual-check.mjs",
+    "test:access-pin-rotate-transaction": "npm run build:functions && firebase emulators:exec --only firestore \"node scripts/test-access-pin-rotate-transaction.mjs\"",
     "test:access-pin-length": "npm run build:functions && node scripts/test-access-pin-length.mjs",
     "enable:vendor-companywide-pin": "node scripts/enable-vendor-companywide-pin.mjs",
     "cleanup:vendor-unplanned-verify": "node scripts/cleanup-vendor-unplanned-verify-fixtures.mjs",
@@ -260,8 +261,8 @@
   },
   "_vendorVerifyScriptsDoc": {
     "see": "scripts/VERIFY_PROD_ENV.md",
-    "verify:vendor-delivered:prod": "CANONICAL prod — receive deep link + exception-only Delivered hub; requires STAGEVERIFY_RECEIVE_DELIVERY + vendor env (see VERIFY_PROD_ENV.md)",
-    "verify:vendor-demo": "DEPRECATED — no demo defaults; use verify:vendor-delivered with real ingest env",
-    "verify:vendor-demo:prod": "DEPRECATED — use verify:vendor-delivered:prod"
+    "verify:vendor-delivered:prod": "CANONICAL prod \u2014 receive deep link + exception-only Delivered hub; requires STAGEVERIFY_RECEIVE_DELIVERY + vendor env (see VERIFY_PROD_ENV.md)",
+    "verify:vendor-demo": "DEPRECATED \u2014 no demo defaults; use verify:vendor-delivered with real ingest env",
+    "verify:vendor-demo:prod": "DEPRECATED \u2014 use verify:vendor-delivered:prod"
   }
 }

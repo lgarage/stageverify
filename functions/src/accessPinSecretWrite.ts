@@ -155,7 +155,19 @@ export async function applyAccessPinSecretWriteInTransaction(
           const oldGlobalRef = db
             .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
             .doc(accessPinUniquenessDocId(oldKey));
-          const oldGlobalSnap = await tx.get(oldGlobalRef);
+          const oldLegacyRefs = ACCESS_PIN_UNIQUENESS_TARGET_TYPES.map((type) =>
+            db
+              .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
+              .doc(legacyAccessPinUniquenessDocId(type, oldKey)),
+          );
+
+          // ALL reads for old-PIN cleanup before ANY writes (Firestore tx rule).
+          // Prior bug: tx.delete(global) then tx.get(legacy) → HTTP 500 on rotate.
+          const [oldGlobalSnap, ...oldLegacySnaps] = await Promise.all([
+            tx.get(oldGlobalRef),
+            ...oldLegacyRefs.map((ref) => tx.get(ref)),
+          ]);
+
           if (
             oldGlobalSnap.exists &&
             !uniquenessBelongsToOtherTarget(
@@ -169,14 +181,11 @@ export async function applyAccessPinSecretWriteInTransaction(
           ) {
             tx.delete(oldGlobalRef);
           }
-          for (const type of ACCESS_PIN_UNIQUENESS_TARGET_TYPES) {
-            const legacyRef = db
-              .collection(ACCESS_PIN_UNIQUENESS_COLLECTION)
-              .doc(legacyAccessPinUniquenessDocId(type, oldKey));
-            const legacySnap = await tx.get(legacyRef);
+
+          oldLegacySnaps.forEach((legacySnap, i) => {
+            if (!legacySnap.exists) return;
             if (
-              legacySnap.exists &&
-              !uniquenessBelongsToOtherTarget(
+              uniquenessBelongsToOtherTarget(
                 legacySnap.data() as {
                   targetId?: string;
                   targetType?: AccessPinTargetType;
@@ -185,11 +194,19 @@ export async function applyAccessPinSecretWriteInTransaction(
                 targetId,
               )
             ) {
-              tx.delete(legacyRef);
+              return;
             }
-          }
+            tx.delete(oldLegacyRefs[i]);
+          });
         }
-      } catch {
+      } catch (err) {
+        // Rethrow transaction ordering / unexpected errors; skip only decrypt/corrupt.
+        if (
+          err instanceof Error &&
+          /transactions require all reads/i.test(err.message)
+        ) {
+          throw err;
+        }
         // Hash-only or corrupt prior secret — skip old uniqueness cleanup.
       }
     }

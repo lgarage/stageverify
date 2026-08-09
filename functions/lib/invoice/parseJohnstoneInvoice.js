@@ -48,6 +48,9 @@ function extractVendorInvoiceNumber(text, tabular, stacked) {
         capture(/Invoice\s*#\s*:\s*(\d+)/i, text),
         capture(/Invoice\s*#\s*:\s*([A-Z0-9-]+)/i, text),
         captureHeaderInvoiceNumber(text),
+        // Bare page banner "INVOICE 6169414" (no #/colon) — whole-line only so it never
+        // steals from "Invoice Date:" / "Invoice #:" rows (C3-B corpus).
+        capture(/^\s*INVOICE\s+([A-Z0-9-]*\d[A-Z0-9-]*)\s*$/im, text),
     ];
     for (const raw of candidates) {
         const sanitized = sanitizeInvoiceNumber(raw);
@@ -104,6 +107,13 @@ function sanitizePoFromGridBleed(po, shipVia) {
         !/^RETURN\s+PICKUP\b/i.test(value)) {
         value = value.replace(/\s+PICKUP\s*$/i, "").trim();
     }
+    // Salesman-code bleed proves Ship Via column collided into P/O even when Ship Via
+    // was captured separately as OUR TRUCK / TRUCK DELIVE (C3-B / 2205 EARLY corpus).
+    if (hadSalesmanBleed &&
+        /\s+PICKUP\s*$/i.test(value) &&
+        !/^RETURN\s+PICKUP\b/i.test(value)) {
+        value = value.replace(/\s+PICKUP\s*$/i, "").trim();
+    }
     return value;
 }
 function isPlausiblePoValue(raw) {
@@ -121,9 +131,10 @@ function isPlausiblePoValue(raw) {
 }
 function pickPoValue(...values) {
     for (const value of values) {
-        const trimmed = trimPoValue(value ?? "");
-        if (isPlausiblePoValue(trimmed))
-            return trimmed;
+        // Keep salesman-code suffix for sanitizePoFromGridBleed evidence; whitespace-trim only.
+        const raw = (value ?? "").trim();
+        if (isPlausiblePoValue(raw))
+            return raw;
     }
     return "";
 }

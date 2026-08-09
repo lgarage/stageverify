@@ -949,7 +949,6 @@ export function PinAccessManagementPanel({
     }
 
     const changingPin = Boolean(pinDraft);
-    const savedPinValue = changingPin ? pinDraft : "";
 
     setBusyId(row.id);
     setError(null);
@@ -998,19 +997,15 @@ export function PinAccessManagementPanel({
         });
       }
 
-      // Session is consumed by setAccessPin — reflect the just-authored PIN locally
-      // (no second reveal). Do not log plaintext PIN values.
-      setMessage(
-        changingPin
-          ? `PIN updated (${savedPinValue.length} digits). Re-open Admin Access to reveal again.`
-          : "Changes saved",
-      );
+      // Confirmed server success only — refresh authoritative rows, then collapse.
+      // Do not log plaintext PIN values.
+      await reload();
       await revokeCurrentAdminAccess();
       setPinDraft("");
       setConfirmPinDraft("");
       setEditorDraft(null);
       setSelected(null);
-      await reload();
+      setMessage(changingPin ? "New PIN saved" : "Changes saved");
     } catch (err) {
       if (isSessionValidityError(err)) {
         clearAdminAccess();
@@ -1022,9 +1017,16 @@ export function PinAccessManagementPanel({
         setError(
           "Could not set PIN — it is already in use or conflicts with another PIN.",
         );
+      } else if (!raw.trim() || /^internal$/i.test(raw.trim())) {
+        setError(
+          changingPin
+            ? "Could not save PIN — a server error occurred. Re-open Admin Access and verify the current PIN before retrying."
+            : "Could not save changes — a server error occurred. Please try again.",
+        );
       } else {
         setError(raw);
       }
+      // Failure: keep editor open, drafts intact, no success toast / collapse.
     } finally {
       setBusyId(null);
     }
@@ -2473,11 +2475,17 @@ export function PinAccessManagementPanel({
         )}
         {message && (
           <p
+            data-testid="pin-access-save-toast"
             role="status"
             style={{
               margin: "14px 20px 0",
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: "1px solid var(--admin-success-text)",
+              backgroundColor: "var(--admin-surface-2, #ecfdf5)",
               color: "var(--admin-success-text)",
-              fontSize: 13,
+              fontSize: 14,
+              fontWeight: 700,
             }}
           >
             {message}
