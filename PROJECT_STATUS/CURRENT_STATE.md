@@ -60,7 +60,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- **PR #73 named Admin (unfinished):** branch `cursor/named-admin-access-model-492f` — re-synced onto **v0.0.249** main; D-70/D-71 named Admin + atomic `bootstrapFirstAdmin` + Admin identity integrity; **do not merge/deploy** until Dan final merge review. After merge + named-Admin CF + gh-pages: run first-Admin bootstrap once, then Admin Access works.
+- **Named Admin (#73) merged** (`8fc0ca00`) — controlled CF + gh-pages deploy in progress, then one-time `bootstrapFirstAdmin` (existing Manager → Admin). D-70/D-71.
 - **Vendor Drop-Off Phase 1 LIVE** — PR #74 merge `f8d86184`; CF `verifyVendorPin` + gh-pages **v0.0.249** (`index-CM9rIl0p.js`). Prod warm PIN→useful hub **median 604 ms** (samples 565–662; target ≤1500); session reuse **~500–560 ms**; details CF off useful critical path (~110–200 ms after hub). Do **not** enable `minInstances` yet (cold scale-up still candidate for later).
 - **Lane C C2 LIVE** — propose→confirm→apply verified. Do **not** start C3/C4 until D-59 #7/#8 amend. Dan/ops: Settings → **Reconnect Gmail**, then smoke one invoice through ingest → Inbox archive + View Original PDF.
 ## Queued product (deferred)
