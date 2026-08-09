@@ -19,3 +19,4 @@ Append-only session log (Dan standing preference). Not a planning SSOT.
 | 2026-08-09 | Timekeeper D-72 visibility + cadence hardening | harness-tooling | T0/T1 | Composer 2.5 Fast | 98 | 99 | pending→delivered; denser ~10–35m; 37/37 tests; PR only; no product deploy |
 | 2026-08-09 | ship-op merge PR #109 (Timekeeper harness) | ship-op / harness | T0 | Composer 2.5 Fast | 99 | 99 | ready→MERGED `6ea99d1f`; no gh-pages/CF/rules |
 | 2026-08-09 | ship-op / D-60 re-entry PR #97 (Sonnet→Grok→Sonnet→D-38; no merge/CF deploy) | backend-write-critical | T3 | Composer 2.5 Fast + Sonnet D-60 + Grok adversarial | 98 | 99 | FE false-success fix 989d018d; gate UUID bare; create_shell=A; CF held |
+| 2026-08-09 | ship-op (PR #97 merge+CF+gh-pages; list CF pending) | backend-write-critical | T3 | Composer 2.5 Fast | 99 | 99 | merge 51b87354; 4 CFs LIVE; listVendorInvoiceImports strips draft — need Dan approve |
