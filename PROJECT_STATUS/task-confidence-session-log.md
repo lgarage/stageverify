@@ -88,3 +88,4 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-09 | ship-op (vendor delivered-card collapse merge+deploy v0.0.258) | T1 fast-safe UI / mobile D-27 | Composer 2.5 Fast + Sol implement | 99 | 99 | ok | merge b61096b0 PR #89; LIVE index-DocTBZLl.js; monday-safe prod 58/58 |
 | 2026-08-09 | backend-write-critical (D-76 vendor PIN companyWide + uniqueness dual-check + prod-verify teardown) | T3 high-risk | Composer 2.5 Fast | 98 | 99 | ok | PR #86 merge 07b3cd17; tip a28e8e54; CF dual-check LIVE (Dan approve) |
 | 2026-08-09 | ship-op (PR #86 D-76 CF deploy approve closeout) | T3 high-risk | Composer 2.5 Fast | 99 | 99 | ok | firebase deploy functions DONE; CURRENT_STATE stamp v0.0.259 LIVE |
+| 2026-08-09 | investigate+verify-harness (Invoice Review chat history-on-reopen) | T0/T1 non-UI | Composer 2.5 Fast | 90→99 | 99 | ok (PR) | Root=test race first-paint empty; storage+live Firestore OK; waitFor hydrate+row pin+page isolation |
