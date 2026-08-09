@@ -16,8 +16,8 @@ type Props = {
   /** Controlled picker open state (Assign Location footer flow). */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  /** Fired when user taps Done with a non-empty selection. */
-  onDone?: (ids: string[]) => void;
+  /** Fired when user taps Done with a non-empty selection. May return a Promise — picker stays open until it resolves. */
+  onDone?: (ids: string[]) => void | Promise<void>;
 };
 
 /**
@@ -244,7 +244,16 @@ export function InvoiceStagingLocationPicker({
               data-testid="invoice-staging-done"
               disabled={disabled}
               onClick={() => {
-                onDone?.(selectedIds);
+                const maybePromise = onDone?.(selectedIds);
+                if (maybePromise && typeof (maybePromise as Promise<void>).then === "function") {
+                  void (maybePromise as Promise<void>).then(
+                    () => setPickerOpen(false),
+                    () => {
+                      /* keep open — parent reverts selection / shows toast */
+                    },
+                  );
+                  return;
+                }
                 setPickerOpen(false);
               }}
               style={{

@@ -549,7 +549,12 @@ export function InvoiceParsedInspectModal({
     });
   };
 
-  const persistDraftStaging = async (ids: string[]) => {
+  const handleStagingDone = async (ids: string[]) => {
+    const previousDraft = importRow.draftPlannedStagingLocationIds ?? [];
+    // Hold selection while persisting; on CF failure revert and rethrow so the
+    // picker stays open and FE never shows Change Location / Approve-ready
+    // for an unpersisted draft.
+    setSelectedStagingIds(ids);
     setDraftPersistLoading(true);
     try {
       const result = await setInvoiceReviewDraftStagingLocations({
@@ -557,16 +562,19 @@ export function InvoiceParsedInspectModal({
         stagingLocationIds: ids,
       });
       mergeDraftResult(result);
+      setSelectedStagingIds(result.draftPlannedStagingLocationIds);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Could not save staging draft.");
+      setSelectedStagingIds(previousDraft);
+      setStagingPickerOpen(true);
+      showToast(
+        err instanceof Error ? err.message : "Could not save staging draft.",
+      );
+      throw err instanceof Error
+        ? err
+        : new Error("Could not save staging draft.");
     } finally {
       setDraftPersistLoading(false);
     }
-  };
-
-  const handleStagingDone = (ids: string[]) => {
-    setSelectedStagingIds(ids);
-    void persistDraftStaging(ids);
   };
 
   const handleAssignLocationClick = () => {
