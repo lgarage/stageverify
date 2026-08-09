@@ -1,9 +1,10 @@
 import type { InvoiceMatchResult, VendorInvoiceImportReview } from "../models";
 import { formatInvoiceMatchReasons } from "./invoiceMatchReasonLabels";
+import { isEligibleMatchedDeliveryTargetClient } from "./invoiceMatchEligibility";
 import { shellDeliveryIdForImport } from "./invoiceShellDisplayHelpers";
 
 
-/** Informational only — Approve always creates a new shell; linking was removed. */
+/** Informational — Approve targets matched existing delivery (D-67) or new shell (D-39). */
 export function InvoiceDeliveryMatchSection({
   importRow,
   matchResult,
@@ -16,9 +17,9 @@ export function InvoiceDeliveryMatchSection({
   matchLoading: boolean;
   matchUnavailable: string | null;
   shipDateWarning: string | null;
-  /** @deprecated Linking removed — ignored. */
+  /** @deprecated Client cannot choose target — server resolves. Ignored. */
   selectedDeliveryId?: string;
-  /** @deprecated Linking removed — ignored. */
+  /** @deprecated Client cannot choose target — server resolves. Ignored. */
   onSelectDelivery?: (deliveryId: string) => void;
   recentDeliveries?: unknown;
   recentDeliveriesLoading?: boolean;
@@ -28,6 +29,11 @@ export function InvoiceDeliveryMatchSection({
   }
 
   const willCreateShellId = shellDeliveryIdForImport(importRow.id);
+  const matchedEligible = isEligibleMatchedDeliveryTargetClient(
+    matchResult,
+    importRow.id,
+  );
+  const matchedDeliveryId = matchResult?.deliveryOrderId?.trim() ?? "";
 
   return (
     <div
@@ -43,26 +49,49 @@ export function InvoiceDeliveryMatchSection({
       <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--admin-text-label)", margin: "0 0 10px" }}>
         Delivery on Approve
       </h3>
-      <p
-        data-testid="invoice-delivery-will-create"
-        style={{
-          fontSize: 12,
-          color: "var(--admin-text-label)",
-          margin: "0 0 12px",
-          lineHeight: 1.45,
-          padding: "8px 10px",
-          backgroundColor: "var(--admin-info-bg)",
-          borderRadius: 6,
-          border: "1px solid var(--admin-info-border)",
-        }}
-      >
-        Approve creates a new dashboard delivery{" "}
-        <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600 }}>
-          {willCreateShellId}
-        </span>
-        {" "}
-        for this invoice (one row per invoice).
-      </p>
+      {matchedEligible && matchedDeliveryId ? (
+        <p
+          data-testid="invoice-delivery-will-match"
+          style={{
+            fontSize: 12,
+            color: "var(--admin-text-label)",
+            margin: "0 0 12px",
+            lineHeight: 1.45,
+            padding: "8px 10px",
+            backgroundColor: "var(--admin-info-bg)",
+            borderRadius: 6,
+            border: "1px solid var(--admin-info-border)",
+          }}
+        >
+          Approve will apply this invoice to existing delivery{" "}
+          <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600 }}>
+            {matchedDeliveryId}
+          </span>
+          {" "}
+          (matched — no new delivery created).
+        </p>
+      ) : (
+        <p
+          data-testid="invoice-delivery-will-create"
+          style={{
+            fontSize: 12,
+            color: "var(--admin-text-label)",
+            margin: "0 0 12px",
+            lineHeight: 1.45,
+            padding: "8px 10px",
+            backgroundColor: "var(--admin-info-bg)",
+            borderRadius: 6,
+            border: "1px solid var(--admin-info-border)",
+          }}
+        >
+          Approve creates a new dashboard delivery{" "}
+          <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600 }}>
+            {willCreateShellId}
+          </span>
+          {" "}
+          for this invoice (one row per invoice).
+        </p>
+      )}
 
       {shipDateWarning && (
         <p

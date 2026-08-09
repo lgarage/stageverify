@@ -50,6 +50,10 @@ async function loadEmailMatchContext() {
                 jobId: typeof data.jobId === "string" ? data.jobId : "",
                 vendorId: typeof data.vendorId === "string" ? data.vendorId : "",
                 purchaseOrderId: typeof data.purchaseOrderId === "string" ? data.purchaseOrderId : undefined,
+                createdFromInvoiceImport: data.createdFromInvoiceImport === true,
+                vendorInvoiceImportId: typeof data.vendorInvoiceImportId === "string"
+                    ? data.vendorInvoiceImportId
+                    : undefined,
             };
         }),
     };

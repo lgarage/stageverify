@@ -3,14 +3,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.approveVendorInvoiceImport = void 0;
 /**
  * approveVendorInvoiceImport — approve/reject/reopen/create_shell/relink_to_shell.
- * Approve always creates dashboard shell delivery-vii-{importId} + expected items.
- * Link-to-existing was removed — use relink_to_shell to move a non-shell link onto its shell.
+ * Approve targets a server-resolved delivery: high-confidence matched existing (D-67)
+ * or shell delivery-vii-{importId} (D-39 default). Client deliveryOrderId is confirm-only.
  */
 const admin = require("firebase-admin");
 const firestore_1 = require("firebase-admin/firestore");
 const https_1 = require("firebase-functions/v2/https");
+const loadMatchContext_1 = require("./email/loadMatchContext");
+const buildExpectedItemsFromImport_1 = require("./invoice/buildExpectedItemsFromImport");
 const createDeliveryShellFromImport_1 = require("./invoice/createDeliveryShellFromImport");
+const matchInvoiceToRecords_1 = require("./invoice/matchInvoiceToRecords");
 const invoiceShellDisplayHelpers_1 = require("./invoice/invoiceShellDisplayHelpers");
+const parsedHeaderValidation_1 = require("./invoice/parsedHeaderValidation");
 const computeAutoImportEligibility_1 = require("./invoice/computeAutoImportEligibility");
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const saveTrainingLessonCore_1 = require("./invoice/aiShadow/saveTrainingLessonCore");
@@ -56,6 +60,23 @@ function assertDeliveryAllowedForImport(doc) {
         throw new https_1.HttpsError("failed-precondition", creditReturnSkip_1.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
     }
 }
+const MAX_PLANNED_STAGING_IDS = 20;
+/** Sanitize client staging ids — approve path only; will-call ignores via approvePlannedStagingPatch. */
+function sanitizePlannedStagingLocationIds(raw) {
+    if (!Array.isArray(raw))
+        return [];
+    return [
+        ...new Set(raw
+            .filter((id) => typeof id === "string")
+            .map((id) => id.trim())
+            .filter((id) => id.length > 0 && id.length <= 128)),
+    ].slice(0, MAX_PLANNED_STAGING_IDS);
+}
+function approvePlannedStagingPatch(stagingSkipped, ids) {
+    if (stagingSkipped || ids.length === 0)
+        return {};
+    return { plannedStagingLocationIds: ids };
+}
 exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
     const uid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const data = (request.data ?? {});
@@ -65,6 +86,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     const action = typeof data.action === "string" ? data.action.trim() : "";
     const deliveryOrderId = typeof data.deliveryOrderId === "string" ? data.deliveryOrderId.trim() : "";
     const correctionNoteRaw = typeof data.correctionNote === "string" ? data.correctionNote : "";
+    const plannedStagingLocationIds = sanitizePlannedStagingLocationIds(data.plannedStagingLocationIds);
     if (!importId || importId.length > 256) {
         throw new https_1.HttpsError("invalid-argument", "vendorInvoiceImportId is required.");
     }
@@ -77,9 +99,6 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         action !== "create_shell" &&
         action !== "relink_to_shell") {
         throw new https_1.HttpsError("invalid-argument", "action must be approve, reject, reopen, create_shell, or relink_to_shell.");
-    }
-    if (action === "approve" && deliveryOrderId) {
-        throw new https_1.HttpsError("invalid-argument", "Approve always creates a new delivery. Linking to an existing delivery was removed.");
     }
     const importRef = getDb().collection(REVIEW_COLLECTION).doc(importId);
     const importSnap = await importRef.get();
@@ -477,12 +496,64 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             jobCreated: shell.jobCreated,
         };
     }
-    // Approve — always create/ensure this import's shell delivery.
+    // Approve — server-resolved target: matched existing delivery (D-67) or shell (D-39).
     if ((0, creditReturnSkip_1.creditReturnBlocksDeliveryCreation)(importDoc)) {
         throw new https_1.HttpsError("failed-precondition", creditReturnSkip_1.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
     }
     const shell = await (0, createDeliveryShellFromImport_1.buildInvoiceDeliveryShellContext)(getDb(), importId, importDoc);
-    const deliveryRef = getDb().collection("deliveries").doc(shell.deliveryOrderId);
+    const header = (0, parsedHeaderValidation_1.asParsedHeaderForImport)(importDoc.parsedHeader);
+    const matchCtx = await (0, loadMatchContext_1.loadEmailMatchContext)();
+    const resolved = (0, createDeliveryShellFromImport_1.resolveInvoiceApproveDeliveryTarget)({
+        importId,
+        importDoc,
+        header,
+        ctx: matchCtx,
+    });
+    if (deliveryOrderId && deliveryOrderId !== resolved.targetDeliveryOrderId) {
+        throw new https_1.HttpsError("invalid-argument", "deliveryOrderId does not match the server-resolved delivery target for this import.");
+    }
+    const targetId = resolved.targetDeliveryOrderId;
+    const matchedExisting = resolved.matchedExisting;
+    const shellId = resolved.shellId || (0, createDeliveryShellFromImport_1.shellDeliveryIdForImport)(importId);
+    let matchedDeliveryData;
+    if (matchedExisting) {
+        const matchedSnap = await getDb().collection("deliveries").doc(targetId).get();
+        if (!matchedSnap.exists) {
+            throw new https_1.HttpsError("failed-precondition", "Matched delivery no longer exists. Refresh and try again.");
+        }
+        matchedDeliveryData = matchedSnap.data();
+    }
+    const targetJobId = matchedExisting
+        ? String(matchedDeliveryData?.jobId ?? shell.jobId)
+        : shell.jobId;
+    const expectedItems = (0, buildExpectedItemsFromImport_1.buildExpectedItemsFromImport)(importId, targetId, targetJobId, importDoc.parsedLines ?? []);
+    if (expectedItems.length === 0) {
+        throw new https_1.HttpsError("failed-precondition", "No expected product lines to apply.");
+    }
+    const stagingSkipped = (0, invoiceShellDisplayHelpers_1.isInvoiceShellNoShopStaging)({
+        createdFromInvoiceImport: true,
+        invoiceImportStatus: importDoc.importStatus,
+        invoiceFulfillmentMethod: shell.invoiceFulfillmentMethod,
+        invoiceDeliverToSite: shell.invoiceDeliverToSite,
+    });
+    const existingPlanned = Array.isArray(matchedDeliveryData?.plannedStagingLocationIds)
+        ? matchedDeliveryData.plannedStagingLocationIds.filter((id) => typeof id === "string" && id.trim().length > 0)
+        : [];
+    // Drop-Off: require selection unless matched delivery already has planned staging
+    // and the client omitted ids (preserve). Explicit ids still replace.
+    if (!stagingSkipped &&
+        plannedStagingLocationIds.length === 0 &&
+        !(matchedExisting && existingPlanned.length > 0)) {
+        throw new https_1.HttpsError("failed-precondition", "Choose a staging location before approving this Vendor Drop-Off.");
+    }
+    if (!stagingSkipped && plannedStagingLocationIds.length > 0) {
+        const locSnaps = await Promise.all(plannedStagingLocationIds.map((id) => getDb().collection("stagingLocations").doc(id).get()));
+        if (locSnaps.some((snap) => !snap.exists)) {
+            throw new https_1.HttpsError("invalid-argument", "One or more selected staging locations no longer exist. Refresh and reselect.");
+        }
+    }
+    const stagingPatch = approvePlannedStagingPatch(stagingSkipped, plannedStagingLocationIds);
+    const deliveryRef = getDb().collection("deliveries").doc(targetId);
     await getDb().runTransaction(async (tx) => {
         const freshImport = await tx.get(importRef);
         if (!freshImport.exists) {
@@ -496,25 +567,51 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         if (fresh.importStatus === "issue") {
             throw new https_1.HttpsError("failed-precondition", "Cannot approve — import has parse issues. Reject or wait for a valid invoice.");
         }
+        const freshLinked = fresh.linkedDeliveryOrderId?.trim() ?? "";
+        if (freshLinked && freshLinked !== targetId) {
+            throw new https_1.HttpsError("failed-precondition", "Import was concurrently approved to a different delivery — reload and retry.");
+        }
         const existingDelivery = await tx.get(deliveryRef);
-        if (!existingDelivery.exists) {
-            tx.set(deliveryRef, (0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shell, importId, fresh, now));
+        if (matchedExisting) {
+            if (!existingDelivery.exists) {
+                throw new https_1.HttpsError("failed-precondition", "Matched delivery no longer exists. Refresh and try again.");
+            }
+            // Re-check ownership at commit time (D-38) — pre-txn match snapshot can race.
+            const liveDelivery = existingDelivery.data() ?? {};
+            if (!(0, matchInvoiceToRecords_1.isDeliveryOwnedByImportOrUnclaimed)(liveDelivery, importId)) {
+                throw new https_1.HttpsError("failed-precondition", "Matched delivery is already linked to another invoice import. Reload and try again.");
+            }
+            tx.update(deliveryRef, {
+                ...(0, createDeliveryShellFromImport_1.buildInvoiceMatchedDeliveryPatchDocument)(shell, importId, fresh, now, liveDelivery),
+                ...stagingPatch,
+            });
+        }
+        else if (!existingDelivery.exists) {
+            // Shell path: create delivery-vii-{importId}.
+            const shellForWrite = { ...shell, deliveryOrderId: shellId };
+            tx.set(deliveryRef, {
+                ...(0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shellForWrite, importId, fresh, now),
+                ...stagingPatch,
+            });
         }
         else {
-            tx.update(deliveryRef, (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, fresh, now, existingDelivery.data()));
+            tx.update(deliveryRef, {
+                ...(0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)({ ...shell, deliveryOrderId: shellId }, importId, fresh, now, existingDelivery.data()),
+                ...stagingPatch,
+            });
         }
-        for (const item of shell.expectedItems) {
+        for (const item of expectedItems) {
             tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
         }
         tx.update(importRef, {
             reviewStatus: "approved",
-            linkedDeliveryOrderId: shell.deliveryOrderId,
+            linkedDeliveryOrderId: targetId,
             approvedAt: now,
             approvedBy: uid,
             rejectedAt: firestore_1.FieldValue.delete(),
             rejectedBy: firestore_1.FieldValue.delete(),
             updatedAt: now,
-            importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("approve", uid, now, eligibilityFromDoc(fresh), shell.deliveryOrderId)),
+            importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("approve", uid, now, eligibilityFromDoc(fresh), targetId)),
         });
     });
     let trainingLessonWrote = false;
@@ -539,13 +636,16 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             });
         }
     }
+    const appliedPlanned = stagingPatch.plannedStagingLocationIds ?? [];
     return {
         vendorInvoiceImportId: importId,
         reviewStatus: "approved",
-        deliveryOrderId: shell.deliveryOrderId,
-        itemsApplied: shell.expectedItems.length,
-        shellCreated: true,
-        jobCreated: shell.jobCreated,
+        deliveryOrderId: targetId,
+        itemsApplied: expectedItems.length,
+        shellCreated: !matchedExisting,
+        deliveryMatched: matchedExisting,
+        jobCreated: matchedExisting ? false : shell.jobCreated,
+        plannedStagingLocationIds: appliedPlanned,
         trainingLessonWrote,
         trainingLessonPendingAdminReview,
         trainingLessonAlertEmailed,

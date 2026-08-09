@@ -1,8 +1,9 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type {
   InvoiceMatchResult,
   VendorInvoiceImportReview,
 } from "../models";
+import type { InvoiceFulfillmentMethod } from "./types";
 import {
   confirmVendorIgnoreRule,
   getInvoiceTrainingAdminStatus,
@@ -44,6 +45,12 @@ import {
   type InvoiceRejectReasonId,
 } from "./invoiceRejectReasons";
 import { InvoiceRejectReasonDialog } from "./InvoiceRejectReasonDialog";
+import { InvoiceStagingLocationPicker } from "./InvoiceStagingLocationPicker";
+import {
+  extractDeliverToSiteLabel,
+  fulfillmentDisplayLabel,
+  isInvoiceShellNoShopStaging,
+} from "./invoiceShellDisplayHelpers";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -112,7 +119,10 @@ export function InvoiceParsedInspectModal({
   matchLoading?: boolean;
   actionLoading?: boolean;
   /** Optional generalized correction note for vendor training MD. */
-  onApprove?: (correctionNote?: string) => void;
+  onApprove?: (
+    correctionNote?: string,
+    plannedStagingLocationIds?: string[],
+  ) => void;
   /** Reject with optional training lesson note (from reject-reason dialog). */
   onReject?: (rejectLessonNote?: string) => void;
   onReopen?: () => void;
@@ -130,6 +140,7 @@ export function InvoiceParsedInspectModal({
   onImportDismissed?: () => void;
 }) {
   const [correctionNote, setCorrectionNote] = useState("");
+  const [selectedStagingIds, setSelectedStagingIds] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [saveLessonLoading, setSaveLessonLoading] = useState(false);
   const [teachPhase, setTeachPhase] = useState<TeachChatPhase>("idle");
@@ -411,6 +422,35 @@ export function InvoiceParsedInspectModal({
   const creditAdvisoryLabel = creditReturnAdvisoryLabel(importRow);
   const ignoreSuppressedLabel = ignoreRuleSuppressedAdvisoryLabel(importRow);
 
+  const stagingSkipped = useMemo(
+    () =>
+      isInvoiceShellNoShopStaging({
+        createdFromInvoiceImport: true,
+        invoiceImportStatus: importRow.importStatus,
+        invoiceFulfillmentMethod: normalizedHeader.fulfillmentMethod as
+          | InvoiceFulfillmentMethod
+          | undefined,
+        invoiceDeliverToSite: Boolean(extractDeliverToSiteLabel(orderNotes)),
+      }),
+    [
+      importRow.importStatus,
+      normalizedHeader.fulfillmentMethod,
+      orderNotes,
+    ],
+  );
+  const fulfillmentLabel = fulfillmentDisplayLabel({
+    invoiceImportStatus: importRow.importStatus,
+    invoiceFulfillmentMethod: normalizedHeader.fulfillmentMethod as
+      | InvoiceFulfillmentMethod
+      | undefined,
+  });
+
+  useEffect(() => {
+    if (stagingSkipped) {
+      setSelectedStagingIds([]);
+    }
+  }, [stagingSkipped, importRow.id]);
+
   const openRejectDialog = () => {
     setRejectReasonId(defaultRejectReasonId(Boolean(creditAdvisoryLabel)));
     setRejectDetailText("");
@@ -445,7 +485,11 @@ export function InvoiceParsedInspectModal({
     (isPending ||
       (isRejected && importRow.skipReason === "credit_return")) &&
     !readOnly;
-  const approveDisabled = actionLoading || approveBlocked;
+  const stagingRequired = !stagingSkipped;
+  const approveDisabled =
+    actionLoading ||
+    approveBlocked ||
+    (stagingRequired && selectedStagingIds.length === 0);
   const invoiceDateLabel = formatInvoiceHeaderField(
     readInvoiceHeaderField(importRow.parsedHeader, "invoiceDate"),
   );
@@ -1135,6 +1179,89 @@ export function InvoiceParsedInspectModal({
                 />
               </div>
             )}
+            {(isPending || isRejected) && onApprove && (
+              <div
+                data-testid="invoice-parsed-inspect-staging-panel"
+                style={{
+                  padding: "14px 16px",
+                  backgroundColor: "var(--admin-surface-2)",
+                  border: "1px solid var(--admin-border)",
+                  borderRadius: 8,
+                }}
+              >
+                <h3
+                  style={{
+                    margin: "0 0 6px",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "var(--admin-text-data)",
+                    fontFamily: FONT,
+                  }}
+                >
+                  Fulfillment
+                </h3>
+                <p
+                  data-testid="invoice-parsed-inspect-fulfillment-label"
+                  style={{
+                    margin: "0 0 12px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--admin-text-data)",
+                    fontFamily: FONT,
+                  }}
+                >
+                  {fulfillmentLabel}
+                </p>
+                <h3
+                  style={{
+                    margin: "0 0 8px",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "var(--admin-text-data)",
+                    fontFamily: FONT,
+                  }}
+                >
+                  Staging Location
+                </h3>
+                {stagingSkipped ? (
+                  <p
+                    data-testid="invoice-parsed-inspect-staging-na"
+                    style={{
+                      margin: 0,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: "var(--admin-text-secondary)",
+                      fontFamily: FONT,
+                    }}
+                  >
+                    Not required for Will-Call / Pickup @ Vendor
+                  </p>
+                ) : (
+                  <>
+                    <p
+                      data-testid="invoice-parsed-inspect-staging-required-note"
+                      style={{
+                        margin: "0 0 10px",
+                        fontSize: 12,
+                        lineHeight: 1.45,
+                        color: "var(--admin-text-secondary)",
+                        fontWeight: 500,
+                        fontFamily: FONT,
+                      }}
+                    >
+                      Staging location required — choose where this delivery will
+                      be staged before approving.
+                    </p>
+                    <InvoiceStagingLocationPicker
+                      selectedIds={selectedStagingIds}
+                      onChange={setSelectedStagingIds}
+                      disabled={actionLoading}
+                      font={FONT}
+                    />
+                  </>
+                )}
+              </div>
+            )}
             <div
               style={{
                 display: "flex",
@@ -1258,11 +1385,20 @@ export function InvoiceParsedInspectModal({
                   title={
                     approveBlocked
                       ? "Approve blocked for issue imports"
-                      : correctionNote.trim()
-                        ? "Approving also saves your note as a lesson."
-                        : undefined
+                      : stagingRequired && selectedStagingIds.length === 0
+                        ? "Choose a staging location before approving this Vendor Drop-Off."
+                        : correctionNote.trim()
+                          ? "Approving also saves your note as a lesson."
+                          : undefined
                   }
-                  onClick={() => onApprove(correctionNote.trim() || undefined)}
+                  onClick={() =>
+                    onApprove(
+                      correctionNote.trim() || undefined,
+                      selectedStagingIds.length > 0
+                        ? selectedStagingIds
+                        : undefined,
+                    )
+                  }
                   style={{
                     backgroundColor: NAVY,
                     color: "var(--admin-on-navy)",

@@ -7,6 +7,8 @@ exports.jobIdFromInvoicePoSlug = jobIdFromInvoicePoSlug;
 exports.jobNumberFromInvoiceHeader = jobNumberFromInvoiceHeader;
 exports.buildInvoiceDeliveryShellContext = buildInvoiceDeliveryShellContext;
 exports.isTerminalPickupShellDelivery = isTerminalPickupShellDelivery;
+exports.resolveInvoiceApproveDeliveryTarget = resolveInvoiceApproveDeliveryTarget;
+exports.buildInvoiceMatchedDeliveryPatchDocument = buildInvoiceMatchedDeliveryPatchDocument;
 exports.buildInvoiceShellPatchDocument = buildInvoiceShellPatchDocument;
 exports.buildDeliveryShellDocument = buildDeliveryShellDocument;
 const https_1 = require("firebase-functions/v2/https");
@@ -261,6 +263,55 @@ function isTerminalPickupShellDelivery(delivery) {
         return true;
     }
     return delivery.invoiceImportStatus === "closed_picked_up";
+}
+/**
+ * Server-authoritative Approve target (D-67 amends D-39).
+ * Prior linkedDeliveryOrderId wins; else high-confidence unique match; else shell.
+ */
+function resolveInvoiceApproveDeliveryTarget(input) {
+    const shellId = shellDeliveryIdForImport(input.importId);
+    const priorLinked = input.importDoc.linkedDeliveryOrderId?.trim() ?? "";
+    if (priorLinked) {
+        return {
+            targetDeliveryOrderId: priorLinked,
+            matchedExisting: priorLinked !== shellId,
+            shellId,
+        };
+    }
+    const match = (0, matchInvoiceToRecords_1.matchInvoiceToRecords)(input.importId, input.header, input.ctx, input.deliveryNotesById);
+    if ((0, matchInvoiceToRecords_1.isEligibleMatchedDeliveryTarget)(match, input.importId, input.ctx.deliveries)) {
+        return {
+            targetDeliveryOrderId: match.deliveryOrderId.trim(),
+            matchedExisting: true,
+            shellId,
+        };
+    }
+    return {
+        targetDeliveryOrderId: shellId,
+        matchedExisting: false,
+        shellId,
+    };
+}
+/**
+ * Narrow patch for a pre-existing non-shell matched delivery — preserve operational history.
+ * Does not write status/notes/orderNumber/vendorId/jobId/deliveryDate/createdAt.
+ */
+function buildInvoiceMatchedDeliveryPatchDocument(shell, importId, importDoc, now, existingDelivery) {
+    const patch = {
+        vendorInvoiceImportId: importId,
+        invoiceFulfillmentMethod: shell.invoiceFulfillmentMethod,
+        updatedAt: now,
+    };
+    if (!isTerminalPickupShellDelivery(existingDelivery)) {
+        patch.invoiceImportStatus = importDoc.importStatus;
+    }
+    if (shell.invoiceDeliverToSite) {
+        patch.invoiceDeliverToSite = true;
+        if (shell.invoiceDeliverToLabel) {
+            patch.invoiceDeliverToLabel = shell.invoiceDeliverToLabel;
+        }
+    }
+    return patch;
 }
 /** Patch fields for an existing invoice shell — idempotent refresh of display metadata. */
 function buildInvoiceShellPatchDocument(shell, importId, importDoc, now, existingDelivery) {

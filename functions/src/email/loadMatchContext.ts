@@ -51,6 +51,11 @@ export async function loadEmailMatchContext(): Promise<MatchContext> {
         vendorId: typeof data.vendorId === "string" ? data.vendorId : "",
         purchaseOrderId:
           typeof data.purchaseOrderId === "string" ? data.purchaseOrderId : undefined,
+        createdFromInvoiceImport: data.createdFromInvoiceImport === true,
+        vendorInvoiceImportId:
+          typeof data.vendorInvoiceImportId === "string"
+            ? data.vendorInvoiceImportId
+            : undefined,
       };
     }),
   };

@@ -8,10 +8,14 @@ import {
   jobNameFromInvoiceContext,
   resolveShellDeliveryStatus,
 } from "./invoiceShellDisplayHelpers";
-import { matchInvoiceToRecords } from "./matchInvoiceToRecords";
+import {
+  isEligibleMatchedDeliveryTarget,
+  matchInvoiceToRecords,
+} from "./matchInvoiceToRecords";
 import { asParsedHeaderForImport } from "./parsedHeaderValidation";
 import type { ParsedInvoiceHeader } from "./types";
 import type { VendorInvoiceImportDoc } from "../inboundEmail/types";
+import type { MatchContext } from "../email/matchEmailToRecords";
 
 export const SHELL_DELIVERY_ID_PREFIX = "delivery-vii-";
 
@@ -369,6 +373,81 @@ export function isTerminalPickupShellDelivery(
     return true;
   }
   return delivery.invoiceImportStatus === "closed_picked_up";
+}
+
+export type ResolveInvoiceApproveTargetResult = {
+  targetDeliveryOrderId: string;
+  matchedExisting: boolean;
+  shellId: string;
+};
+
+/**
+ * Server-authoritative Approve target (D-67 amends D-39).
+ * Prior linkedDeliveryOrderId wins; else high-confidence unique match; else shell.
+ */
+export function resolveInvoiceApproveDeliveryTarget(input: {
+  importId: string;
+  importDoc: VendorInvoiceImportDoc;
+  header: ParsedInvoiceHeader;
+  ctx: MatchContext;
+  deliveryNotesById?: Map<string, string>;
+}): ResolveInvoiceApproveTargetResult {
+  const shellId = shellDeliveryIdForImport(input.importId);
+  const priorLinked = input.importDoc.linkedDeliveryOrderId?.trim() ?? "";
+  if (priorLinked) {
+    return {
+      targetDeliveryOrderId: priorLinked,
+      matchedExisting: priorLinked !== shellId,
+      shellId,
+    };
+  }
+
+  const match = matchInvoiceToRecords(
+    input.importId,
+    input.header,
+    input.ctx,
+    input.deliveryNotesById,
+  );
+  if (isEligibleMatchedDeliveryTarget(match, input.importId, input.ctx.deliveries)) {
+    return {
+      targetDeliveryOrderId: match.deliveryOrderId!.trim(),
+      matchedExisting: true,
+      shellId,
+    };
+  }
+  return {
+    targetDeliveryOrderId: shellId,
+    matchedExisting: false,
+    shellId,
+  };
+}
+
+/**
+ * Narrow patch for a pre-existing non-shell matched delivery — preserve operational history.
+ * Does not write status/notes/orderNumber/vendorId/jobId/deliveryDate/createdAt.
+ */
+export function buildInvoiceMatchedDeliveryPatchDocument(
+  shell: InvoiceShellContext,
+  importId: string,
+  importDoc: VendorInvoiceImportDoc,
+  now: string,
+  existingDelivery?: InvoiceShellPatchExistingDelivery | null,
+): Record<string, unknown> {
+  const patch: Record<string, unknown> = {
+    vendorInvoiceImportId: importId,
+    invoiceFulfillmentMethod: shell.invoiceFulfillmentMethod,
+    updatedAt: now,
+  };
+  if (!isTerminalPickupShellDelivery(existingDelivery)) {
+    patch.invoiceImportStatus = importDoc.importStatus;
+  }
+  if (shell.invoiceDeliverToSite) {
+    patch.invoiceDeliverToSite = true;
+    if (shell.invoiceDeliverToLabel) {
+      patch.invoiceDeliverToLabel = shell.invoiceDeliverToLabel;
+    }
+  }
+  return patch;
 }
 
 /** Patch fields for an existing invoice shell — idempotent refresh of display metadata. */
