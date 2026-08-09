@@ -12,6 +12,35 @@ const correctionAllowlist_1 = require("./correctionAllowlist");
 const reviewAgentContext_1 = require("./reviewAgentContext");
 const reviewAgentPrompt_1 = require("./reviewAgentPrompt");
 const reviewAgentTypes_1 = require("./reviewAgentTypes");
+const CANNOT_APPLY_COPY_RE = /\b(cannot change|can't change|cannot apply|can't apply|unable to (change|apply)|i cannot change or apply)\b/i;
+function asFieldCorrectionLog(raw) {
+    if (!Array.isArray(raw))
+        return [];
+    const out = [];
+    for (const item of raw) {
+        if (!item || typeof item !== "object" || Array.isArray(item))
+            continue;
+        const e = item;
+        if (!(0, correctionAllowlist_1.isCorrectableFieldKey)(e.field))
+            continue;
+        const newValue = typeof e.newValue === "string" ? e.newValue.trim() : "";
+        if (!newValue)
+            continue;
+        out.push({
+            field: e.field,
+            newValue,
+            ...(typeof e.previousValue === "string"
+                ? { previousValue: e.previousValue }
+                : {}),
+            ...(typeof e.at === "string" ? { at: e.at } : {}),
+            ...(typeof e.by === "string" ? { by: e.by } : {}),
+            ...(typeof e.correctionId === "string"
+                ? { correctionId: e.correctionId }
+                : {}),
+        });
+    }
+    return out;
+}
 class ReviewAgentTurnInputError extends Error {
     constructor(message) {
         super(message);
@@ -215,6 +244,7 @@ async function runReviewAgentTurnCore(input) {
         rollingSummary: priorSummary,
         rollingSummaryUpdatedAt: chatData.rollingSummaryUpdatedAt ?? null,
     }, { merge: true });
+    const fieldCorrectionLog = asFieldCorrectionLog(importDoc.fieldCorrectionLog);
     const packet = (0, reviewAgentContext_1.buildReviewAgentContextPacket)({
         parsedHeader: importDoc.parsedHeader,
         parsedLines: importDoc.parsedLines,
@@ -225,6 +255,9 @@ async function runReviewAgentTurnCore(input) {
         recentTurns: recentTurns.map(({ role, text }) => ({ role, text })),
         rollingSummary: priorSummary,
         dispatcherMessage: message,
+        originalParsedHeader: importDoc.originalParsedHeader,
+        fieldCorrectionLog,
+        originalParseWarnings: importDoc.originalParseWarnings,
     });
     let agentText = reviewAgentPrompt_1.FAIL_CLOSED_AGENT_TEXT;
     let citations;
@@ -242,6 +275,8 @@ async function runReviewAgentTurnCore(input) {
         const parsed = (0, reviewAgentPrompt_1.parseAndValidateReviewAgentResponse)(modelResult.raw, combinedExtractedText, {
             dispatcherMessage: message,
             parserCustomerPo,
+            parsedHeader: importDoc.parsedHeader,
+            fieldCorrectionLog,
         });
         if ("ok" in parsed && parsed.ok === false) {
             throw new Error(parsed.reason);
@@ -309,6 +344,14 @@ async function runReviewAgentTurnCore(input) {
                     error = undefined;
                 }
             }
+            // Pending proposal message exists but stored correction is invalid —
+            // never auto-apply while leaving model "cannot apply" copy in place.
+            if (!confirmationPendingPc) {
+                confirmationPendingId = null;
+                agentText =
+                    "I found a pending correction proposal, but it is incomplete or invalid, so I cannot apply it. Ask me to propose the field update again.";
+                error = undefined;
+            }
         }
     }
     // If dispatcher issued a direct command with a value but the model omitted
@@ -338,16 +381,26 @@ async function runReviewAgentTurnCore(input) {
             agentText = `I can update ${display} from ${cur} to ${proposedCorrection.proposedValue}. Confirm with Apply correction or reply “Yes, apply it.”`;
         }
     }
-    // Strip leftover "cannot change/apply" model copy when we have a real C2 proposal.
-    if (proposedCorrection &&
-        /\b(cannot change|can't change|cannot apply|can't apply|i cannot change or apply)\b/i.test(agentText)) {
-        const display = proposedCorrection.field === "customerPoOrReference"
-            ? "Customer PO"
-            : proposedCorrection.field === "vendorOrderNumber"
-                ? "Vendor order #"
-                : "Invoice #";
-        const cur = proposedCorrection.currentValue || "blank";
-        agentText = `I can update ${display} from ${cur} to ${proposedCorrection.proposedValue}. Confirm with Apply correction or reply “Yes, apply it.”`;
+    // Strip leftover "cannot change/apply" model copy when we have a real C2 path.
+    if ((proposedCorrection || confirmationPendingPc) &&
+        CANNOT_APPLY_COPY_RE.test(agentText)) {
+        if (confirmationPendingPc) {
+            const display = confirmationPendingPc.field === "customerPoOrReference"
+                ? "Customer PO"
+                : confirmationPendingPc.field === "vendorOrderNumber"
+                    ? "Vendor order #"
+                    : "Invoice #";
+            agentText = `Confirmed. Applying ${display} → ${confirmationPendingPc.proposedValue}.`;
+        }
+        else if (proposedCorrection) {
+            const display = proposedCorrection.field === "customerPoOrReference"
+                ? "Customer PO"
+                : proposedCorrection.field === "vendorOrderNumber"
+                    ? "Vendor order #"
+                    : "Invoice #";
+            const cur = proposedCorrection.currentValue || "blank";
+            agentText = `I can update ${display} from ${cur} to ${proposedCorrection.proposedValue}. Confirm with Apply correction or reply “Yes, apply it.”`;
+        }
     }
     const agentMsgRef = chatRef.collection(reviewAgentTypes_1.REVIEW_CHAT_MESSAGES_SUB).doc();
     await agentMsgRef.set({
@@ -377,7 +430,10 @@ async function runReviewAgentTurnCore(input) {
         autoApplyMessageId = agentMsgRef.id;
         autoApplyTriggerMode = "chat_direct_command";
     }
-    else if (intent.kind === "confirmation" && confirmationPendingId) {
+    else if (intent.kind === "confirmation" &&
+        confirmationPendingId &&
+        confirmationPendingPc) {
+        // Gate on validated pending correction — never auto-apply on id alone.
         autoApplyEligible = true;
         autoApplyMessageId = confirmationPendingId;
         autoApplyTriggerMode = "chat_confirmation";

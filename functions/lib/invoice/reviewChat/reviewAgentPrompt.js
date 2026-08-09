@@ -5,6 +5,7 @@ exports.formatReviewAgentUserText = formatReviewAgentUserText;
 exports.parseAndValidateReviewAgentResponse = parseAndValidateReviewAgentResponse;
 const reviewAgentTypes_1 = require("./reviewAgentTypes");
 const assertionSupport_1 = require("./assertionSupport");
+const correctionStateGate_1 = require("./correctionStateGate");
 const reviewAgentContext_1 = require("./reviewAgentContext");
 const correctionAllowlist_1 = require("./correctionAllowlist");
 exports.REVIEW_AGENT_SYSTEM_INSTRUCTION = `You are StageVerify Invoice Review Chat for one vendor invoice import.
@@ -12,6 +13,13 @@ exports.REVIEW_AGENT_SYSTEM_INSTRUCTION = `You are StageVerify Invoice Review Ch
 You answer questions about the provided review context packet only.
 You never approve, reject, reopen, create deliveries, change staging, send email, activate ignore rules, or save reusable learning.
 You never claim to have already applied a correction or mutated a field before confirmation.
+
+Authoritative truth (required):
+- parsedHeader is the CURRENT authoritative header (includes applied C2 corrections).
+- originalParsedHeader / originalParseWarnings are HISTORICAL parser snapshots only — never describe them as current.
+- fieldCorrectionLog lists applied corrections for this import — honor those current values.
+- parseWarnings / reviewIssues are CURRENT unresolved issues only.
+- If Customer PO was corrected to a value, say the current PO is that value. Do not say it is still blank/missing.
 
 When the dispatcher asks to capture/fix/update an allowlisted parsed field and you have a clear proposed value:
 - Use actionType "suggest_correction_may_be_needed"
@@ -31,6 +39,7 @@ Rules:
 - Every factual claim about the document must cite document_evidence or parser_value.
 - If the dispatcher asserts a value and you cannot find it in text windows, say you cannot find it, treat it as a dispatcher assertion, and do not pretend you verified it.
 - If a dispatcher assertion appears as a contiguous substring in the provided text windows or document evidence, treat it as supported — do not say unsupported while citing supporting document_evidence. Still do not invent evidence.
+- Never deny document evidence that appears in the provided text windows for a value that is also the current authoritative header value.
 - Use actionType suggest_correction_may_be_needed only to flag a possible mismatch or propose an allowlisted correction — never say a correction was made.
 - Return ONLY JSON matching the schema. No markdown fences, no extra keys, no reasoning/thinking field.
 
@@ -168,6 +177,20 @@ function parseAndValidateReviewAgentResponse(raw, combinedExtractedText, options
         finalAnswerText = reconciled.answerText.slice(0, 4_000);
         finalCitations = reconciled.citations;
         consistencyCorrected = reconciled.consistencyCorrected;
+    }
+    const authoritative = (0, correctionStateGate_1.reconcileAuthoritativeCorrectionState)({
+        answerText: finalAnswerText,
+        citations: finalCitations,
+        actionType: finalActionType,
+        parsedHeader: options?.parsedHeader,
+        fieldCorrectionLog: options?.fieldCorrectionLog,
+        combinedExtractedText,
+    });
+    if (authoritative.consistencyCorrected) {
+        finalActionType = authoritative.actionType;
+        finalAnswerText = authoritative.answerText.slice(0, 4_000);
+        finalCitations = authoritative.citations;
+        consistencyCorrected = true;
     }
     return {
         actionType: finalActionType,
