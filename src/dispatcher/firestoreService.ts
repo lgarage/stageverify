@@ -34,6 +34,14 @@ import {
   VendorSessionError,
   vendorSessionErrorMessage,
 } from "../vendorSessionErrors";
+import {
+  APP_SETTINGS_CACHE_TTL_MS,
+  isAppSettingsCacheFresh,
+} from "./appSettingsCache";
+import {
+  invoiceShellBackfillCandidate,
+  scheduleInvoiceShellBackfill as scheduleInvoiceShellBackfillCore,
+} from "./invoiceShellBackfillSchedule";
 import type {
   DeliveryDetails,
   DeliveryListRow,
@@ -1488,10 +1496,32 @@ const DEFAULT_APP_SETTINGS: AppSettings = {
   emailMonitoringEnabled: false,
 };
 
+let appSettingsCache: { value: AppSettings; fetchedAtMs: number } | null =
+  null;
+
+/** Test helper — clears in-memory app settings cache. */
+export function clearAppSettingsCacheForTests(): void {
+  appSettingsCache = null;
+}
+
 export async function getAppSettings(): Promise<AppSettings> {
+  const now = Date.now();
+  if (
+    appSettingsCache &&
+    isAppSettingsCacheFresh(
+      appSettingsCache.fetchedAtMs,
+      now,
+      APP_SETTINGS_CACHE_TTL_MS,
+    )
+  ) {
+    return appSettingsCache.value;
+  }
   const snap = await getDoc(APP_SETTINGS_DOC);
-  if (!snap.exists()) return { ...DEFAULT_APP_SETTINGS };
-  return { ...DEFAULT_APP_SETTINGS, ...(snap.data() as Partial<AppSettings>) };
+  const value = snap.exists()
+    ? { ...DEFAULT_APP_SETTINGS, ...(snap.data() as Partial<AppSettings>) }
+    : { ...DEFAULT_APP_SETTINGS };
+  appSettingsCache = { value, fetchedAtMs: now };
+  return value;
 }
 
 export async function updateAppSettings(
@@ -1504,6 +1534,7 @@ export async function updateAppSettings(
   const hasDeletes = entries.some(([, value]) => value === undefined);
   if (!hasDeletes) {
     await setDoc(APP_SETTINGS_DOC, settings, { merge: true });
+    appSettingsCache = null;
     return getAppSettings();
   }
   const payload: Record<string, unknown> = {};
@@ -1511,6 +1542,7 @@ export async function updateAppSettings(
     payload[key] = value === undefined ? deleteField() : value;
   }
   await updateDoc(APP_SETTINGS_DOC, payload);
+  appSettingsCache = null;
   return getAppSettings();
 }
 
@@ -1519,13 +1551,17 @@ export function subscribeAppSettings(
 ): () => void {
   return onSnapshot(APP_SETTINGS_DOC, (snap) => {
     if (!snap.exists()) {
-      onChange({ ...DEFAULT_APP_SETTINGS });
+      const value = { ...DEFAULT_APP_SETTINGS };
+      appSettingsCache = { value, fetchedAtMs: Date.now() };
+      onChange(value);
       return;
     }
-    onChange({
+    const value = {
       ...DEFAULT_APP_SETTINGS,
       ...(snap.data() as Partial<AppSettings>),
-    });
+    };
+    appSettingsCache = { value, fetchedAtMs: Date.now() };
+    onChange(value);
   });
 }
 
@@ -3150,18 +3186,14 @@ export const INVOICE_TRAINING_LESSON_TOAST =
 export const VENDOR_IGNORE_RULE_TOAST =
   "Proposal saved — a manager must activate it in Settings → Invoice training Admin before future documents are skipped.";
 
-function invoiceShellBackfillCandidate(
-  row: VendorInvoiceImportReview,
-): boolean {
-  // All approved non-issue imports: create_shell stamps missing vendorInvoiceImportId
-  // on linked deliveries and creates shells for unlinked — idempotent via Refresh Now.
-  return row.reviewStatus === "approved" && row.importStatus !== "issue";
-}
+export { invoiceShellBackfillCandidate };
 
 /** Idempotent backfill: create shells for unlinked imports; re-patch linked invoice shells. */
 export async function ensureApprovedUnlinkedInvoiceShells(
   imports: VendorInvoiceImportReview[],
 ): Promise<{ linkedCount: number; failedCount: number; errors: string[] }> {
+  // All approved non-issue imports: create_shell stamps missing vendorInvoiceImportId
+  // on linked deliveries and creates shells for unlinked — idempotent via Refresh Now.
   const needsShell = imports.filter(invoiceShellBackfillCandidate);
   if (needsShell.length === 0) {
     return { linkedCount: 0, failedCount: 0, errors: [] };
@@ -3195,4 +3227,25 @@ export async function ensureApprovedUnlinkedInvoiceShells(
     }
   }
   return { linkedCount, failedCount, errors };
+}
+
+/**
+ * Fire-and-forget invoice shell backfill — does not block the caller.
+ * Same ensure + optional re-list semantics as the former blocking portal path.
+ */
+export function scheduleInvoiceShellBackfill(
+  imports: VendorInvoiceImportReview[],
+  onSettled: (result: {
+    items: VendorInvoiceImportReview[] | null;
+    errors: string[];
+  }) => void,
+  deps: {
+    ensure: typeof ensureApprovedUnlinkedInvoiceShells;
+    list: typeof listVendorInvoiceImports;
+  } = {
+    ensure: ensureApprovedUnlinkedInvoiceShells,
+    list: listVendorInvoiceImports,
+  },
+): void {
+  scheduleInvoiceShellBackfillCore(imports, onSettled, deps);
 }

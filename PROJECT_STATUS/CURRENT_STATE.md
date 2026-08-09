@@ -59,6 +59,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
+- **In flight (PR, no deploy):** Vendor receive **Phase 1 performance package** on `cursor/vendor-receive-perf-57a7` (PR #74) — PIN UX + Sol keypad visual polish, `verifyVendorPin` legacy **bootstrap** + progressive hydrate, `getAppSettings` 60s cache, defer invoice shell backfill off portal mount. Emulator bootstrap hubReady ~40ms; prod warm useful target ≤1.5s after CF+gh-pages deploy. Do **not** enable `minInstances` yet. Review/merge then deploy CF `verifyVendorPin` + gh-pages together.
 - **Lane C C2 LIVE** — propose→confirm→apply verified on merge deploy. Do **not** start C3/C4 until D-59 #7/#8 amend. Dan/ops: Settings → **Reconnect Gmail**, then smoke one invoice through ingest → Inbox archive + View Original PDF.
 ## Queued product (deferred)
 - **away-138** — durable StageVerify PDF storage (D-64 TARGET); blocked until Dan queues post–Monday MVP.

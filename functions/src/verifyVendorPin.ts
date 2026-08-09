@@ -8,6 +8,7 @@ import {
 } from "./accessPinLookup";
 import { asAccessPin, pinMatches } from "./pinMatching";
 import type { VendorSessionScope } from "./vendorSessionValidation";
+import { buildVendorPinBootstrap } from "./deliveryDetailsResponse";
 
 function getDb() {
   return admin.firestore();
@@ -356,6 +357,7 @@ async function verifyLegacyDeliveryPin(
   deliveryId: string;
   jobId?: string;
   pinMatchedVia: "job" | "vendor";
+  deliveryData: admin.firestore.DocumentData;
 }> {
   const deliverySnap = await getDb()
     .collection("deliveries")
@@ -365,7 +367,8 @@ async function verifyLegacyDeliveryPin(
     throw new HttpsError("not-found", "Invalid code.");
   }
 
-  const delivery = deliverySnap.data() as DeliveryDoc;
+  const deliveryData = deliverySnap.data() as admin.firestore.DocumentData;
+  const delivery = deliveryData as DeliveryDoc;
   const jobId =
     typeof delivery.jobId === "string" && delivery.jobId.trim()
       ? delivery.jobId.trim()
@@ -389,6 +392,7 @@ async function verifyLegacyDeliveryPin(
           deliveryId,
           jobId,
           pinMatchedVia: "job",
+          deliveryData,
         };
       }
     }
@@ -421,6 +425,7 @@ async function verifyLegacyDeliveryPin(
     deliveryId,
     jobId,
     pinMatchedVia: "vendor",
+    deliveryData,
   };
 }
 
@@ -569,12 +574,22 @@ export const verifyVendorPin = onCall(
       deliveryId: string;
       jobId?: string;
       pinMatchedVia: "job" | "vendor";
+      deliveryData: admin.firestore.DocumentData;
     };
     try {
       verified = await verifyLegacyDeliveryPin(deliveryId!, pin);
     } catch {
       return { success: false, message: "Invalid code." };
     }
+
+    // Bootstrap in parallel with session writes — never blocks PIN success on failure.
+    const bootstrapPromise = buildVendorPinBootstrap(
+      getDb(),
+      verified.deliveryId,
+      verified.deliveryData,
+      verified.vendorId,
+      verified.vendorName,
+    ).catch(() => undefined);
 
     await clearRateLimitOnSuccess(attemptKey);
     await writePinVerifiedAudit({
@@ -595,6 +610,8 @@ export const verifyVendorPin = onCall(
       jobId: sessionScope === "job" ? verified.jobId : undefined,
     });
 
+    const bootstrap = await bootstrapPromise;
+
     return {
       success: true,
       vendorId: verified.vendorId,
@@ -604,6 +621,7 @@ export const verifyVendorPin = onCall(
       sessionScope,
       sessionToken: session.sessionToken,
       expiresAt: session.expiresAt,
+      ...(bootstrap ? { bootstrap } : {}),
     };
   },
 );

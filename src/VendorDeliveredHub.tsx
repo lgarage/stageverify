@@ -12,6 +12,10 @@ type DeliverCtaPhase = "idle" | "checkmark" | "delivered";
 interface VendorDeliveredHubProps {
   deliveryDetails: DeliveryDetails;
   loading: boolean;
+  /** Secondary getVendorReceiveDetails still in flight after bootstrap paint. */
+  detailsHydrating?: boolean;
+  /** Item count from PIN bootstrap while items[] is still empty. */
+  expectedItemCount?: number;
   error: string | null;
   geofenceOutside?: boolean;
   geofenceEnforce?: boolean;
@@ -50,6 +54,8 @@ function isVendorDeliveryConfirmed(delivery: DeliveryOrder): boolean {
 export function VendorDeliveredHub({
   deliveryDetails,
   loading,
+  detailsHydrating = false,
+  expectedItemCount,
   error,
   geofenceOutside = false,
   geofenceEnforce = false,
@@ -207,7 +213,18 @@ export function VendorDeliveredHub({
                   value: purchaseOrder?.poNumber ?? "—",
                   mono: true,
                 },
-                { label: "Expected items", value: String(items.length), mono: false },
+                {
+                  label: "Expected items",
+                  value:
+                    items.length > 0
+                      ? String(items.length)
+                      : expectedItemCount != null
+                        ? String(expectedItemCount)
+                        : detailsHydrating
+                          ? "…"
+                          : "0",
+                  mono: false,
+                },
               ].map(({ label, value, mono, testId }) => (
                 <div
                   key={label}
@@ -242,8 +259,13 @@ export function VendorDeliveredHub({
               data-testid="vendor-hub-items-list"
             >
               {items.length === 0 ? (
-                <p className="text-sm text-text-secondary">
-                  No item details available.
+                <p
+                  className="text-sm text-text-secondary"
+                  data-testid="vendor-hub-items-pending"
+                >
+                  {detailsHydrating
+                    ? "Loading item details…"
+                    : "No item details available."}
                 </p>
               ) : (
                 items.map((item) => (
