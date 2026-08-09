@@ -86,6 +86,8 @@ import type {
   InvoiceTrainingAdminStatus,
   SaveInvoiceTrainingLessonResult,
   ApplyInvoiceReviewFieldCorrectionResult,
+  SetInvoiceReviewFulfillmentOverrideResult,
+  SetInvoiceReviewDraftStagingLocationsResult,
   InvoiceReviewChatMessage,
   InvoiceReviewProposedCorrection,
   InvoiceReviewCorrectionStatus,
@@ -2648,6 +2650,23 @@ const applyInvoiceReviewFieldCorrectionCallable = httpsCallable<
   ApplyInvoiceReviewFieldCorrectionResult
 >(functions, "applyInvoiceReviewFieldCorrection");
 
+const setInvoiceReviewFulfillmentOverrideCallable = httpsCallable<
+  {
+    vendorInvoiceImportId: string;
+    toFulfillmentMethod: "delivery";
+    idempotencyKey: string;
+  },
+  SetInvoiceReviewFulfillmentOverrideResult
+>(functions, "setInvoiceReviewFulfillmentOverride");
+
+const setInvoiceReviewDraftStagingLocationsCallable = httpsCallable<
+  {
+    vendorInvoiceImportId: string;
+    stagingLocationIds: string[];
+  },
+  SetInvoiceReviewDraftStagingLocationsResult
+>(functions, "setInvoiceReviewDraftStagingLocations");
+
 const getVendorTrainingPlaybookCallable = httpsCallable<
   { password: string; vendorKey?: string; vendorInvoiceImportId?: string },
   { vendorKey: string; markdown: string }
@@ -2973,6 +2992,25 @@ export async function applyInvoiceReviewFieldCorrection(input: {
     return applyInvoiceReviewFieldCorrectionMock(input);
   }
   const response = await applyInvoiceReviewFieldCorrectionCallable(input);
+  return response.data;
+}
+
+/** Assign Location — Will-Call → Vendor Drop-Off fulfillment override. */
+export async function setInvoiceReviewFulfillmentOverride(input: {
+  vendorInvoiceImportId: string;
+  toFulfillmentMethod: "delivery";
+  idempotencyKey: string;
+}): Promise<SetInvoiceReviewFulfillmentOverrideResult> {
+  const response = await setInvoiceReviewFulfillmentOverrideCallable(input);
+  return response.data;
+}
+
+/** Persist draft staging location picks before Approve. */
+export async function setInvoiceReviewDraftStagingLocations(input: {
+  vendorInvoiceImportId: string;
+  stagingLocationIds: string[];
+}): Promise<SetInvoiceReviewDraftStagingLocationsResult> {
+  const response = await setInvoiceReviewDraftStagingLocationsCallable(input);
   return response.data;
 }
 

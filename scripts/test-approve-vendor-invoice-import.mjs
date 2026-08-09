@@ -878,6 +878,189 @@ if (histOrphanSnap.data()?.vendorInvoiceImportId === "vii-hist-orphan-stamp") {
   fail("historical orphan shell vendorInvoiceImportId", histOrphanSnap.data());
 }
 
+// --- Operational fulfillment preserve through create_shell backfill (6169414/6169474-equivalent) ---
+console.log("\n=== CF: create_shell preserves dispatcher operational fulfillment ===\n");
+
+const preserveDropOffImportId = "vii-fulfillment-preserve-repro";
+const preserveDropOffDeliveryId = shellDeliveryIdForImport(preserveDropOffImportId);
+const preserveDropOffHeader = {
+  ...header,
+  vendorInvoiceNumber: "INV-FULFILL-PRESERVE-A",
+  vendorOrderNumber: "ORD-FULFILL-PRESERVE-A",
+  customerPoOrReference: "2205 EARLY FIXTURE A",
+  fulfillmentMethod: "will_call_pickup",
+};
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "deliveries", preserveDropOffDeliveryId), {
+    id: preserveDropOffDeliveryId,
+    orderNumber: "INV-FULFILL-PRESERVE-A",
+    jobId: "job-inv-fulfill-preserve-a",
+    vendorId: "vendor-johnstone",
+    vendorName: "Johnstone",
+    deliveryDate: "2026-08-09",
+    status: "pending",
+    createdFromInvoiceImport: true,
+    vendorInvoiceImportId: preserveDropOffImportId,
+    invoiceFulfillmentMethod: "delivery",
+    invoiceImportStatus: "pending",
+    plannedStagingLocationIds: ["zone-fixture-g12"],
+    stagingLocationId: null,
+    vendorInvoiceNumber: "INV-FULFILL-PRESERVE-A",
+    vendorOrderNumber: "ORD-FULFILL-PRESERVE-A",
+    customerPoOrReference: "2205 EARLY FIXTURE A",
+    createdAt: "2026-08-09T17:00:00Z",
+    updatedAt: "2026-08-09T18:00:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", preserveDropOffImportId), {
+    id: preserveDropOffImportId,
+    inboundEmailProcessingId: "inbound-fulfill-preserve-a",
+    gmailMessageId: "msg-fulfill-preserve-a",
+    importBatchId: "batch-test",
+    pageId: "inv-fulfill-preserve-a",
+    pageIndexInBatch: 0,
+    reviewStatus: "approved",
+    linkedDeliveryOrderId: preserveDropOffDeliveryId,
+    importStatus: "pickup_at_vendor",
+    confidenceTier: "medium",
+    confidenceScore: 80,
+    humanReviewRequired: false,
+    duplicate: false,
+    parsedHeader: preserveDropOffHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    approvedAt: "2026-08-09T17:00:00Z",
+    createdAt: "2026-08-09T17:00:00Z",
+    updatedAt: "2026-08-09T17:00:00Z",
+  });
+});
+
+try {
+  await approveImport({
+    vendorInvoiceImportId: preserveDropOffImportId,
+    action: "create_shell",
+  });
+  pass("create_shell backfill succeeded for Drop-Off ops preserve fixture");
+} catch (err) {
+  fail("create_shell Drop-Off ops preserve call failed", err?.message);
+}
+
+const preserveDropOffSnap = await getDoc(
+  doc(db, "deliveries", preserveDropOffDeliveryId),
+);
+const preserveDropOffData = preserveDropOffSnap.data() ?? {};
+if (
+  preserveDropOffData.invoiceFulfillmentMethod === "delivery" &&
+  preserveDropOffData.invoiceImportStatus === "pending" &&
+  preserveDropOffData.status === "pending" &&
+  Array.isArray(preserveDropOffData.plannedStagingLocationIds) &&
+  preserveDropOffData.plannedStagingLocationIds[0] === "zone-fixture-g12"
+) {
+  pass(
+    "Will-Call import create_shell does not revert dispatcher Vendor Drop-Off (+ keeps planned staging)",
+  );
+} else {
+  fail("Drop-Off ops overwritten by create_shell", {
+    invoiceFulfillmentMethod: preserveDropOffData.invoiceFulfillmentMethod,
+    invoiceImportStatus: preserveDropOffData.invoiceImportStatus,
+    status: preserveDropOffData.status,
+    plannedStagingLocationIds: preserveDropOffData.plannedStagingLocationIds,
+  });
+}
+
+const preserveWillCallImportId = "vii-fulfillment-preserve-repro-rev";
+const preserveWillCallDeliveryId = shellDeliveryIdForImport(
+  preserveWillCallImportId,
+);
+const preserveWillCallHeader = {
+  ...header,
+  vendorInvoiceNumber: "INV-FULFILL-PRESERVE-B",
+  vendorOrderNumber: "ORD-FULFILL-PRESERVE-B",
+  customerPoOrReference: "2205 EARLY FIXTURE B",
+  fulfillmentMethod: "delivery",
+};
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "deliveries", preserveWillCallDeliveryId), {
+    id: preserveWillCallDeliveryId,
+    orderNumber: "INV-FULFILL-PRESERVE-B",
+    jobId: "job-inv-fulfill-preserve-b",
+    vendorId: "vendor-johnstone",
+    vendorName: "Johnstone",
+    deliveryDate: "2026-08-09",
+    status: "ready_for_pickup",
+    createdFromInvoiceImport: true,
+    vendorInvoiceImportId: preserveWillCallImportId,
+    invoiceFulfillmentMethod: "will_call_pickup",
+    invoiceImportStatus: "pickup_at_vendor",
+    plannedStagingLocationIds: ["zone-fixture-g6"],
+    vendorInvoiceNumber: "INV-FULFILL-PRESERVE-B",
+    vendorOrderNumber: "ORD-FULFILL-PRESERVE-B",
+    customerPoOrReference: "2205 EARLY FIXTURE B",
+    createdAt: "2026-08-09T17:00:00Z",
+    updatedAt: "2026-08-09T18:00:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", preserveWillCallImportId), {
+    id: preserveWillCallImportId,
+    inboundEmailProcessingId: "inbound-fulfill-preserve-b",
+    gmailMessageId: "msg-fulfill-preserve-b",
+    importBatchId: "batch-test",
+    pageId: "inv-fulfill-preserve-b",
+    pageIndexInBatch: 0,
+    reviewStatus: "approved",
+    linkedDeliveryOrderId: preserveWillCallDeliveryId,
+    importStatus: "pending",
+    confidenceTier: "medium",
+    confidenceScore: 80,
+    humanReviewRequired: false,
+    duplicate: false,
+    parsedHeader: preserveWillCallHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    approvedAt: "2026-08-09T17:00:00Z",
+    createdAt: "2026-08-09T17:00:00Z",
+    updatedAt: "2026-08-09T17:00:00Z",
+  });
+});
+
+try {
+  await approveImport({
+    vendorInvoiceImportId: preserveWillCallImportId,
+    action: "create_shell",
+  });
+  pass("create_shell backfill succeeded for Will-Call ops preserve fixture");
+} catch (err) {
+  fail("create_shell Will-Call ops preserve call failed", err?.message);
+}
+
+const preserveWillCallSnap = await getDoc(
+  doc(db, "deliveries", preserveWillCallDeliveryId),
+);
+const preserveWillCallData = preserveWillCallSnap.data() ?? {};
+if (
+  preserveWillCallData.invoiceFulfillmentMethod === "will_call_pickup" &&
+  preserveWillCallData.invoiceImportStatus === "pickup_at_vendor" &&
+  Array.isArray(preserveWillCallData.plannedStagingLocationIds) &&
+  preserveWillCallData.plannedStagingLocationIds[0] === "zone-fixture-g6"
+) {
+  pass(
+    "Drop-Off import create_shell does not revert dispatcher Will-Call (+ keeps planned staging)",
+  );
+} else {
+  fail("Will-Call ops overwritten by create_shell", {
+    invoiceFulfillmentMethod: preserveWillCallData.invoiceFulfillmentMethod,
+    invoiceImportStatus: preserveWillCallData.invoiceImportStatus,
+    status: preserveWillCallData.status,
+    plannedStagingLocationIds: preserveWillCallData.plannedStagingLocationIds,
+  });
+}
+
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
   const autoJobHeader = {

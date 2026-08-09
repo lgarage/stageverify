@@ -39,6 +39,7 @@ import {
   isCreditReturnImportDoc,
   shouldApplyNowDismissCreditImport,
 } from "./invoice/creditReturnSkip";
+import { sanitizePlannedStagingLocationIds } from "./invoice/fulfillmentOverride/sharedStagingIdSanitize";
 
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const MAX_DECISION_LOG = 20;
@@ -85,21 +86,6 @@ function assertDeliveryAllowedForImport(doc: VendorInvoiceImportDoc): void {
   if (creditReturnBlocksDeliveryCreation(doc)) {
     throw new HttpsError("failed-precondition", CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
   }
-}
-
-const MAX_PLANNED_STAGING_IDS = 20;
-
-/** Sanitize client staging ids — approve path only; will-call ignores via approvePlannedStagingPatch. */
-function sanitizePlannedStagingLocationIds(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return [];
-  return [
-    ...new Set(
-      raw
-        .filter((id): id is string => typeof id === "string")
-        .map((id) => id.trim())
-        .filter((id) => id.length > 0 && id.length <= 128),
-    ),
-  ].slice(0, MAX_PLANNED_STAGING_IDS);
 }
 
 function approvePlannedStagingPatch(

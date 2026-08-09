@@ -362,6 +362,8 @@ export async function buildInvoiceDeliveryShellContext(
 export type InvoiceShellPatchExistingDelivery = {
   status?: string;
   invoiceImportStatus?: string;
+  /** Raw Firestore value — narrowed inside shouldPreserveExistingOperationalFulfillment. */
+  invoiceFulfillmentMethod?: string;
 };
 
 /** Terminal pickup — must not be downgraded by invoice shell refresh / Gmail re-sync. */
@@ -373,6 +375,28 @@ export function isTerminalPickupShellDelivery(
     return true;
   }
   return delivery.invoiceImportStatus === "closed_picked_up";
+}
+
+/** Explicit dispatcher-set fulfillment values — "unknown" is a parser default, not an operational choice. */
+function isExplicitOperationalFulfillment(
+  value: string | undefined,
+): value is "delivery" | "will_call_pickup" {
+  return value === "delivery" || value === "will_call_pickup";
+}
+
+/**
+ * True when the existing delivery has an explicit dispatcher-set fulfillment method
+ * that differs from the import's parsed header value. Symmetric — covers both
+ * Will-Call→Drop-Off and the reverse Drop-Off→Will-Call toggle equally.
+ * Import parsedHeader stays audit-only; it must never silently override this.
+ */
+export function shouldPreserveExistingOperationalFulfillment(
+  existingDelivery: InvoiceShellPatchExistingDelivery | null | undefined,
+  importFulfillmentMethod: string,
+): boolean {
+  const existingMethod = existingDelivery?.invoiceFulfillmentMethod;
+  if (!isExplicitOperationalFulfillment(existingMethod)) return false;
+  return existingMethod !== importFulfillmentMethod;
 }
 
 export type ResolveInvoiceApproveTargetResult = {
@@ -433,12 +457,18 @@ export function buildInvoiceMatchedDeliveryPatchDocument(
   now: string,
   existingDelivery?: InvoiceShellPatchExistingDelivery | null,
 ): Record<string, unknown> {
+  const preserveOps = shouldPreserveExistingOperationalFulfillment(
+    existingDelivery,
+    shell.invoiceFulfillmentMethod,
+  );
   const patch: Record<string, unknown> = {
     vendorInvoiceImportId: importId,
-    invoiceFulfillmentMethod: shell.invoiceFulfillmentMethod,
     updatedAt: now,
   };
-  if (!isTerminalPickupShellDelivery(existingDelivery)) {
+  if (!preserveOps) {
+    patch.invoiceFulfillmentMethod = shell.invoiceFulfillmentMethod;
+  }
+  if (!isTerminalPickupShellDelivery(existingDelivery) && !preserveOps) {
     patch.invoiceImportStatus = importDoc.importStatus;
   }
   if (shell.invoiceDeliverToSite) {
@@ -458,12 +488,18 @@ export function buildInvoiceShellPatchDocument(
   now: string,
   existingDelivery?: InvoiceShellPatchExistingDelivery | null,
 ): Record<string, unknown> {
+  const preserveOps = shouldPreserveExistingOperationalFulfillment(
+    existingDelivery,
+    shell.invoiceFulfillmentMethod,
+  );
   const patch: Record<string, unknown> = {
     vendorInvoiceImportId: importId,
-    invoiceFulfillmentMethod: shell.invoiceFulfillmentMethod,
     updatedAt: now,
   };
-  if (!isTerminalPickupShellDelivery(existingDelivery)) {
+  if (!preserveOps) {
+    patch.invoiceFulfillmentMethod = shell.invoiceFulfillmentMethod;
+  }
+  if (!isTerminalPickupShellDelivery(existingDelivery) && !preserveOps) {
     patch.status = shell.deliveryStatus;
     patch.invoiceImportStatus = importDoc.importStatus;
   }
