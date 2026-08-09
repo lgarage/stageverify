@@ -90,3 +90,5 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-09 | ship-op (PR #86 D-76 CF deploy approve closeout) | T3 high-risk | Composer 2.5 Fast | 99 | 99 | ok | firebase deploy functions DONE; CURRENT_STATE stamp v0.0.259 LIVE |
 | 2026-08-09 | investigate+verify-harness (Invoice Review chat history-on-reopen) | T0/T1 non-UI | Composer 2.5 Fast | 90→99 | 99 | ok (PR) | Root=test race first-paint empty; storage+live Firestore OK; waitFor hydrate+row pin+page isolation |
 | 2026-08-09 | ship-op (PR #90 history-on-reopen harness merge) | T0 verify-harness | Composer 2.5 Fast | 99 | 99 | ok | rebase onto main+D-76; verify:invoice-review-chat:prod PASS; merge 53551d6d; no deploy |
+
+- 2026-08-09 | retire-legacy-receive-delivery | archetype=ui-component/qr-routing | tier=T1 simple-ui | model=composer-2.5-fast | confStart=98 | confAfter=99 | outcome=ok | note=D-77 bare receive recovery + zone redirect LIVE
