@@ -203,7 +203,7 @@ function assertOfflineStagingActionRules() {
       fulfillmentOnlyWillCall,
       fulfillmentReadiness,
       zeroReceivedItems,
-    ) === "Awaiting Delivery",
+    ) === "Assigned / Planned",
   );
   record(
     "offline — exact will-call fulfillment table label",
@@ -691,10 +691,11 @@ async function assertDispatcherStagingActionRows(page, record) {
   if ((await legend.count()) > 0) {
     const legendText = (await legend.innerText()).trim();
     record(
-      "Legend includes assigned / pickup / shop stock",
-      /Assigned \/ planned/i.test(legendText) &&
-        /Ready for pickup/i.test(legendText) &&
-        /Shop stock/i.test(legendText),
+      "Legend includes Assigned / Planned, Staged — Ready for Pickup, Unplanned, Shop Stock",
+      /Assigned \/ Planned/i.test(legendText) &&
+        /Staged — Ready for Pickup/i.test(legendText) &&
+        /Unplanned/i.test(legendText) &&
+        /Shop Stock/i.test(legendText),
       legendText.slice(0, 120),
     );
     try {
@@ -1799,14 +1800,14 @@ async function assertOrd006EmailReviewAction(page, record) {
     const ord005ItemsLine = itemsReceivedLine;
 
     record(
-      "ORD-005 list status is Awaiting Delivery",
-      ord005ListStatus === "Awaiting Delivery",
+      "ORD-005 list status is Assigned / Planned",
+      ord005ListStatus === "Assigned / Planned",
       ord005ListStatus,
     );
     record(
       "ORD-005 drawer status matches list",
-      ord005StatusLine?.includes("Awaiting Delivery") === true &&
-        ord005ListStatus === "Awaiting Delivery",
+      ord005StatusLine?.includes("Assigned / Planned") === true &&
+        ord005ListStatus === "Assigned / Planned",
       ord005StatusLine ?? "",
     );
     record(
@@ -1832,7 +1833,7 @@ async function assertOrd006EmailReviewAction(page, record) {
   } else if (headingNormalized === "waiting on delivery") {
     record(
       "ORD-005 calm Waiting on Delivery banner (not urgent)",
-      (await ord005Row.count()) === 0 || listStatus === "Awaiting Delivery",
+      (await ord005Row.count()) === 0 || listStatus === "Assigned / Planned",
       listStatus,
     );
     record(

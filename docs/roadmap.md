@@ -62,6 +62,8 @@
 
 ## NOW (Phase 5 prototype)
 
+**Shipped (2026-08-09):** Dispatcher Deliveries status legend + row wording/colors align (Assigned/Planned yellow, Staged green, Unplanned bright orange, Shop Stock gray) — **v0.0.263** gh-pages FE-only.
+
 **Shipped (2026-08-09):** Vendor-run multi-job card unify with Delivered hub (shell/safe-area, card gaps, Back up, green collapse + Undo; reusable unplanned CTA kept) — **v0.0.262** gh-pages FE-only.
 
 **Shipped (2026-08-09):** Vendor Drop-Off reusable unplanned fallback CTA (prior listed deliveries no longer hide Add unplanned delivery) — **v0.0.261** gh-pages FE-only; merge `3bab991c` / PR #92; prod verify 7/7.

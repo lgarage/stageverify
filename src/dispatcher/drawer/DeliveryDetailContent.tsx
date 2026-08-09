@@ -58,6 +58,7 @@ import {
   formatActivityHistoryMeta,
   computeDeliveryDisplayState,
   isWillCallPickupStagingListNa,
+  UNPLANNED_BADGE,
 } from "../deliveryDisplayHelpers";
 import {
   fulfillmentDisplayLabel,
@@ -1122,9 +1123,9 @@ export function DetailContent({
               margin: "0 0 12px",
               padding: "10px 12px",
               borderRadius: 8,
-              border: "1px solid var(--admin-warning-border)",
-              backgroundColor: "var(--admin-warning-bg)",
-              color: "var(--admin-warning-text)",
+              border: `1px solid ${UNPLANNED_BADGE.border}`,
+              backgroundColor: UNPLANNED_BADGE.bg,
+              color: UNPLANNED_BADGE.text,
               fontSize: 13,
               fontFamily: font,
               lineHeight: 1.45,

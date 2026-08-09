@@ -225,6 +225,8 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 
 **Awaiting Delivery status label (2026-07-25, v0.0.168)** — Replaces **Pending Delivery** on list/drawer for 0-received pending/shipped/arrived/partial path; yellow status badge (`#facc15`). Overview filter chips unchanged (internal `pending`/`shipped`/etc.). `test:readiness-two-source`, `verify:delivery-consistency`.
 
+**Assigned / Planned + legend color align (2026-08-09, v0.0.263)** — User-facing 0-received yellow label is **Assigned / Planned** (constant `AWAITING_DELIVERY_STATUS_LABEL`; enums unchanged). Deliveries legend: yellow Assigned/Planned, green Staged — Ready for Pickup (not purple), bright orange Unplanned (`UNPLANNED_BADGE` / `--color-accent-orange`), gray Shop Stock. `verify:delivery-consistency` legend assert + D-42.
+
 **Settings staging UI cleanup (2026-07-25, v0.0.155, D-52/D-53)** — Removed light-blue duplicate spot summary and “Orphan zones not on the map” callout; editable table is the only list. Verify: `verify:settings-staging` (`assertNoOrphanStagingCallout`).
 
 **Catch-all view-mode tile + top-bar badge (2026-07-24, v0.0.140)** — Staging Map shows persisted catch-all overlay in view after Done (read-only); top-bar Catch-all delivery shows live `catchAllPendingCheckInCount` badge including 0. CF notify/check-in decrement unchanged. Verify: `verify:catch-all-map` (+ `:prod`).

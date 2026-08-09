@@ -45,7 +45,7 @@ const demos = [
         status: "pending",
       },
     ],
-    expectedLabel: "Awaiting Delivery",
+    expectedLabel: "Assigned / Planned",
     expectedComputed: "pending",
   },
   {
@@ -181,7 +181,7 @@ const demos = [
         status: "pending",
       },
     ],
-    expectedLabel: "Awaiting Delivery",
+    expectedLabel: "Assigned / Planned",
     expectedComputed: "pending",
   },
   {
@@ -211,7 +211,7 @@ const demos = [
         status: "pending",
       },
     ],
-    expectedLabel: "Awaiting Delivery",
+    expectedLabel: "Assigned / Planned",
     expectedComputed: "shipped",
   },
 ];

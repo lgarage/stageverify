@@ -57,6 +57,14 @@ export const STAGING_PLAN_MISMATCH_TITLE =
 export const STAGING_PLAN_MISMATCH_HELPER =
   "Spot mismatch means the vendor used a different spot than you planned.";
 
+/** Bright orange badge for vendor unplanned deliveries (distinct from yellow Assigned/Planned and admin-warning). Dark text on #f97316 for D-42 contrast (same pattern as yellow Assigned/Planned). */
+export const UNPLANNED_BADGE = {
+  bg: "var(--color-accent-orange)",
+  text: "#1c1917",
+  border: "#c2410c",
+  dot: "var(--color-accent-orange)",
+} as const;
+
 /** Planned set differs from actual staging assignment (Phase 4 divergence). */
 export function hasPlannedActualDivergence(delivery: DeliveryOrder): boolean {
   const planned = [...(delivery.plannedStagingLocationIds ?? [])].sort();
