@@ -60,6 +60,7 @@ import {
   isWillCallPickupStagingListNa,
   UNPLANNED_BADGE,
 } from "../deliveryDisplayHelpers";
+import { isPickupEligible } from "../readiness";
 import {
   fulfillmentDisplayLabel,
   resolveDeliveryPoNumber,
@@ -625,11 +626,12 @@ export function DetailContent({
     setRejectDetailText("");
   };
 
+  const pickupEligible = isPickupEligible(delivery, details.items).eligible;
   const showCompletePickupCta =
     !showPickupInput &&
     delivery.status !== "picked_up" &&
     delivery.status !== "installed" &&
-    drawerStatusOptionEnabled(delivery.status, "picked_up", delivery);
+    pickupEligible;
   const completePickupMissingJob = !delivery.jobId?.trim();
 
   const openCompletePickupForm = () => {
@@ -1983,12 +1985,18 @@ function drawerStatusOptionEnabled(
   current: DeliveryStatus,
   option: DeliveryStatus,
   delivery: DeliveryOrder,
+  items: Item[] = [],
 ): boolean {
   if (
     option === "ready_for_pickup" &&
     isWillCallPickupStagingListNa(delivery)
   ) {
     return false;
+  }
+  // Picked Up shares recordPickupEvent / isPickupEligible SoT with Complete Pickup.
+  if (option === "picked_up") {
+    if (!delivery.jobId?.trim()) return false;
+    return isPickupEligible(delivery, items).eligible;
   }
   const possibleNext = VALID_TRANSITIONS[current] ?? [];
   const revertTarget = DISPATCHER_REVERT_TARGETS[current];
@@ -2116,6 +2124,12 @@ function DeliveryStatusControls({
     const option = raw as DeliveryStatus;
     if (option === currentStatus && option !== "picked_up") return;
     if (option === "picked_up") {
+      if (
+        !delivery.jobId?.trim() ||
+        !isPickupEligible(delivery, details.items).eligible
+      ) {
+        return;
+      }
       setShowSpotPicker(false);
       setPendingStatusSelection("picked_up");
       setShowPickupInput(true);
@@ -2227,6 +2241,7 @@ function DeliveryStatusControls({
               currentStatus,
               option,
               delivery,
+              details.items,
             );
             return (
               <option

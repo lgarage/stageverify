@@ -418,7 +418,20 @@ const ASSIGN_LOCATION_CONTRAST = {
     "delivery-basics-complete-pickup",
   );
   const completePickupCount = await completePickupButton.count();
-  if ((await pickedUpOption.count()) > 0 && !(await pickedUpOption.isDisabled())) {
+  const statusPickedUpEnabled =
+    (await pickedUpOption.count()) > 0 && !(await pickedUpOption.isDisabled());
+  const ctaEnabled =
+    completePickupCount > 0 && !(await completePickupButton.isDisabled());
+  // Actionability SoT: Status→Picked Up and Complete Pickup share isPickupEligible + jobId.
+  if (statusPickedUpEnabled !== ctaEnabled) {
+    throw new Error(
+      `FAIL: Status Picked Up enabled=${statusPickedUpEnabled} but Complete Pickup enabled=${ctaEnabled} — eligibility SoT mismatch.`,
+    );
+  }
+  console.log(
+    "PASS: Status→Picked Up and Complete Pickup actionability match",
+  );
+  if (statusPickedUpEnabled) {
     if (completePickupCount === 0) {
       throw new Error(
         "FAIL: Complete Pickup CTA should show when picked_up transition is enabled.",
@@ -450,12 +463,19 @@ const ASSIGN_LOCATION_CONTRAST = {
       .click();
     await page.waitForTimeout(200);
   } else if (completePickupCount > 0) {
+    // Visible but disabled (e.g. missing jobId) is allowed; Status must also be disabled.
+    const hint = page.getByTestId("delivery-basics-complete-pickup-hint");
+    if ((await hint.count()) === 0) {
+      throw new Error(
+        "FAIL: Complete Pickup visible+disabled should show job-link hint.",
+      );
+    }
     console.log(
-      "WARN: Complete Pickup visible but picked_up option disabled — unexpected",
+      "PASS: Complete Pickup visible but disabled (hint shown); Status Picked Up also disabled",
     );
   } else {
     console.log(
-      "SKIP: Complete Pickup CTA hidden (picked_up transition not available)",
+      "SKIP: Complete Pickup CTA hidden (pickup not eligible via isPickupEligible)",
     );
   }
 
