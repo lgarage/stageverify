@@ -62,13 +62,16 @@ export const resolveLocationScanPin = onCall(
     }
 
     const jobMatch = await findJobByPin(pin);
-    if (jobMatch) {
+    const vendorMatch = await findVendorByCompanyPin(pin);
+
+    // Job PIN and company vendor PIN are distinct identities. Same digits matching
+    // both is ambiguous — fail closed (no silent job-vs-company precedence).
+    if (jobMatch && vendorMatch) {
+      return { success: false, message: "Invalid code." };
+    }
+
+    if (jobMatch || vendorMatch) {
       typeMatches.push("vendor");
-    } else {
-      const vendorMatch = await findVendorByCompanyPin(pin);
-      if (vendorMatch) {
-        typeMatches.push("vendor");
-      }
     }
 
     let managementMatch: Awaited<
@@ -209,7 +212,6 @@ export const resolveLocationScanPin = onCall(
       };
     }
 
-    const vendorMatch = await findVendorByCompanyPin(pin);
     if (!vendorMatch) {
       return { success: false, message: "Invalid code." };
     }

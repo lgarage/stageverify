@@ -31,14 +31,14 @@ exports.resolveLocationScanPin = (0, https_1.onCall)({
         typeMatches.push("technician");
     }
     const jobMatch = await (0, locationScanPinShared_1.findJobByPin)(pin);
-    if (jobMatch) {
-        typeMatches.push("vendor");
+    const vendorMatch = await (0, locationScanPinShared_1.findVendorByCompanyPin)(pin);
+    // Job PIN and company vendor PIN are distinct identities. Same digits matching
+    // both is ambiguous — fail closed (no silent job-vs-company precedence).
+    if (jobMatch && vendorMatch) {
+        return { success: false, message: "Invalid code." };
     }
-    else {
-        const vendorMatch = await (0, locationScanPinShared_1.findVendorByCompanyPin)(pin);
-        if (vendorMatch) {
-            typeMatches.push("vendor");
-        }
+    if (jobMatch || vendorMatch) {
+        typeMatches.push("vendor");
     }
     let managementMatch = null;
     const catchAllConfig = await (0, managementSessionValidation_1.loadCatchAllConfig)();
@@ -147,7 +147,6 @@ exports.resolveLocationScanPin = (0, https_1.onCall)({
             expiresAt: session.expiresAt,
         };
     }
-    const vendorMatch = await (0, locationScanPinShared_1.findVendorByCompanyPin)(pin);
     if (!vendorMatch) {
         return { success: false, message: "Invalid code." };
     }

@@ -53,7 +53,9 @@ const vendors: Vendor[] = [
     contactPhone: "555-0101",
     email: "dispatch@johnstone.com",
     emailDomain: "johnstone.com",
-    pinCode: "1234",
+    // Distinct from job-1 pinCode (1234) so location-scan company PIN cannot
+    // collide with the job PIN namespace (D-74 fail-closed dual-match).
+    pinCode: "9081",
     active: true,
     createdAt: "2026-05-01T08:00:00Z",
     updatedAt: "2026-06-08T12:00:00Z",

@@ -23,6 +23,7 @@ import {
   type ManagementPinPermissions,
 } from "./managementPinRegistry";
 import { hashPinForStorage } from "./pinHashing";
+import { jobPinMatchExistsInTransaction } from "./locationScanPinShared";
 
 export function managementEntityPinPatch(
   now: string,
@@ -139,6 +140,11 @@ export async function applyAccessPinSecretWriteInTransaction(
     ) {
       throw new HttpsError("already-exists", "Could not set PIN.");
     }
+  }
+
+  // All reads before writes — reject access PINs that collide with job PINs.
+  if (await jobPinMatchExistsInTransaction(tx, pin)) {
+    throw new HttpsError("already-exists", "Could not set PIN.");
   }
 
   if (input.existingSecretSnap.exists) {

@@ -242,6 +242,30 @@ export async function findJobByPin(
   return null;
 }
 
+/**
+ * Transaction-safe check: does any job's pinCode/pinHash match this PIN?
+ * Used by the access-PIN uniqueness write path so a newly set
+ * technician/vendor/management PIN cannot collide with a job PIN.
+ * Matching semantics mirror findJobByPin (no status filter).
+ */
+export async function jobPinMatchExistsInTransaction(
+  tx: FirebaseFirestore.Transaction,
+  pin: string,
+): Promise<boolean> {
+  const db = getDb();
+  const pinCodeSnap = await tx.get(
+    db.collection("jobs").where("pinCode", "==", pin).limit(1),
+  );
+  if (!pinCodeSnap.empty) return true;
+
+  const allJobsSnap = await tx.get(db.collection("jobs").limit(500));
+  for (const doc of allJobsSnap.docs) {
+    const job = doc.data() as JobDoc;
+    if (pinMatches(job, pin)) return true;
+  }
+  return false;
+}
+
 export async function findVendorByCompanyPin(
   pin: string,
 ): Promise<{ id: string; data: VendorDoc } | null> {

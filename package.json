@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.262",
+  "version": "0.0.263",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -138,7 +138,7 @@
     "test:vendor-unplanned-delivery": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-vendor-unplanned-delivery.mjs\"",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"node scripts/test-delivery-status-transitions.mjs\"",
     "test:access-pin-secrets": "npm run build:functions && node scripts/test-access-pin-secrets.mjs",
-    "test:access-pin-uniqueness-dual-check": "npm run build:functions && node scripts/test-access-pin-uniqueness-dual-check.mjs",
+    "test:access-pin-uniqueness-dual-check": "npm run build:functions && npx firebase-tools emulators:exec --only firestore \"node scripts/test-access-pin-uniqueness-dual-check.mjs\"",
     "test:access-pin-length": "npm run build:functions && node scripts/test-access-pin-length.mjs",
     "enable:vendor-companywide-pin": "node scripts/enable-vendor-companywide-pin.mjs",
     "cleanup:vendor-unplanned-verify": "node scripts/cleanup-vendor-unplanned-verify-fixtures.mjs",
