@@ -154,7 +154,7 @@ assert(
     willCallFulfillmentOnlyDelivery,
     willCallFulfillmentReadiness,
     willCallItems,
-  ) === "Awaiting Delivery",
+  ) === "Assigned / Planned",
 );
 
 assert(

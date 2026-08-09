@@ -18,7 +18,7 @@ import type {
 const STAGED_READY_LABEL = DELIVERY_STATUS_LABEL.ready_for_pickup;
 
 /** List + drawer status when shop is waiting for inbound material (0 received). */
-export const AWAITING_DELIVERY_STATUS_LABEL = "Awaiting Delivery";
+export const AWAITING_DELIVERY_STATUS_LABEL = "Assigned / Planned";
 
 export function deliveryReadinessDisplayLabel(
   delivery: DeliveryOrder,

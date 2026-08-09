@@ -263,8 +263,8 @@ assert(
   "ORD-005 unit total is 0 received",
 );
 assert(
-  ord005Display.statusDisplayLabel === "Awaiting Delivery",
-  "ORD-005 list/drawer label Awaiting Delivery when 0 received",
+  ord005Display.statusDisplayLabel === "Assigned / Planned",
+  "ORD-005 list/drawer label Assigned / Planned when 0 received",
 );
 assert(
   ord005Panel.itemsReceivedCount === 0 && ord005Panel.itemsTotalCount === 9,
@@ -272,8 +272,8 @@ assert(
 );
 assert(
   deliveryReadinessDisplayLabel(ord005Delivery, ord005Readiness, ord005Items) ===
-    "Awaiting Delivery",
-  "ORD-005 direct label Awaiting Delivery",
+    "Assigned / Planned",
+  "ORD-005 direct label Assigned / Planned",
 );
 assert(
   ord005Panel.openIssuesCount === 0,
@@ -314,8 +314,8 @@ assert(
     arrivedZeroReceived,
     arrivedReadiness,
     ord005Items,
-  ) === "Awaiting Delivery",
-  "arrived with 0 received is Awaiting Delivery not Partial",
+  ) === "Assigned / Planned",
+  "arrived with 0 received is Assigned / Planned not Partial",
 );
 assert(
   arrivedReadiness.deliveryStatus !== "partial",
