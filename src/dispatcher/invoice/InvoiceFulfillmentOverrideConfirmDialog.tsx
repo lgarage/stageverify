@@ -41,6 +41,7 @@ export function InvoiceFulfillmentOverrideConfirmDialog({
       onClick={onCancel}
     >
       <div
+        data-testid="invoice-fulfillment-override-confirm-panel"
         style={{
           backgroundColor: "var(--admin-surface)",
           borderRadius: 10,

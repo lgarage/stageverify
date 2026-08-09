@@ -122,11 +122,52 @@ async function main() {
     ).trim();
     const isWillCall = /Will-Call/i.test(fulfillmentLabel);
 
+    {
+      const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+      await assertReadableTextContrast(page, {
+        rootSelector: '[data-testid="invoice-parsed-inspect-modal"]',
+        elements: [
+          {
+            name: "Assign Location button",
+            selector: '[data-testid="invoice-parsed-inspect-assign-location"]',
+          },
+          {
+            name: "Fulfillment label",
+            selector: '[data-testid="invoice-parsed-inspect-fulfillment-label"]',
+          },
+        ],
+      });
+      console.log("PASS: Assign Location + fulfillment readable contrast");
+    }
+
     if (isWillCall) {
       await assignBtn.click();
       const dialog = page.getByTestId("invoice-fulfillment-override-confirm-dialog");
       await dialog.waitFor({ timeout: 5000 });
       console.log("PASS: Will-Call Assign Location opens confirm dialog");
+
+      {
+        const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+        await assertReadableTextContrast(page, {
+          rootSelector: '[data-testid="invoice-fulfillment-override-confirm-dialog"]',
+          elements: [
+            {
+              name: "Override confirm panel",
+              selector: '[data-testid="invoice-fulfillment-override-confirm-panel"]',
+              large: true,
+            },
+            {
+              name: "Override confirm button",
+              selector: '[data-testid="invoice-fulfillment-override-confirm"]',
+            },
+            {
+              name: "Override cancel button",
+              selector: '[data-testid="invoice-fulfillment-override-cancel"]',
+            },
+          ],
+        });
+        console.log("PASS: override confirm dialog readable contrast");
+      }
 
       await page.getByTestId("invoice-fulfillment-override-cancel").click();
       await dialog.waitFor({ state: "hidden", timeout: 5000 });
