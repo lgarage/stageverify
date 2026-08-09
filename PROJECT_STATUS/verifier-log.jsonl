@@ -185,3 +185,5 @@
 {"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-53323a08-c7d7-5c31-a1df-5b87a6ae02b0","model":"cursor-grok-4.5-high-fast","real":"na","note":"PR85 D-75 LIVE v0.0.257"}
 {"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"pending-ship","model":"cursor-grok-4.5-high-fast","real":"na","note":"will update after Task returns"}
 {"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-6e82aef9-1c58-599a-92dc-781c18c31ae5","model":"cursor-grok-4.5-high-fast","real":"na","note":"v0.0.258 vendor delivered-card collapse LIVE index-DocTBZLl.js; monday-safe prod 58/58"}
+{"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-d92ae001-b1d7-4aed-8a36-c5e5a9e0f7b2","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-08-09","role":"security","verdict":"PASS","taskId":"3dee26bd-b58d-5647-838f-e8288def77e8","model":"claude-sonnet-5-thinking-high","real":"na","note":""}
