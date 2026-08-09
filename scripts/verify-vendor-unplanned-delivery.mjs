@@ -5,8 +5,12 @@
  *   npm run verify:vendor-unplanned-delivery
  *   npm run verify:vendor-unplanned-delivery:prod
  *
- * Seeds a fresh zero-delivery company-wide vendor via setAccessPin (never writes
- * pinCode on vendors — firestore.rules block client PIN fields).
+ * Seeds a deterministic zero-delivery company-wide vendor via setAccessPin
+ * (never writes pinCode on vendors — firestore.rules block client PIN fields).
+ *
+ * Standing expectation (D-75): production verification must clean up data it
+ * creates unless intentionally retained and documented. Teardown runs in finally
+ * via FIREBASE_TOKEN admin REST when available.
  */
 
 import { chromium } from "playwright";
@@ -22,6 +26,13 @@ import {
 } from "firebase/functions";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import { assertReadableTextContrast } from "./lib/ui-text-contrast-lib.mjs";
+import {
+  getFirebaseAccessToken,
+  restDeleteDoc,
+  restListCollection,
+  restDocId,
+  restFields,
+} from "./lib/firestore-admin-rest.mjs";
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -43,26 +54,20 @@ const locationCode = process.env.STAGEVERIFY_UNPLANNED_LOC ?? "U1";
 const email = process.env.STAGEVERIFY_TEST_EMAIL;
 const password = process.env.STAGEVERIFY_TEST_PASSWORD;
 
-/** Prefer reuse env when setAccessPin is rate-limited (8/15min per manager). */
-let vendorId =
-  process.env.STAGEVERIFY_UNPLANNED_VENDOR_ID ??
-  `vendor-unpl-${Date.now().toString(36)}`;
-/** Unique 6-digit PIN — access-pin uniqueness rejects reused PINs across vendors. */
-let companyPin =
-  process.env.STAGEVERIFY_UNPLANNED_VENDOR_PIN ??
-  String(100000 + (Date.now() % 900000));
+/** Deterministic fixture ids — reused across runs; cleaned in finally. */
+const vendorId =
+  process.env.STAGEVERIFY_UNPLANNED_VENDOR_ID ?? "vendor-unpl-verify";
+const companyPin =
+  process.env.STAGEVERIFY_UNPLANNED_VENDOR_PIN ?? "739184";
+const STAGING_LOC_ID = "loc-unplanned-verify";
+const ANCHOR_JOB_ID = "job-unplanned-verify-anchor";
+const PROJECT_ID = "stageverify-db";
 
 async function seedUnplannedFixture() {
   if (!email || !password) {
     throw new Error(
       "STAGEVERIFY_TEST_EMAIL/PASSWORD required to seed unplanned vendor via setAccessPin",
     );
-  }
-  if (process.env.STAGEVERIFY_UNPLANNED_VENDOR_ID) {
-    console.log(
-      `Reusing vendor ${vendorId} (STAGEVERIFY_UNPLANNED_VENDOR_ID) — skip setAccessPin`,
-    );
-    return;
   }
   const app = initializeApp({
     apiKey: "AIzaSyALKllET2wQoAm7-3RiHrRJjMsVq315WaE",
@@ -83,9 +88,9 @@ async function seedUnplannedFixture() {
   const now = new Date().toISOString();
 
   await setDoc(
-    doc(db, "stagingLocations", "loc-unplanned-verify"),
+    doc(db, "stagingLocations", STAGING_LOC_ID),
     {
-      id: "loc-unplanned-verify",
+      id: STAGING_LOC_ID,
       code: locationCode,
       label: "Unplanned Verify Bay",
       type: "ground",
@@ -98,7 +103,6 @@ async function seedUnplannedFixture() {
     { merge: true },
   );
 
-  // No pinCode / pinHash — client writes of those fields are rules-denied.
   await setDoc(doc(db, "vendors", vendorId), {
     id: vendorId,
     name: "Unplanned Verify Vendor",
@@ -108,24 +112,22 @@ async function seedUnplannedFixture() {
     updatedAt: now,
   });
 
-  // Inactive anchor so LIVE verifyVendorPin (pre-CF-deploy) still issues a
-  // vendor session; getVendorRunDeliveries filters ZONE_CLEARED → empty run CTA.
   const anchorId = `${vendorId}-anchor`;
   await setDoc(doc(db, "deliveries", anchorId), {
     id: anchorId,
     orderNumber: `ANCHOR-${vendorId.slice(-6)}`,
     vendorId,
     vendorName: "Unplanned Verify Vendor",
-    jobId: "job-unplanned-verify-anchor",
+    jobId: ANCHOR_JOB_ID,
     deliveryDate: now.slice(0, 10),
     status: "picked_up",
     createdAt: now,
     updatedAt: now,
   });
   await setDoc(
-    doc(db, "jobs", "job-unplanned-verify-anchor"),
+    doc(db, "jobs", ANCHOR_JOB_ID),
     {
-      id: "job-unplanned-verify-anchor",
+      id: ANCHOR_JOB_ID,
       jobNumber: "UNPL-ANCHOR",
       jobName: "Unplanned Verify Anchor",
       status: "active",
@@ -135,15 +137,81 @@ async function seedUnplannedFixture() {
   );
 
   const setAccessPin = httpsCallable(functions, "setAccessPin");
-  await setAccessPin({
-    targetType: "vendor",
-    targetId: vendorId,
-    pin: companyPin,
-  });
+  try {
+    await setAccessPin({
+      targetType: "vendor",
+      targetId: vendorId,
+      pin: companyPin,
+    });
+    console.log(
+      `Seeded ${vendorId} PIN len=${companyPin.length} @ location ${locationCode}`,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Reuse existing PIN when rate-limited or already set to same value.
+    if (/resource-exhausted|already-exists|Could not set PIN/i.test(msg)) {
+      console.log(
+        `Reuse ${vendorId} (setAccessPin soft-fail: ${msg.slice(0, 80)})`,
+      );
+    } else {
+      throw err;
+    }
+  }
+}
 
-  console.log(
-    `Seeded ${vendorId} PIN ${companyPin} @ location ${locationCode} (setAccessPin + inactive anchor)`,
+async function teardownUnplannedFixture() {
+  if (!process.env.FIREBASE_TOKEN?.trim()) {
+    console.warn(
+      "TEARDOWN SKIPPED — FIREBASE_TOKEN unset; vendor/secrets cannot be client-deleted. Run: npm run cleanup:vendor-unplanned-verify -- --confirm",
+    );
+    return { skipped: true, deleted: 0 };
+  }
+
+  const accessToken = await getFirebaseAccessToken();
+  const paths = [
+    `deliveries/${vendorId}-anchor`,
+    `accessPinSecrets/vendor_${vendorId}`,
+    `vendors/${vendorId}`,
+  ];
+
+  // Delete uniqueness rows that point at this vendor (legacy or global).
+  const uniqueness = await restListCollection(
+    accessToken,
+    PROJECT_ID,
+    "accessPinUniqueness",
   );
+  for (const docSnap of uniqueness) {
+    const id = restDocId(docSnap.name);
+    const data = restFields(docSnap);
+    if (data.targetType === "vendor" && data.targetId === vendorId) {
+      paths.push(`accessPinUniqueness/${id}`);
+    }
+  }
+
+  // Shared job/location only if no other unpl vendors remain.
+  const vendors = await restListCollection(accessToken, PROJECT_ID, "vendors");
+  const otherUnpl = vendors
+    .map((d) => ({ id: restDocId(d.name), ...restFields(d) }))
+    .filter(
+      (v) =>
+        v.id !== vendorId &&
+        (v.id.startsWith("vendor-unpl-") ||
+          v.name === "Unplanned Verify Vendor"),
+    );
+  if (otherUnpl.length === 0) {
+    paths.push(`jobs/${ANCHOR_JOB_ID}`);
+    paths.push(`stagingLocations/${STAGING_LOC_ID}`);
+  }
+
+  let deleted = 0;
+  for (const path of paths) {
+    const result = await restDeleteDoc(accessToken, PROJECT_ID, path);
+    if (result.deleted) {
+      deleted += 1;
+      console.log(`TEARDOWN deleted ${path}`);
+    }
+  }
+  return { skipped: false, deleted };
 }
 
 const outDir = resolve(process.cwd(), "screenshots", "vendor-unplanned");
@@ -160,7 +228,6 @@ async function enterPin(page, pin) {
   for (const digit of pin.split("")) {
     await page.getByRole("button", { name: digit, exact: true }).click();
   }
-  // 6-digit PINs auto-submit; Verify is disabled while submitting.
   if (pin.length < 6) {
     await page.getByTestId("vendor-pin-verify").click();
   }
@@ -246,8 +313,6 @@ try {
     fullPage: true,
   });
 
-  // Match/create CFs may not be deployed yet — UI form + D-42 are required;
-  // submit path is best-effort until CF ship.
   await page.getByTestId("vendor-unplanned-submit").click();
   try {
     await page
@@ -315,6 +380,20 @@ try {
     fullPage: true,
   });
 } finally {
+  try {
+    const teardown = await teardownUnplannedFixture();
+    if (!teardown.skipped) {
+      record("fixture teardown", true, `deleted ${teardown.deleted}`);
+    } else {
+      record("fixture teardown", true, "skipped — no FIREBASE_TOKEN");
+    }
+  } catch (teardownErr) {
+    record(
+      "fixture teardown",
+      false,
+      teardownErr instanceof Error ? teardownErr.message : String(teardownErr),
+    );
+  }
   await browser.close();
 }
 

@@ -364,11 +364,12 @@ export async function upsertManagementPinDoc(
     const db = getDb();
     const refs = prepareAccessPinSecretWrite("management", pinId, pin);
     await db.runTransaction(async (tx) => {
-      const [existingSecretSnap, uniquenessSnap, entitySnap] =
+      const [existingSecretSnap, uniquenessSnap, entitySnap, ...legacyUniquenessSnaps] =
         await Promise.all([
           tx.get(refs.secretRef),
           tx.get(refs.uniquenessRef),
           tx.get(refs.entityRef),
+          ...refs.legacyUniquenessRefs.map((ref) => tx.get(ref)),
         ]);
 
       await applyAccessPinSecretWriteInTransaction(tx, db, {
@@ -379,6 +380,7 @@ export async function upsertManagementPinDoc(
         refs,
         existingSecretSnap,
         uniquenessSnap,
+        legacyUniquenessSnaps,
         entitySnap,
         managementEntityFields: {
           label,

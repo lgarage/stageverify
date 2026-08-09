@@ -95,6 +95,7 @@ exports.setAccessPin = (0, https_1.onCall)({
         }
         const existingSecretSnap = await tx.get(refs.secretRef);
         const uniquenessSnap = await tx.get(refs.uniquenessRef);
+        const legacyUniquenessSnaps = await Promise.all(refs.legacyUniquenessRefs.map((ref) => tx.get(ref)));
         await (0, accessPinSecretWrite_1.applyAccessPinSecretWriteInTransaction)(tx, db, {
             targetType,
             targetId,
@@ -103,6 +104,7 @@ exports.setAccessPin = (0, https_1.onCall)({
             refs,
             existingSecretSnap,
             uniquenessSnap,
+            legacyUniquenessSnaps,
             entitySnap,
         });
         if (targetType === "management") {

@@ -327,6 +327,92 @@ try {
   } catch (err) {
     fail("collision should return failure object", err);
   }
+
+  // Legacy vendor company PIN (pinCode on vendor) + companyWide → success
+  await seed(async (db) => {
+    await setDoc(doc(db, "technicians", "tech-resolve-1"), {
+      id: "tech-resolve-1",
+      pinCode: "0000",
+      active: true,
+    });
+    await setDoc(doc(db, "jobs", "job-resolve-1"), {
+      id: "job-resolve-1",
+      pinCode: "0001",
+    });
+    await setDoc(doc(db, "vendors", "vendor-resolve-1"), {
+      id: "vendor-resolve-1",
+      name: "Legacy Company Vendor",
+      active: true,
+      companyWideSessionEnabled: true,
+      pinCode: "4242",
+      pinConfigured: true,
+    });
+    await setDoc(doc(db, "deliveries", "del-resolve-1"), {
+      id: "del-resolve-1",
+      vendorId: "vendor-resolve-1",
+      jobId: "job-resolve-1",
+      orderNumber: "ORD-LEGACY-CO",
+    });
+    await setDoc(doc(db, "managementPins", "mgmt-resolve-full"), {
+      pinHash: hashPinForStorage("0000"),
+    });
+  });
+
+  await sleep(800);
+  try {
+    const { data } = await resolvePin({
+      pin: "4242",
+      stagingLocationCode: STAGING_CODE,
+    });
+    if (
+      data?.success === true &&
+      data.accessType === "vendor" &&
+      data.vendorId === "vendor-resolve-1" &&
+      data.sessionScope === "vendor"
+    ) {
+      pass("legacy vendor company PIN + companyWide → vendor session");
+    } else {
+      fail("legacy vendor company PIN", new Error(JSON.stringify(data)));
+    }
+  } catch (err) {
+    fail("legacy vendor company PIN should succeed", err);
+  }
+
+  // Same PIN without companyWide → Invalid (D-09 gate)
+  await seed(async (db) => {
+    await setDoc(doc(db, "vendors", "vendor-resolve-1"), {
+      id: "vendor-resolve-1",
+      name: "No Company Wide",
+      active: true,
+      companyWideSessionEnabled: false,
+      pinCode: "4242",
+      pinConfigured: true,
+    });
+  });
+
+  const vendorBeforeGate = await sessionCount("vendorSessions");
+  await sleep(800);
+  try {
+    const { data } = await resolvePin({
+      pin: "4242",
+      stagingLocationCode: STAGING_CODE,
+    });
+    const vendorAfterGate = await sessionCount("vendorSessions");
+    if (
+      data?.success === false &&
+      data.message === "Invalid code." &&
+      vendorAfterGate === vendorBeforeGate
+    ) {
+      pass("vendor PIN without companyWide → Invalid code. (D-09)");
+    } else {
+      fail(
+        "companyWide gate",
+        new Error(JSON.stringify({ data, vendorBeforeGate, vendorAfterGate })),
+      );
+    }
+  } catch (err) {
+    fail("companyWide gate should return failure object", err);
+  }
 } catch (err) {
   fail("unexpected test harness error", err);
 } finally {
