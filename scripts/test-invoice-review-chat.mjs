@@ -280,6 +280,16 @@ const parseOpts = (dispatcherMessage, parserCustomerPo = "") => ({
     "mentions parser mismatch",
   );
   assert.ok(
+    !/\bcannot change\b|\bcan't change\b|\bcannot apply\b/i.test(
+      parsed.answerText,
+    ),
+    "C2 reconcile copy must not claim inability to change/apply",
+  );
+  assert.ok(
+    /Apply correction|Yes, apply it/i.test(parsed.answerText),
+    "C2 reconcile copy offers confirm-to-apply path",
+  );
+  assert.ok(
     parsed.citations.some((c) => c.sourceType === "document_evidence"),
     "keeps document_evidence after reconcile",
   );

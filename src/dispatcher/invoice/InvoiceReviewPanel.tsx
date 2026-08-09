@@ -14,6 +14,7 @@ import {
 import { vendorInvoiceImportDisplayLabelForRow } from "./invoiceDisplayHelpers";
 import { AutoImportSuggestionBadge } from "./autoImportSuggestionUi";
 import { InvoiceParsedInspectModal } from "./InvoiceParsedInspectModal";
+import { reconcileParseWarningsForHeader } from "./reconcileParseWarningsForHeader";
 import {
   formatInvoiceHeaderField,
   matchUnavailableReason,
@@ -1105,13 +1106,51 @@ export function InvoiceReviewPanel({
                 }
               : undefined
           }
-          onCorrectionApplied={(parsedHeader) => {
-            setInspectImport((prev) =>
-              prev ? { ...prev, parsedHeader } : prev,
-            );
+          onCorrectionApplied={(result) => {
+            const mergeRow = (
+              row: VendorInvoiceImportReview,
+            ): VendorInvoiceImportReview => {
+              // Merge corrected field into the current authoritative header —
+              // never replace the whole header with a partial apply payload.
+              const parsedHeader = {
+                ...(row.parsedHeader ?? {}),
+                ...(result.parsedHeader ?? {}),
+                [result.field]: result.newValue,
+              };
+              const parseWarnings = result.parseWarnings
+                ? result.parseWarnings
+                : reconcileParseWarningsForHeader(
+                    row.parseWarnings,
+                    parsedHeader,
+                  );
+              return {
+                ...row,
+                parsedHeader,
+                parseWarnings,
+                ...(result.autoImportEligible !== undefined
+                  ? { autoImportEligible: result.autoImportEligible }
+                  : {}),
+                ...(result.autoImportConfidence !== undefined
+                  ? { autoImportConfidence: result.autoImportConfidence }
+                  : {}),
+                ...(result.autoImportReasons
+                  ? { autoImportReasons: result.autoImportReasons }
+                  : {}),
+                ...(result.reviewRequiredReasons
+                  ? { reviewRequiredReasons: result.reviewRequiredReasons }
+                  : {}),
+                ...(result.importDecisionMode
+                  ? { importDecisionMode: result.importDecisionMode }
+                  : {}),
+                ...(result.suggestedAction
+                  ? { suggestedAction: result.suggestedAction }
+                  : {}),
+              };
+            };
+            setInspectImport((prev) => (prev ? mergeRow(prev) : prev));
             setImports((prev) =>
               prev.map((row) =>
-                row.id === inspectImport.id ? { ...row, parsedHeader } : row,
+                row.id === inspectImport.id ? mergeRow(row) : row,
               ),
             );
           }}

@@ -159,12 +159,33 @@ try {
   }
   console.log("PASS: proposal card present; Apply not clicked");
 
+  await page.screenshot({
+    path: resolve(screenshotDir, "c2-natural-before-confirm.png"),
+    fullPage: false,
+  });
+
   // Natural confirmation
   await sendChat(page, "Yes, apply it.");
   await page
     .getByTestId("invoice-review-chat-correction-applied")
     .first()
     .waitFor({ timeout: 10_000 });
+
+  const confirmingCopy = (
+    await page.locator('[data-testid="invoice-review-chat-msg-agent"]').allInnerTexts()
+  ).join("\n");
+  if (/Confirmed\.\s*Applying Customer PO/i.test(confirmingCopy) === false) {
+    throw new Error(
+      `Expected "Confirmed. Applying Customer PO…" copy, got: ${confirmingCopy.slice(-400)}`,
+    );
+  }
+  if (
+    /cannot change or apply|cannot change parsed fields|I cannot change/i.test(
+      confirmingCopy,
+    )
+  ) {
+    throw new Error("Natural confirm path must not claim inability to apply");
+  }
 
   const poAfter = await page
     .locator(
@@ -173,6 +194,15 @@ try {
     .innerText();
   if (!/2205\s*EARLY/i.test(poAfter)) {
     throw new Error(`Parsed Import not updated after natural confirm: ${poAfter}`);
+  }
+  const warningsAfter = await page
+    .getByTestId("invoice-parsed-inspect-warnings")
+    .innerText()
+    .catch(() => "");
+  if (/missing customerPoOrReference/i.test(warningsAfter)) {
+    throw new Error(
+      "missing customerPoOrReference still visible after natural confirm (no Refresh)",
+    );
   }
 
   // Approve still separate / not auto-triggered
@@ -192,6 +222,11 @@ try {
     throw new Error("Natural confirm must not approve the invoice");
   }
 
+  await page.getByTestId("invoice-parsed-inspect-header").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(200);
+  await page.getByTestId("invoice-parsed-inspect-header").screenshot({
+    path: resolve(screenshotDir, "c2-natural-after-header-only.png"),
+  });
   await chat.scrollIntoViewIfNeeded();
   const shot = resolve(screenshotDir, "c2-natural-confirmation-apply.png");
   await page.screenshot({ path: shot, fullPage: false });

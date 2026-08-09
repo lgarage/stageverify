@@ -314,11 +314,24 @@ try {
   });
   console.log("PASS: C2 proposed correction card (distinct from Approve)");
 
-  // Capture empty/prior PO before apply
+  // Capture empty/prior PO + warnings before apply (header in view for UI proof)
+  await page.getByTestId("invoice-parsed-inspect-header").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(200);
   const poBefore = await page
     .locator('[data-testid="invoice-parsed-header-row-customerPoOrReference"] [data-testid="invoice-parsed-header-value"]')
     .innerText()
     .catch(() => "");
+  const warningsBefore = await page
+    .getByTestId("invoice-parsed-inspect-warnings")
+    .innerText()
+    .catch(() => "");
+  await page.getByTestId("invoice-parsed-inspect-header").screenshot({
+    path: resolve(screenshotDir, "c2-before-apply-header-only.png"),
+  });
+  await page.screenshot({
+    path: resolve(screenshotDir, "c2-before-apply-parsed-header.png"),
+    fullPage: false,
+  });
 
   await page.getByTestId("invoice-review-chat-apply-correction").click();
   await page
@@ -342,11 +355,82 @@ try {
       `Parsed Import Data did not show corrected PO (before="${poBefore}" after="${poAfter}")`,
     );
   }
+  // Mock apply returns a field patch only — other header values must remain.
+  const soAfter = await page
+    .locator('[data-testid="invoice-parsed-header-row-vendorOrderNumber"] [data-testid="invoice-parsed-header-value"]')
+    .innerText()
+    .catch(() => "");
+  if (/^SO9$/i.test(soAfter.trim())) {
+    throw new Error(
+      `Apply clobbered Sales order # with mock stub SO9 (got "${soAfter}")`,
+    );
+  }
+  // No Refresh click — live reconcile must clear resolved missing-PO warning.
+  const warningsAfter = await page
+    .getByTestId("invoice-parsed-inspect-warnings")
+    .innerText()
+    .catch(() => "");
+  if (/missing customerPoOrReference/i.test(warningsAfter)) {
+    throw new Error(
+      `missing customerPoOrReference still visible after apply (before=${JSON.stringify(warningsBefore)} after=${JSON.stringify(warningsAfter)})`,
+    );
+  }
+  const cannotApplyCopy = await page
+    .locator('[data-testid="invoice-review-chat-msg-agent"]')
+    .allInnerTexts();
+  if (
+    cannotApplyCopy.some((t) =>
+      /cannot change or apply|cannot change parsed fields|can't change parsed fields/i.test(
+        t,
+      ),
+    )
+  ) {
+    throw new Error(
+      "Contradictory C1 inability copy appeared on successful C2 apply path",
+    );
+  }
+  await page.getByTestId("invoice-parsed-inspect-header").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(200);
+  await page.getByTestId("invoice-parsed-inspect-header").screenshot({
+    path: resolve(screenshotDir, "c2-after-apply-header-only.png"),
+  });
   await page.screenshot({
     path: resolve(screenshotDir, "c2-light-applied-correction.png"),
     fullPage: false,
   });
+  await page.screenshot({
+    path: resolve(screenshotDir, "c2-after-apply-parsed-header.png"),
+    fullPage: false,
+  });
+  // Chat + header proof in one frame
+  await page.getByTestId("invoice-review-chat-panel").scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: resolve(screenshotDir, "c2-after-apply-chat-and-header.png"),
+    fullPage: false,
+  });
   console.log("PASS: C2 Apply correction updates Parsed Import Data live");
+
+  // Close/reopen without Refresh — corrected PO must remain from updated import state.
+  await page.getByTestId("invoice-parsed-inspect-close").click();
+  await page.waitForTimeout(300);
+  await openInspectModal(page);
+  await page.getByTestId("invoice-parsed-inspect-header").scrollIntoViewIfNeeded();
+  const poReopen = await page
+    .locator('[data-testid="invoice-parsed-header-row-customerPoOrReference"] [data-testid="invoice-parsed-header-value"]')
+    .innerText();
+  if (!/2205\s*EARLY/i.test(poReopen)) {
+    throw new Error(
+      `Close/reopen lost corrected PO (got "${poReopen}")`,
+    );
+  }
+  await page.getByTestId("invoice-parsed-inspect-header").screenshot({
+    path: resolve(screenshotDir, "c2-after-reopen-header-only.png"),
+  });
+  await page.screenshot({
+    path: resolve(screenshotDir, "c2-after-reopen-parsed-header.png"),
+    fullPage: false,
+  });
+  console.log("PASS: C2 corrected PO survives close/reopen (no Refresh)");
 
   await sendChat(page, "Thanks — confirm the PO is captured.");
   const agentCount = await page

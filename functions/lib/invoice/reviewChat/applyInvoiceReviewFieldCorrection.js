@@ -7,6 +7,7 @@ const classifyCorrectionEvidence_1 = require("./classifyCorrectionEvidence");
 const correctionAllowlist_1 = require("./correctionAllowlist");
 const reviewAgentTypes_1 = require("./reviewAgentTypes");
 const constants_1 = require("../aiShadow/constants");
+const reconcileAfterFieldCorrection_1 = require("./reconcileAfterFieldCorrection");
 class ApplyCorrectionInputError extends Error {
     code;
     constructor(code, message) {
@@ -24,6 +25,42 @@ function asRecord(value) {
         return value;
     }
     return {};
+}
+function reconcileFromImportDoc(importDoc, parsedHeader) {
+    return (0, reconcileAfterFieldCorrection_1.reconcileImportStateAfterCorrection)({
+        parsedHeader,
+        parseWarnings: importDoc.parseWarnings,
+        importStatus: importDoc.importStatus,
+        confidenceScore: importDoc.confidenceScore,
+        humanReviewRequired: importDoc.humanReviewRequired,
+        duplicate: importDoc.duplicate,
+        parsedLines: importDoc.parsedLines,
+        parsedLineCount: importDoc.parsedLineCount,
+        pageId: importDoc.pageId,
+        parserFormatId: importDoc.parserFormatId,
+        orderNotes: importDoc.orderNotes,
+    });
+}
+function resultWithReconcile(base) {
+    const reconciled = reconcileFromImportDoc(base.importDoc, base.parsedHeader);
+    return {
+        vendorInvoiceImportId: base.vendorInvoiceImportId,
+        field: base.field,
+        previousValue: base.previousValue,
+        newValue: base.newValue,
+        applied: base.applied,
+        alreadyApplied: base.alreadyApplied,
+        correctionId: base.correctionId,
+        parsedHeader: reconciled.parsedHeader,
+        reviewStatus: base.reviewStatus,
+        parseWarnings: reconciled.parseWarnings,
+        autoImportEligible: reconciled.autoImportEligible,
+        autoImportConfidence: reconciled.autoImportConfidence,
+        autoImportReasons: reconciled.autoImportReasons,
+        reviewRequiredReasons: reconciled.reviewRequiredReasons,
+        importDecisionMode: reconciled.importDecisionMode,
+        suggestedAction: reconciled.suggestedAction,
+    };
 }
 async function loadCombinedExtractedText(db, importDoc) {
     const inboundId = typeof importDoc.inboundEmailProcessingId === "string"
@@ -150,7 +187,6 @@ async function runApplyInvoiceReviewFieldCorrectionCore(input) {
         .collection(correctionAllowlist_1.CORRECTION_AUDIT_COLLECTION)
         .doc(correctionId);
     if (status === "applied") {
-        const auditSnap = await auditRef.get();
         const importSnap = await input.db
             .collection("vendorInvoiceImports")
             .doc(importId)
@@ -159,7 +195,7 @@ async function runApplyInvoiceReviewFieldCorrectionCore(input) {
             ? importSnap.data()
             : {};
         const parsedHeader = asRecord(importDoc.parsedHeader);
-        return {
+        return resultWithReconcile({
             vendorInvoiceImportId: importId,
             field: proposed.field,
             previousValue: proposed.currentValue,
@@ -167,11 +203,12 @@ async function runApplyInvoiceReviewFieldCorrectionCore(input) {
             applied: false,
             alreadyApplied: true,
             correctionId,
+            importDoc,
             parsedHeader,
             reviewStatus: typeof importDoc.reviewStatus === "string"
                 ? importDoc.reviewStatus
                 : "",
-        };
+        });
     }
     if (status === "superseded" || status === "unresolvable") {
         throw new ApplyCorrectionInputError("failed-precondition", "correction_no_longer_current");
@@ -191,12 +228,13 @@ async function runApplyInvoiceReviewFieldCorrectionCore(input) {
     }
     const liveCurrent = (0, correctionAllowlist_1.headerFieldAsString)(importDoc.parsedHeader, proposed.field);
     if (liveCurrent === proposed.proposedValue) {
-        // Already correct — ensure audit exists, mark message applied.
+        // Already correct — ensure audit exists, mark message applied, reconcile UI state.
         const alreadyResult = await input.db.runTransaction(async (tx) => {
             const auditSnap = await tx.get(auditRef);
             const freshImport = await tx.get(importRef);
             const freshDoc = (freshImport.data() ?? {});
             const header = asRecord(freshDoc.parsedHeader);
+            const reconciled = reconcileFromImportDoc(freshDoc, header);
             if (!auditSnap.exists) {
                 tx.set(auditRef, {
                     id: correctionId,
@@ -214,12 +252,22 @@ async function runApplyInvoiceReviewFieldCorrectionCore(input) {
                     alreadyMatched: true,
                 });
             }
+            tx.update(importRef, {
+                parseWarnings: reconciled.parseWarnings,
+                autoImportEligible: reconciled.autoImportEligible,
+                autoImportConfidence: reconciled.autoImportConfidence,
+                autoImportReasons: reconciled.autoImportReasons,
+                reviewRequiredReasons: reconciled.reviewRequiredReasons,
+                importDecisionMode: reconciled.importDecisionMode,
+                suggestedAction: reconciled.suggestedAction,
+                updatedAt: isoNow(),
+            });
             tx.update(messageRef, {
                 correctionStatus: "applied",
                 correctionAppliedAt: firestore_1.FieldValue.serverTimestamp(),
                 correctionAppliedBy: input.uid,
             });
-            return {
+            return resultWithReconcile({
                 vendorInvoiceImportId: importId,
                 field: proposed.field,
                 previousValue: proposed.currentValue,
@@ -227,11 +275,12 @@ async function runApplyInvoiceReviewFieldCorrectionCore(input) {
                 applied: false,
                 alreadyApplied: true,
                 correctionId,
+                importDoc: freshDoc,
                 parsedHeader: header,
                 reviewStatus: typeof freshDoc.reviewStatus === "string"
                     ? freshDoc.reviewStatus
                     : reviewStatus,
-            };
+            });
         });
         return alreadyResult;
     }
@@ -264,7 +313,7 @@ async function runApplyInvoiceReviewFieldCorrectionCore(input) {
         }
         if (auditSnap.exists) {
             const audit = auditSnap.data();
-            return {
+            return resultWithReconcile({
                 vendorInvoiceImportId: importId,
                 field: proposed.field,
                 previousValue: typeof audit.previousValue === "string"
@@ -276,13 +325,14 @@ async function runApplyInvoiceReviewFieldCorrectionCore(input) {
                 applied: false,
                 alreadyApplied: true,
                 correctionId,
+                importDoc: freshDoc,
                 parsedHeader: freshHeader,
                 reviewStatus: freshReview,
-            };
+            });
         }
         const msgData = (freshMessage.data() ?? {});
         if (msgData.correctionStatus === "applied") {
-            return {
+            return resultWithReconcile({
                 vendorInvoiceImportId: importId,
                 field: proposed.field,
                 previousValue: proposed.currentValue,
@@ -290,12 +340,14 @@ async function runApplyInvoiceReviewFieldCorrectionCore(input) {
                 applied: false,
                 alreadyApplied: true,
                 correctionId,
+                importDoc: freshDoc,
                 parsedHeader: freshHeader,
                 reviewStatus: freshReview,
-            };
+            });
         }
         const freshCurrent = (0, correctionAllowlist_1.headerFieldAsString)(freshHeader, proposed.field);
         if (freshCurrent === proposed.proposedValue) {
+            const reconciledAlready = reconcileFromImportDoc(freshDoc, freshHeader);
             tx.set(auditRef, {
                 id: correctionId,
                 vendorInvoiceImportId: importId,
@@ -320,12 +372,22 @@ async function runApplyInvoiceReviewFieldCorrectionCore(input) {
                 clientIdempotencyKey: idempotencyKey,
                 alreadyMatched: true,
             });
+            tx.update(importRef, {
+                parseWarnings: reconciledAlready.parseWarnings,
+                autoImportEligible: reconciledAlready.autoImportEligible,
+                autoImportConfidence: reconciledAlready.autoImportConfidence,
+                autoImportReasons: reconciledAlready.autoImportReasons,
+                reviewRequiredReasons: reconciledAlready.reviewRequiredReasons,
+                importDecisionMode: reconciledAlready.importDecisionMode,
+                suggestedAction: reconciledAlready.suggestedAction,
+                updatedAt: appliedAt,
+            });
             tx.update(messageRef, {
                 correctionStatus: "applied",
                 correctionAppliedAt: firestore_1.FieldValue.serverTimestamp(),
                 correctionAppliedBy: input.uid,
             });
-            return {
+            return resultWithReconcile({
                 vendorInvoiceImportId: importId,
                 field: proposed.field,
                 previousValue: proposed.currentValue,
@@ -333,9 +395,10 @@ async function runApplyInvoiceReviewFieldCorrectionCore(input) {
                 applied: false,
                 alreadyApplied: true,
                 correctionId,
+                importDoc: freshDoc,
                 parsedHeader: freshHeader,
                 reviewStatus: freshReview,
-            };
+            });
         }
         if (freshCurrent !== proposed.currentValue) {
             throw new ApplyCorrectionInputError("failed-precondition", "expected_current_value_stale");
@@ -344,6 +407,7 @@ async function runApplyInvoiceReviewFieldCorrectionCore(input) {
             ...freshHeader,
             [proposed.field]: proposed.proposedValue,
         };
+        const reconciled = reconcileFromImportDoc(freshDoc, nextHeader);
         const priorLog = Array.isArray(freshDoc.fieldCorrectionLog)
             ? freshDoc.fieldCorrectionLog
             : [];
@@ -360,9 +424,21 @@ async function runApplyInvoiceReviewFieldCorrectionCore(input) {
             [`parsedHeader.${proposed.field}`]: proposed.proposedValue,
             updatedAt: appliedAt,
             fieldCorrectionLog: nextLog,
+            parseWarnings: reconciled.parseWarnings,
+            autoImportEligible: reconciled.autoImportEligible,
+            autoImportConfidence: reconciled.autoImportConfidence,
+            autoImportReasons: reconciled.autoImportReasons,
+            reviewRequiredReasons: reconciled.reviewRequiredReasons,
+            importDecisionMode: reconciled.importDecisionMode,
+            suggestedAction: reconciled.suggestedAction,
         };
         if (!freshDoc.originalParsedHeader) {
             updatePayload.originalParsedHeader = { ...freshHeader };
+        }
+        if (!Array.isArray(freshDoc.originalParseWarnings)) {
+            updatePayload.originalParseWarnings = Array.isArray(freshDoc.parseWarnings)
+                ? [...freshDoc.parseWarnings]
+                : [];
         }
         tx.update(importRef, updatePayload);
         tx.set(auditRef, {
@@ -423,8 +499,15 @@ async function runApplyInvoiceReviewFieldCorrectionCore(input) {
             applied: true,
             alreadyApplied: false,
             correctionId,
-            parsedHeader: nextHeader,
+            parsedHeader: reconciled.parsedHeader,
             reviewStatus: freshReview,
+            parseWarnings: reconciled.parseWarnings,
+            autoImportEligible: reconciled.autoImportEligible,
+            autoImportConfidence: reconciled.autoImportConfidence,
+            autoImportReasons: reconciled.autoImportReasons,
+            reviewRequiredReasons: reconciled.reviewRequiredReasons,
+            importDecisionMode: reconciled.importDecisionMode,
+            suggestedAction: reconciled.suggestedAction,
         };
     });
     void markSiblingProposalsSuperseded(input.db, importId, proposed.field, sourceMessageId);
