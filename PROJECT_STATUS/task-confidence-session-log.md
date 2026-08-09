@@ -94,3 +94,5 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 - 2026-08-09 | retire-legacy-receive-delivery | archetype=ui-component/qr-routing | tier=T1 simple-ui | model=composer-2.5-fast | confStart=98 | confAfter=99 | outcome=ok | note=D-77 bare receive recovery + zone redirect LIVE
 | 2026-08-09 | ui-component (vendor unplanned fallback CTA reusable — prior delivery no longer suppresses) | T1 fast-safe simple UI | Composer 2.5 Fast | 99 | 99 | ok (PR only) | FE LocationScanPage always show CTA; verify reusable fallback PASS; no CF/rules |
 | 2026-08-09 | ship-op (PR #92 merge + gh-pages deploy v0.0.261 reusable unplanned CTA) | T1 fast-safe UI / mobile D-27 | Composer 2.5 Fast | 99 | 99 | ok | merge 3bab991c; LIVE index-NzFS63ij.js; verify:vendor-unplanned-delivery:prod 7/7; no CF/rules |
+| 2026-08-09 | ui-component / css-restyle (vendor-run multi-job card unify w/ hub) | T1 visual-judgment UI / mobile D-27 | Sol Task→gpt-5.6-sol-high | 98 | 99 | ok | shell+gaps+Back up+green collapse+Undo; monday-safe 63/63; v0.0.262 |
+

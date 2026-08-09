@@ -588,6 +588,52 @@ export const VENDOR_RUN_DELIVERED_ROW_CONTRAST_SPEC = {
   ],
 };
 
+export const VENDOR_RUN_LAYOUT_CONTRAST_SPEC = {
+  rootSelector: '[data-testid="vendor-run-layout"]',
+  elements: [
+    {
+      name: "vendor-run heading",
+      selector: "h1.text-text-primary",
+      large: true,
+    },
+    {
+      name: "vendor-run helper",
+      selector: '[data-testid="vendor-run-helper"]',
+      large: false,
+    },
+    {
+      name: "vendor-run undelivered location",
+      selector: '[data-testid^="vendor-run-location-"]',
+      large: true,
+    },
+    {
+      name: "vendor-run undelivered job",
+      selector: '[data-testid^="vendor-run-job-"]',
+      large: false,
+    },
+    {
+      name: "vendor-run detail label",
+      selector: '[data-testid="vendor-run-details-label"]',
+      large: false,
+    },
+    {
+      name: "vendor-run detail value",
+      selector: '[data-testid="vendor-run-details-value"]',
+      large: false,
+    },
+    {
+      name: "vendor-run Back button",
+      selector: '[data-testid="vendor-run-back"]',
+      large: false,
+    },
+    {
+      name: "vendor-run Delivered button",
+      selector: '[data-testid="vendor-run-bulk-deliver"]',
+      large: false,
+    },
+  ],
+};
+
 export const VENDOR_DELIVERED_HUB_ITEMS_CONTRAST_SPEC = {
   rootSelector: ".vendor-hub-layout",
   elements: [
