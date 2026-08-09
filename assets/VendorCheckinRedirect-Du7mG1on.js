@@ -1,1 +1,0 @@
-import{Wn as e,ga as t,ya as n}from"./index-CebOnuC6.js";var r=e();function i(){let{orderId:e}=n(),i=e?.trim()??``;return(0,r.jsx)(t,{to:i?`/receive?id=${encodeURIComponent(i)}`:`/receive`,replace:!0})}export{i as CheckinToReceiveRedirect};
