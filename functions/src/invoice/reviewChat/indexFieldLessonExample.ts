@@ -57,10 +57,17 @@ export type FieldLessonExampleDoc = {
   verifiedAt: string;
   /** Written as FieldValue.serverTimestamp(); stored as Timestamp. */
   verifiedAtServer: Timestamp | ReturnType<typeof FieldValue.serverTimestamp>;
-  status: "active";
+  /** C3-C.1 always writes "active". Future archiver may set "archived" — never deletes. */
+  status: "active" | "archived";
   retentionDays: number;
-  /** Native Firestore Timestamp — required for TTL policy (ISO string will NOT TTL). */
-  expireAt: Timestamp;
+  /**
+   * Archive eligibility timestamp (verifiedAt + retentionDays).
+   * Passing this time does NOT delete the document — a future job may set status=archived.
+   * Do NOT configure Firestore TTL on this field.
+   */
+  archiveAfterAt: Timestamp;
+  /** Set when status transitions to archived; null while active. */
+  archivedAt: Timestamp | null;
   scopeKey: string;
   source: "c2_verified_correction";
   idempotencyKey: string;
@@ -123,7 +130,7 @@ export function buildScopeKey(input: {
   return `${input.vendorKey}__${input.parserFormatId}__${input.senderDomain}__${input.field}`;
 }
 
-export function buildExpireAtTimestamp(
+export function buildArchiveAfterAtTimestamp(
   verifiedAtMs: number,
   retentionDays = FIELD_LESSON_EXAMPLE_RETENTION_DAYS,
 ): Timestamp {
@@ -166,7 +173,7 @@ export function buildFieldLessonExampleFromApply(input: {
 
   const verifiedAt = input.verifiedAt ?? new Date().toISOString();
   const verifiedAtMs = Date.parse(verifiedAt);
-  const expireBaseMs = Number.isFinite(verifiedAtMs)
+  const archiveBaseMs = Number.isFinite(verifiedAtMs)
     ? verifiedAtMs
     : Date.now();
   const scopeKey = buildScopeKey({
@@ -205,7 +212,8 @@ export function buildFieldLessonExampleFromApply(input: {
     verifiedAtServer: FieldValue.serverTimestamp(),
     status: "active",
     retentionDays: FIELD_LESSON_EXAMPLE_RETENTION_DAYS,
-    expireAt: buildExpireAtTimestamp(expireBaseMs),
+    archiveAfterAt: buildArchiveAfterAtTimestamp(archiveBaseMs),
+    archivedAt: null,
     scopeKey,
     source: "c2_verified_correction",
     idempotencyKey: correctionId,

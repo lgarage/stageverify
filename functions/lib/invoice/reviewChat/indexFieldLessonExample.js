@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FIELD_LESSON_EXAMPLE_CATEGORY = exports.FIELD_LESSON_EXAMPLE_RETENTION_DAYS = exports.FIELD_LESSON_EXAMPLE_COLLECTION = void 0;
 exports.resolveArmableVendorKeyFromDetectedName = resolveArmableVendorKeyFromDetectedName;
 exports.buildScopeKey = buildScopeKey;
-exports.buildExpireAtTimestamp = buildExpireAtTimestamp;
+exports.buildArchiveAfterAtTimestamp = buildArchiveAfterAtTimestamp;
 exports.buildFieldLessonExampleFromApply = buildFieldLessonExampleFromApply;
 exports.writeFieldLessonExampleIfEligible = writeFieldLessonExampleIfEligible;
 const firestore_1 = require("firebase-admin/firestore");
@@ -51,7 +51,7 @@ function resolveArmableVendorKeyFromDetectedName(detectedVendorName) {
 function buildScopeKey(input) {
     return `${input.vendorKey}__${input.parserFormatId}__${input.senderDomain}__${input.field}`;
 }
-function buildExpireAtTimestamp(verifiedAtMs, retentionDays = exports.FIELD_LESSON_EXAMPLE_RETENTION_DAYS) {
+function buildArchiveAfterAtTimestamp(verifiedAtMs, retentionDays = exports.FIELD_LESSON_EXAMPLE_RETENTION_DAYS) {
     return firestore_1.Timestamp.fromMillis(verifiedAtMs + retentionDays * 86_400_000);
 }
 /** Pure builder — unit-testable; no I/O. */
@@ -76,7 +76,7 @@ function buildFieldLessonExampleFromApply(input) {
         return { ok: false, reason: "sender_domain_unavailable" };
     const verifiedAt = input.verifiedAt ?? new Date().toISOString();
     const verifiedAtMs = Date.parse(verifiedAt);
-    const expireBaseMs = Number.isFinite(verifiedAtMs)
+    const archiveBaseMs = Number.isFinite(verifiedAtMs)
         ? verifiedAtMs
         : Date.now();
     const scopeKey = buildScopeKey({
@@ -114,7 +114,8 @@ function buildFieldLessonExampleFromApply(input) {
         verifiedAtServer: firestore_1.FieldValue.serverTimestamp(),
         status: "active",
         retentionDays: exports.FIELD_LESSON_EXAMPLE_RETENTION_DAYS,
-        expireAt: buildExpireAtTimestamp(expireBaseMs),
+        archiveAfterAt: buildArchiveAfterAtTimestamp(archiveBaseMs),
+        archivedAt: null,
         scopeKey,
         source: "c2_verified_correction",
         idempotencyKey: correctionId,

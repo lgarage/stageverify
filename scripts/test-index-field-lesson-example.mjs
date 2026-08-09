@@ -146,16 +146,18 @@ function createMemoryDb(seed = {}) {
   };
 }
 
-function assertExpireAtNear365d(expireAt, verifiedAtIso) {
+function assertArchiveAfterAtNear365d(archiveAfterAt, verifiedAtIso) {
   let ms;
-  if (expireAt && typeof expireAt.toMillis === "function") {
-    ms = expireAt.toMillis();
-  } else if (expireAt && typeof expireAt._seconds === "number") {
-    ms = expireAt._seconds * 1000;
-  } else if (expireAt && typeof expireAt.seconds === "number") {
-    ms = expireAt.seconds * 1000;
+  if (archiveAfterAt && typeof archiveAfterAt.toMillis === "function") {
+    ms = archiveAfterAt.toMillis();
+  } else if (archiveAfterAt && typeof archiveAfterAt._seconds === "number") {
+    ms = archiveAfterAt._seconds * 1000;
+  } else if (archiveAfterAt && typeof archiveAfterAt.seconds === "number") {
+    ms = archiveAfterAt.seconds * 1000;
   } else {
-    assert.fail(`expireAt missing Timestamp shape: ${JSON.stringify(expireAt)}`);
+    assert.fail(
+      `archiveAfterAt missing Timestamp shape: ${JSON.stringify(archiveAfterAt)}`,
+    );
   }
   const verifiedMs = Date.parse(verifiedAtIso);
   assert.ok(Math.abs(ms - (verifiedMs + 365 * 86400000)) < 2000);
@@ -273,16 +275,18 @@ function ok(label) {
   assert.equal(built.doc.exampleId, "imp-1__customerPoOrReference__msg-1");
   assert.equal(built.doc.retentionDays, 365);
   assert.equal(built.doc.status, "active");
+  assert.equal(built.doc.archivedAt, null);
   assert.equal(
     built.doc.scopeKey,
     "johnstone-supply__johnstone__johnstone.com__customerPoOrReference",
   );
-  assert.ok(built.doc.expireAt);
-  assert.equal(typeof built.doc.expireAt.toMillis, "function");
-  const ms = built.doc.expireAt.toMillis();
+  assert.ok(built.doc.archiveAfterAt);
+  assert.equal(typeof built.doc.archiveAfterAt.toMillis, "function");
+  const ms = built.doc.archiveAfterAt.toMillis();
   const verifiedMs = Date.parse("2026-08-09T12:00:00.000Z");
   assert.ok(Math.abs(ms - (verifiedMs + 365 * 86400000)) < 1000);
-  ok("builder: happy path + sourceDocumentKey + Timestamp expireAt +365d");
+  assert.equal("expireAt" in built.doc, false);
+  ok("builder: happy path + sourceDocumentKey + archiveAfterAt +365d (no expireAt)");
 }
 
 {
@@ -387,8 +391,11 @@ function ok(label) {
   assert.equal(examples[0].evidenceType, "document_evidence");
   assert.equal(examples[0].correctedValue, "2205 EARLY");
   assert.equal(examples[0].retentionDays, 365);
-  assert.ok(examples[0].expireAt);
-  assertExpireAtNear365d(examples[0].expireAt, examples[0].verifiedAt);
+  assert.equal(examples[0].status, "active");
+  assert.equal(examples[0].archivedAt, null);
+  assert.ok(examples[0].archiveAfterAt);
+  assert.equal("expireAt" in examples[0], false);
+  assertArchiveAfterAtNear365d(examples[0].archiveAfterAt, examples[0].verifiedAt);
 
   // No-parse-effect: header/confidence from apply path only (C2), example inert
   assert.equal(

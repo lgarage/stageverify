@@ -162,7 +162,7 @@ Landed in `PROJECT_STATUS/DECISIONS.md` **D-59** (amended C3-A). Exact final wor
 ### Amend packet extras (record with C3-A, not soft implication)
 
 - CF-only writes to lesson/example collections
-- Retention/TTL appropriate for examples containing PO/order/invoice identifiers
+- Archive-oriented retention for examples containing PO/order/invoice identifiers (active → archived after 365d; **never auto-delete** / no Firestore TTL)
 - Sender-domain scope; never-unknown vendor/format
 - Extraction false-positive circuit breaker
 - C2 CURRENT corrections always win over learned overlays on the same import
@@ -283,8 +283,10 @@ Important concepts / fields:
 | Evidence class | `document_evidence` \| `dispatcher_assertion` |
 | Span / citation | Optional copy of C2 evidence span fields (bounded; no full PDF/text) |
 | Scope denorm | vendorKey, parserFormatId, field, senderDomain, `scopeKey` |
-| Timestamps / actor | When confirmed, by whom; `expireAt` native Timestamp (+365d) |
-| Immutability | `.create()` only; multiple corrections on one import → multiple example docs sharing one `sourceDocumentKey` |
+| Timestamps / actor | When confirmed, by whom |
+| Lifecycle | `status: active\|archived`; `retentionDays: 365`; `archiveAfterAt` Timestamp (+365d); `archivedAt: null` until archived |
+| No deletion | **Never** Firestore TTL / auto-delete — archive keeps documents for audit/history |
+| Immutability (C3-C.1) | `.create()` only; multiple corrections on one import → multiple example docs sharing one `sourceDocumentKey`; archiver deferred |
 
 **Examples are evidence, not rules.** An example never affects parse by itself.
 
@@ -411,7 +413,7 @@ Symmetric in spirit to Dan #3 (ignore: 2 admin re-opens → auto-disable), but c
 - **No client writes** to reusable lessons
 - **Sender-domain pinning** required for activation/match
 - **No cross-vendor leakage** (no wildcards, no “all vendors”)
-- Examples/lessons may retain **PO / order / invoice identifiers** — unlike Lane A playbook redaction — so require **retention/TTL + access control** appropriate to that sensitivity; do not dump full values into unstructured logs beyond current policy
+- Examples/lessons may retain **PO / order / invoice identifiers** — unlike Lane A playbook redaction — so require **archive-oriented retention + access control** (active → archived after 365d; never TTL-delete); do not dump full values into unstructured logs beyond current policy
 - **Audit** activation, match, suspend, archive, breaker trips
 - Validation failures **fail closed** (no lesson saved/activated; import stays reviewable)
 - Do not feed free-form training notes into a model to invent extraction rules in v1
@@ -499,7 +501,7 @@ Johnstone already has multi-path PO extraction (`pickPoValue`, tabular/stacked/l
 | **Likely risk tier** | **High-risk** (CF + `firestore.rules` for new collections) |
 | **Likely deploy surface** | Firebase functions + rules; optional Settings UI (gh-pages) |
 | **Prerequisites** | **C3-A** authoritative; preferably C3-B assessed |
-| **Completion status** | **C3-C.1 code ready — deploy pending Dan approval**; C3-C.2 (list callable + admin UI) **deferred** |
+| **Completion status** | **C3-C.1 code ready — deploy pending Dan approval**; archive fields written (`archiveAfterAt`); **automatic archiver deferred**; C3-C.2 (list callable + admin UI) **deferred**; **no Firestore TTL** |
 
 ### C3-D — Proposed → active lifecycle + audit + circuit breaker
 
