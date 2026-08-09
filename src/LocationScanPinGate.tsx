@@ -232,14 +232,14 @@ export function LocationScanPinGate({
       className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-3"
       data-testid="location-scan-pin-shell"
       style={{
-        paddingTop: "clamp(0.125rem, 0.5svh, 0.5rem)",
+        paddingTop: "clamp(0.75rem, 3.4svh, 2.25rem)",
         paddingBottom:
-          "max(env(safe-area-inset-bottom, 0px), clamp(0.125rem, 0.5svh, 0.5rem))",
+          "max(env(safe-area-inset-bottom, 0px), clamp(0.75rem, 2svh, 1.5rem))",
       }}
     >
       <div
         className="w-full max-w-[22rem] rounded-3xl border border-white/10 bg-bg-secondary shadow-xl shadow-black/20"
-        style={{ padding: "clamp(0.5rem, 1.6svh, 1.25rem)" }}
+        style={{ padding: "clamp(0.625rem, 1.9svh, 1.375rem)" }}
         data-testid="location-scan-pin-card"
       >
         <div className="text-center" data-testid="location-scan-pin-gate">
@@ -259,7 +259,7 @@ export function LocationScanPinGate({
 
         <div
           className="flex min-h-7 items-center justify-center"
-          style={{ marginTop: "clamp(0.375rem, 1.2svh, 0.875rem)" }}
+          style={{ marginTop: "clamp(0.5rem, 1.4svh, 1rem)" }}
           aria-label={`PIN entry: ${pinLength} ${
             pinLength === 1 ? "digit" : "digits"
           } entered`}
@@ -353,7 +353,7 @@ export function LocationScanPinGate({
         <div
           className="w-full max-w-[17.5rem]"
           data-testid="location-scan-pin-keypad"
-          style={{ margin: "clamp(0.375rem, 1.2svh, 0.75rem) auto 0" }}
+          style={{ margin: "clamp(0.5rem, 1.4svh, 0.875rem) auto 0" }}
         >
           <div className="grid grid-cols-3 place-items-center gap-[clamp(0.375rem,1.2svh,0.75rem)]">
             {KEYPAD.slice(0, 3)

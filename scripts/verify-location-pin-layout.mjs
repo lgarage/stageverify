@@ -128,8 +128,9 @@ async function assertNeutralLayout(page, viewport) {
   });
 
   const gap = layout.card.top - layout.header.bottom;
+  const minimumGap = viewport.height <= 600 ? 10 : 16;
   assert.ok(
-    gap >= 2 && gap <= 24,
+    gap >= minimumGap && gap <= 38,
     `${viewport.name}: header-to-card gap is ${gap.toFixed(1)}px`,
   );
   assert.ok(

@@ -887,7 +887,7 @@ export function LocationScanPage() {
       <div className="app-container flex h-[100svh] max-h-[100dvh] min-h-[100svh] flex-col bg-bg-primary">
         <div
           className="shrink-0 border-b border-border bg-bg-surface px-3 text-center"
-          style={{ paddingBlock: "clamp(0px, 0.25svh, 2px)" }}
+          style={{ paddingBlock: "clamp(0.25rem, 0.9svh, 0.5rem)" }}
           data-testid="location-scan-pin-header"
         >
           <p className="text-[10px] font-semibold uppercase leading-3 tracking-[0.18em] text-text-secondary [@media(max-height:600px)]:hidden">
