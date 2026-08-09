@@ -171,11 +171,13 @@ Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** (pickup resol
 
 | Item | Status |
 | ---- | ------ |
-| Canonical route | ✅ `ReceivingPage` at `/#/receive` only |
-| Legacy redirects | ✅ `/#/`, `/#/checkin/:id`, `#/r?` → receive |
+| Location-first door | ✅ `#/s?loc=` neutral PIN → vendor / tech / office (D-74) |
+| Delivery deep link | ✅ `ReceivingPage` at `/#/receive?id=` (+ `#/checkin/:id`, `#/r?i=`) |
+| Bare `/#/receive` | ✅ Recovery → scan location QR (obsolete Receive Delivery / manual Delivery ID removed) |
+| Legacy zone URLs | ✅ `#/receive?zone=` / `#/r?z=` → `#/s?loc=` |
 | Exception-only hub | ✅ `appSettings.vendorDeliveryMode`; Delivered / Need More Space / Report a Problem |
 | Legacy full check-in | ✅ Same page when `vendorDeliveryMode = full_checkin` |
-| Verify | ✅ `verify:vendor-delivered` + `verify:vendor-e2e` |
+| Verify | ✅ `verify:vendor-delivered` + `node scripts/verify-receive-legacy-entry.mjs` |
 
 ### Trusted readiness + transactional pickup ✅ (shipped 2026-06-17, `b7b817f`)
 

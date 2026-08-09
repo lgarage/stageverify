@@ -195,6 +195,22 @@ export function buildDeliveryLabelQrUrl(deliveryId: string): string {
   return buildEslTagQrUrl({ deliveryId, options: { forPrint: true } });
 }
 
+/**
+ * Legacy zone-only receive URLs → permanent location scan (`#/s?loc=`).
+ * Delivery-id deep links stay on `/#/receive?id=` (D-74).
+ */
+function redirectLegacyReceiveZoneToLocationScan(hash: string): boolean {
+  if (!/^#\/receive(\?|$)/i.test(hash)) return false;
+  const qs = hash.indexOf("?");
+  const params =
+    qs === -1 ? new URLSearchParams() : new URLSearchParams(hash.slice(qs + 1));
+  const id = (params.get("id") ?? params.get("i") ?? "").trim();
+  const zone = (params.get("zone") ?? params.get("z") ?? "").trim();
+  if (id || !zone) return false;
+  window.location.hash = `#/s?loc=${encodeURIComponent(zone)}`;
+  return true;
+}
+
 /** Fix legacy and compact hashes so HashRouter routes match. */
 export function normalizeReceiveHash(): void {
   const hash = window.location.hash;
@@ -208,6 +224,11 @@ export function normalizeReceiveHash(): void {
     const canonical = new URLSearchParams();
     const id = params.get("i") ?? params.get("id");
     const zone = params.get("z") ?? params.get("zone");
+    // Compact zone-only → location scan directly (skip obsolete receive zone path).
+    if (!id && zone?.trim()) {
+      window.location.hash = `#/s?loc=${encodeURIComponent(zone.trim())}`;
+      return;
+    }
     if (id) canonical.set("id", id);
     if (zone) canonical.set("zone", zone);
     window.location.hash = canonical.toString()
@@ -219,6 +240,8 @@ export function normalizeReceiveHash(): void {
   if (hash.startsWith("#receive") && !hash.startsWith("#/receive")) {
     window.location.hash = hash.replace("#receive", "#/receive");
   }
+
+  redirectLegacyReceiveZoneToLocationScan(window.location.hash);
 }
 
 /** Fix legacy hashes missing the slash after `#` (Safari / shared links). */
@@ -292,12 +315,12 @@ export function readReceiveParams(
 export function hasReceiveDeepLink(): boolean {
   normalizeReceiveHash();
   const hash = window.location.hash;
+  // Zone-only hashes redirect to `#/s?loc=` above; only delivery-id is a receive deep link.
+  if (!/^#\/receive(\?|$)/i.test(hash)) return false;
   const qs = hash.indexOf("?");
   if (qs === -1) return false;
   const p = new URLSearchParams(hash.slice(qs + 1));
-  return Boolean(
-    p.get("id") || p.get("i") || p.get("zone") || p.get("z"),
-  );
+  return Boolean(p.get("id") || p.get("i"));
 }
 
 export type ParsedQrScan =
@@ -394,7 +417,8 @@ export function canonicalHashFromParsed(parsed: ParsedQrScan): string | null {
     case "receive-id":
       return `#/receive?id=${encodeURIComponent(parsed.deliveryId)}`;
     case "receive-zone":
-      return `#/receive?zone=${encodeURIComponent(parsed.zoneCode)}`;
+      // Canonical location-first entry (legacy `#/receive?zone=` still redirects here).
+      return `#/s?loc=${encodeURIComponent(parsed.zoneCode)}`;
     case "pickup": {
       if (!parsed.jobId) return null;
       const params = new URLSearchParams({ job: parsed.jobId });

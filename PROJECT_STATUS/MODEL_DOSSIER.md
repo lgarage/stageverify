@@ -10,7 +10,7 @@
 
 | Tag | Open when task touches… | One-line rule |
 |-----|-------------------------|---------------|
-| `qr-routing` | QR, scan, deep links, ESL tags | **Only** `scanRouting.ts` + `receiveQrUrls.ts` — never duplicate logic in Receive/Pickup; vendor UI is **only** `ReceivingPage` (`/#/receive`) |
+| `qr-routing` | QR, scan, deep links, ESL tags | **Only** `scanRouting.ts` + `receiveQrUrls.ts`; location-first door `#/s?loc=`; delivery deep link `#/receive?id=`; bare `#/receive` = recovery; `#/receive?zone=` → `#/s?loc=` |
 | `zone-lookup` | staging code → delivery | `getDeliveryDetailsByStagingCode`; match zones via `getAllStagingLocationIds` |
 | `receive-deep-link` | `/receive` URL params or camera | `deepLinkPending` before camera; failed lookup → show error (no silent empty screen) |
 | `encode-qr` | building QR URLs | `buildEslTagQrUrl` + `EslQrCode` — dispatcher print = zone e-tag; `forPrint` → prod base; long `#/receive?` / `#/pickup?` forms emitted (compact `#/r?` / `#/p?` parse-only legacy) |
@@ -31,10 +31,11 @@
 | `ui-ux-routing` | UI implementer pick, Sol vs Composer, readability evidence | **D-63/D-65** — simple UI Composer; visual-judgment Sol (Task→high directly); SSOT `ui-model-routing.json` v3 |
 
 ## § qr-routing
-- Entry points: URL deep link, camera callback, manual input — all call `handleScannedQr(raw, "receive-page")`.
-- **Single vendor UI:** `ReceivingPage` at `/#/receive`. Legacy `/#/`, `/#/checkin/:id`, compact `#/r?` rewrite to receive. Demo QR: `/#/demo/vendor-scan`.
-- `appSettings.vendorDeliveryMode`: `exception_only` (Delivered hub) \| `full_checkin` (line-item flow, same page).
-- Zone e-tags + dispatcher print: `buildEslTagQrUrl` / `buildZoneEslQrUrl` — long `#/pickup?` / `#/receive?id=` / `#/receive?zone=` (compact `#/r?` / `#/p?` parse-only). Printed location signs: **static** `#/s?loc={code}`, never changes — occupancy-dynamic QR-flip REJECTED (`docs/location-first-transition-spec.md`; route lands Phase 3).
+- **Location-first door:** printed signs `#/s?loc={code}` → neutral PIN (`LocationScanPage`) → vendor / tech / office (D-74).
+- **Delivery deep link:** `#/receive?id=` (+ compact `#/r?i=` / `#/checkin/:id`) still uses `ReceivingPage` + `VendorPinGate`. Bare `#/receive` shows `ReceiveEntryRecovery` (scan location QR) — obsolete VendorNativeQrEntry / manual Delivery ID removed.
+- **Legacy zone:** `#/receive?zone=` and compact `#/r?z=` redirect to `#/s?loc=` via `normalizeReceiveHash`.
+- `appSettings.vendorDeliveryMode`: `exception_only` (Delivered hub) \| `full_checkin` (line-item flow) on `ReceivingPage` deep-link path.
+- Zone e-tags + dispatcher print: `buildEslTagQrUrl` / `buildZoneEslQrUrl` — long `#/pickup?` / `#/receive?id=` / empty still `#/receive?zone=` (redirects). Printed location signs: **static** `#/s?loc={code}`. Demo: `/#/demo/vendor-scan`.
 
 ## § zone-lookup
 - QR routing: `getDeliveryDetailsByStagingCode` (includes pickup-ready; most-recently-updated on collision — Phase 3 replaces with the role-aware resolver per `docs/location-first-transition-spec.md`).

@@ -75,29 +75,17 @@ export function MobileHubPage() {
         </header>
 
         <main className="flex flex-1 flex-col justify-center gap-5 px-5 py-8">
-          <div className="grid grid-cols-2 gap-3">
-            <HubButton
-              href="/#/pickup"
-              icon="🔧"
-              title="Pickup Portal"
-              subtitle="Technician checkout"
-              colorClass="bg-emerald-600 text-white"
-            />
-            <HubButton
-              href="/#/receive"
-              icon="📋"
-              title="Vendor Portal"
-              subtitle="Receive deliveries"
-              colorClass="bg-blue-600 text-white"
-            />
-          </div>
           <HubButton
-            href="/#/"
-            icon="📦"
-            title="Legacy Check-In"
-            subtitle="Camera app only (legacy route)"
-            colorClass="bg-amber-600 text-white"
+            href="/#/pickup"
+            icon="🔧"
+            title="Pickup Portal"
+            subtitle="Technician checkout"
+            colorClass="bg-emerald-600 text-white"
           />
+          <p className="text-center text-sm text-text-secondary px-2">
+            Vendor drop-off, technician pickup, and office access start by scanning
+            a staging location QR with your phone Camera.
+          </p>
         </main>
 
         <footer className="shrink-0 px-5 pb-6 pt-2 text-center">
