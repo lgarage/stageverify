@@ -11,7 +11,7 @@
 
 StageVerify's Training-note feature has two lanes already shipped: **Lane A** (free-form note → regex-redacted prose appended to a per-vendor GCS playbook, injected as context into a shadow-only Gemini parse that never mutates business data) and **Lane B** (deterministic teach-chat that arms a `vendorKey__parserFormatId__documentType` fingerprint ignore rule which auto-skips *new* matching imports to a recoverable Rejected state). Effect containment is already strong: no code path leads from note text to deletion, approval, email sending, auth changes, or delivery mutation.
 
-This spec hardens Lane B and defers the structured-lesson engine, per Dan's decisions: **manager-role activation** replaces one-step dispatcher arming [Dan #1]; rules go live immediately upon manager activation with **no shadow mode** [Dan #2], protected instead by five controls — manager activation, a **2-admin-re-open auto-disable circuit breaker** [Dan #3], **never-armable `unknown` fingerprints** [Dan #4], **sender-domain pinning** [Dan #5], and **never auto-ignoring documents with strong invoice signals** [Dan #6]. Rule lifecycle gains an **immutable audit stream and soft delete** [Dan #10]; original notes are **retained ~90 days in an admin-only audit record** [Dan #9] with a **redaction preview** before save [Dan #11]. The **structured interpretation engine is deferred** [Dan #8]; when it arrives, **fulfillment-method mapping is its first and only MVP category** [Dan #7]. **Approve + note stays conflated per D-57** [Dan #12].
+This spec hardens Lane B and defers the structured-lesson engine, per Dan's decisions: **manager-role activation** replaces one-step dispatcher arming [Dan #1]; rules go live immediately upon manager activation with **no shadow mode** [Dan #2], protected instead by five controls — manager activation, a **2-admin-re-open auto-disable circuit breaker** [Dan #3], **never-armable `unknown` fingerprints** [Dan #4], **sender-domain pinning** [Dan #5], and **never auto-ignoring documents with strong invoice signals** [Dan #6]. Rule lifecycle gains an **immutable audit stream and soft delete** [Dan #10]; original notes are **retained ~90 days in an admin-only audit record** [Dan #9] with a **redaction preview** before save [Dan #11]. The **general-purpose structured interpretation engine is deferred** [Dan #8, amended C3-A]; structured reusable categories are allowlisted — `fulfillment_mapping` remains P8-deferred [Dan #7a], and Lane C / C3 may use `header_field_extraction` for the three D-68 header fields only [Dan #7b, C3-A]. **Approve + note stays conflated per D-57** [Dan #12].
 
 Work is broken into 8 small phases. Recommended first phase: **Phase 1 — server-echo propose/confirm + never-unknown enforcement**, which closes the two worst live risks (armable `unknown` fingerprints; client/server inference drift) without touching auth.
 
@@ -120,10 +120,11 @@ Deferred structured-lesson schema (future phase, [Dan #7/#8]): `ruleCategory: "f
 1. `document_ignore` — the only category. Deterministic fingerprint + sender-domain match → recoverable review-queue skip of new imports.
 2. *(Lane A continues as-is: playbook prose is not a "rule"; it is parser context with no effect authority. Not a new build item.)*
 
-**Deferred (structured-lesson phase):**
-3. `fulfillment_mapping` — first and only structured category [Dan #7], built only when the deferred phase is approved [Dan #8].
+**Deferred / allowlisted structured categories [Dan #7/#8 amended C3-A]:**
+3. `fulfillment_mapping` — deferred to P8 (original #7 intent unchanged); built only when P8’s own spec is approved.
+4. `header_field_extraction` — Lane C / C3 only; initially limited to `customerPoOrReference`, `vendorOrderNumber`, `vendorInvoiceNumber`. Narrow C3 path is deterministic (verified C2 evidence → example → proposed → Manager/Admin activate → overlay), not a free-form note→LLM→rule engine [Dan #8 carve-out]. See `docs/c3-reusable-field-learning-plan.md`.
 
-**Explicitly not allowed (rejected at schema level):** document classification overrides, field mapping beyond fulfillment, normalization mapping, review-routing rules, parser confidence adjustment, vendor-layout patterns, and any category not enumerated above.
+**Explicitly not allowed (rejected at schema level unless separately approved):** document classification overrides, field mapping beyond the three `header_field_extraction` fields and deferred `fulfillment_mapping`, normalization mapping, review-routing rules, parser confidence adjustment as a lesson effect, general-purpose vendor-layout / semantic interpretation engines, cross-vendor wildcard lessons, auto-approve, delivery/job/item mutation, and any category not enumerated above.
 
 ## 8. Exact allowed effects
 
@@ -192,7 +193,7 @@ Verified separate today and kept so: `credit_return` (structural regex detection
 
 **Now:** the only "interpretation" is (a) the deterministic intent regex routing to Lane B and (b) the redactor for Lane A. No model interprets notes into rules [Dan #8]. The note is data, never instructions.
 
-**Deferred structured phase [Dan #7/#8] — reconciliation:** fulfillment-method mapping is *the first structured category when that phase arrives*; it is **not built in Phases 1–7**. When scheduled, its flow will be: note → model interprets into the strict `fulfillment_mapping` schema (unknown fields rejected, invalid enums rejected, missing fields fail closed, no silent repair) → server-side allowlist validation → UI shows the structured interpretation (category, condition, effect, scopes, prohibited-actions statement) → dispatcher confirms → manager activates. Whether that phase begins in a shadow/review-only posture is an open decision deliberately deferred to that phase's own approval (§30) — not forced into the near-term phases per Dan's guidance.
+**Structured categories [Dan #7/#8 amended C3-A] — reconciliation:** P1–P7 ship **no** structured lessons. **P8** still owns the deferred model→schema path for `fulfillment_mapping` (note → model interprets into strict schema → allowlist validation → dispatcher confirm → manager activate; shadow posture deferred to P8’s own approval — §30). **Lane C / C3** separately may use `header_field_extraction` for the three D-68 fields via the **deterministic** evidence→example→propose→activate→overlay path only (see `docs/c3-reusable-field-learning-plan.md`) — not a free-form note→LLM→rule engine.
 
 ## 16. Confirmation and activation flow
 
@@ -337,7 +338,7 @@ Per repo harness, every phase: (1) pre-edit conf ≥97% + Solution Verifier per 
 
 ## 30. Open decisions
 
-1. **P8 structured-lesson engine** [Dan #8]: full spec, schema, and whether it launches shadow/review-only — deferred to its own approval. Reconciliation recorded: `fulfillment_mapping` is its first category [Dan #7]; nothing structured ships in P1–P7.
+1. **P8 structured-lesson engine** [Dan #8]: full spec, schema, and whether it launches shadow/review-only — deferred to its own approval. Reconciliation recorded: `fulfillment_mapping` remains P8’s category [Dan #7a]; Lane C `header_field_extraction` authorized separately under C3-A [Dan #7b/#8 carve-out] — nothing structured ships in P1–P7.
 2. ~~**Grandfathered rules without sender domains (P3):** 7-day grace window vs immediate stop-matching — Dan to choose at P3 approval.~~ **Closed 2026-08-04:** **7-day grace** chosen — grandfathered domain-less actives get `domainGraceStartedAt`; Settings shows grace vs expired; matching stops after grace.
 3. **Manager grant mechanism (P2):** ops script vs console edit; custom-claim fallback yes/no — Dan approves before P2 implementation.
 4. **`invoice` documentType armability:** removed as a consequence of [Dan #6]; revisit only if Dan wants an explicit override lane.
@@ -355,16 +356,18 @@ Per repo harness, every phase: (1) pre-edit conf ≥97% + Solution Verifier per 
 
 ---
 
-## Addendum — Lane C / C3 dependency (2026-08-09)
+## Addendum — Lane C / C3 dependency (2026-08-09; **C3-A landed 2026-08-09**)
 
-**Status note only — does not amend Dan #7/#8 decision prose above.**
+**Authoritative amend:** `PROJECT_STATUS/DECISIONS.md` **D-59** #7/#8 (C3-A). Roadmap: `docs/c3-reusable-field-learning-plan.md`.
 
-Lane C **C1** (Invoice Review Chat — read/explain only) may ship without changing D-59 #7/#8.
+Lane C **C1** (Invoice Review Chat — read/explain only) and **C2** (current-import field correction, D-68) shipped without reusable learning.
 
-Before **C3** structured field-learning begins, **D-59 #7/#8 must be amended** so reusable structured learning can support additional invoice fields such as:
+**C3-A COMPLETE:** reusable structured learning is now authorized for category `header_field_extraction` covering **only**:
 
 - `customerPoOrReference`
 - `vendorOrderNumber`
-- other explicitly approved invoice fields
+- `vendorInvoiceNumber`
+
+**Next:** **C3-B** — harden universal Johnstone parser misses before building any lesson store. Do not implement lesson store / overlay / CF / rules from this addendum alone.
 
 **P8 `fulfillment_mapping` remains a separate category** and is not replaced by Lane C.

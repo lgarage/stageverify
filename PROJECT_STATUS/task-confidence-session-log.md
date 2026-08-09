@@ -103,5 +103,9 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-09 | harness (D-78 MANUAL TEST FOR DAN completion-report requirement) | T0 docs-update / rules | Composer 2.5 Fast | 98 | 99 | ok (PR) | SSOT orchestrator § Completion report + done-signal pointer; Critical Reviewer bc-f94b4d58 PARTIAL amendments adopted |
 | 2026-08-09 | Unplanned status single-badge + U1 fixture cleanup | ui-component / service-logic | T1 | Composer 2.5 Fast (simple-ui/non-UI — D-65) | 97 | 99 | FE display override; prod U1 deleted; teardown UV; v0.0.266 |
 | 2026-08-09 | bugfix (Staging Map assign-mode sticky banner after success) | T1 fast-safe simple UI | Composer 2.5 Fast | 98 | 99 | ok (PR) | exitAssignMode after confirm; verify-assign-mode-exit A–H PASS; retarget v0.0.267 after #took 266 |
+<<<<<<< HEAD
 | 2026-08-09 | backend-write-critical (Settings PIN edit Save persist + Confirm PIN + button layout) | T3 high-risk (auth/session PIN write UX) | Composer 2.5 Fast + Sonnet D-60/D-38 | 98 | 99 | ok (PR) | Root=client metadata write could block setAccessPin + silent/header errors; FE Confirm PIN + strip secrets + PIN-first; D-60 PASS; D-38 PASS; Dan manual Admin PIN acceptance |
 | 2026-08-09T20:17Z | merge-deploy Settings PIN Save v0.0.268 + MANUAL TEST FOR DAN | backend-write-critical (FE-only; high-risk class) | T3 | composer-2.5-fast | 99 | 99 | ok (deployed; waiting Dan) | PR #103 merged; gh-pages index-CMA60mN0.js; Admin PIN verify waived; no CF/rules |
+=======
+| 2026-08-09 | docs-governance / product decision (C3-A D-59 #7/#8 amend) | T0 docs-update | Composer 2.5 Fast | 98 | 99 | ok (PR) | Narrow header_field_extraction + deterministic C3 carve-out; no product code |
+>>>>>>> c3344e0e (docs: land C3-A D-59 #7/#8 reusable header-field learning amend)
