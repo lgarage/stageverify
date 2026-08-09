@@ -340,6 +340,10 @@ export function PinAccessManagementPanel({
   const [error, setError] = useState<string | null>(null);
   const [authLoadError, setAuthLoadError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  /** Visit-scoped: cleared when Settings / this panel unmounts (leave Settings). */
+  const [pinUpdatedRowKeys, setPinUpdatedRowKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [lastTempPassword, setLastTempPassword] = useState<string | null>(null);
   const [pinDraft, setPinDraft] = useState("");
   const [confirmPinDraft, setConfirmPinDraft] = useState("");
@@ -1005,7 +1009,17 @@ export function PinAccessManagementPanel({
       setConfirmPinDraft("");
       setEditorDraft(null);
       setSelected(null);
-      setMessage(changingPin ? "New PIN saved" : "Changes saved");
+      if (changingPin) {
+        const updatedKey = `${row.type}:${row.id}`;
+        setPinUpdatedRowKeys((prev) => {
+          const next = new Set(prev);
+          next.add(updatedKey);
+          return next;
+        });
+        setMessage("New PIN saved");
+      } else {
+        setMessage("Changes saved");
+      }
     } catch (err) {
       if (isSessionValidityError(err)) {
         clearAdminAccess();
@@ -1026,7 +1040,7 @@ export function PinAccessManagementPanel({
       } else {
         setError(raw);
       }
-      // Failure: keep editor open, drafts intact, no success toast / collapse.
+      // Failure: keep editor open, drafts intact, no success toast / collapse / row badge.
     } finally {
       setBusyId(null);
     }
@@ -2640,14 +2654,22 @@ export function PinAccessManagementPanel({
                           style={{
                             padding: 12,
                             borderBottom: "1px solid var(--admin-border)",
-                            whiteSpace: "nowrap",
                           }}
                         >
+                          <div
+                            data-testid={`pin-access-actions-${row.type}-${row.id}`}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              flexWrap: "wrap",
+                              gap: 8,
+                            }}
+                          >
                           <button
                             data-testid={`pin-access-edit-${row.type}-${row.id}`}
                             type="button"
                             onClick={() => void selectAccess(row)}
-                            style={{ ...secondaryButtonStyle, marginRight: 8 }}
+                            style={{ ...secondaryButtonStyle, flex: "0 0 auto" }}
                           >
                             Edit
                           </button>
@@ -2660,7 +2682,10 @@ export function PinAccessManagementPanel({
                                 type="button"
                                 disabled={busyId === row.id}
                                 onClick={() => void toggleActive(row)}
-                                style={secondaryButtonStyle}
+                                style={{
+                                  ...secondaryButtonStyle,
+                                  flex: "0 0 auto",
+                                }}
                               >
                                 Deactivate
                               </button>
@@ -2670,7 +2695,10 @@ export function PinAccessManagementPanel({
                                 type="button"
                                 disabled={busyId === row.id}
                                 onClick={() => void removeAccess(row)}
-                                style={secondaryButtonStyle}
+                                style={{
+                                  ...secondaryButtonStyle,
+                                  flex: "0 0 auto",
+                                }}
                               >
                                 {busyId === row.id ? "Removing…" : "Remove"}
                               </button>
@@ -2685,11 +2713,39 @@ export function PinAccessManagementPanel({
                               type="button"
                               disabled={busyId === row.id}
                               onClick={() => void toggleActive(row)}
-                              style={secondaryButtonStyle}
+                              style={{
+                                ...secondaryButtonStyle,
+                                flex: "0 0 auto",
+                              }}
                             >
                               {row.active ? "Deactivate" : "Reactivate"}
                             </button>
                           )}
+                          {pinUpdatedRowKeys.has(`${row.type}:${row.id}`) && (
+                            <span
+                              data-testid={`pin-access-pin-updated-${row.type}-${row.id}`}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                boxSizing: "border-box",
+                                flex: "0 0 auto",
+                                minHeight: 32,
+                                padding: "6px 10px",
+                                borderRadius: 6,
+                                border:
+                                  "1px solid var(--admin-success-border)",
+                                backgroundColor: "var(--admin-success-bg)",
+                                color: "var(--admin-success-text)",
+                                fontSize: 13,
+                                fontWeight: 700,
+                                lineHeight: 1.2,
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              PIN # updated
+                            </span>
+                          )}
+                          </div>
                             </td>
                           </tr>
                           {expanded && (
