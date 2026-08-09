@@ -13,13 +13,13 @@
 | Phase | Status |
 | ----- | ------ |
 | **C3-A** | **COMPLETE** — D-59 #7/#8 amend + threshold/invariants authoritative in `PROJECT_STATUS/DECISIONS.md` (2026-08-09) |
-| **C3-B** | **COMPLETE** (PR pending CF deploy) — Johnstone PO grid-bleed + INVOICE banner harden; no lesson store |
-| **C3-C** | not started |
+| **C3-B** | **COMPLETE / LIVE** — Johnstone PO grid-bleed + INVOICE banner; CF syncInboundGmail + reparseVendorInvoiceImportCallable deployed |
+| **C3-C** | **NEXT** — not started |
 | **C3-D** | not started |
 | **C3-E** | not started |
 | **C3-F** | not started |
 
-**NEXT C3 JOB:** **C3-C** — collect/index verified C2 examples (no parse effect). Do **not** start C3-D/E/F in a C3-C conversation. C3-B engineering complete — CF deploy of parser still needs Dan approval.
+**NEXT C3 JOB:** **C3-C** — collect/index verified C2 examples (no parse effect). Do **not** start C3-D/E/F in a C3-C conversation. C3-B is COMPLETE / LIVE.
 
 ---
 
@@ -474,7 +474,7 @@ Johnstone already has multi-path PO extraction (`pickPoValue`, tabular/stacked/l
 | **Likely risk tier** | Fast-safe if client-only parse parity; **high-risk** when `functions/**` parser deploy |
 | **Likely deploy surface** | CF and/or gh-pages if dual client/server parsers |
 | **Prerequisites** | Prefer C3-A landed; Dan may allow independent parser harden |
-| **Completion status** | **COMPLETE** (engineering) — awaiting Dan CF deploy approval for `syncInboundGmail` + `reparseVendorInvoiceImportCallable` |
+| **Completion status** | **COMPLETE / LIVE** — PR #111 merge `04031ca9`; CF syncInboundGmail + reparseVendorInvoiceImportCallable deployed |
 
 ### C3-C — Collect/index verified C2 examples (no parse effect)
 
@@ -485,7 +485,7 @@ Johnstone already has multi-path PO extraction (`pickPoValue`, tabular/stacked/l
 | **Likely risk tier** | **High-risk** (CF + `firestore.rules` for new collections) |
 | **Likely deploy surface** | Firebase functions + rules; optional Settings UI (gh-pages) |
 | **Prerequisites** | **C3-A** authoritative; preferably C3-B assessed |
-| **Completion status** | not started |
+| **Completion status** | **NEXT** — not started |
 
 ### C3-D — Proposed → active lifecycle + audit + circuit breaker
 
@@ -535,13 +535,13 @@ Do **not** skip to C3-E without A+D. Do **not** create a lesson store to avoid a
 | Phase | Status |
 | ----- | ------ |
 | C3-A | **COMPLETE** |
-| C3-B | **COMPLETE** (eng; CF deploy pending Dan) — PO bleed + INVOICE banner |
-| C3-C | not started |
+| C3-B | **COMPLETE / LIVE** — PO bleed + INVOICE banner; CF deployed |
+| C3-C | **NEXT** — collect/index verified C2 examples (no parse effect) |
 | C3-D | not started |
 | C3-E | not started |
 | C3-F | not started |
 
-**NEXT C3 JOB:** **C3-C** — collect/index verified C2 examples (no parse effect). Do not start C3-D/E/F here. C3-B engineering complete — CF deploy still needs Dan approval.
+**NEXT C3 JOB:** **C3-C** — collect/index verified C2 examples (no parse effect). Do not start C3-D/E/F here. C3-B is COMPLETE / LIVE.
 
 **Discovery:** This file is linked from `PROJECT_STATUS/CURRENT_STATE.md` (Queued product / Canonical references) and `docs/roadmap.md` (Lane C notes).
 
@@ -603,7 +603,7 @@ Future agents **must** read this section before implementation.
 
 ```
 C3-A: COMPLETE
-C3-B: COMPLETE (eng) — awaiting CF deploy approval; NEXT C3 JOB = C3-C
+C3-B: COMPLETE / LIVE; NEXT C3 JOB = C3-C
 ```
 
 Update the Status table when each phase ships; keep amend wording in sync with `PROJECT_STATUS/DECISIONS.md`.*

@@ -64,11 +64,13 @@
 
 **Shipped (2026-08-09):** Settings PIN visit-scoped green **PIN # updated** row badge (right of Deactivate; clears on leave Settings; toast `New PIN saved` kept) — **v0.0.271** gh-pages FE-only; no CF/rules.
 
-**Shipped (2026-08-09):** Staging Map view zoom + logical canvas size (v0.0.272) — session View zoom + edit Canvas W×H; FE-only.
+**Shipped (2026-08-09):** Staging Map view zoom + logical canvas size (v0.0.273) — session View zoom + edit Canvas W×H; FE-only.
 **Shipped (2026-08-09):** Staging Map assign-mode auto-exit after successful Assign Location confirm — **v0.0.267** gh-pages FE-only; merge `804c74c8`; prod A–H PASS.
 **Shipped (2026-08-09):** Unplanned status single-badge + U1 verify-fixture cleanup/teardown harden — **v0.0.266** gh-pages FE-only.
 
 **Shipped (2026-08-09):** Dispatcher Deliveries status legend + row wording/colors align (Assigned/Planned yellow, Staged green, Unplanned bright orange, Shop Stock gray) — **v0.0.265** gh-pages FE-only.
+
+**Shipped (2026-08-09):** Delivery Details **Complete Pickup** under Email Vendor (reuses `recordPickupEvent`) + WHAT NEEDS ATTENTION summary-only — **v0.0.272** gh-pages FE-only.
 
 **Shipped (2026-08-09):** Delivery Details Assign Location restore after Will-Call → Vendor Drop-Off — **v0.0.264** gh-pages FE-only.
 

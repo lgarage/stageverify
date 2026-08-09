@@ -335,6 +335,10 @@ export function DetailContent({
   const [importRejectToast, setImportRejectToast] = useState<string | null>(
     null,
   );
+  const [showPickupInput, setShowPickupInput] = useState(false);
+  const [pendingStatusSelection, setPendingStatusSelection] =
+    useState<DeliveryStatus | null>(null);
+  const [pickupTechnicianName, setPickupTechnicianName] = useState("");
   const { vendors: portalVendors } = useDispatcherPortal();
   const liveOccupancy = useLiveZoneOccupancy(Boolean(details));
 
@@ -346,6 +350,9 @@ export function DetailContent({
     setRejectReasonId("");
     setRejectDetailText("");
     setImportRejectToast(null);
+    setShowPickupInput(false);
+    setPendingStatusSelection(null);
+    setPickupTechnicianName("");
   }, [details?.delivery.id]);
 
   useEffect(() => {
@@ -618,6 +625,23 @@ export function DetailContent({
     setRejectDetailText("");
   };
 
+  const showCompletePickupCta =
+    !showPickupInput &&
+    delivery.status !== "picked_up" &&
+    delivery.status !== "installed" &&
+    drawerStatusOptionEnabled(delivery.status, "picked_up", delivery);
+  const completePickupMissingJob = !delivery.jobId?.trim();
+
+  const openCompletePickupForm = () => {
+    setPendingStatusSelection("picked_up");
+    setShowPickupInput(true);
+    requestAnimationFrame(() => {
+      document
+        .querySelector('[data-testid="delivery-status-pickup-input"]')
+        ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  };
+
   const confirmRejectLinkedImport = async () => {
     if (!rejectReasonId || !delivery.vendorInvoiceImportId?.trim()) return;
     const lessonNote = buildDeliveryDrawerRejectLessonNote(
@@ -855,6 +879,14 @@ export function DetailContent({
                         delivery.vendorInvoiceImportId,
                       )
                 }
+                pickupForm={{
+                  showPickupInput,
+                  setShowPickupInput,
+                  pendingStatusSelection,
+                  setPendingStatusSelection,
+                  pickupTechnicianName,
+                  setPickupTechnicianName,
+                }}
               />
               {showStagingLocationBanner ? (
                 <StagingLocationBanner
@@ -978,6 +1010,55 @@ export function DetailContent({
                 >
                   Connect Gmail in Settings to send vendor email.
                 </p>
+              ) : null}
+              {showCompletePickupCta ? (
+                <>
+                  <button
+                    type="button"
+                    data-testid="delivery-basics-complete-pickup"
+                    disabled={mutationLoading || completePickupMissingJob}
+                    onClick={openCompletePickupForm}
+                    style={{
+                      marginTop: 8,
+                      width: "100%",
+                      padding: "12px 16px",
+                      borderRadius: 8,
+                      border: `2px solid ${completePickupMissingJob ? "var(--admin-border)" : "#bf0a30"}`,
+                      backgroundColor: completePickupMissingJob
+                        ? "var(--admin-border)"
+                        : "#bf0a30",
+                      color: completePickupMissingJob
+                        ? "var(--admin-text-muted)"
+                        : "#fff",
+                      fontSize: 15,
+                      fontWeight: 800,
+                      letterSpacing: "0.03em",
+                      cursor:
+                        mutationLoading || completePickupMissingJob
+                          ? "not-allowed"
+                          : "pointer",
+                      fontFamily: font,
+                      boxShadow: completePickupMissingJob
+                        ? "none"
+                        : "0 2px 8px rgba(191, 10, 48, 0.3)",
+                    }}
+                  >
+                    Complete Pickup
+                  </button>
+                  {completePickupMissingJob ? (
+                    <p
+                      data-testid="delivery-basics-complete-pickup-hint"
+                      style={{
+                        margin: 0,
+                        fontSize: 11,
+                        color: "var(--admin-text-muted)",
+                        textAlign: "center",
+                      }}
+                    >
+                      Link this delivery to a job before completing pickup.
+                    </p>
+                  ) : null}
+                </>
               ) : null}
             </div>
           </>,
@@ -1887,6 +1968,17 @@ const DRAWER_STATUS_DROPDOWN_OPTIONS: DeliveryStatus[] = [
 /** Action pseudo-value — not a DeliveryStatus; last option in status dropdown. */
 const DRAWER_STATUS_REJECT_ACTION = "__reject_import__";
 
+const PICKUP_FORM_RED = "#bf0a30";
+
+type DeliveryPickupFormState = {
+  showPickupInput: boolean;
+  setShowPickupInput: (value: boolean) => void;
+  pendingStatusSelection: DeliveryStatus | null;
+  setPendingStatusSelection: (value: DeliveryStatus | null) => void;
+  pickupTechnicianName: string;
+  setPickupTechnicianName: (value: string) => void;
+};
+
 function drawerStatusOptionEnabled(
   current: DeliveryStatus,
   option: DeliveryStatus,
@@ -1918,6 +2010,7 @@ function DeliveryStatusControls({
   onStatusAndAssignSpot,
   onRejectImport,
   rejectImportBlockedReason,
+  pickupForm,
 }: {
   details: DeliveryDetails;
   stagingLocations: StagingLocation[];
@@ -1935,17 +2028,22 @@ function DeliveryStatusControls({
   onStatusAndAssignSpot: (spotId: string) => Promise<void>;
   onRejectImport: () => void;
   rejectImportBlockedReason: string | null;
+  pickupForm: DeliveryPickupFormState;
 }) {
   const delivery = details.delivery;
   const currentStatus = delivery.status;
-  const [showPickupInput, setShowPickupInput] = useState(false);
-  const [pendingStatusSelection, setPendingStatusSelection] =
-    useState<DeliveryStatus | null>(null);
+  const {
+    showPickupInput,
+    setShowPickupInput,
+    pendingStatusSelection,
+    setPendingStatusSelection,
+    pickupTechnicianName,
+    setPickupTechnicianName,
+  } = pickupForm;
   const [showSpotPicker, setShowSpotPicker] = useState(false);
   const [selectedSpotId, setSelectedSpotId] = useState(
     delivery.stagingLocationId ?? "",
   );
-  const [pickupTechnicianName, setPickupTechnicianName] = useState("");
   const [rejectUnavailableMessage, setRejectUnavailableMessage] = useState<
     string | null
   >(null);
@@ -1998,6 +2096,7 @@ function DeliveryStatusControls({
 
   useEffect(() => {
     if (showPickupInput) {
+      setShowSpotPicker(false);
       const t = setTimeout(() => pickupInputRef.current?.focus(), 50);
       return () => clearTimeout(t);
     }
@@ -2327,6 +2426,19 @@ function DeliveryStatusControls({
 
       {showPickupInput ? (
         <div data-testid="delivery-status-pickup-input">
+          <p
+            data-testid="delivery-status-pickup-intro"
+            style={{
+              margin: "0 0 8px",
+              fontSize: 13,
+              fontWeight: 600,
+              color: "var(--admin-text-data)",
+              fontFamily: font,
+              lineHeight: 1.4,
+            }}
+          >
+            Complete pickup? This will move the delivery to Picked Up.
+          </p>
           <label
             htmlFor="delivery-status-pickup-name"
             style={{
@@ -2378,15 +2490,22 @@ function DeliveryStatusControls({
           <div style={{ display: "flex", gap: 8 }}>
             <button
               type="button"
+              data-testid="delivery-status-pickup-submit"
               onClick={handleConfirmPickup}
               disabled={loading || !pickupTechnicianName.trim()}
               style={{
                 backgroundColor:
-                  loading || !pickupTechnicianName.trim() ? "var(--admin-surface-2)" : navy,
+                  loading || !pickupTechnicianName.trim()
+                    ? "var(--admin-surface-2)"
+                    : PICKUP_FORM_RED,
                 color:
-                  loading || !pickupTechnicianName.trim() ? "var(--admin-text-muted)" : "var(--admin-text)",
+                  loading || !pickupTechnicianName.trim()
+                    ? "var(--admin-text-muted)"
+                    : "#fff",
                 border: `1.5px solid ${
-                  loading || !pickupTechnicianName.trim() ? "var(--admin-border)" : navy
+                  loading || !pickupTechnicianName.trim()
+                    ? "var(--admin-border)"
+                    : PICKUP_FORM_RED
                 }`,
                 borderRadius: 4,
                 padding: "6px 12px",
@@ -2399,7 +2518,7 @@ function DeliveryStatusControls({
                 fontFamily: font,
               }}
             >
-              {loading ? "Saving…" : "Confirm Pickup"}
+              {loading ? "Saving…" : "Complete Pickup"}
             </button>
             <button
               type="button"
