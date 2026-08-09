@@ -250,6 +250,37 @@ assert(
 );
 
 assert(
+  "explicit Vendor Drop-Off wins over stale pickup_at_vendor import status",
+  !skipsShopStaging({
+    invoiceImportStatus: "pickup_at_vendor",
+    invoiceFulfillmentMethod: "delivery",
+    createdFromInvoiceImport: true,
+  }) &&
+    !isWillCallPickupStagingListNa({
+      invoiceImportStatus: "pickup_at_vendor",
+      invoiceFulfillmentMethod: "delivery",
+    }) &&
+    !isInvoiceShellNoShopStaging({
+      invoiceImportStatus: "pickup_at_vendor",
+      invoiceFulfillmentMethod: "delivery",
+      createdFromInvoiceImport: true,
+    }),
+);
+
+assert(
+  "explicit Will-Call still skips shop staging after toggle",
+  skipsShopStaging({
+    invoiceImportStatus: "pickup_at_vendor",
+    invoiceFulfillmentMethod: "will_call_pickup",
+    createdFromInvoiceImport: true,
+  }) &&
+    isWillCallPickupStagingListNa({
+      invoiceImportStatus: "pickup_at_vendor",
+      invoiceFulfillmentMethod: "will_call_pickup",
+    }),
+);
+
+assert(
   "Branch-B will_call_pickup skips dispatcher table staging action",
   !isDispatcherTableStagingActionRequired({
     status: "partial",

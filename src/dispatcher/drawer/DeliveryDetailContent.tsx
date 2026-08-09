@@ -663,9 +663,10 @@ export function DetailContent({
   };
 
   const handleAssignLocationNavigate = () => {
-    if (onNavigateToAssignLocation) {
-      onNavigateToAssignLocation(delivery.id);
-    }
+    if (!onNavigateToAssignLocation) return;
+    const targetId = delivery.id?.trim();
+    if (!targetId) return;
+    onNavigateToAssignLocation(targetId);
   };
 
   const openMaterialIssues = details.materialIssues.filter(
@@ -964,29 +965,6 @@ export function DetailContent({
               >
                 Email Vendor
               </button>
-              {shopStagingRequired && onNavigateToAssignLocation ? (
-                <button
-                  type="button"
-                  data-testid="delivery-basics-assign-location"
-                  onClick={handleAssignLocationNavigate}
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    borderRadius: 8,
-                    border: "2px solid #ea580c",
-                    backgroundColor: "#ea580c",
-                    color: "var(--admin-on-navy)",
-                    fontSize: 15,
-                    fontWeight: 800,
-                    letterSpacing: "0.03em",
-                    cursor: "pointer",
-                    fontFamily: font,
-                    boxShadow: "0 2px 8px rgba(234, 88, 12, 0.25)",
-                  }}
-                >
-                  Assign Location
-                </button>
-              ) : null}
               {!emailProviderConnected ? (
                 <p
                   data-testid="delivery-basics-email-vendor-hint"

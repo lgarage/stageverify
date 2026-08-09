@@ -62,6 +62,7 @@
 
 ## NOW (Phase 5 prototype)
 
+**In flight (2026-08-09):** Delivery Details Assign Location restore after Will-Call → Vendor Drop-Off (fulfillment/import-status sync + yellow CTA → Staging Map assign mode; `getDeliveryDetails` id fix) — **v0.0.264** FE-only PR.
 **Shipped (2026-08-09):** Dispatcher Delivery Details drawer loads D-73 unplanned shells (missing jobId/PO/0 items) — **v0.0.263** gh-pages FE-only.
 **Shipped (2026-08-09):** Vendor-run multi-job card unify with Delivered hub (shell/safe-area, card gaps, Back up, green collapse + Undo; reusable unplanned CTA kept) — **v0.0.262** gh-pages FE-only.
 

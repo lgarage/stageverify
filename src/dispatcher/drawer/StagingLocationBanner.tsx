@@ -10,6 +10,9 @@ export function StagingLocationBanner({
       data-testid="drawer-staging-location-banner"
       data-banner-mode="staging_needed"
       style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
         borderRadius: 8,
         border: "2px solid #ea580c",
         backgroundColor: "var(--admin-warning-bg)",
@@ -17,61 +20,54 @@ export function StagingLocationBanner({
         fontFamily: font,
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 12,
-        }}
-      >
-        <div>
-          <p
-            data-testid="drawer-staging-location-banner-heading"
-            style={{
-              margin: 0,
-              fontSize: 13,
-              fontWeight: 800,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              color: "var(--admin-warning-text)",
-            }}
-          >
-            Staging Location Needed
-          </p>
-          <p
-            data-testid="drawer-staging-location-banner-body"
-            style={{
-              margin: "6px 0 0",
-              fontSize: 14,
-              fontWeight: 500,
-              color: "var(--admin-warning-text)",
-            }}
-          >
-            Assign a location for receiving and pickup.
-          </p>
-        </div>
-        <button
-          type="button"
-          data-testid="drawer-staging-location-assign"
-          onClick={onAssignLocation}
+      <div>
+        <p
+          data-testid="drawer-staging-location-banner-heading"
           style={{
-            flexShrink: 0,
-            padding: "7px 12px",
-            borderRadius: 6,
-            border: "1.5px solid var(--admin-warning-border)",
-            backgroundColor: "var(--admin-surface)",
+            margin: 0,
+            fontSize: 13,
+            fontWeight: 800,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
             color: "var(--admin-warning-text)",
-            fontSize: 12,
-            fontWeight: 700,
-            cursor: "pointer",
-            fontFamily: font,
-            whiteSpace: "nowrap",
           }}
         >
-          Assign Location
-        </button>
+          Staging Location Needed
+        </p>
+        <p
+          data-testid="drawer-staging-location-banner-body"
+          style={{
+            margin: "6px 0 0",
+            fontSize: 14,
+            fontWeight: 500,
+            color: "var(--admin-warning-text)",
+          }}
+        >
+          Assign a location for receiving and pickup.
+        </p>
       </div>
+      <button
+        type="button"
+        data-testid="drawer-staging-location-assign"
+        data-assign-location-cta="true"
+        onClick={onAssignLocation}
+        style={{
+          width: "100%",
+          padding: "12px 16px",
+          borderRadius: 8,
+          border: "2px solid #ca8a04",
+          backgroundColor: "#eab308",
+          color: "#1c1917",
+          fontSize: 15,
+          fontWeight: 800,
+          letterSpacing: "0.03em",
+          cursor: "pointer",
+          fontFamily: font,
+          boxShadow: "0 2px 8px rgba(234, 179, 8, 0.35)",
+        }}
+      >
+        Assign Location
+      </button>
     </section>
   );
 }
