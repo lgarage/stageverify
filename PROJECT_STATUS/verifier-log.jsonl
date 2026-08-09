@@ -172,3 +172,5 @@
 {"date":"2026-08-08","role":"ship","verdict":"PENDING","taskId":"bc-b7598489-1531-519f-b902-91e78f448ca1","model":"cursor-grok-4.5-high-fast","real":"yes","note":"PR#59 first ship-verifier FAIL missing ui-before-after; D-51 compare completed post-hoc"}
 {"date":"2026-08-09","role":"security","verdict":"PASS","taskId":"bc-2412eebd-3813-5e7d-a33d-72a1d820bd24","model":"claude-sonnet-5-thinking-high","real":"na","note":"D-67 matched-delivery + TOCTOU ownership in-txn"}
 {"date":"2026-08-09","role":"security","verdict":"PASS","taskId":"bc-26c54bee-c3f1-5d5a-9f26-72b8af43d668","model":"claude-sonnet-5-thinking-high","real":"na","note":"PR64 rebase onto main D-67 re-gate"}
+{"date":"2026-08-09","role":"security-review","verdict":"PASS","taskId":"bc-74a49be8-0a7d-52cc-af52-b6b44b3f2ca7","model":"claude-sonnet-5-thinking-high","note":"PR #67 post-rebase D-38 on tip f835a58b","real":"na"}
+{"date":"2026-08-09","role":"sonnet-verify","verdict":"PASS","taskId":"bc-cc720973-3af1-5b67-a3d3-5dfea63a5d6f","model":"claude-sonnet-5-thinking-high","note":"PR #67 D-60 verify post-rebase incl PR64 coexistence","real":"na"}
