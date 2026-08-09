@@ -963,7 +963,7 @@ export function DetailContent({
                       Will-Call / Pickup from Vendor — material stays at the
                       vendor; no StageVerify shop staging location.
                       {staleWillCallStaging
-                        ? " A prior shop spot may still be stored; it is not an active staging assignment."
+                        ? " A leftover shop spot reference is ignored for active staging; re-select Will-Call / Pickup from Vendor to clear it, or switch to Vendor Drop-Off and Assign Location."
                         : ""}
                     </p>
                   </div>
@@ -2217,11 +2217,44 @@ function DeliveryStatusControls({
             fontSize: 13,
             color: "var(--admin-text-data)",
             fontWeight: 600,
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 8,
           }}
         >
-          {statusLabelText}
+          {statusLabelText === "Will-Call / Pickup" ? (
+            <span
+              data-testid="delivery-status-will-call-chip"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "2px 8px",
+                borderRadius: 999,
+                border: "1.5px solid var(--admin-willcall-border)",
+                backgroundColor: "var(--admin-willcall-bg)",
+                color: "var(--admin-willcall-text)",
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  backgroundColor: "var(--admin-willcall-dot)",
+                  flexShrink: 0,
+                }}
+              />
+              {statusLabelText}
+            </span>
+          ) : (
+            statusLabelText
+          )}
           <span style={{ color: "var(--admin-text-muted)", fontWeight: 500 }}>
-            {" "}
             · {fulfillmentContextLabel}
           </span>
         </p>

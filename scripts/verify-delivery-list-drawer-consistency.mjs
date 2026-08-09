@@ -248,12 +248,12 @@ function assertOfflineStagingActionRules() {
     zeroReceivedItems,
   );
   record(
-    "offline — fulfillment-only will_call_pickup status is workflow-derived",
+    "offline — fulfillment-only will_call_pickup primary category is Will-Call / Pickup",
     deliveryReadinessDisplayLabel(
       fulfillmentOnlyWillCall,
       fulfillmentReadiness,
       zeroReceivedItems,
-    ) === "Assigned / Planned",
+    ) === "Will-Call / Pickup",
   );
   record(
     "offline — exact will-call fulfillment table label",
@@ -733,6 +733,33 @@ async function assertDispatcherStagingActionRows(page, record) {
       : "none",
   );
 
+  const willCallFilter = page.getByTestId("deliveries-will-call-filter");
+  record(
+    "Will-Call / Pickup filter chip present",
+    (await willCallFilter.count()) > 0,
+  );
+  if ((await willCallFilter.count()) > 0) {
+    try {
+      await assertReadableTextContrast(page, {
+        rootSelector: "body",
+        elements: [
+          {
+            name: "Will-Call filter chip",
+            selector: '[data-testid="deliveries-will-call-filter"]',
+            large: false,
+          },
+        ],
+      });
+      record("Will-Call filter chip readable contrast (D-42)", true);
+    } catch (err) {
+      record(
+        "Will-Call filter chip readable contrast (D-42)",
+        false,
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+
   const legend = page.getByTestId("deliveries-staging-legend");
   record(
     "Deliveries staging color legend visible",
@@ -741,12 +768,13 @@ async function assertDispatcherStagingActionRows(page, record) {
   if ((await legend.count()) > 0) {
     const legendText = (await legend.innerText()).trim();
     record(
-      "Legend includes Assigned / Planned, Staged — Ready for Pickup, Unplanned, Shop Stock",
+      "Legend includes Assigned / Planned, Staged, Will-Call / Pickup, Unplanned, Shop Stock",
       /Assigned \/ Planned/i.test(legendText) &&
         /Staged — Ready for Pickup/i.test(legendText) &&
+        /Will-Call \/ Pickup/i.test(legendText) &&
         /Unplanned/i.test(legendText) &&
         /Shop Stock/i.test(legendText),
-      legendText.slice(0, 120),
+      legendText.slice(0, 160),
     );
     try {
       await assertReadableTextContrast(page, {

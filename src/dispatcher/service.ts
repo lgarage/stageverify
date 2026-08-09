@@ -62,6 +62,8 @@ export interface DeliveryQuery {
   statuses?: DeliveryOverviewFilterStatus[];
   /** Vendor PIN unplanned fallback — needs job/PO match. */
   unplannedOnly?: boolean;
+  /** Filter to CURRENT Will-Call / Pickup from Vendor deliveries. */
+  willCallOnly?: boolean;
   vendorIds?: string[];
   stagingLocationIds?: string[];
   jobId?: string;
