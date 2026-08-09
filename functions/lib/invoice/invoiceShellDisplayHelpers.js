@@ -21,6 +21,14 @@ function isVerifiedInvoiceShell(delivery) {
 function isInvoiceShellNoShopStaging(delivery) {
     if (!isVerifiedInvoiceShell(delivery))
         return false;
+    // Explicit Vendor Drop-Off wins over a stale will-call import status (drawer toggle).
+    if (delivery.invoiceFulfillmentMethod === "delivery") {
+        if (delivery.invoiceImportStatus === "closed_picked_up")
+            return true;
+        if (delivery.invoiceDeliverToSite === true)
+            return true;
+        return false;
+    }
     if (delivery.invoiceImportStatus === "pickup_at_vendor")
         return true;
     if (delivery.invoiceImportStatus === "closed_picked_up")
@@ -34,6 +42,9 @@ function isInvoiceShellNoShopStaging(delivery) {
 function skipsShopStaging(delivery) {
     if (isInvoiceShellNoShopStaging(delivery))
         return true;
+    // Branch-B (non-shell) fallback — Drop-Off still wins over stale will-call signals.
+    if (delivery.invoiceFulfillmentMethod === "delivery")
+        return false;
     return (delivery.invoiceImportStatus === "pickup_at_vendor" ||
         delivery.invoiceFulfillmentMethod === "will_call_pickup");
 }

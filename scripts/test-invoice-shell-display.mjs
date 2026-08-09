@@ -15,8 +15,14 @@ import {
 } from "../src/dispatcher/invoice/invoiceShellDisplayHelpers.ts";
 import {
   buildInvoiceShellPatchDocument,
+  buildInvoiceMatchedDeliveryPatchDocument,
   isTerminalPickupShellDelivery,
+  shouldPreserveExistingOperationalFulfillment,
 } from "../functions/src/invoice/createDeliveryShellFromImport.ts";
+import {
+  isInvoiceShellNoShopStaging as isInvoiceShellNoShopStagingCf,
+  skipsShopStaging as skipsShopStagingCf,
+} from "../functions/src/invoice/invoiceShellDisplayHelpers.ts";
 import { vendorInvoiceImportDisplayLabelForRow } from "../src/dispatcher/invoice/invoiceDisplayHelpers.ts";
 import { computeDeliveryReadiness } from "../src/dispatcher/readiness.ts";
 import { deliveryReadinessDisplayLabel } from "../src/dispatcher/jobReadinessDisplay.ts";
@@ -669,6 +675,203 @@ assert(
   "invoice shell refresh still updates status for non-terminal deliveries",
   freshPatch.status === "ready_for_pickup" &&
     freshPatch.invoiceImportStatus === "pickup_at_vendor",
+);
+
+// --- Dispatcher operational fulfillment must survive create_shell / approve backfill ---
+const willCallImportDoc = {
+  importStatus: "pickup_at_vendor",
+  parsedHeader: { fulfillmentMethod: "will_call_pickup" },
+};
+const willCallShellContext = {
+  deliveryOrderId: "delivery-vii-fulfillment-preserve",
+  deliveryStatus: "ready_for_pickup",
+  invoiceFulfillmentMethod: "will_call_pickup",
+};
+const dropOffOpsExisting = {
+  status: "pending",
+  invoiceImportStatus: "pending",
+  invoiceFulfillmentMethod: "delivery",
+  plannedStagingLocationIds: ["zone-fixture-g12"],
+};
+assert(
+  "shouldPreserve: Drop-Off ops vs Will-Call import",
+  shouldPreserveExistingOperationalFulfillment(
+    dropOffOpsExisting,
+    "will_call_pickup",
+  ),
+);
+const dropOffPreservePatch = buildInvoiceShellPatchDocument(
+  willCallShellContext,
+  "import-fulfillment-preserve",
+  willCallImportDoc,
+  "2026-08-09T00:00:00Z",
+  dropOffOpsExisting,
+);
+assert(
+  "Will-Call→Drop-Off ops survive shell create_shell backfill (no fulfillment/status/importStatus overwrite)",
+  dropOffPreservePatch.invoiceFulfillmentMethod === undefined &&
+    dropOffPreservePatch.status === undefined &&
+    dropOffPreservePatch.invoiceImportStatus === undefined &&
+    dropOffPreservePatch.vendorInvoiceImportId === "import-fulfillment-preserve" &&
+    dropOffPreservePatch.plannedStagingLocationIds === undefined,
+);
+
+const willCallOpsExisting = {
+  status: "ready_for_pickup",
+  invoiceImportStatus: "pickup_at_vendor",
+  invoiceFulfillmentMethod: "will_call_pickup",
+};
+const dropOffImportDoc = {
+  importStatus: "pending",
+  parsedHeader: { fulfillmentMethod: "delivery" },
+};
+const dropOffShellContext = {
+  deliveryOrderId: "delivery-vii-fulfillment-preserve-rev",
+  deliveryStatus: "pending",
+  invoiceFulfillmentMethod: "delivery",
+};
+assert(
+  "shouldPreserve: Will-Call ops vs Drop-Off import",
+  shouldPreserveExistingOperationalFulfillment(
+    willCallOpsExisting,
+    "delivery",
+  ),
+);
+const willCallPreservePatch = buildInvoiceShellPatchDocument(
+  dropOffShellContext,
+  "import-fulfillment-preserve-rev",
+  dropOffImportDoc,
+  "2026-08-09T00:00:00Z",
+  willCallOpsExisting,
+);
+assert(
+  "Drop-Off→Will-Call ops survive shell create_shell backfill",
+  willCallPreservePatch.invoiceFulfillmentMethod === undefined &&
+    willCallPreservePatch.status === undefined &&
+    willCallPreservePatch.invoiceImportStatus === undefined,
+);
+
+const noFulfillmentExisting = {
+  status: "pending",
+  invoiceImportStatus: "pending",
+};
+const firstPatch = buildInvoiceShellPatchDocument(
+  willCallShellContext,
+  "import-first-patch",
+  willCallImportDoc,
+  "2026-08-09T00:00:00Z",
+  noFulfillmentExisting,
+);
+assert(
+  "missing fulfillment on delivery → import still wins on first patch",
+  !shouldPreserveExistingOperationalFulfillment(
+    noFulfillmentExisting,
+    "will_call_pickup",
+  ) &&
+    firstPatch.invoiceFulfillmentMethod === "will_call_pickup" &&
+    firstPatch.status === "ready_for_pickup" &&
+    firstPatch.invoiceImportStatus === "pickup_at_vendor",
+);
+
+const matchingWillCallExisting = {
+  status: "ready_for_pickup",
+  invoiceImportStatus: "pickup_at_vendor",
+  invoiceFulfillmentMethod: "will_call_pickup",
+};
+const matchingRefreshPatch = buildInvoiceShellPatchDocument(
+  willCallShellContext,
+  "import-matching-refresh",
+  willCallImportDoc,
+  "2026-08-09T00:00:00Z",
+  matchingWillCallExisting,
+);
+assert(
+  "matching fulfillment → normal shell refresh still writes status/importStatus/fulfillment",
+  !shouldPreserveExistingOperationalFulfillment(
+    matchingWillCallExisting,
+    "will_call_pickup",
+  ) &&
+    matchingRefreshPatch.invoiceFulfillmentMethod === "will_call_pickup" &&
+    matchingRefreshPatch.status === "ready_for_pickup" &&
+    matchingRefreshPatch.invoiceImportStatus === "pickup_at_vendor",
+);
+
+const terminalDifferingOps = {
+  status: "picked_up",
+  invoiceImportStatus: "closed_picked_up",
+  invoiceFulfillmentMethod: "delivery",
+};
+const terminalDifferingPatch = buildInvoiceShellPatchDocument(
+  willCallShellContext,
+  "import-terminal-differing",
+  willCallImportDoc,
+  "2026-08-09T00:00:00Z",
+  terminalDifferingOps,
+);
+assert(
+  "terminal pickup + differing ops both suppress status/importStatus; preserve also omits fulfillment",
+  isTerminalPickupShellDelivery(terminalDifferingOps) &&
+    shouldPreserveExistingOperationalFulfillment(
+      terminalDifferingOps,
+      "will_call_pickup",
+    ) &&
+    terminalDifferingPatch.status === undefined &&
+    terminalDifferingPatch.invoiceImportStatus === undefined &&
+    terminalDifferingPatch.invoiceFulfillmentMethod === undefined,
+);
+
+const matchedDropOffPreserve = buildInvoiceMatchedDeliveryPatchDocument(
+  willCallShellContext,
+  "import-matched-preserve",
+  willCallImportDoc,
+  "2026-08-09T00:00:00Z",
+  dropOffOpsExisting,
+);
+assert(
+  "matched-delivery patch preserves Drop-Off ops (no fulfillment/importStatus)",
+  matchedDropOffPreserve.invoiceFulfillmentMethod === undefined &&
+    matchedDropOffPreserve.invoiceImportStatus === undefined &&
+    matchedDropOffPreserve.status === undefined &&
+    matchedDropOffPreserve.vendorInvoiceImportId === "import-matched-preserve",
+);
+const matchedWillCallPreserve = buildInvoiceMatchedDeliveryPatchDocument(
+  dropOffShellContext,
+  "import-matched-preserve-rev",
+  dropOffImportDoc,
+  "2026-08-09T00:00:00Z",
+  willCallOpsExisting,
+);
+assert(
+  "matched-delivery patch preserves Will-Call ops (reverse)",
+  matchedWillCallPreserve.invoiceFulfillmentMethod === undefined &&
+    matchedWillCallPreserve.invoiceImportStatus === undefined,
+);
+
+assert(
+  "CF: explicit Vendor Drop-Off wins over stale pickup_at_vendor import status",
+  !skipsShopStagingCf({
+    invoiceImportStatus: "pickup_at_vendor",
+    invoiceFulfillmentMethod: "delivery",
+    createdFromInvoiceImport: true,
+  }) &&
+    !isInvoiceShellNoShopStagingCf({
+      invoiceImportStatus: "pickup_at_vendor",
+      invoiceFulfillmentMethod: "delivery",
+      createdFromInvoiceImport: true,
+    }),
+);
+assert(
+  "CF: explicit Will-Call still skips shop staging after toggle",
+  skipsShopStagingCf({
+    invoiceImportStatus: "pickup_at_vendor",
+    invoiceFulfillmentMethod: "will_call_pickup",
+    createdFromInvoiceImport: true,
+  }) &&
+    isInvoiceShellNoShopStagingCf({
+      invoiceImportStatus: "pickup_at_vendor",
+      invoiceFulfillmentMethod: "will_call_pickup",
+      createdFromInvoiceImport: true,
+    }),
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);
