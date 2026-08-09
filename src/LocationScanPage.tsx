@@ -1081,6 +1081,10 @@ export function LocationScanPage() {
         )}
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          {/*
+            Unplanned fallback is a reusable escape hatch (D-73): prior listed
+            deliveries (expected or unplanned) must not hide "Add unplanned delivery".
+          */}
           {vendorRunDeliveries.map((row) => {
             const canCheck = row.hasAssignableSpot;
             const expanded = expandedDeliveryIds.has(row.deliveryId);
@@ -1251,7 +1255,7 @@ export function LocationScanPage() {
               </div>
             );
           })}
-          {vendorRunDeliveries.length === 0 && (
+          {vendorRunDeliveries.length === 0 ? (
             <div
               className="rounded-2xl border border-white/10 bg-bg-secondary px-5 py-6 text-center shadow-lg shadow-black/15"
               data-testid="vendor-unplanned-empty-state"
@@ -1282,6 +1286,26 @@ export function LocationScanPage() {
               <button
                 type="button"
                 className="tap-target mt-5 min-h-12 w-full rounded-xl bg-[#047857] px-4 py-3 text-base font-bold text-white shadow-md shadow-black/20 transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6ee7b7] focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary"
+                data-testid="vendor-unplanned-entry-cta"
+                onClick={openUnplannedFromVendorList}
+              >
+                Add unplanned delivery
+              </button>
+            </div>
+          ) : (
+            <div
+              className="rounded-2xl border border-white/10 bg-bg-secondary px-5 py-5 text-center shadow-lg shadow-black/15"
+              data-testid="vendor-unplanned-fallback"
+            >
+              <h2 className="text-lg font-bold tracking-tight text-text-primary">
+                Don&apos;t see this delivery?
+              </h2>
+              <p className="mt-1.5 text-sm leading-6 text-text-secondary">
+                Add another invoice, PO, or order that isn&apos;t listed yet.
+              </p>
+              <button
+                type="button"
+                className="tap-target mt-4 min-h-12 w-full rounded-xl bg-[#047857] px-4 py-3 text-base font-bold text-white shadow-md shadow-black/20 transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6ee7b7] focus-visible:ring-offset-2 focus-visible:ring-offset-bg-secondary"
                 data-testid="vendor-unplanned-entry-cta"
                 onClick={openUnplannedFromVendorList}
               >

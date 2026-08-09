@@ -92,3 +92,4 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-09 | ship-op (PR #90 history-on-reopen harness merge) | T0 verify-harness | Composer 2.5 Fast | 99 | 99 | ok | rebase onto main+D-76; verify:invoice-review-chat:prod PASS; merge 53551d6d; no deploy |
 
 - 2026-08-09 | retire-legacy-receive-delivery | archetype=ui-component/qr-routing | tier=T1 simple-ui | model=composer-2.5-fast | confStart=98 | confAfter=99 | outcome=ok | note=D-77 bare receive recovery + zone redirect LIVE
+| 2026-08-09 | ui-component (vendor unplanned fallback CTA reusable — prior delivery no longer suppresses) | T1 fast-safe simple UI | Composer 2.5 Fast | 99 | 99 | ok (PR only) | FE LocationScanPage always show CTA; verify reusable fallback PASS; no CF/rules |

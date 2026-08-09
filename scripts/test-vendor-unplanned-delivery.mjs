@@ -369,6 +369,58 @@ try {
   } catch (err) {
     fail("vendor session markVendorDelivered", err);
   }
+
+  console.log("\n=== second unplanned via vendor session (prior shell exists) ===\n");
+
+  const secondRef = "UNPL-SECOND-REF-77";
+  let secondDeliveryId;
+  try {
+    const res = await createUnplanned({
+      sessionToken: VENDOR_RUN_SESSION,
+      reference: secondRef,
+      spaceTier: "shelf",
+    });
+    const data = res.data;
+    if (
+      data?.success === true &&
+      data.deliveryId &&
+      data.deliveryId !== firstDeliveryId
+    ) {
+      secondDeliveryId = data.deliveryId;
+      pass("vendor session creates second different unplanned shell");
+    } else {
+      fail("second unplanned create", new Error(JSON.stringify(data)));
+    }
+  } catch (err) {
+    fail("second unplanned create", err);
+  }
+
+  const second = secondDeliveryId ? await readDelivery(secondDeliveryId) : null;
+  if (second?.unplanned === true && second?.unplannedSubmittedReference === secondRef) {
+    pass("second shell is separate Unplanned record");
+  } else {
+    fail("second shell flags", new Error(JSON.stringify(second)));
+  }
+
+  try {
+    const res = await createUnplanned({
+      sessionToken: VENDOR_RUN_SESSION,
+      reference: secondRef,
+      spaceTier: "shelf",
+    });
+    const replayId =
+      res.data?.deliveryId ??
+      (res.data?.outcome === "strong_match_found"
+        ? res.data?.candidate?.deliveryId
+        : undefined);
+    if (replayId === secondDeliveryId) {
+      pass("second-ref idempotent replay returns same delivery");
+    } else {
+      fail("second-ref idempotent", new Error(JSON.stringify(res.data)));
+    }
+  } catch (err) {
+    fail("second-ref idempotent", err);
+  }
 } finally {
   console.log(`\nvendor-unplanned-delivery: ${passed} passed, ${failed} failed`);
   await testEnv.cleanup();

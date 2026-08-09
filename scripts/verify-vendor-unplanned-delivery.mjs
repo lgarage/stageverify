@@ -136,6 +136,25 @@ async function seedUnplannedFixture() {
     { merge: true },
   );
 
+  // Active prior unplanned shell — must NOT hide the reusable fallback CTA.
+  const priorActiveId = `${vendorId}-prior-active`;
+  await setDoc(doc(db, "deliveries", priorActiveId), {
+    id: priorActiveId,
+    orderNumber: `PRIOR-${vendorId.slice(-6)}`,
+    vendorId,
+    vendorName: "Unplanned Verify Vendor",
+    jobId: ANCHOR_JOB_ID,
+    vendorInvoiceNumber: "INV-PRIOR-ACTIVE-1",
+    deliveryDate: now.slice(0, 10),
+    status: "pending",
+    unplanned: true,
+    unplannedSubmittedReference: "INV-PRIOR-ACTIVE-1",
+    unplannedCreatedVia: "vendor_pin_fallback",
+    stagingLocationId: STAGING_LOC_ID,
+    createdAt: now,
+    updatedAt: now,
+  });
+
   const setAccessPin = httpsCallable(functions, "setAccessPin");
   try {
     await setAccessPin({
@@ -170,6 +189,7 @@ async function teardownUnplannedFixture() {
   const accessToken = await getFirebaseAccessToken();
   const paths = [
     `deliveries/${vendorId}-anchor`,
+    `deliveries/${vendorId}-prior-active`,
     `accessPinSecrets/vendor_${vendorId}`,
     `vendors/${vendorId}`,
   ];
@@ -250,40 +270,39 @@ try {
   record("location scan page loads", true);
 
   await enterPin(page, companyPin);
+  // With prior active unplanned + inactive anchor: vendor-list + reusable CTA.
   await page
-    .getByTestId("vendor-unplanned-form")
-    .or(page.getByTestId("vendor-unplanned-entry-cta"))
-    .first()
+    .getByTestId(`vendor-run-row-${vendorId}-prior-active`)
     .waitFor({ state: "visible", timeout: 30_000 });
+  record("prior active unplanned appears in vendor list", true);
 
-  const directForm = await page.getByTestId("vendor-unplanned-form").isVisible();
-  if (directForm) {
-    record("PIN no-anchor opens unplanned form", true);
-    await page.screenshot({
-      path: resolve(outDir, "01-no-expected-unplanned-form.png"),
-      fullPage: true,
-    });
+  const cta = page.getByTestId("vendor-unplanned-entry-cta");
+  await cta.waitFor({ state: "visible", timeout: 10_000 });
+  const fallback = page.getByTestId("vendor-unplanned-fallback");
+  if (!(await fallback.isVisible())) {
+    record(
+      "reusable fallback CTA with prior delivery",
+      false,
+      "vendor-unplanned-fallback not visible",
+    );
   } else {
-    const cta = page.getByTestId("vendor-unplanned-entry-cta");
-    if (await cta.isVisible()) {
-      await page.screenshot({
-        path: resolve(outDir, "01-no-expected-empty-cta.png"),
-        fullPage: true,
-      });
-      await cta.click();
-      await page.getByTestId("vendor-unplanned-form").waitFor({
-        state: "visible",
-        timeout: 15_000,
-      });
-      record("empty vendor run shows unplanned CTA", true);
-      await page.screenshot({
-        path: resolve(outDir, "02-add-unplanned-form.png"),
-        fullPage: true,
-      });
-    } else {
-      record("unplanned entry visible", false, "no form or CTA");
-    }
+    record("reusable fallback CTA with prior delivery", true);
   }
+  await page.screenshot({
+    path: resolve(outDir, "01-list-with-prior-and-cta.png"),
+    fullPage: true,
+  });
+
+  await cta.click();
+  await page.getByTestId("vendor-unplanned-form").waitFor({
+    state: "visible",
+    timeout: 15_000,
+  });
+  record("Add unplanned delivery opens form from non-empty list", true);
+  await page.screenshot({
+    path: resolve(outDir, "02-add-unplanned-form.png"),
+    fullPage: true,
+  });
 
   await assertReadableTextContrast(page, {
     rootSelector: '[data-testid="vendor-unplanned-form"]',
