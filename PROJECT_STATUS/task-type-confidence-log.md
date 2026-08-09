@@ -20,3 +20,5 @@ Append-only session log (Dan standing preference). Not a planning SSOT.
 | 2026-08-09 | ship-op merge PR #109 (Timekeeper harness) | ship-op / harness | T0 | Composer 2.5 Fast | 99 | 99 | ready→MERGED `6ea99d1f`; no gh-pages/CF/rules |
 | 2026-08-09 | ship-op / D-60 re-entry PR #97 (Sonnet→Grok→Sonnet→D-38; no merge/CF deploy) | backend-write-critical | T3 | Composer 2.5 Fast + Sonnet D-60 + Grok adversarial | 98 | 99 | FE false-success fix 989d018d; gate UUID bare; create_shell=A; CF held |
 | 2026-08-09 | ship-op (PR #97 merge+CF+gh-pages; list CF pending) | backend-write-critical | T3 | Composer 2.5 Fast | 99 | 99 | merge 51b87354; 4 CFs LIVE; listVendorInvoiceImports strips draft — need Dan approve |
+| 2026-08-09 | Settings PIN visit-scoped PIN # updated badge | ui-component / css-restyle | T1 | Sol advice+review (`gpt-5.6-sol-high`) + Composer 2.5 Fast build | 98 | 99 | FE-only visit state; Sol visual PASS; v0.0.271 LIVE |
+| 2026-08-09 | ship-op merge+deploy PR #113 PIN # updated badge | ship-op / prod-verify | T1 | Composer 2.5 Fast | 99 | 99 | merge `64197430`; gh-pages `index-DZiw9ihY.js`; verify:settings-technicians:prod PASS |
