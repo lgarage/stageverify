@@ -16,6 +16,7 @@ import {
   resolveInvoiceApproveDeliveryTarget,
   shellDeliveryIdForImport,
 } from "./invoice/createDeliveryShellFromImport";
+import { isDeliveryOwnedByImportOrUnclaimed } from "./invoice/matchInvoiceToRecords";
 import {
   isInvoiceShellNoShopStaging,
   jobNameFromInvoiceContext,
@@ -840,13 +841,21 @@ export const approveVendorInvoiceImport = onCall(
             "Matched delivery no longer exists. Refresh and try again.",
           );
         }
+        // Re-check ownership at commit time (D-38) — pre-txn match snapshot can race.
+        const liveDelivery = existingDelivery.data() ?? {};
+        if (!isDeliveryOwnedByImportOrUnclaimed(liveDelivery, importId)) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Matched delivery is already linked to another invoice import. Reload and try again.",
+          );
+        }
         tx.update(deliveryRef, {
           ...buildInvoiceMatchedDeliveryPatchDocument(
             shell,
             importId,
             fresh,
             now,
-            existingDelivery.data(),
+            liveDelivery,
           ),
           ...stagingPatch,
         });

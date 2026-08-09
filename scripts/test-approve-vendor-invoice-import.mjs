@@ -1907,6 +1907,73 @@ if (
   });
 }
 
+// priorLinked sticky to a delivery claimed by another import → reject at commit (D-38)
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "deliveries", "delivery-claimed-by-other"), {
+    id: "delivery-claimed-by-other",
+    orderNumber: "CLAIMED-ORD-1",
+    jobId: "job-1",
+    vendorId: "vendor-1",
+    status: "pending",
+    vendorInvoiceImportId: "vii-other-claimant",
+    notes: "Owned by other import",
+    createdAt: "2026-06-01T00:00:00Z",
+    updatedAt: "2026-06-01T00:00:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-prior-linked-foreign"), {
+    id: "vii-prior-linked-foreign",
+    inboundEmailProcessingId: "inbound-prior-foreign",
+    gmailMessageId: "msg-prior-foreign",
+    importBatchId: "batch-matched",
+    pageId: "inv-prior-foreign",
+    pageIndexInBatch: 0,
+    reviewStatus: "pending_review",
+    importStatus: "pending",
+    confidenceTier: "high",
+    confidenceScore: 90,
+    humanReviewRequired: false,
+    duplicate: false,
+    linkedDeliveryOrderId: "delivery-claimed-by-other",
+    parsedHeader: {
+      ...dropOffHeader,
+      customerPoOrReference: "PO-80998",
+      vendorOrderNumber: "CLAIMED-ORD-1",
+      vendorInvoiceNumber: "CLAIMED-ORD-1",
+      jobNumberRaw: "",
+      fulfillmentMethod: "delivery",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: 2,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+try {
+  await approveImport({
+    vendorInvoiceImportId: "vii-prior-linked-foreign",
+    action: "approve",
+    plannedStagingLocationIds: ["staging-g1"],
+  });
+  fail("priorLinked foreign-owned delivery should be rejected");
+} catch (err) {
+  const msg = String(err?.message ?? "");
+  if (/already linked to another invoice/i.test(msg) || String(err?.code ?? "").includes("failed-precondition")) {
+    pass("priorLinked foreign-owned delivery rejected at commit (TOCTOU guard)");
+  } else {
+    fail("expected foreign ownership failed-precondition", err?.message);
+  }
+}
+const claimedAfter = await getDoc(doc(db, "deliveries", "delivery-claimed-by-other"));
+if (claimedAfter.data()?.vendorInvoiceImportId === "vii-other-claimant" && claimedAfter.data()?.notes === "Owned by other import") {
+  pass("foreign-owned delivery unchanged after blocked priorLinked approve");
+} else {
+  fail("foreign delivery mutated", claimedAfter.data());
+}
+
 await testEnv.cleanup();
 
 console.log(`\n--- Result: ${passed} passed, ${failed} failed ---`);

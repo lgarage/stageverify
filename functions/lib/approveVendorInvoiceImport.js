@@ -12,6 +12,7 @@ const https_1 = require("firebase-functions/v2/https");
 const loadMatchContext_1 = require("./email/loadMatchContext");
 const buildExpectedItemsFromImport_1 = require("./invoice/buildExpectedItemsFromImport");
 const createDeliveryShellFromImport_1 = require("./invoice/createDeliveryShellFromImport");
+const matchInvoiceToRecords_1 = require("./invoice/matchInvoiceToRecords");
 const invoiceShellDisplayHelpers_1 = require("./invoice/invoiceShellDisplayHelpers");
 const parsedHeaderValidation_1 = require("./invoice/parsedHeaderValidation");
 const computeAutoImportEligibility_1 = require("./invoice/computeAutoImportEligibility");
@@ -575,8 +576,13 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             if (!existingDelivery.exists) {
                 throw new https_1.HttpsError("failed-precondition", "Matched delivery no longer exists. Refresh and try again.");
             }
+            // Re-check ownership at commit time (D-38) — pre-txn match snapshot can race.
+            const liveDelivery = existingDelivery.data() ?? {};
+            if (!(0, matchInvoiceToRecords_1.isDeliveryOwnedByImportOrUnclaimed)(liveDelivery, importId)) {
+                throw new https_1.HttpsError("failed-precondition", "Matched delivery is already linked to another invoice import. Reload and try again.");
+            }
             tx.update(deliveryRef, {
-                ...(0, createDeliveryShellFromImport_1.buildInvoiceMatchedDeliveryPatchDocument)(shell, importId, fresh, now, existingDelivery.data()),
+                ...(0, createDeliveryShellFromImport_1.buildInvoiceMatchedDeliveryPatchDocument)(shell, importId, fresh, now, liveDelivery),
                 ...stagingPatch,
             });
         }

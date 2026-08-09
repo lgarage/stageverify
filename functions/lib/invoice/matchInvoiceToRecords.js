@@ -1,11 +1,26 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.INVOICE_AUTO_APPLY_CONFIDENCE = void 0;
+exports.isDeliveryOwnedByImportOrUnclaimed = isDeliveryOwnedByImportOrUnclaimed;
 exports.isEligibleMatchedDeliveryTarget = isEligibleMatchedDeliveryTarget;
 exports.extractPoHint = extractPoHint;
 exports.matchInvoiceToRecords = matchInvoiceToRecords;
 exports.INVOICE_AUTO_APPLY_CONFIDENCE = 85;
 const INVOICE_REVIEW_CONFIDENCE = 60;
+/**
+ * True when this import may write/claim the delivery (D-67 ownership).
+ * Unowned or already stamped for this importId → ok; foreign stamp → false.
+ */
+function isDeliveryOwnedByImportOrUnclaimed(delivery, importId) {
+    if (!delivery)
+        return false;
+    const ownerImportId = typeof delivery.vendorInvoiceImportId === "string"
+        ? delivery.vendorInvoiceImportId.trim()
+        : "";
+    if (!ownerImportId)
+        return true;
+    return ownerImportId === importId;
+}
 /**
  * Server eligibility for Approve → existing delivery (D-67).
  * Reuses matchInvoiceToRecords thresholds — no second scoring system.
@@ -23,18 +38,7 @@ function isEligibleMatchedDeliveryTarget(match, importId, deliveries) {
     const target = deliveries.find((d) => d.id === deliveryOrderId);
     if (!target)
         return false;
-    // Never coalesce onto another import's shell / owned delivery.
-    const ownerImportId = target.vendorInvoiceImportId?.trim();
-    if (target.createdFromInvoiceImport === true &&
-        ownerImportId &&
-        ownerImportId !== importId) {
-        return false;
-    }
-    if (ownerImportId && ownerImportId !== importId) {
-        // Non-shell stamped for a different import — treat as foreign-owned.
-        return false;
-    }
-    return true;
+    return isDeliveryOwnedByImportOrUnclaimed(target, importId);
 }
 /** Extract PO-##### token from customer reference when present. */
 function extractPoHint(customerPoOrReference) {
