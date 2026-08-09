@@ -248,12 +248,42 @@ async function upsertManagementPinDoc(input) {
         const db = (0, accessPinSecretsShared_1.getDb)();
         const refs = (0, accessPinSecretWrite_1.prepareAccessPinSecretWrite)("management", pinId, pin);
         await db.runTransaction(async (tx) => {
-            const [existingSecretSnap, uniquenessSnap, entitySnap, ...legacyUniquenessSnaps] = await Promise.all([
+            // ALL reads before ANY writes (incl. session consume when rotating).
+            const sessionRef = input.sessionConsumption && input.actorUid
+                ? db
+                    .collection(accessPinSecretsShared_1.ADMIN_ACCESS_SESSIONS_COLLECTION)
+                    .doc(input.sessionConsumption.sessionId)
+                : null;
+            const [existingSecretSnap, uniquenessSnap, entitySnap, sessionSnap, ...legacyUniquenessSnaps] = await Promise.all([
                 tx.get(refs.secretRef),
                 tx.get(refs.uniquenessRef),
                 tx.get(refs.entityRef),
+                sessionRef ? tx.get(sessionRef) : Promise.resolve(null),
                 ...refs.legacyUniquenessRefs.map((ref) => tx.get(ref)),
             ]);
+            if (sessionRef && input.sessionConsumption && input.actorUid) {
+                if (!sessionSnap?.exists) {
+                    throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
+                }
+                const session = sessionSnap.data();
+                if (session.secretHash !==
+                    (0, adminAccessSession_1.hashAdminAccessSessionRaw)(input.sessionConsumption.raw)) {
+                    throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
+                }
+                if (session.revoked || session.consumedAt) {
+                    throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
+                }
+                if (Date.parse(session.expiresAt) <= Date.now()) {
+                    throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
+                }
+                if (session.managerUid !== input.actorUid) {
+                    throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
+                }
+                if (session.targetType !== "management" ||
+                    session.targetId !== pinId) {
+                    throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
+                }
+            }
             await (0, accessPinSecretWrite_1.applyAccessPinSecretWriteInTransaction)(tx, db, {
                 targetType: "management",
                 targetId: pinId,
@@ -275,32 +305,7 @@ async function upsertManagementPinDoc(input) {
                 managementPinConfigured: true,
                 updatedAt: now,
             }, { merge: true });
-            if (input.sessionConsumption && input.actorUid) {
-                const sessionRef = db
-                    .collection(accessPinSecretsShared_1.ADMIN_ACCESS_SESSIONS_COLLECTION)
-                    .doc(input.sessionConsumption.sessionId);
-                const sessionSnap = await tx.get(sessionRef);
-                if (!sessionSnap.exists) {
-                    throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
-                }
-                const session = sessionSnap.data();
-                if (session.secretHash !==
-                    (0, adminAccessSession_1.hashAdminAccessSessionRaw)(input.sessionConsumption.raw)) {
-                    throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
-                }
-                if (session.revoked || session.consumedAt) {
-                    throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
-                }
-                if (Date.parse(session.expiresAt) <= Date.now()) {
-                    throw new https_1.HttpsError("failed-precondition", "Admin access session expired.");
-                }
-                if (session.managerUid !== input.actorUid) {
-                    throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
-                }
-                if (session.targetType !== "management" ||
-                    session.targetId !== pinId) {
-                    throw new https_1.HttpsError("permission-denied", "Invalid admin access session.");
-                }
+            if (sessionRef) {
                 tx.set(sessionRef, { consumedAt: now }, { merge: true });
             }
         });

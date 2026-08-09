@@ -455,7 +455,7 @@ async function main() {
       await detail.getByTestId("pin-access-new-pin-input").fill(fixturePin);
       await detail.getByTestId("pin-access-confirm-pin-input").fill(fixturePin);
       await detail.getByTestId("pin-access-save").click();
-      await page.getByText(/PIN updated/i).waitFor({ timeout: 25_000 });
+      await page.getByText("New PIN saved").waitFor({ timeout: 25_000 });
       await page
         .getByTestId("pin-access-detail")
         .waitFor({ state: "detached", timeout: 20_000 });
@@ -507,7 +507,7 @@ async function main() {
         .getByTestId("pin-access-confirm-pin-input")
         .fill(originalVendorPin);
       await detail.getByTestId("pin-access-save").click();
-      await page.getByText(/PIN updated|Changes saved/i).waitFor({
+      await page.getByText(/New PIN saved|Changes saved/i).waitFor({
         timeout: 25_000,
       });
       await page

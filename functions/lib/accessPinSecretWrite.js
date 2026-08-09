@@ -74,24 +74,35 @@ async function applyAccessPinSecretWriteInTransaction(tx, db, input) {
                     const oldGlobalRef = db
                         .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
                         .doc((0, accessPinSecretsShared_1.accessPinUniquenessDocId)(oldKey));
-                    const oldGlobalSnap = await tx.get(oldGlobalRef);
+                    const oldLegacyRefs = accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_TARGET_TYPES.map((type) => db
+                        .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
+                        .doc((0, accessPinSecretsShared_1.legacyAccessPinUniquenessDocId)(type, oldKey)));
+                    // ALL reads for old-PIN cleanup before ANY writes (Firestore tx rule).
+                    // Prior bug: tx.delete(global) then tx.get(legacy) → HTTP 500 on rotate.
+                    const [oldGlobalSnap, ...oldLegacySnaps] = await Promise.all([
+                        tx.get(oldGlobalRef),
+                        ...oldLegacyRefs.map((ref) => tx.get(ref)),
+                    ]);
                     if (oldGlobalSnap.exists &&
                         !(0, accessPinSecretsShared_1.uniquenessBelongsToOtherTarget)(oldGlobalSnap.data(), targetType, targetId)) {
                         tx.delete(oldGlobalRef);
                     }
-                    for (const type of accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_TARGET_TYPES) {
-                        const legacyRef = db
-                            .collection(accessPinSecretsShared_1.ACCESS_PIN_UNIQUENESS_COLLECTION)
-                            .doc((0, accessPinSecretsShared_1.legacyAccessPinUniquenessDocId)(type, oldKey));
-                        const legacySnap = await tx.get(legacyRef);
-                        if (legacySnap.exists &&
-                            !(0, accessPinSecretsShared_1.uniquenessBelongsToOtherTarget)(legacySnap.data(), targetType, targetId)) {
-                            tx.delete(legacyRef);
+                    oldLegacySnaps.forEach((legacySnap, i) => {
+                        if (!legacySnap.exists)
+                            return;
+                        if ((0, accessPinSecretsShared_1.uniquenessBelongsToOtherTarget)(legacySnap.data(), targetType, targetId)) {
+                            return;
                         }
-                    }
+                        tx.delete(oldLegacyRefs[i]);
+                    });
                 }
             }
-            catch {
+            catch (err) {
+                // Rethrow transaction ordering / unexpected errors; skip only decrypt/corrupt.
+                if (err instanceof Error &&
+                    /transactions require all reads/i.test(err.message)) {
+                    throw err;
+                }
                 // Hash-only or corrupt prior secret — skip old uniqueness cleanup.
             }
         }
