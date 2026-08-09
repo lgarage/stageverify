@@ -15,7 +15,10 @@ import {
   sumItemQtyOrdered,
   sumItemQtyReceived,
 } from "../src/dispatcher/deliveryDisplayHelpers.ts";
-import { deliveryReadinessDisplayLabel } from "../src/dispatcher/jobReadinessDisplay.ts";
+import {
+  deliveryReadinessDisplayLabel,
+  UNPLANNED_STATUS_LABEL,
+} from "../src/dispatcher/jobReadinessDisplay.ts";
 
 const failures = [];
 
@@ -263,8 +266,8 @@ assert(
   "ORD-005 unit total is 0 received",
 );
 assert(
-  ord005Display.statusDisplayLabel === "Awaiting Delivery",
-  "ORD-005 list/drawer label Awaiting Delivery when 0 received",
+  ord005Display.statusDisplayLabel === "Assigned / Planned",
+  "ORD-005 list/drawer label Assigned / Planned when 0 received",
 );
 assert(
   ord005Panel.itemsReceivedCount === 0 && ord005Panel.itemsTotalCount === 9,
@@ -272,8 +275,8 @@ assert(
 );
 assert(
   deliveryReadinessDisplayLabel(ord005Delivery, ord005Readiness, ord005Items) ===
-    "Awaiting Delivery",
-  "ORD-005 direct label Awaiting Delivery",
+    "Assigned / Planned",
+  "ORD-005 direct label Assigned / Planned",
 );
 assert(
   ord005Panel.openIssuesCount === 0,
@@ -297,6 +300,34 @@ assert(
   "ORD-005 does not promote vendor contact for normal pending",
 );
 
+const unplannedZeroReceived = {
+  ...ord005Delivery,
+  unplanned: true,
+  reviewFlag: {
+    flagged: true,
+    reason: "Unplanned delivery received — needs job/PO match",
+    flaggedBy: "vendor",
+    flaggedAt: "2026-06-02T12:00:00Z",
+  },
+};
+const unplannedReadiness = computeDeliveryReadiness(
+  unplannedZeroReceived,
+  ord005Items,
+);
+assert(
+  deliveryReadinessDisplayLabel(
+    unplannedZeroReceived,
+    unplannedReadiness,
+    ord005Items,
+  ) === UNPLANNED_STATUS_LABEL,
+  "unplanned pending 0-received label is Unplanned not Assigned / Planned",
+);
+assert(
+  computeDeliveryDisplayState(unplannedZeroReceived, ord005Items, [])
+    .statusDisplayLabel === UNPLANNED_STATUS_LABEL,
+  "unplanned shell display state uses Unplanned primary label",
+);
+
 function zeroQtyItemsFromOrd005() {
   return ord005Items.map((item) => ({ ...item }));
 }
@@ -314,8 +345,8 @@ assert(
     arrivedZeroReceived,
     arrivedReadiness,
     ord005Items,
-  ) === "Awaiting Delivery",
-  "arrived with 0 received is Awaiting Delivery not Partial",
+  ) === "Assigned / Planned",
+  "arrived with 0 received is Assigned / Planned not Partial",
 );
 assert(
   arrivedReadiness.deliveryStatus !== "partial",

@@ -50,6 +50,47 @@ export function collectDeliveryStagingCodes(
   );
 }
 
+function stagingRefResolves(
+  rawId: string,
+  locById: Map<string, StagingLocation>,
+  locByCodeKey: Map<string, StagingLocation>,
+): boolean {
+  const id = rawId.trim();
+  if (!id) return true;
+  const byId = locById.get(id);
+  if (byId?.code?.trim()) return true;
+  const byCode = locByCodeKey.get(formatStagingCodeCanonical(id));
+  return Boolean(byCode?.code?.trim());
+}
+
+/** True when delivery references staging ids/codes that do not resolve in locById. */
+export function hasUnresolvedStagingLocationRefs(
+  delivery: DeliveryOrder,
+  locById: Map<string, StagingLocation>,
+): boolean {
+  const ids = [
+    ...new Set([
+      ...getAllStagingLocationIds(delivery),
+      ...(delivery.plannedStagingLocationIds ?? []),
+    ]),
+  ].filter((id): id is string => typeof id === "string" && Boolean(id.trim()));
+  if (ids.length === 0) return false;
+
+  const locByCodeKey = new Map<string, StagingLocation>();
+  for (const loc of locById.values()) {
+    const key = formatStagingCodeCanonical(loc.code);
+    if (key) locByCodeKey.set(key, loc);
+  }
+
+  const hasUnresolved = ids.some(
+    (rawId) => !stagingRefResolves(rawId, locById, locByCodeKey),
+  );
+  if (!hasUnresolved) return false;
+
+  const codes = collectDeliveryStagingCodes(delivery, locById);
+  return codes.length === 0 || hasUnresolved;
+}
+
 export function stagingSpotChipStyle(
   color: SpotMapColor,
   size: "default" | "compact" = "default",
@@ -99,8 +140,23 @@ export function DrawerStagingLocationChips({
 }: Props) {
   const locById = new Map(stagingLocations.map((loc) => [loc.id, loc]));
   const codes = collectDeliveryStagingCodes(delivery, locById);
+  const unresolvedRefs = hasUnresolvedStagingLocationRefs(delivery, locById);
 
   if (codes.length === 0) {
+    if (unresolvedRefs) {
+      return (
+        <span
+          data-testid="delivery-basics-staging-unresolved"
+          style={{
+            color: "var(--admin-warning-text, #b45309)",
+            fontStyle: "italic",
+            fontFamily: font,
+          }}
+        >
+          Staging location missing
+        </span>
+      );
+    }
     return (
       <span
         data-testid="delivery-basics-staging-unassigned"

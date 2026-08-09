@@ -128,7 +128,10 @@ import {
   isCompleteOverviewRow,
   rowMatchesOverviewStatusFilter,
 } from "./deliveryDisplayHelpers";
-import { collectDeliveryStagingCodes } from "./drawer/DrawerStagingLocationChips";
+import {
+  collectDeliveryStagingCodes,
+  hasUnresolvedStagingLocationRefs,
+} from "./drawer/DrawerStagingLocationChips";
 import {
   fulfillmentDisplayLabel,
   isWillCallPickupStagingListNa,
@@ -550,7 +553,9 @@ export class FirestoreDataService implements DispatcherDataService {
         itemsReceivedLabel: `${received}/${ordered}`,
         issueSummary,
         openIssueCount: display.openIssueCount,
-        missingStagingAssignment: display.missingStagingAssignment,
+        missingStagingAssignment:
+          display.missingStagingAssignment ||
+          hasUnresolvedStagingLocationRefs(delivery, locById),
         stagingLocationListNotApplicable:
           isWillCallPickupStagingListNa(delivery),
         creditReturnLinked,
@@ -631,27 +636,43 @@ export class FirestoreDataService implements DispatcherDataService {
   ): Promise<DeliveryDetails | null> {
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) return null;
-    const delivery = deliverySnap.data() as DeliveryOrder;
+    // Always hydrate doc id (body may omit `id` → assignDelivery=undefined after refresh).
+    const delivery = deliveryOrderFromSnap(
+      deliveryId,
+      deliverySnap.data() as DeliveryOrder,
+    );
 
-    const jobSnap = await getDoc(doc(db, "jobs", delivery.jobId));
-    const vendorSnap = await getDoc(doc(db, "vendors", delivery.vendorId));
-    if (!jobSnap.exists() || !vendorSnap.exists()) return null;
-
-    const job = { ...(jobSnap.data() as Job), id: jobSnap.id };
+    const vendorId = delivery.vendorId?.trim();
+    if (!vendorId) return null;
+    const vendorSnap = await getDoc(doc(db, "vendors", vendorId));
+    if (!vendorSnap.exists()) return null;
     const vendor = { ...(vendorSnap.data() as Vendor), id: vendorSnap.id };
 
+    // D-73 unplanned shells omit jobId until dispatcher match. Never call
+    // doc(jobs, undefined/""): Firebase throws → drawer "Unable to load…".
+    const jobId = delivery.jobId?.trim();
+    let job: Job | undefined;
+    if (jobId) {
+      const jobSnap = await getDoc(doc(db, "jobs", jobId));
+      if (jobSnap.exists()) {
+        job = { ...(jobSnap.data() as Job), id: jobSnap.id };
+      }
+    }
+    // Planned deliveries still require a resolvable job; unplanned shells do not.
+    if (!job && delivery.unplanned !== true) return null;
+
     let purchaseOrder: PurchaseOrder | undefined;
-    if (delivery.purchaseOrderId) {
+    if (delivery.purchaseOrderId?.trim()) {
       const poSnap = await getDoc(
-        doc(db, "purchaseOrders", delivery.purchaseOrderId),
+        doc(db, "purchaseOrders", delivery.purchaseOrderId.trim()),
       );
       if (poSnap.exists()) purchaseOrder = poSnap.data() as PurchaseOrder;
     }
 
     let stagingLocation: StagingLocation | undefined;
-    if (delivery.stagingLocationId) {
+    if (delivery.stagingLocationId?.trim()) {
       const locSnap = await getDoc(
-        doc(db, "stagingLocations", delivery.stagingLocationId),
+        doc(db, "stagingLocations", delivery.stagingLocationId.trim()),
       );
       stagingLocation = stagingLocationFromSnap(locSnap);
     }
@@ -891,15 +912,23 @@ export class FirestoreDataService implements DispatcherDataService {
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) return null;
 
+    const existing = deliverySnap.data() as DeliveryOrder;
     const now = new Date().toISOString();
-    await setDoc(
-      doc(db, "deliveries", deliveryId),
-      {
-        invoiceFulfillmentMethod: method,
-        updatedAt: now,
-      },
-      { merge: true },
-    );
+    const patch: Record<string, unknown> = {
+      invoiceFulfillmentMethod: method,
+      updatedAt: now,
+    };
+    // Pair fulfillment with import-status skip-staging gates (same pairing as Handle Arrival).
+    if (method === "will_call_pickup") {
+      patch.invoiceImportStatus = "pickup_at_vendor";
+    } else if (
+      method === "delivery" &&
+      existing.invoiceImportStatus === "pickup_at_vendor"
+    ) {
+      patch.invoiceImportStatus = "pending";
+    }
+
+    await setDoc(doc(db, "deliveries", deliveryId), patch, { merge: true });
     await invokeRecalculateDeliveryReadiness(deliveryId);
     return this.getDeliveryDetails(deliveryId);
   }
@@ -987,10 +1016,16 @@ export class FirestoreDataService implements DispatcherDataService {
         );
       } else {
         const newPoId = `po-${crypto.randomUUID()}`;
+        const poJobId = delivery.jobId?.trim();
+        if (!poJobId) {
+          throw new Error(
+            "Cannot create a PO until this delivery is matched to a job.",
+          );
+        }
         await setDoc(doc(db, "purchaseOrders", newPoId), {
           id: newPoId,
           poNumber: poNumber.trim(),
-          jobId: delivery.jobId,
+          jobId: poJobId,
           vendorId: delivery.vendorId,
           orderDate: now.slice(0, 10),
           status: "open",
@@ -1871,13 +1906,16 @@ async function hydrateDeliveryDetailsPublic(
   delivery: DeliveryOrder,
 ): Promise<DeliveryDetails | null> {
   const deliveryId = delivery.id;
+  const jobId = delivery.jobId?.trim();
   const [jobSnap, poSnap, locSnap, items] = await Promise.all([
-    getDoc(doc(db, "jobs", delivery.jobId)),
-    delivery.purchaseOrderId
-      ? getDoc(doc(db, "purchaseOrders", delivery.purchaseOrderId))
+    jobId
+      ? getDoc(doc(db, "jobs", jobId))
       : Promise.resolve(null as FirestoreDocSnap | null),
-    delivery.stagingLocationId
-      ? getDoc(doc(db, "stagingLocations", delivery.stagingLocationId))
+    delivery.purchaseOrderId?.trim()
+      ? getDoc(doc(db, "purchaseOrders", delivery.purchaseOrderId.trim()))
+      : Promise.resolve(null as FirestoreDocSnap | null),
+    delivery.stagingLocationId?.trim()
+      ? getDoc(doc(db, "stagingLocations", delivery.stagingLocationId.trim()))
       : Promise.resolve(null as FirestoreDocSnap | null),
     fetchWhere<Item>("items", "deliveryOrderId", deliveryId),
   ]);
@@ -1885,8 +1923,8 @@ async function hydrateDeliveryDetailsPublic(
   const publicVendor = publicVendorFromDelivery(delivery);
 
   let job: Job | undefined;
-  if (jobSnap.exists()) {
-    job = jobSnap.data() as Job;
+  if (jobSnap?.exists()) {
+    job = { ...(jobSnap.data() as Job), id: jobSnap.id };
   }
 
   let purchaseOrder: PurchaseOrder | undefined;
@@ -1939,7 +1977,8 @@ function deliveryOrderFromSnap(
   deliveryId: string,
   data: DeliveryOrder,
 ): DeliveryOrder {
-  return { ...data, id: data.id ?? deliveryId };
+  // Prefer Firestore doc id over any stale/missing body `id` (Assign Location URL).
+  return { ...data, id: deliveryId };
 }
 
 export async function getDeliveryDetailsPublic(

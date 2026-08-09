@@ -107,6 +107,12 @@ export function isInvoiceShellNoShopStaging(
   delivery: InvoiceShellStagingFields,
 ): boolean {
   if (!isVerifiedInvoiceShell(delivery)) return false;
+  // Explicit Vendor Drop-Off wins over a stale will-call import status (drawer toggle).
+  if (delivery.invoiceFulfillmentMethod === "delivery") {
+    if (delivery.invoiceImportStatus === "closed_picked_up") return true;
+    if (delivery.invoiceDeliverToSite === true) return true;
+    return false;
+  }
   if (delivery.invoiceImportStatus === "pickup_at_vendor") return true;
   if (delivery.invoiceImportStatus === "closed_picked_up") return true;
   if (delivery.invoiceFulfillmentMethod === "will_call_pickup") return true;
@@ -121,6 +127,8 @@ export function isWillCallPickupStagingListNa(
     "invoiceImportStatus" | "invoiceFulfillmentMethod"
   >,
 ): boolean {
+  // Dispatcher/import Vendor Drop-Off is authoritative for shop-staging UI gates.
+  if (delivery.invoiceFulfillmentMethod === "delivery") return false;
   return (
     delivery.invoiceImportStatus === "pickup_at_vendor" ||
     delivery.invoiceFulfillmentMethod === "will_call_pickup"

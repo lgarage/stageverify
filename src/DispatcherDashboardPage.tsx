@@ -33,7 +33,12 @@ import {
   STAGING_PLAN_MISMATCH_TITLE,
   type DeliveryOverviewFilterStatus,
   isCompleteOverviewRow,
+  UNPLANNED_BADGE,
 } from "./dispatcher/deliveryDisplayHelpers";
+import {
+  AWAITING_DELIVERY_STATUS_LABEL,
+  UNPLANNED_STATUS_LABEL,
+} from "./dispatcher/jobReadinessDisplay";
 import { DeliveryListStagingChips } from "./dispatcher/DeliveryListStagingChips";
 import { DeliveryDetailDrawer } from "./dispatcher/drawer/DeliveryDetailDrawer";
 
@@ -101,10 +106,15 @@ const AWAITING_DELIVERY_BADGE = {
 const STATUS_LABEL = (status: DeliveryOverviewFilterStatus): string =>
   DELIVERY_OVERVIEW_FILTER_LABEL[status];
 
-function listStatusBadge(
-  row: DeliveryListRow,
-): (typeof STATUS_BADGE)[DeliveryOverviewFilterStatus] {
+type ListStatusBadgeStyle =
+  | (typeof STATUS_BADGE)[DeliveryOverviewFilterStatus]
+  | typeof UNPLANNED_BADGE;
+
+function listStatusBadge(row: DeliveryListRow): ListStatusBadgeStyle {
   const label = row.statusDisplayLabel;
+  if (label === UNPLANNED_STATUS_LABEL || label === "Unplanned") {
+    return UNPLANNED_BADGE;
+  }
   if (label === "Picked Up") return STATUS_BADGE.complete;
   if (label === "Staged — Ready for Pickup") return STATUS_BADGE.ready_for_pickup;
   if (label === "Issue / Review Required") return STATUS_BADGE.issue;
@@ -114,10 +124,12 @@ function listStatusBadge(
       ? STATUS_BADGE.shipped
       : STATUS_BADGE.pending;
   }
-  if (label === "Awaiting Delivery" || label === "Awaiting Vendor Delivery") {
-    return AWAITING_DELIVERY_BADGE;
-  }
-  if (label === "Pending Delivery") {
+  if (
+    label === AWAITING_DELIVERY_STATUS_LABEL ||
+    label === "Awaiting Delivery" ||
+    label === "Awaiting Vendor Delivery" ||
+    label === "Pending Delivery"
+  ) {
     return AWAITING_DELIVERY_BADGE;
   }
   if (label === "Incomplete") return STATUS_BADGE.partial;
@@ -648,14 +660,14 @@ export function DispatcherDashboardPage() {
                       boxSizing: "border-box",
                       border: `2px solid ${
                         query.unplannedOnly
-                          ? "var(--admin-warning-border)"
+                          ? UNPLANNED_BADGE.border
                           : "var(--admin-border)"
                       }`,
                       backgroundColor: query.unplannedOnly
-                        ? "var(--admin-warning-bg)"
+                        ? UNPLANNED_BADGE.bg
                         : "var(--admin-surface-2)",
                       color: query.unplannedOnly
-                        ? "var(--admin-warning-text)"
+                        ? UNPLANNED_BADGE.text
                         : "var(--admin-text-label)",
                       cursor: "pointer",
                       fontFamily: FONT,
@@ -758,16 +770,30 @@ export function DispatcherDashboardPage() {
                   {(
                     [
                       {
-                        swatch: "#facc15",
-                        label: "Assigned / planned (yellow)",
+                        testId: "assigned-planned",
+                        swatch: AWAITING_DELIVERY_BADGE.bg,
+                        label: "Assigned / Planned",
                       },
-                      { swatch: "#7c3aed", label: "Staged — Ready for pickup" },
-                      { swatch: "var(--admin-text-muted)", label: "Shop stock" },
+                      {
+                        testId: "staged-ready-for-pickup",
+                        swatch: "#66bb6a",
+                        label: "Staged — Ready for Pickup",
+                      },
+                      {
+                        testId: "unplanned",
+                        swatch: UNPLANNED_BADGE.bg,
+                        label: "Unplanned",
+                      },
+                      {
+                        testId: "shop-stock",
+                        swatch: "#6b7280",
+                        label: "Shop Stock",
+                      },
                     ] as const
-                  ).map(({ swatch, label }) => (
+                  ).map(({ testId, swatch, label }) => (
                     <span
-                      key={label}
-                      data-testid={`deliveries-legend-${label}`}
+                      key={testId}
+                      data-testid={`deliveries-legend-${testId}`}
                       style={{
                         display: "inline-flex",
                         alignItems: "center",
@@ -990,25 +1016,6 @@ export function DispatcherDashboardPage() {
                               }}
                             >
                               Credit/Return
-                            </span>
-                          ) : null}
-                          {row.unplanned || row.unplannedReviewFlag ? (
-                            <span
-                              className="admin-chip"
-                              data-testid={`delivery-list-unplanned-badge-${row.deliveryId}`}
-                              title="Vendor unplanned delivery — needs job/PO match"
-                              style={{
-                                display: "inline-flex",
-                                marginTop: 4,
-                                fontSize: 10,
-                                fontWeight: 700,
-                                color: "var(--admin-warning-text)",
-                                backgroundColor: "var(--admin-warning-bg)",
-                                border: "1px solid var(--admin-warning-border)",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              Unplanned
                             </span>
                           ) : null}
                         </td>

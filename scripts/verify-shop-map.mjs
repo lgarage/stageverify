@@ -561,22 +561,48 @@ async function main() {
     timeout: 5000,
   });
   if (!stagingParityDone) {
+    // A: banner already visible above. C/D/E: confirm → auto-exit assign mode.
     await page.getByTestId("assign-mode-confirm").click();
-    await page
-      .getByTestId("assign-mode-pending-code")
-      .waitFor({ state: "detached", timeout: 20_000 })
-      .catch(() => {});
     await page
       .getByTestId("assign-location-toast")
       .waitFor({ state: "visible", timeout: 15_000 })
       .catch(() => {});
-    await page.waitForTimeout(800);
-    await page.getByTestId("assign-mode-exit").click();
+    await assignBanner.waitFor({ state: "hidden", timeout: 15_000 });
     await page.waitForFunction(
       () => !window.location.href.includes("assignDelivery="),
       undefined,
       { timeout: 10_000 },
     );
+    if (/assignDelivery=/.test(page.url())) {
+      throw new Error(
+        `Assign success must clear assignDelivery from URL — got ${page.url()}`,
+      );
+    }
+    // F: refresh must stay in normal browse (no assign mode).
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByTestId("shop-floor-map").waitFor({
+      state: "visible",
+      timeout: 15_000,
+    });
+    if (/assignDelivery=/.test(page.url())) {
+      throw new Error(
+        `Refresh after assign must not re-enter assign mode — got ${page.url()}`,
+      );
+    }
+    if (
+      await page
+        .getByTestId("assign-mode-banner")
+        .isVisible()
+        .catch(() => false)
+    ) {
+      throw new Error(
+        "Refresh after assign must not show assign-mode banner",
+      );
+    }
+    console.log(
+      "PASS: assign confirm auto-exits mode (banner gone, URL cleared, refresh browse)",
+    );
+    // G: delivery still has the selected location
     await openDeliveryDrawerByDeepLink(page, appBase, drawerDeliveryId);
     await page
       .getByTestId("delivery-basics-staging-locations-heading")

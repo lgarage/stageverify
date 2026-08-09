@@ -62,6 +62,17 @@ const STATUS_CONTROL_CONTRAST = {
   ],
 };
 
+const ASSIGN_LOCATION_CONTRAST = {
+  rootSelector: '[data-testid="drawer-staging-location-banner"]',
+  elements: [
+    {
+      name: "Assign Location CTA",
+      selector: '[data-testid="drawer-staging-location-assign"]',
+      large: false,
+    },
+  ],
+};
+
 (async () => {
   mkdirSync(outDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
@@ -509,8 +520,25 @@ const STATUS_CONTROL_CONTRAST = {
       `FAIL CASE A: expected Vendor Drop-Off button — got "${caseAVendorLabel}".`,
     );
   }
+  const caseAAssign = page.getByTestId("drawer-staging-location-assign");
+  await caseAAssign.waitFor({ state: "visible", timeout: 5_000 });
+  const caseAAssignLabel = (await caseAAssign.innerText()).trim();
+  if (caseAAssignLabel !== "Assign Location") {
+    throw new Error(
+      `FAIL CASE A: expected yellow Assign Location CTA — got "${caseAAssignLabel}".`,
+    );
+  }
+  const caseAAssignBg = await caseAAssign.evaluate(
+    (el) => getComputedStyle(el).backgroundColor,
+  );
+  if (!/rgb\(234,\s*179,\s*8\)|#eab308/i.test(caseAAssignBg)) {
+    throw new Error(
+      `FAIL CASE A: Assign Location should be yellow (#eab308) — got ${caseAAssignBg}.`,
+    );
+  }
+  await assertReadableTextContrast(page, ASSIGN_LOCATION_CONTRAST);
   console.log(
-    "PASS CASE A: Vendor Drop-Off + no location — banner below fulfillment",
+    "PASS CASE A: Vendor Drop-Off + no location — yellow Assign Location below fulfillment",
   );
 
   // ── CASE D — switch Vendor Drop-Off ↔ Will-Call / Pickup from Vendor updates warning ──
@@ -528,6 +556,7 @@ const STATUS_CONTROL_CONTRAST = {
       timeout: 10_000,
     });
     if (
+      (await page.getByTestId("drawer-staging-location-assign").count()) > 0 ||
       (await page.getByTestId("delivery-basics-assign-location").count()) > 0
     ) {
       throw new Error(
@@ -556,8 +585,29 @@ const STATUS_CONTROL_CONTRAST = {
         .getByTestId("drawer-staging-location-banner")
         .waitFor({ state: "visible", timeout: 20_000 });
     }
+    // After fulfillment refresh, Assign Location must carry the real delivery id
+    // (regression: getDeliveryDetails omitted doc id → assignDelivery=undefined).
+    await page.getByTestId("drawer-staging-location-assign").click();
+    await page.waitForURL(/assignDelivery=/, { timeout: 15_000 });
+    const assignUrl = page.url();
+    if (
+      !new RegExp(`assignDelivery=${FIXTURE_NO_STAGING_ID}\\b`).test(assignUrl) ||
+      /assignDelivery=undefined/.test(assignUrl)
+    ) {
+      throw new Error(
+        `FAIL CASE D: Assign Location must open Staging Map for ${FIXTURE_NO_STAGING_ID} — got ${assignUrl}`,
+      );
+    }
+    await page.getByTestId("assign-mode-banner").waitFor({
+      state: "visible",
+      timeout: 15_000,
+    });
+    await page.goto(`${appBase}/#/dispatcher`, {
+      waitUntil: "domcontentloaded",
+    });
+    await page.waitForTimeout(800);
     console.log(
-      "PASS CASE D: fulfillment switch updates wording + clears stale staging banner",
+      "PASS CASE D: fulfillment switch + Assign Location navigates with delivery id",
     );
   } else {
     console.log("SKIP CASE D: Will-Call already active on delivery-2");

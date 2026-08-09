@@ -62,6 +62,15 @@
 
 ## NOW (Phase 5 prototype)
 
+**Shipped (2026-08-09):** Staging Map assign-mode auto-exit after successful Assign Location confirm — **v0.0.267** gh-pages FE-only; merge `804c74c8`; prod A–H PASS.
+**Shipped (2026-08-09):** Unplanned status single-badge + U1 verify-fixture cleanup/teardown harden — **v0.0.266** gh-pages FE-only.
+
+**Shipped (2026-08-09):** Dispatcher Deliveries status legend + row wording/colors align (Assigned/Planned yellow, Staged green, Unplanned bright orange, Shop Stock gray) — **v0.0.265** gh-pages FE-only.
+
+**Shipped (2026-08-09):** Delivery Details Assign Location restore after Will-Call → Vendor Drop-Off — **v0.0.264** gh-pages FE-only.
+
+**Shipped (2026-08-09):** Dispatcher Delivery Details drawer loads D-73 unplanned shells (missing jobId/PO/0 items) — **v0.0.263** gh-pages FE-only.
+
 **Shipped (2026-08-09):** Vendor-run multi-job card unify with Delivered hub (shell/safe-area, card gaps, Back up, green collapse + Undo; reusable unplanned CTA kept) — **v0.0.262** gh-pages FE-only.
 
 **Shipped (2026-08-09):** Vendor Drop-Off reusable unplanned fallback CTA (prior listed deliveries no longer hide Add unplanned delivery) — **v0.0.261** gh-pages FE-only; merge `3bab991c` / PR #92; prod verify 7/7.

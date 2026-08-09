@@ -76,6 +76,8 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 
 **Exception-only vendor flow (shipped 2026-06-11; delivered-card collapse v0.0.258; vendor-run unify v0.0.262):** Delivered hub with Need More Space, Report a Problem, and `markVendorDelivered` (status `arrived`, not `ready_for_pickup`). After Mark Delivered, that card auto-collapses in place to a compact green DELIVERED row (independent expand/collapse; Undo when expanded; vendor-run list keeps stable order). Company-wide vendor-run list uses the same hub shell/card chrome, card gaps, safe-area Back above Delivered, and Undo on expanded delivered rows. E2E: `npm run verify:vendor-delivered`. Monday-safe: `node scripts/verify-vendor-monday-safe.mjs` (Mark Delivered disabled without assignable spot + collapse/gap/Back/undo asserts).
 
+**D-73 unplanned dispatcher drawer (shipped 2026-08-09, v0.0.265):** `getDeliveryDetails` loads job-less unplanned shells without throwing; drawer shows Needs job match / — for missing PO/job and keeps staging + unplanned review note. Verify: `node scripts/verify-unplanned-delivery-drawer.mjs`; D-73 `verify:vendor-unplanned-delivery` opens the job-less prior row in the dispatcher drawer.
+
 **Evidence model alignment (shipped 2026-06-20):** `markVendorDelivered` records `vendorPhysicalDropoffConfirmed` + invokes `recalculateDeliveryReadiness`; exception-only physical gate without vendor qty; `full_checkin` qty path unchanged. Tests: `npm run test:evidence-alignment`.
 
 **Vendor DELIVERED security (shipped 2026-06-20):** F1/F2 closed ? `markVendorDelivered` CF validates vendor session and writes physical evidence via Admin SDK; Firestore rules deny unauth positive evidence; `recalculateDeliveryReadiness` requires Firebase auth or delivery-scoped vendor session. Tests: `npm run test:mark-vendor-delivered`, `test:firestore-rules`.
@@ -224,6 +226,10 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 **Deliveries list compact chips + Will-Call summary (2026-07-25, v0.0.167)** — List Staging Loc. chips ~half size (`compact` on `stagingSpotChipStyle`); drawer chips full size. Will-Call rows show **N/A** in Staging Loc. (`delivery-list-staging-na-*`) and **Will-Call Pickup** in Issue Summary (NAVY calm styling, no ⚠). `verify:delivery-consistency`, `test:invoice-shell-display`.
 
 **Awaiting Delivery status label (2026-07-25, v0.0.168)** — Replaces **Pending Delivery** on list/drawer for 0-received pending/shipped/arrived/partial path; yellow status badge (`#facc15`). Overview filter chips unchanged (internal `pending`/`shipped`/etc.). `test:readiness-two-source`, `verify:delivery-consistency`.
+
+**Assigned / Planned + legend color align (2026-08-09, v0.0.265)** — User-facing 0-received yellow label is **Assigned / Planned** (constant `AWAITING_DELIVERY_STATUS_LABEL`; enums unchanged). Deliveries legend: yellow Assigned/Planned, green Staged — Ready for Pickup (not purple), bright orange Unplanned (`UNPLANNED_BADGE` / `--color-accent-orange`), gray Shop Stock. `verify:delivery-consistency` legend assert + D-42.
+**Unplanned status single-badge + U1 fixture cleanup (2026-08-09, v0.0.266)** — `deliveryNeedsUnplannedJobMatch` → primary `Unplanned` label (no Assigned/Planned overlay); unresolved staging ids → Needs staging / Staging location missing; verify default loc `UV`; cleanup covers drawer+verify vendors. `verify-unplanned-delivery-drawer` 12/12.
+
 
 **Settings staging UI cleanup (2026-07-25, v0.0.155, D-52/D-53)** — Removed light-blue duplicate spot summary and “Orphan zones not on the map” callout; editable table is the only list. Verify: `verify:settings-staging` (`assertNoOrphanStagingCallout`).
 

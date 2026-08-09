@@ -86,7 +86,7 @@ export function computeZoneOccupancyByCode(
       deliveryId: delivery.id,
       orderNumber: delivery.orderNumber,
       vendorName: delivery.vendorName?.trim() || "Vendor",
-      jobId: delivery.jobId,
+      jobId: delivery.jobId?.trim() || "",
       status: delivery.status,
       readyForPickup,
     };
