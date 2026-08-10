@@ -4,15 +4,40 @@
  */
 
 import { createRequire } from "node:module";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
 
 const require = createRequire(import.meta.url);
+
+function npxFirebaseToolsAuthCandidates() {
+  const out = [];
+  const npxRoot = join(homedir(), ".npm", "_npx");
+  if (!existsSync(npxRoot)) return out;
+  try {
+    for (const entry of readdirSync(npxRoot)) {
+      const authPath = join(
+        npxRoot,
+        entry,
+        "node_modules",
+        "firebase-tools",
+        "lib",
+        "auth.js",
+      );
+      if (existsSync(authPath)) out.push(authPath);
+    }
+  } catch {
+    // ignore
+  }
+  return out;
+}
 
 function loadFirebaseToolsAuth() {
   const candidates = [
     "firebase-tools/lib/auth.js",
     "/usr/lib/node_modules/firebase-tools/lib/auth.js",
     "/usr/local/lib/node_modules/firebase-tools/lib/auth.js",
+    ...npxFirebaseToolsAuthCandidates(),
   ];
   for (const candidate of candidates) {
     try {
