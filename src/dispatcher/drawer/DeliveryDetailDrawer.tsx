@@ -66,7 +66,7 @@ export function DeliveryDetailDrawer({
 }: Props) {
   void _onOpenDelivery;
   const navigate = useNavigate();
-  const { emailProviderConnected } = useDispatcherPortal();
+  const { emailProviderConnected, refreshPortalData } = useDispatcherPortal();
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [selectedDetails, setSelectedDetails] =
@@ -136,7 +136,14 @@ export function DeliveryDetailDrawer({
 
   const refreshAfter = async (details: DeliveryDetails | null) => {
     if (details) setSelectedDetails(details);
-    await onDataChanged?.();
+    // Refresh list rows AND portal zonesSnapshot occupancy so Staging Map
+    // fallback / list chips never keep a pre-pickup occupied paint after
+    // Complete Pickup clears staging (live onSnapshot is primary; snapshot
+    // refresh covers navigate-away/back + hard-refresh-adjacent paths).
+    await Promise.all([
+      Promise.resolve(onDataChanged?.()),
+      refreshPortalData(),
+    ]);
   };
 
   /** Close drawer after a successful DeliveryStatus workflow mutation. */
