@@ -62,7 +62,7 @@
 
 ## NOW (Phase 5 prototype)
 
-**In flight (2026-08-10):** **D-84–D-90 receiving/readiness** — Slice 1 exception-oriented vendor Delivered qty SoT on `cursor/receiving-readiness-d84-slice1-c86f` (**v0.0.287**); CF `markVendorDelivered` / bulk + hub exception panel; **CF/rules/gh-pages deploy NOT approved**. Next slices: Unplanned→CA (D-85), auto-Ready (D-84), manual Ready (D-87).
+**LIVE (2026-08-10) — await Dan MANUAL:** **D-84–D-90 Slice 1** exception-oriented vendor Delivered qty SoT — merge `8edb97b0`; CF `markVendorDelivered` + `markVendorDeliveriesBulk` only (hash `f290df0f…`); Slice-1 FE ship **v0.0.287** `index-BirJgHys.js` (live tip may be C3-D.2 **v0.0.288** `index-DCXlSwnP.js` with Slice-1 UI retained); **no rules**. Next slices (not started): Unplanned→CA (D-85), auto-Ready (D-84), manual Ready (D-87).
 
 **Shipped (2026-08-09):** Settings PIN visit-scoped green **PIN # updated** row badge (right of Deactivate; clears on leave Settings; toast `New PIN saved` kept) — **v0.0.271** gh-pages FE-only; no CF/rules.
 
