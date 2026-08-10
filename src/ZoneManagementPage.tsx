@@ -27,8 +27,13 @@ import {
   firestoreDataService,
   getVendorInvoiceImport,
   setInvoiceReviewDraftStagingLocations,
+  approveVendorInvoiceImport,
   type ZoneOccupancySummary,
 } from "./dispatcher/firestoreService";
+import {
+  buildInvoiceApproveToastMessage,
+  INVOICE_APPROVE_FLOW_STORAGE_KEY,
+} from "./dispatcher/invoice/invoiceApproveToast";
 import { resolveDeliveryPoNumber } from "./dispatcher/invoice/invoiceShellDisplayHelpers";
 import { readInvoiceHeaderField } from "./dispatcher/invoice/invoiceReviewHeaderHelpers";
 import { mapActiveShopStockReservationsByCode } from "./dispatcher/shopStockMapping";
@@ -286,6 +291,11 @@ export function ZoneManagementPage() {
     return params.get("assignInvoiceImport")?.trim() || null;
   }, [location.search]);
 
+  const approveFlow = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("approveFlow") === "1";
+  }, [location.search]);
+
   const reassignMode = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get("reassign") === "1";
@@ -409,6 +419,36 @@ export function ZoneManagementPage() {
 
   const exitAssignMode = useCallback(() => {
     setPendingAssignSpot(null);
+    if (assignInvoiceImportId && approveFlow) {
+      try {
+        const raw = sessionStorage.getItem(INVOICE_APPROVE_FLOW_STORAGE_KEY);
+        let correctionNote: string | undefined;
+        if (raw) {
+          const parsed = JSON.parse(raw) as {
+            importId?: string;
+            correctionNote?: string;
+          };
+          if (parsed.importId === assignInvoiceImportId) {
+            correctionNote = parsed.correctionNote;
+          }
+        }
+        sessionStorage.setItem(
+          INVOICE_APPROVE_FLOW_STORAGE_KEY,
+          JSON.stringify({
+            importId: assignInvoiceImportId,
+            phase: "dropoff_staging",
+            correctionNote,
+          }),
+        );
+      } catch {
+        sessionStorage.removeItem(INVOICE_APPROVE_FLOW_STORAGE_KEY);
+      }
+      navigate(
+        `/dispatcher?focus=needs-review&inspectInvoiceImport=${encodeURIComponent(assignInvoiceImportId)}`,
+        { replace: true },
+      );
+      return;
+    }
     if (assignInvoiceImportId) {
       navigate(
         `/dispatcher?focus=needs-review&inspectInvoiceImport=${encodeURIComponent(assignInvoiceImportId)}`,
@@ -425,7 +465,7 @@ export function ZoneManagementPage() {
       { pathname: "/zones", search: search ? `?${search}` : "" },
       { replace: true },
     );
-  }, [assignInvoiceImportId, location.search, navigate]);
+  }, [assignInvoiceImportId, approveFlow, location.search, navigate]);
 
   useEffect(() => {
     setPendingAssignSpot(null);
@@ -1109,6 +1149,41 @@ export function ZoneManagementPage() {
     if (assignInvoiceImportId) {
       setAssignSaving(true);
       try {
+        if (approveFlow) {
+          let correctionNote: string | undefined;
+          try {
+            const raw = sessionStorage.getItem(INVOICE_APPROVE_FLOW_STORAGE_KEY);
+            if (raw) {
+              const parsed = JSON.parse(raw) as {
+                importId?: string;
+                correctionNote?: string;
+              };
+              if (parsed.importId === assignInvoiceImportId) {
+                correctionNote = parsed.correctionNote;
+              }
+            }
+          } catch {
+            sessionStorage.removeItem(INVOICE_APPROVE_FLOW_STORAGE_KEY);
+          }
+
+          const result = await approveVendorInvoiceImport({
+            vendorInvoiceImportId: assignInvoiceImportId,
+            action: "approve",
+            fulfillmentDecision: "delivery",
+            plannedStagingLocationIds: [pendingAssignSpot.zoneId],
+            ...(correctionNote?.trim()
+              ? { correctionNote: correctionNote.trim() }
+              : {}),
+          });
+          sessionStorage.removeItem(INVOICE_APPROVE_FLOW_STORAGE_KEY);
+          showAssignToast(
+            buildInvoiceApproveToastMessage(result, "delivery"),
+          );
+          setPendingAssignSpot(null);
+          navigate("/dispatcher?focus=needs-review", { replace: true });
+          return;
+        }
+
         const result = await setInvoiceReviewDraftStagingLocations({
           vendorInvoiceImportId: assignInvoiceImportId,
           stagingLocationIds: [pendingAssignSpot.zoneId],
@@ -1128,8 +1203,21 @@ export function ZoneManagementPage() {
           `/dispatcher?focus=needs-review&inspectInvoiceImport=${encodeURIComponent(assignInvoiceImportId)}`,
           { replace: true },
         );
-      } catch {
-        showAssignToast("Failed to save draft staging location.", "error");
+      } catch (err) {
+        const message =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message?: unknown }).message ?? "")
+            : "";
+        const cleaned = message
+          .replace(/^Firebase:\s*/i, "")
+          .replace(/^Error:\s*/i, "")
+          .trim();
+        showAssignToast(
+          approveFlow
+            ? cleaned || "Approve failed — import is still pending review."
+            : "Failed to save draft staging location.",
+          "error",
+        );
       } finally {
         setAssignSaving(false);
       }
@@ -1206,6 +1294,7 @@ export function ZoneManagementPage() {
   }, [
     assignDeliveryId,
     assignInvoiceImportId,
+    approveFlow,
     assignDetails,
     assignSaving,
     exitAssignMode,
@@ -1250,7 +1339,9 @@ export function ZoneManagementPage() {
       : "Also assigned to this job";
 
   const assignDraftNote = assignInvoiceImportId
-    ? "Selection is saved as a draft after Confirm. Shop occupancy starts only on Approve."
+    ? approveFlow
+      ? "Confirm approves this invoice and assigns the selected staging spot."
+      : "Selection is saved as a draft after Confirm. Shop occupancy starts only on Approve."
     : reassignMode
       ? "Confirm required — Cancel keeps the current location. Reassignment releases the old spot."
       : null;

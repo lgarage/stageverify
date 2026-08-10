@@ -33,6 +33,11 @@ import {
   creditReturnSkipLabel,
   isSystemAutoRejectedImport,
 } from "./creditReturnSkip";
+import {
+  buildInvoiceApproveToastMessage,
+  INVOICE_APPROVE_FLOW_STORAGE_KEY,
+} from "./invoiceApproveToast";
+import type { InvoiceApproveOptions } from "./invoiceApproveToast";
 import { ignoreRuleSuppressedAdvisoryLabel } from "./ignoreRuleSuppressed";
 
 const NAVY = "#0a3161";
@@ -524,13 +529,15 @@ export function InvoiceReviewPanel({
   const submitApprove = async (
     row: VendorInvoiceImportReview,
     correctionNote?: string,
-    plannedStagingLocationIds?: string[],
+    options?: InvoiceApproveOptions,
   ) => {
     if (row.importStatus === "issue") return;
     setActionLoadingId(row.id);
     setError(null);
     setSuccessMessage(null);
     try {
+      const fulfillmentDecision = options?.fulfillmentDecision;
+      const plannedStagingLocationIds = options?.plannedStagingLocationIds;
       const result = await approveVendorInvoiceImport({
         vendorInvoiceImportId: row.id,
         action: "approve",
@@ -540,6 +547,7 @@ export function InvoiceReviewPanel({
         ...(plannedStagingLocationIds && plannedStagingLocationIds.length > 0
           ? { plannedStagingLocationIds }
           : {}),
+        ...(fulfillmentDecision ? { fulfillmentDecision } : {}),
       });
       if (result.importDismissed) {
         const lessonNote = result.trainingLessonWrote
@@ -555,6 +563,7 @@ export function InvoiceReviewPanel({
             "This note is pending Admin review — patterns may need a fix before it can be saved.",
           );
         }
+        sessionStorage.removeItem(INVOICE_APPROVE_FLOW_STORAGE_KEY);
         setInspectImport(null);
         await loadQueue();
         if (onApproveSuccess) {
@@ -571,7 +580,7 @@ export function InvoiceReviewPanel({
         }
         return;
       }
-      if (!result.deliveryOrderId?.trim()) {
+      if (!result.deliveryOrderId?.trim() && fulfillmentDecision === "delivery") {
         setError(
           "Approved but no dashboard delivery was created. Use Refresh Now to retry shell create.",
         );
@@ -582,18 +591,16 @@ export function InvoiceReviewPanel({
         }
         return;
       }
-      const jobNote = result.jobCreated ? " New job created from invoice P/O." : "";
       const lessonNote = result.trainingLessonWrote
         ? " Training lesson saved for future invoices."
         : result.trainingLessonPendingAdminReview
           ? " Training note pending Admin review."
           : "";
-      const matchNote = result.deliveryMatched
-        ? " Applied to matched existing delivery."
-        : "";
-      setSuccessMessage(
-        `Approved — delivery ${result.deliveryOrderId} is on the dispatcher dashboard.${matchNote}${jobNote}${lessonNote}`,
+      const approveToast = buildInvoiceApproveToastMessage(
+        result,
+        fulfillmentDecision,
       );
+      setSuccessMessage(`${approveToast}${lessonNote}`);
       if (result.trainingLessonWrote) {
         showTrainingToast(INVOICE_TRAINING_LESSON_TOAST);
       } else if (result.trainingLessonPendingAdminReview) {
@@ -601,6 +608,7 @@ export function InvoiceReviewPanel({
           "This note is pending Admin review — patterns may need a fix before it can be saved.",
         );
       }
+      sessionStorage.removeItem(INVOICE_APPROVE_FLOW_STORAGE_KEY);
       if (onApproveSuccess) {
         await onApproveSuccess();
       }
@@ -1148,12 +1156,8 @@ export function InvoiceReviewPanel({
           onApprove={
             inspectImport.reviewStatus === "pending_review" ||
             inspectImport.reviewStatus === "rejected"
-              ? (correctionNote, plannedStagingLocationIds) => {
-                  void submitApprove(
-                    inspectImport,
-                    correctionNote,
-                    plannedStagingLocationIds,
-                  );
+              ? (correctionNote, options) => {
+                  void submitApprove(inspectImport, correctionNote, options);
                 }
               : undefined
           }

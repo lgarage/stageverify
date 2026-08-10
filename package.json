@@ -1,7 +1,11 @@
 {
   "name": "stageverify",
   "private": true,
+<<<<<<< HEAD
   "version": "0.0.285",
+=======
+  "version": "0.0.282",
+>>>>>>> e35fdd05 (feat: invoice approve fulfillment wizard (FE v0.0.282))
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {

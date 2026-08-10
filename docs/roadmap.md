@@ -168,6 +168,7 @@ Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** (pickup resol
 
 - **Lane C C1 LIVE:** Invoice Review Chat — `vendorInvoiceImportChats` rules + CF `reviewAgentTurn` (`reviewagentturn-00002-fit`) + gh-pages **v0.0.247**; Training note behind Advanced; live multi-turn/durability PASS (mock OFF). Hotfix PR #69 omit undefined `citation.field`.
 - **Lane C C2 LIVE:** current-import field correction — propose in chat → Apply/`Yes, apply it` → CF `applyInvoiceReviewFieldCorrection` + `vendorInvoiceFieldCorrections` audit (D-68); merge `c0375110` / **v0.0.248**. **C3-A COMPLETE** (D-59 #7/#8 amend; plan `docs/c3-reusable-field-learning-plan.md`); **C3-B NEXT** — Johnstone universal parser-miss harden before lesson store.
+- **Invoice approve fulfillment wizard (WIP branch `cursor/invoice-approve-fulfillment-flow-6f9a`, v0.0.282):** Approve → in-modal fulfillment choice (Vendor Drop-Off / Will-Call) → map `approveFlow=1` authoritative approve or Will-Call confirm; CF `fulfillmentDecision` @ `ae336ea1`; FE not deployed pending Sol review + parent PR.
 
 ### Phase 3 Slice 1 — Report Issue + dispatcher visibility ✅ (shipped 2026-06-08)
 
