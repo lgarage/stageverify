@@ -4,6 +4,7 @@ Append-only session log (Dan standing preference). Not a planning SSOT.
 
 | Date | Task type | Archetype | Tier | Cheapest model | confStart | confAfter | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-08-10 | Investigate+fix Staging Map not released after Complete Pickup | investigate / FE occupancy refresh | T1 (FE; T3 CF ruled out) | Composer 2.5 Fast | 97 | 99 | Root C; prod fields cleared; v0.0.284 LIVE; no CF redeploy |
 | 2026-08-10 | Timekeeper long-job terminal audit (read-only) | harness-audit / scout | T0 | Composer 2.5 Fast | 92 | 98 | enforcement/visibility gap; once-only force35; no edits |
 | 2026-08-10 | Timekeeper sticky post-35m re-nudge (D-72) | harness-tooling | T0/T1 | Composer 2.5 Fast | 98 | 99 | ~5m sticky + stop re-followup; 51/51 tests; advise-only; PR only |
 | 2026-08-09 | Invoice Review staging → Staging Map (PR #97 UX) | ui-component / visual-judgment | T1 | Sol High review + Composer 2.5 Fast implement | 98 | 99 | FE-only v0.0.274; solution-verifier Agree; Sol final PASS |
