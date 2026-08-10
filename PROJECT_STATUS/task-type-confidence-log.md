@@ -32,3 +32,4 @@ Append-only session log (Dan standing preference). Not a planning SSOT.
 | 2026-08-09 | ship-op (PR #121 merge + D-80 CF/gh-pages + prod verify) | ship-op / CF deploy + prod-verify | T3 | Composer 2.5 Fast | 99 | 99 | merge 1b4c2eea; CF hash 2591e359… (2 fns); agent FE 1–10 PASS; awaiting Dan MANUAL |
 | 2026-08-10 | ship-op (D-80 Dan MANUAL acceptance + archive) | ship-op / acceptance closeout | T0 | Composer 2.5 Fast | 99 | 99 | Dan PASS v0.0.279; pink category separate; CURRENT_STATE stamp |
 | 2026-08-10 | backend-write-critical / ship-op | Change Location CF reassign LIVE | T3 | Composer 2.5 Fast | 99 | 99 | ok |
+| 2026-08-10 | C3-D P1 decision + P2 literal anchor inventory (no C3-D.1 impl) | docs-update / architecture-design | T3-design | Composer 2.5 Fast + Grok adversarial | 98 | 99 | D-82 recorded; allowlist inventory awaiting Dan; C3-D.1 blocked |
