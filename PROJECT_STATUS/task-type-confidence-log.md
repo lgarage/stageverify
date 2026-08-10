@@ -31,3 +31,5 @@ Append-only session log (Dan standing preference). Not a planning SSOT.
 | 2026-08-09 | ship-op (PR #125 merge + CF/rules deploy + prod verify C3-C.1) | ship-op / CF+rules deploy | T3 | Composer 2.5 Fast (inline) | 99 | 99 | merge 68ddc9b1; CF 00005-wec; rules f3468767; no TTL; C3-C.2 deferred; C3-D NEXT not started |
 | 2026-08-09 | ship-op (PR #121 merge + D-80 CF/gh-pages + prod verify) | ship-op / CF deploy + prod-verify | T3 | Composer 2.5 Fast | 99 | 99 | merge 1b4c2eea; CF hash 2591e359… (2 fns); agent FE 1–10 PASS; awaiting Dan MANUAL |
 | 2026-08-10 | ship-op (D-80 Dan MANUAL acceptance + archive) | ship-op / acceptance closeout | T0 | Composer 2.5 Fast | 99 | 99 | Dan PASS v0.0.279; pink category separate; CURRENT_STATE stamp |
+
+| 2026-08-10 | C3-D architecture design packet (lifecycle/audit/circuit breaker; no product edits) | backend-write-critical / architecture-design | T3 | Composer 2.5 Fast inspect + Sonnet D-60 design + Grok adversarial | 98 | 99 | Design-only; STOP before product edits; Sonnet final PASS bc-17651f35; awaiting Dan P1/P2 + impl scope approval |
