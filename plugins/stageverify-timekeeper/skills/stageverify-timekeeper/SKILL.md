@@ -19,6 +19,7 @@ description: Anti-thrash timekeeping for StageVerify harness runs. Use when stal
 3. Do not blind-retry. Prefer one corrected method.
 4. Preserve already-green D-38 / D-60 / build / visual evidence unless code/base made it stale.
 5. At ~35m emit D-66 terminal status (DONE / BLOCKED / FAILED / PARTIAL).
+6. After ~35m, honor sticky re-nudges (~every 5m) and stop followups: stop expanding scope, finish the current safe unit, return D-66, hand off remainder. Waiting on Dan → BLOCKED; external wait → BLOCKED/PARTIAL; do not chase unrelated issues. Do not skip required gates for time pressure.
 
 ## Non-goals
 
@@ -26,3 +27,4 @@ description: Anti-thrash timekeeping for StageVerify harness runs. Use when stal
 - Not a replacement for D-19/D-50
 - Not permission to skip required safety/verify gates
 - Not a reason to interrupt healthy active tool/subagent work — checkpoints arrive at the next eligible hook
+- Not a tool/agent killer — advise-only even after force35

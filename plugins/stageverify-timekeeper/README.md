@@ -41,6 +41,7 @@ Platform does not ack model receipt — “delivered” means the response inclu
 ## Cadence
 
 Elapsed (not suppressed by healthy progress): ~10 / 15 / 20 / 25 / 30 / 35m.  
+After `force35` delivered: sticky D-66 re-nudge on reliable hooks every **~5m** until DONE/BLOCKED/FAILED/PARTIAL; `stop` re-issues followup while `force_choice` (respects `loop_limit`).  
 Stall: ~10m with **no** material progress. Thrash: same signature fail×2 → D-19/D-50.
 
 ## Install / activation

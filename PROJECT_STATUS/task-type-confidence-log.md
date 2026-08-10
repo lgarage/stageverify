@@ -4,6 +4,8 @@ Append-only session log (Dan standing preference). Not a planning SSOT.
 
 | Date | Task type | Archetype | Tier | Cheapest model | confStart | confAfter | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-08-10 | Timekeeper long-job terminal audit (read-only) | harness-audit / scout | T0 | Composer 2.5 Fast | 92 | 98 | enforcement/visibility gap; once-only force35; no edits |
+| 2026-08-10 | Timekeeper sticky post-35m re-nudge (D-72) | harness-tooling | T0/T1 | Composer 2.5 Fast | 98 | 99 | ~5m sticky + stop re-followup; 51/51 tests; advise-only; PR only |
 | 2026-08-09 | Invoice Review staging → Staging Map (PR #97 UX) | ui-component / visual-judgment | T1 | Sol High review + Composer 2.5 Fast implement | 98 | 99 | FE-only v0.0.274; solution-verifier Agree; Sol final PASS |
 | 2026-08-09 | ship-op (PR #112 merge + approveVendorInvoiceImport deploy D-79) | ship-op / CF deploy | T3 | Composer 2.5 Fast | 99 | 99 | merge 02a48bbb; CF hash f27f5aeb; smoke 6167746 PASS |
 | 2026-08-09 | Fulfillment persist create_shell overwrite (6169414/6169474) | backend-write-critical | T3 | Composer 2.5 Fast + Sonnet D-60 + Grok adversarial + D-38 | 99 | 99 | Investigate→implement; no CF deploy until Dan |

@@ -97,6 +97,16 @@ async function main() {
       delivery_snapshot: Object.fromEntries(
         Object.entries(state.delivery || {}).map(([k, v]) => [k, v?.status])
       ),
+      force_choice: state.mode === "force_choice",
+      force_campaign: state.forceCampaign
+        ? {
+            active: state.forceCampaign.active,
+            lastStickyAt: state.forceCampaign.lastStickyAt,
+            stickyCount: state.forceCampaign.stickyCount,
+            lastDeliveryHook: state.forceCampaign.lastDeliveryHook,
+            terminalOutcome: state.forceCampaign.terminalOutcome,
+          }
+        : null,
     });
 
     saveState(state, workspaceRoots);

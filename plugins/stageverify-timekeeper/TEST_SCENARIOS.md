@@ -17,6 +17,7 @@ Run: `node plugins/stageverify-timekeeper/tests/run.mjs`
 | A–G | Healthy 9–36m cadence | `status10`→`focus15`→`focus20`→`focus25`→`completion30`→`force35` once each |
 | H–K | Pending/delivered + supersession | Due on unreliable → pending; reliable delivers; multi-pending emits highest |
 | L–P | Thrash/stall/wait/reset/fail-open | Same delivery mechanism; conversation reset; never deny |
+| Q–Z | Sticky post-35m | Cooldown ~5m; stop re-followup; terminal suppresses; advise-only allow |
 
 Example intervention (elapsed):
 
