@@ -286,10 +286,16 @@ export function ZoneManagementPage() {
     return params.get("assignInvoiceImport")?.trim() || null;
   }, [location.search]);
 
+  const reassignMode = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("reassign") === "1";
+  }, [location.search]);
+
   useEffect(() => {
     if (!assignInvoiceImportId || !assignDeliveryId) return;
     const params = new URLSearchParams(location.search);
     params.delete("assignDelivery");
+    params.delete("reassign");
     const search = params.toString();
     navigate(
       { pathname: "/zones", search: search ? `?${search}` : "" },
@@ -358,7 +364,10 @@ export function ZoneManagementPage() {
     code: string;
   } | null>(null);
   const [assignSaving, setAssignSaving] = useState(false);
-  const [assignToast, setAssignToast] = useState<string | null>(null);
+  const [assignToast, setAssignToast] = useState<{
+    message: string;
+    tone: "success" | "error";
+  } | null>(null);
 
   const assignMode =
     Boolean(assignDeliveryId || assignInvoiceImportId) && !mapEditMode;
@@ -399,6 +408,7 @@ export function ZoneManagementPage() {
     const params = new URLSearchParams(location.search);
     params.delete("assignDelivery");
     params.delete("assignInvoiceImport");
+    params.delete("reassign");
     const search = params.toString();
     navigate(
       { pathname: "/zones", search: search ? `?${search}` : "" },
@@ -1047,21 +1057,26 @@ export function ZoneManagementPage() {
     [zoneForLayoutSlot],
   );
 
-  const showAssignToast = useCallback((message: string) => {
-    setAssignToast(message);
-    window.setTimeout(() => setAssignToast(null), 3500);
-  }, []);
+  const showAssignToast = useCallback(
+    (message: string, tone: "success" | "error" = "success") => {
+      setAssignToast({ message, tone });
+      window.setTimeout(() => setAssignToast(null), 3500);
+    },
+    [],
+  );
 
   const handleAssignSpotClick = useCallback(
     (layoutSlot: string) => {
       if (!assignDeliveryId && !assignInvoiceImportId) return;
       const zone = zoneForLayoutSlot(layoutSlot);
       if (!zone?.id) {
-        showAssignToast("Could not resolve that spot — try another.");
+        showAssignToast("Could not resolve that spot — try another.", "error");
         return;
       }
       const code = displayCodeForLayoutSlot(layoutSlot);
-      if (selfPlannedLayoutSlots.has(layoutSlot)) {
+      // Assign merge: refuse re-clicking already-self spots.
+      // Change Location (reassign): allow own spots for promote/collapse/no-op.
+      if (!reassignMode && selfPlannedLayoutSlots.has(layoutSlot)) {
         return;
       }
       setPendingAssignSpot({ layoutSlot, zoneId: zone.id, code });
@@ -1070,6 +1085,7 @@ export function ZoneManagementPage() {
       assignDeliveryId,
       assignInvoiceImportId,
       displayCodeForLayoutSlot,
+      reassignMode,
       selfPlannedLayoutSlots,
       showAssignToast,
       zoneForLayoutSlot,
@@ -1102,7 +1118,7 @@ export function ZoneManagementPage() {
           { replace: true },
         );
       } catch {
-        showAssignToast("Failed to save draft staging location.");
+        showAssignToast("Failed to save draft staging location.", "error");
       } finally {
         setAssignSaving(false);
       }
@@ -1114,32 +1130,65 @@ export function ZoneManagementPage() {
     }
     setAssignSaving(true);
     try {
-      const existing = assignDetails.delivery.plannedStagingLocationIds ?? [];
-      const merged = [...new Set([...existing, pendingAssignSpot.zoneId])];
-      const plannedCode = pendingAssignSpot.code;
-      const updated = await firestoreDataService.updatePlannedStagingLocations(
-        assignDeliveryId,
-        merged,
-      );
-      if (updated) {
-        const jobLabel =
-          updated.job?.jobNumber ??
-          resolveDeliveryPoNumber(
-            updated.delivery.customerPoOrReference,
-            updated.purchaseOrder?.poNumber,
-          ) ??
-          updated.delivery.orderNumber;
-        showAssignToast(`${plannedCode} planned for ${jobLabel}`);
+      if (reassignMode) {
+        const result = await firestoreDataService.reassignStagingLocation(
+          assignDeliveryId,
+          pendingAssignSpot.zoneId,
+        );
+        showAssignToast(
+          result.unchanged
+            ? `${result.toLocationCode} already assigned`
+            : `Changed location to ${result.toLocationCode}`,
+        );
         setPendingAssignSpot(null);
         await loadZones();
-        // Exit assign mode immediately — clear banner + assignDelivery query so
-        // refresh returns to normal Staging Map browse (no manual X required).
         exitAssignMode();
       } else {
-        showAssignToast("Failed to save planned location.");
+        const existing = assignDetails.delivery.plannedStagingLocationIds ?? [];
+        const merged = [...new Set([...existing, pendingAssignSpot.zoneId])];
+        const plannedCode = pendingAssignSpot.code;
+        const updated = await firestoreDataService.updatePlannedStagingLocations(
+          assignDeliveryId,
+          merged,
+        );
+        if (updated) {
+          const jobLabel =
+            updated.job?.jobNumber ??
+            resolveDeliveryPoNumber(
+              updated.delivery.customerPoOrReference,
+              updated.purchaseOrder?.poNumber,
+            ) ??
+            updated.delivery.orderNumber;
+          showAssignToast(`${plannedCode} planned for ${jobLabel}`);
+          setPendingAssignSpot(null);
+          await loadZones();
+          // Exit assign mode immediately — clear banner + assignDelivery query so
+          // refresh returns to normal Staging Map browse (no manual X required).
+          exitAssignMode();
+        } else {
+          showAssignToast("Failed to save planned location.", "error");
+        }
       }
-    } catch {
-      showAssignToast("Failed to save planned location.");
+    } catch (err) {
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message?: unknown }).message ?? "")
+          : "";
+      // Only the exact destination-race copy maps to "no longer available".
+      // Other failed-precondition messages (Will-Call, empty staging, etc.) pass through.
+      const unavailable = /no longer available/i.test(message);
+      const cleaned = message
+        .replace(/^Firebase:\s*/i, "")
+        .replace(/^Error:\s*/i, "")
+        .trim();
+      showAssignToast(
+        unavailable
+          ? "That location is no longer available."
+          : reassignMode
+            ? cleaned || "Failed to change location."
+            : "Failed to save planned location.",
+        "error",
+      );
     } finally {
       setAssignSaving(false);
     }
@@ -1152,6 +1201,7 @@ export function ZoneManagementPage() {
     loadZones,
     navigate,
     pendingAssignSpot,
+    reassignMode,
     showAssignToast,
   ]);
 
@@ -1184,11 +1234,15 @@ export function ZoneManagementPage() {
 
   const assignSelfPlannedNote = assignInvoiceImportId
     ? "Draft for this invoice"
-    : "Also assigned to this job";
+    : reassignMode
+      ? "Current assignment will move to the new spot"
+      : "Also assigned to this job";
 
   const assignDraftNote = assignInvoiceImportId
     ? "Selection is saved as a draft after Confirm. Shop occupancy starts only on Approve."
-    : null;
+    : reassignMode
+      ? "Confirm required — Cancel keeps the current location. Reassignment releases the old spot."
+      : null;
 
   const pendingAssignLayoutSlot = pendingAssignSpot?.layoutSlot ?? null;
 
@@ -1365,18 +1419,26 @@ export function ZoneManagementPage() {
           {assignToast ? (
             <div
               data-testid="assign-location-toast"
+              data-toast-tone={assignToast.tone}
               role="status"
               style={{
                 ...cardStyle,
                 padding: "12px 16px",
-                backgroundColor: "var(--admin-success-bg)",
-                borderColor: "#86efac",
-                color: "var(--admin-success-text)",
+                backgroundColor:
+                  assignToast.tone === "error"
+                    ? "var(--admin-danger-bg)"
+                    : "var(--admin-success-bg)",
+                borderColor:
+                  assignToast.tone === "error" ? "#fca5a5" : "#86efac",
+                color:
+                  assignToast.tone === "error"
+                    ? "var(--admin-danger-text)"
+                    : "var(--admin-success-text)",
                 fontSize: 14,
                 fontWeight: 600,
               }}
             >
-              {assignToast}
+              {assignToast.message}
             </div>
           ) : null}
 
@@ -1384,6 +1446,7 @@ export function ZoneManagementPage() {
             <div
               data-testid="assign-mode-banner"
               data-assign-ready={assignReady ? "true" : "false"}
+              data-reassign-mode={reassignMode ? "true" : "false"}
               style={{
                 ...cardStyle,
                 position: "sticky",
@@ -1410,7 +1473,8 @@ export function ZoneManagementPage() {
                       fontFamily: FONT,
                     }}
                   >
-                    Assign {assignIdentityLabel} to{" "}
+                    {reassignMode ? "Change " : "Assign "}
+                    {assignIdentityLabel} to{" "}
                     <strong
                       data-testid="assign-mode-pending-code"
                       style={{ fontFamily: "monospace", fontSize: 20 }}
@@ -1430,7 +1494,9 @@ export function ZoneManagementPage() {
                     }}
                   >
                     {assignReady
-                      ? "Click an open spot to assign "
+                      ? reassignMode
+                        ? "Click an open spot to change location for "
+                        : "Click an open spot to assign "
                       : assignInvoiceImportId
                         ? "Loading invoice and spots for "
                         : "Loading job and spots for "}
@@ -1441,7 +1507,11 @@ export function ZoneManagementPage() {
                 )}
                 {assignDraftNote ? (
                   <p
-                    data-testid="assign-mode-invoice-draft-note"
+                    data-testid={
+                      reassignMode
+                        ? "assign-mode-reassign-note"
+                        : "assign-mode-invoice-draft-note"
+                    }
                     style={{
                       margin: "8px 0 0",
                       fontSize: 12,
@@ -1475,7 +1545,11 @@ export function ZoneManagementPage() {
                         fontFamily: FONT,
                       }}
                     >
-                      {assignSaving ? "Saving…" : "Confirm"}
+                      {assignSaving
+                        ? "Saving…"
+                        : reassignMode
+                          ? "Confirm New Location"
+                          : "Confirm"}
                     </button>
                     <button
                       type="button"
@@ -1546,6 +1620,7 @@ export function ZoneManagementPage() {
               onPersistLayoutExtras={persistLayoutExtras}
               onDeactivateSlots={handleDeactivateSlots}
               assignMode={assignReady}
+              reassignMode={reassignMode}
               assignDeliveryId={
                 assignInvoiceImportId ? undefined : (assignDeliveryId ?? undefined)
               }
@@ -1553,12 +1628,12 @@ export function ZoneManagementPage() {
               selfPlannedLayoutSlots={selfPlannedLayoutSlots}
               selfPlannedNote={assignSelfPlannedNote}
               onAssignSpotClick={handleAssignSpotClick}
-              onAssignSpotRefused={showAssignToast}
+              onAssignSpotRefused={(msg) => showAssignToast(msg, "error")}
               focusSpotCode={effectiveFocusSpotCode}
               catchAllPendingCount={catchAllPendingCount}
               onAddCatchAllSpot={handleAddCatchAllSpot}
               onRemoveCatchAllSpot={handleRemoveCatchAllSpot}
-              onSpotDeliveryUnavailable={showAssignToast}
+              onSpotDeliveryUnavailable={(msg) => showAssignToast(msg, "error")}
               onCatchAllClick={handleCatchAllClick}
               headerActions={
                 <>

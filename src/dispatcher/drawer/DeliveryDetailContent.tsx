@@ -69,6 +69,7 @@ import { isPickupEligible } from "../readiness";
 import {
   fulfillmentDisplayLabel,
   resolveDeliveryPoNumber,
+  skipsShopStaging,
 } from "../invoice/invoiceShellDisplayHelpers";
 import {
   buildNeedMoreInfoEmailBody,
@@ -259,6 +260,7 @@ export function DetailContent({
   onResolveMaterialIssue,
   emailProviderConnected,
   onNavigateToAssignLocation,
+  onNavigateToChangeLocation,
   onNavigateToStagingMap,
   onJobReleased,
   onImportRejected,
@@ -299,6 +301,7 @@ export function DetailContent({
   ) => Promise<void>;
   emailProviderConnected: boolean;
   onNavigateToAssignLocation?: (deliveryId: string) => void;
+  onNavigateToChangeLocation?: (deliveryId: string) => void;
   onNavigateToStagingMap?: (spotCode: string) => void;
   onJobReleased?: () => void | Promise<void>;
   onImportRejected?: () => void | Promise<void>;
@@ -585,6 +588,15 @@ export function DetailContent({
   const showStagingLocationBanner =
     stagingLocationsReady &&
     isShopStagingAssignmentMissing(delivery, drawerStagingLocById);
+  const showChangeLocation =
+    stagingLocationsReady &&
+    hasAssignedStaging &&
+    !showStagingLocationBanner &&
+    !willCallNoShopStaging &&
+    !skipsShopStaging(delivery) &&
+    delivery.status !== "picked_up" &&
+    delivery.status !== "installed" &&
+    Boolean(onNavigateToChangeLocation);
   const staleWillCallStaging =
     willCallNoShopStaging && hasRawShopStagingRefs(delivery);
   const drawerDeliveryRow: DeliveryListRow = {
@@ -707,6 +719,13 @@ export function DetailContent({
     const targetId = delivery.id?.trim();
     if (!targetId) return;
     onNavigateToAssignLocation(targetId);
+  };
+
+  const handleChangeLocationNavigate = () => {
+    if (!onNavigateToChangeLocation) return;
+    const targetId = delivery.id?.trim();
+    if (!targetId) return;
+    onNavigateToChangeLocation(targetId);
   };
 
   const openMaterialIssues = details.materialIssues.filter(
@@ -968,15 +987,43 @@ export function DetailContent({
                     </p>
                   </div>
                 ) : (
-                  <DrawerStagingLocationChips
-                    delivery={delivery}
-                    stagingLocations={stagingLocations}
-                    occupancyByZoneCode={liveOccupancy.occupancyByZoneCode}
-                    shopStockByCode={liveOccupancy.shopStockByCode}
-                    occupancyReady={liveOccupancy.ready}
-                    font={font}
-                    onNavigateToStagingMap={onNavigateToStagingMap}
-                  />
+                  <>
+                    <DrawerStagingLocationChips
+                      delivery={delivery}
+                      stagingLocations={stagingLocations}
+                      occupancyByZoneCode={liveOccupancy.occupancyByZoneCode}
+                      shopStockByCode={liveOccupancy.shopStockByCode}
+                      occupancyReady={liveOccupancy.ready}
+                      font={font}
+                      onNavigateToStagingMap={onNavigateToStagingMap}
+                    />
+                    {showChangeLocation ? (
+                      <button
+                        type="button"
+                        data-testid="drawer-staging-change-location"
+                        data-change-location-cta="true"
+                        onClick={handleChangeLocationNavigate}
+                        style={{
+                          alignSelf: "flex-start",
+                          marginTop: 2,
+                          minHeight: 44,
+                          padding: "10px 16px",
+                          borderRadius: 8,
+                          border: "2px solid #b77900",
+                          backgroundColor: "#eab308",
+                          color: "#1c1917",
+                          fontSize: 14,
+                          fontWeight: 800,
+                          letterSpacing: "0.02em",
+                          cursor: "pointer",
+                          fontFamily: font,
+                          boxShadow: "0 2px 8px rgba(234, 179, 8, 0.28)",
+                        }}
+                      >
+                        Change Location
+                      </button>
+                    ) : null}
+                  </>
                 )}
               </div>
               {job ? (

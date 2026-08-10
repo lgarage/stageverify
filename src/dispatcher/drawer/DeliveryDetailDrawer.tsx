@@ -469,6 +469,16 @@ export function DeliveryDetailDrawer({
     [navigate, onClose],
   );
 
+  const handleNavigateToChangeLocation = useCallback(
+    (id: string) => {
+      onClose();
+      navigate(
+        `/zones?assignDelivery=${encodeURIComponent(id)}&reassign=1`,
+      );
+    },
+    [navigate, onClose],
+  );
+
   const handleNavigateToStagingMap = useCallback(
     (spotCode: string) => {
       onClose();
@@ -593,6 +603,7 @@ export function DeliveryDetailDrawer({
             onResolveMaterialIssue={handleResolveMaterialIssue}
             emailProviderConnected={emailProviderConnected}
             onNavigateToAssignLocation={handleNavigateToAssignLocation}
+            onNavigateToChangeLocation={handleNavigateToChangeLocation}
             onNavigateToStagingMap={handleNavigateToStagingMap}
             onJobReleased={() => void onDataChanged?.()}
             onImportRejected={() => void onDataChanged?.()}

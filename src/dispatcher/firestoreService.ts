@@ -995,6 +995,40 @@ export class FirestoreDataService implements DispatcherDataService {
     return this.getDeliveryDetails(deliveryId);
   }
 
+  /**
+   * Dispatcher Change Location — atomic CF reassignment.
+   * Releases all prior planned/actual staging refs; sets single new primary.
+   */
+  async reassignStagingLocation(
+    deliveryId: string,
+    newLocationId: string,
+  ): Promise<{
+    ok: true;
+    deliveryId: string;
+    unchanged?: true;
+    fromLocationId: string | null;
+    releasedLocationIds: string[];
+    toLocationId: string;
+    toLocationCode: string;
+    plannedEntriesReleased: string[];
+  }> {
+    const callable = httpsCallable(
+      functions,
+      "reassignDeliveryStagingLocation",
+    );
+    const result = await callable({ deliveryId, newLocationId });
+    return result.data as {
+      ok: true;
+      deliveryId: string;
+      unchanged?: true;
+      fromLocationId: string | null;
+      releasedLocationIds: string[];
+      toLocationId: string;
+      toLocationCode: string;
+      plannedEntriesReleased: string[];
+    };
+  }
+
   async updateShopStockPickList(
     deliveryId: string,
     items: string[],
