@@ -154,6 +154,53 @@ export function effectiveItemQtyReceived(
   return item.qtyReceived;
 }
 
+/** Friendly lines for dispatcher manual-pickup confirmation (not internal codes). */
+const MANUAL_PICKUP_BLOCK_WARNING: Record<string, string> = {
+  vendor_order_incomplete: "Vendor order is not marked complete.",
+  physical_dropoff_incomplete: "Physical drop-off is not complete.",
+  staging_assignment_incomplete: "A staging location has not been assigned.",
+  unresolved_blocking_issues: "Blocking issues remain open.",
+  unresolved_damage: "Unresolved item damage remains.",
+  unresolved_backorder: "Backordered items remain.",
+};
+
+/**
+ * Warning summary for Complete Pickup when delivery is not system-ready.
+ * Outstanding item line comes first when present; then readiness blockers.
+ */
+export function buildManualPickupWarningSummary(
+  delivery: Pick<
+    DeliveryOrder,
+    "invoiceDeliverToSite" | "invoiceDeliverToSiteConfirmed"
+  >,
+  items: Item[],
+  readinessBlockReasons: string[],
+): string[] {
+  const lines: string[] = [];
+  const outstandingLines = items.filter(
+    (item) => effectiveItemQtyReceived(delivery, item) < item.qtyOrdered,
+  ).length;
+  if (outstandingLines > 0) {
+    lines.push(
+      outstandingLines === 1
+        ? "1 item may still be outstanding."
+        : `${outstandingLines} items may still be outstanding.`,
+    );
+  }
+  const seen = new Set<string>();
+  for (const reason of readinessBlockReasons) {
+    const text = MANUAL_PICKUP_BLOCK_WARNING[reason];
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    lines.push(text);
+  }
+  if (lines.length === 0) {
+    lines.push("System readiness is incomplete for this delivery.");
+  }
+  return lines;
+}
+
+
 export function sumEffectiveItemQtyReceived(
   delivery: Pick<
     DeliveryOrder,
