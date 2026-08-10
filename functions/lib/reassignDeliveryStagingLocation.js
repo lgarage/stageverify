@@ -11,14 +11,12 @@ const firestore_1 = require("firebase-admin/firestore");
 const https_1 = require("firebase-functions/v2/https");
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const invoiceShellDisplayHelpers_1 = require("./invoice/invoiceShellDisplayHelpers");
+const stagingOccupancyGuard_1 = require("./stagingOccupancyGuard");
 function getDb() {
     return admin.firestore();
 }
 const MAX_STAGING_ID_LEN = 128;
 const MAX_NOTE_LEN = 500;
-/** Page size for occupancy scans — keep paging while a page is full. */
-const OCCUPANCY_PAGE_SIZE = 20;
-const ZONE_CLEARED = new Set(["complete", "picked_up", "installed"]);
 function asDeliveryId(value) {
     if (typeof value !== "string")
         return null;
@@ -73,65 +71,6 @@ function hasAnyStagingRefs(delivery) {
         return true;
     }
     return filterNonEmptyStrings(delivery.plannedStagingLocationIds).length > 0;
-}
-function isLocationDocActive(data) {
-    if (typeof data.status === "string") {
-        return data.status === "Active";
-    }
-    return data.active === true;
-}
-function deliveryOccupiesDestination(data) {
-    if (!data)
-        return false;
-    if (ZONE_CLEARED.has(String(data.status ?? "")))
-        return false;
-    return true;
-}
-function throwOccupied() {
-    throw new https_1.HttpsError("failed-precondition", "That location is no longer available.");
-}
-async function assertNoActiveOccupantInQuery(tx, baseQuery, deliveryId) {
-    // Firestore transactions require all reads before writes; page with cursors
-    // so cleared/stale docs cannot hide an active occupant behind a small limit.
-    let last;
-    for (;;) {
-        let q = baseQuery.limit(OCCUPANCY_PAGE_SIZE);
-        if (last)
-            q = q.startAfter(last);
-        const snap = await tx.get(q);
-        if (snap.empty)
-            return;
-        for (const docSnap of snap.docs) {
-            if (docSnap.id === deliveryId)
-                continue;
-            if (deliveryOccupiesDestination(docSnap.data())) {
-                throwOccupied();
-            }
-        }
-        if (snap.size < OCCUPANCY_PAGE_SIZE)
-            return;
-        last = snap.docs[snap.docs.length - 1];
-    }
-}
-async function assertDestinationAvailableInTransaction(tx, db, locationId, deliveryId) {
-    const locRef = db.collection("stagingLocations").doc(locationId);
-    const locSnap = await tx.get(locRef);
-    if (!locSnap.exists) {
-        throw new https_1.HttpsError("not-found", "Staging location not found.");
-    }
-    const locData = locSnap.data();
-    if (!isLocationDocActive(locData)) {
-        throw new https_1.HttpsError("failed-precondition", "That location is no longer available.");
-    }
-    const code = String(locData.code ?? "").trim() || locationId;
-    await assertNoActiveOccupantInQuery(tx, db.collection("deliveries").where("stagingLocationId", "==", locationId), deliveryId);
-    await assertNoActiveOccupantInQuery(tx, db
-        .collection("deliveries")
-        .where("additionalStagingLocationIds", "array-contains", locationId), deliveryId);
-    await assertNoActiveOccupantInQuery(tx, db
-        .collection("deliveries")
-        .where("plannedStagingLocationIds", "array-contains", locationId), deliveryId);
-    return { code };
 }
 function dispatcherIdentity(request, uid) {
     const email = request.auth?.token?.email?.trim();
@@ -218,7 +157,7 @@ exports.reassignDeliveryStagingLocation = (0, https_1.onCall)({
             };
             return;
         }
-        const { code: toLocationCode } = await assertDestinationAvailableInTransaction(tx, db, newLocationId, deliveryId);
+        const { code: toLocationCode } = await (0, stagingOccupancyGuard_1.assertStagingLocationAvailableInTransaction)(tx, db, newLocationId, deliveryId);
         const now = new Date().toISOString();
         const releasedAuditIds = oldPlanned.filter((id) => id !== newLocationId);
         const patch = {

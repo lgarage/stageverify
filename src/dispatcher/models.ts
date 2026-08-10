@@ -1619,6 +1619,10 @@ export interface ApproveVendorInvoiceImportResult {
   shellError?: string;
   /** Planned staging ids written on Vendor Drop-Off approve (empty when skipped). */
   plannedStagingLocationIds?: string[];
+  /** Location codes from occupancy assert (when collected). */
+  plannedStagingLocationCodes?: string[];
+  /** True when approve retried against an already-approved import with matching params. */
+  idempotentReplay?: boolean;
   /** True when a generalized correction note was appended to vendor training MD. */
   trainingLessonWrote?: boolean;
   /** True when the note failed safety/redaction and needs Admin review. */

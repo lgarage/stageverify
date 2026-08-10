@@ -134,6 +134,9 @@ export interface VendorInvoiceImportDoc {
     autoImportReasons: string[];
     reviewRequiredReasons: string[];
     deliveryOrderId?: string;
+    fulfillmentDecision?: "delivery" | "will_call_pickup" | "unknown";
+    plannedStagingLocationIds?: string[];
+    source?: "approval_workflow";
   }>;
   parserFormatId?: "johnstone" | "first_supply" | "generic" | "unknown";
   parserRouteConfidence?: number;

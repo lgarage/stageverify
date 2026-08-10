@@ -3,6 +3,7 @@
  * Client mirror: src/dispatcher/invoice/computeAutoImportEligibility.ts
  */
 import { INVOICE_AUTO_APPLY_CONFIDENCE } from "./types";
+import type { InvoiceFulfillmentMethod } from "./types";
 import { isCreditReturnImportDoc } from "./creditReturnSkip";
 
 export type ImportDecisionMode = "suggested_import" | "review_required" | "blocked";
@@ -51,6 +52,9 @@ export interface ImportDecisionLogEntry {
   autoImportReasons: string[];
   reviewRequiredReasons: string[];
   deliveryOrderId?: string;
+  fulfillmentDecision?: InvoiceFulfillmentMethod;
+  plannedStagingLocationIds?: string[];
+  source?: "approval_workflow";
 }
 
 type JohnstoneDocumentType = "sales_order_confirmation" | "invoice" | "unknown";
@@ -377,6 +381,10 @@ export function buildImportDecisionLogEntry(
   at: string,
   eligibility: AutoImportEligibilityResult,
   deliveryOrderId?: string,
+  approvalAudit?: {
+    fulfillmentDecision: "delivery" | "will_call_pickup";
+    plannedStagingLocationIds: string[];
+  },
 ): ImportDecisionLogEntry {
   return {
     action,
@@ -387,6 +395,13 @@ export function buildImportDecisionLogEntry(
     autoImportReasons: eligibility.autoImportReasons.slice(0, 12),
     reviewRequiredReasons: eligibility.reviewRequiredReasons.slice(0, 12),
     ...(deliveryOrderId ? { deliveryOrderId } : {}),
+    ...(approvalAudit
+      ? {
+          fulfillmentDecision: approvalAudit.fulfillmentDecision,
+          plannedStagingLocationIds: approvalAudit.plannedStagingLocationIds,
+          source: "approval_workflow" as const,
+        }
+      : {}),
   };
 }
 

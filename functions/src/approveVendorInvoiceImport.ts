@@ -20,6 +20,7 @@ import { isDeliveryOwnedByImportOrUnclaimed } from "./invoice/matchInvoiceToReco
 import {
   isInvoiceShellNoShopStaging,
   jobNameFromInvoiceContext,
+  resolveShellDeliveryStatus,
   skipsShopStaging,
 } from "./invoice/invoiceShellDisplayHelpers";
 import type { InvoiceFulfillmentMethod } from "./invoice/types";
@@ -46,6 +47,11 @@ import {
   buildWillCallActiveStagingClearPatch,
   effectiveFulfillmentAfterPatch,
 } from "./invoice/clearActiveStagingOnWillCall";
+import {
+  resolveApproveIdempotentReplay,
+  type ApproveFulfillmentDecision,
+} from "./invoice/approveIdempotentReplay";
+import { assertStagingLocationAvailableInTransaction } from "./stagingOccupancyGuard";
 
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const MAX_DECISION_LOG = 20;
@@ -153,6 +159,8 @@ export const approveVendorInvoiceImport = onCall(
       correctionNote?: string;
       /** Staging location doc ids — applied on approve for Vendor Drop-Off only. */
       plannedStagingLocationIds?: unknown;
+      /** Explicit fulfillment choice on approve — delivery | will_call_pickup. */
+      fulfillmentDecision?: unknown;
     };
 
     const importId =
@@ -167,6 +175,22 @@ export const approveVendorInvoiceImport = onCall(
     const plannedStagingLocationIds = sanitizePlannedStagingLocationIds(
       data.plannedStagingLocationIds,
     );
+    let fulfillmentDecision: ApproveFulfillmentDecision | undefined;
+    if (data.fulfillmentDecision !== undefined && data.fulfillmentDecision !== null) {
+      if (action !== "approve") {
+        // ignore for non-approve actions
+      } else if (
+        data.fulfillmentDecision !== "delivery" &&
+        data.fulfillmentDecision !== "will_call_pickup"
+      ) {
+        throw new HttpsError(
+          "invalid-argument",
+          "fulfillmentDecision must be delivery or will_call_pickup.",
+        );
+      } else {
+        fulfillmentDecision = data.fulfillmentDecision;
+      }
+    }
 
     if (!importId || importId.length > 256) {
       throw new HttpsError("invalid-argument", "vendorInvoiceImportId is required.");
@@ -252,6 +276,24 @@ export const approveVendorInvoiceImport = onCall(
         "failed-precondition",
         `Import already ${importDoc.reviewStatus}.`,
       );
+    }
+
+    if (action === "approve" && importDoc.reviewStatus === "approved") {
+      const linkedId = importDoc.linkedDeliveryOrderId?.trim() ?? "";
+      const deliverySnap = linkedId
+        ? await getDb().collection("deliveries").doc(linkedId).get()
+        : null;
+      return resolveApproveIdempotentReplay({
+        importId,
+        importDoc,
+        clientDeliveryOrderId: deliveryOrderId,
+        fulfillmentDecision,
+        requestedPlannedIds: plannedStagingLocationIds,
+        liveDelivery: deliverySnap?.exists
+          ? (deliverySnap.data() as Record<string, unknown>)
+          : null,
+        deliveryExists: deliverySnap?.exists ?? false,
+      });
     }
 
     if (action === "approve" && !canApproveReviewStatus(importDoc.reviewStatus)) {
@@ -767,6 +809,21 @@ export const approveVendorInvoiceImport = onCall(
       throw new HttpsError("failed-precondition", CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
     }
     const shell = await buildInvoiceDeliveryShellContext(getDb(), importId, importDoc);
+    const explicitApprovalOverride = fulfillmentDecision !== undefined;
+    const effectiveFulfillment =
+      fulfillmentDecision ?? shell.invoiceFulfillmentMethod;
+    const effectiveDeliveryStatus = (fulfillmentDecision
+      ? resolveShellDeliveryStatus(
+          importDoc.importStatus,
+          fulfillmentDecision,
+          shell.invoiceDeliverToSite,
+        )
+      : shell.deliveryStatus) as typeof shell.deliveryStatus;
+    const effectiveShell = {
+      ...shell,
+      invoiceFulfillmentMethod: effectiveFulfillment,
+      deliveryStatus: effectiveDeliveryStatus,
+    };
     const header = asParsedHeaderForImport(importDoc.parsedHeader);
     const matchCtx = await loadEmailMatchContext();
     const resolved = resolveInvoiceApproveDeliveryTarget({
@@ -817,7 +874,7 @@ export const approveVendorInvoiceImport = onCall(
     const stagingSkipped = isInvoiceShellNoShopStaging({
       createdFromInvoiceImport: true,
       invoiceImportStatus: importDoc.importStatus,
-      invoiceFulfillmentMethod: shell.invoiceFulfillmentMethod,
+      invoiceFulfillmentMethod: effectiveShell.invoiceFulfillmentMethod,
       invoiceDeliverToSite: shell.invoiceDeliverToSite,
     });
     const existingPlanned = Array.isArray(matchedDeliveryData?.plannedStagingLocationIds)
@@ -837,19 +894,6 @@ export const approveVendorInvoiceImport = onCall(
         "Choose a staging location before approving this Vendor Drop-Off.",
       );
     }
-    if (!stagingSkipped && plannedStagingLocationIds.length > 0) {
-      const locSnaps = await Promise.all(
-        plannedStagingLocationIds.map((id) =>
-          getDb().collection("stagingLocations").doc(id).get(),
-        ),
-      );
-      if (locSnaps.some((snap) => !snap.exists)) {
-        throw new HttpsError(
-          "invalid-argument",
-          "One or more selected staging locations no longer exist. Refresh and reselect.",
-        );
-      }
-    }
     const stagingPatch = approvePlannedStagingPatch(
       stagingSkipped,
       plannedStagingLocationIds,
@@ -861,6 +905,11 @@ export const approveVendorInvoiceImport = onCall(
       releasedAt: now,
     };
 
+    let idempotentReplayResult: ReturnType<
+      typeof resolveApproveIdempotentReplay
+    > | null = null;
+    let plannedStagingLocationCodes: string[] | undefined;
+
     await getDb().runTransaction(async (tx) => {
       const freshImport = await tx.get(importRef);
       if (!freshImport.exists) {
@@ -868,6 +917,21 @@ export const approveVendorInvoiceImport = onCall(
       }
       const fresh = freshImport.data() as VendorInvoiceImportDoc;
       assertDeliveryAllowedForImport(fresh);
+      if (fresh.reviewStatus === "approved") {
+        const replayDelivery = await tx.get(deliveryRef);
+        idempotentReplayResult = resolveApproveIdempotentReplay({
+          importId,
+          importDoc: fresh,
+          clientDeliveryOrderId: deliveryOrderId,
+          fulfillmentDecision,
+          requestedPlannedIds: plannedStagingLocationIds,
+          liveDelivery: replayDelivery.exists
+            ? (replayDelivery.data() as Record<string, unknown>)
+            : null,
+          deliveryExists: replayDelivery.exists,
+        });
+        return;
+      }
       if (!canApproveReviewStatus(fresh.reviewStatus)) {
         throw new HttpsError(
           "failed-precondition",
@@ -890,6 +954,21 @@ export const approveVendorInvoiceImport = onCall(
       }
 
       const existingDelivery = await tx.get(deliveryRef);
+
+      if (!stagingSkipped && plannedStagingLocationIds.length > 0) {
+        const codes: string[] = [];
+        for (const locId of plannedStagingLocationIds) {
+          const { code } = await assertStagingLocationAvailableInTransaction(
+            tx,
+            getDb(),
+            locId,
+            targetId,
+          );
+          codes.push(code);
+        }
+        plannedStagingLocationCodes = codes;
+      }
+
       if (matchedExisting) {
         if (!existingDelivery.exists) {
           throw new HttpsError(
@@ -906,11 +985,12 @@ export const approveVendorInvoiceImport = onCall(
           );
         }
         const matchedFulfillmentPatch = buildInvoiceMatchedDeliveryPatchDocument(
-          shell,
+          effectiveShell,
           importId,
           fresh,
           now,
           liveDelivery,
+          explicitApprovalOverride,
         );
         const activeStagingPatch = activeStagingPatchForCurrentFulfillment(
           liveDelivery as Record<string, unknown>,
@@ -924,7 +1004,7 @@ export const approveVendorInvoiceImport = onCall(
         });
       } else if (!existingDelivery.exists) {
         // Shell path: create delivery-vii-{importId}.
-        const shellForWrite = { ...shell, deliveryOrderId: shellId };
+        const shellForWrite = { ...effectiveShell, deliveryOrderId: shellId };
         const shellDoc = buildDeliveryShellDocument(
           shellForWrite,
           importId,
@@ -946,11 +1026,12 @@ export const approveVendorInvoiceImport = onCall(
           (existingDelivery.data() as Record<string, unknown> | undefined) ??
           {};
         const shellFulfillmentPatch = buildInvoiceShellPatchDocument(
-          { ...shell, deliveryOrderId: shellId },
+          { ...effectiveShell, deliveryOrderId: shellId },
           importId,
           fresh,
           now,
           existingDelivery.data(),
+          explicitApprovalOverride,
         );
         const activeStagingPatch = activeStagingPatchForCurrentFulfillment(
           liveShellData,
@@ -983,10 +1064,24 @@ export const approveVendorInvoiceImport = onCall(
             now,
             eligibilityFromDoc(fresh),
             targetId,
+            fulfillmentDecision
+              ? {
+                  fulfillmentDecision,
+                  plannedStagingLocationIds: stagingSkipped
+                    ? []
+                    : ((stagingPatch.plannedStagingLocationIds as
+                        | string[]
+                        | undefined) ?? plannedStagingLocationIds),
+                }
+              : undefined,
           ),
         ),
       });
     });
+
+    if (idempotentReplayResult) {
+      return idempotentReplayResult;
+    }
 
     let trainingLessonWrote = false;
     let trainingLessonPendingAdminReview = false;
@@ -1024,6 +1119,9 @@ export const approveVendorInvoiceImport = onCall(
       deliveryMatched: matchedExisting,
       jobCreated: matchedExisting ? false : shell.jobCreated,
       plannedStagingLocationIds: appliedPlanned,
+      ...(plannedStagingLocationCodes
+        ? { plannedStagingLocationCodes }
+        : {}),
       trainingLessonWrote,
       trainingLessonPendingAdminReview,
       trainingLessonAlertEmailed,
