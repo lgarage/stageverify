@@ -123,6 +123,11 @@ type Props = {
   onDeactivateSlots?: (slots: string[]) => Promise<void>;
   /** Assign-location mode — click open spots to plan staging (mutex with editMode). */
   assignMode?: boolean;
+  /**
+   * Change Location reassignment — allow clicking this delivery's current spots
+   * (promote/collapse/no-op). Assign merge still blocks self-planned re-clicks.
+   */
+  reassignMode?: boolean;
   assignDeliveryId?: string;
   pendingAssignLayoutSlot?: string | null;
   selfPlannedLayoutSlots?: ReadonlySet<string>;
@@ -367,6 +372,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       onPersistLayoutExtras,
       onDeactivateSlots,
       assignMode = false,
+      reassignMode = false,
       assignDeliveryId,
       pendingAssignLayoutSlot = null,
       selfPlannedLayoutSlots,
@@ -2859,7 +2865,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
       return;
     }
     if (assignMode && onAssignSpotClick) {
-      if (selfPlannedLayoutSlots?.has(layoutSlot)) {
+      if (!reassignMode && selfPlannedLayoutSlots?.has(layoutSlot)) {
         return;
       }
       const displayCode = displayCodeForSlot(layoutSlot);

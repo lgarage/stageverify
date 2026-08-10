@@ -62,6 +62,7 @@ import { dismissVendorEmailEventCallable } from "./dismissVendorEmailEventCallab
 import { reopenVendorEmailEventCallable } from "./reopenVendorEmailEventCallable";
 import { applyVendorReplyClearBackorder } from "./applyVendorReplyClearBackorder";
 import { assignVendorStagingLocation } from "./assignVendorStagingLocation";
+import { reassignDeliveryStagingLocation } from "./reassignDeliveryStagingLocation";
 import { matchUnplannedVendorDelivery } from "./matchUnplannedVendorDelivery";
 import { createUnplannedVendorDelivery } from "./createUnplannedVendorDelivery";
 import { confirmUnplannedVendorDeliveryMatch } from "./confirmUnplannedVendorDeliveryMatch";
@@ -235,6 +236,7 @@ export {
   recalculateDeliveryReadiness,
   markVendorDelivered,
   assignVendorStagingLocation,
+  reassignDeliveryStagingLocation,
   matchUnplannedVendorDelivery,
   createUnplannedVendorDelivery,
   confirmUnplannedVendorDeliveryMatch,
