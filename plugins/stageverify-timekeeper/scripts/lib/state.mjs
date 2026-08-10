@@ -33,6 +33,15 @@ export const THRASH_FAIL_LIMIT = 2;
 export const WAIT_POLL_SOFT_LIMIT = 3;
 
 /**
+ * After force35 is delivered, re-emit a short D-66 sticky nudge on reliable hooks
+ * at this cooldown (advise-only). First sticky is cooldown after force35 delivery.
+ */
+export const STICKY_FORCE_COOLDOWN_MS = 5 * 60 * 1000;
+
+/** Kind string for sticky post-35m nudges (not part of elapsed Policy B ladder). */
+export const STICKY_FORCE_KIND = "force35_sticky";
+
+/**
  * Cursor may fire both afterShellExecution and postToolUse(Failure) for one Shell call.
  * Ignore duplicate signature counts inside this window.
  */
@@ -130,7 +139,34 @@ export function emptyState(conversationId, now) {
     lastMaterialEvidence: null,
     mode: "normal",
     thrashWarned: {},
+    /**
+     * Post-35m sticky D-66 campaign (advise-only).
+     * active while force_choice and no terminalOutcome detected.
+     */
+    forceCampaign: {
+      active: false,
+      lastStickyAt: null,
+      stickyCount: 0,
+      lastDeliveryHook: null,
+      /** @type {null|"DONE"|"BLOCKED"|"FAILED"|"PARTIAL"} */
+      terminalOutcome: null,
+    },
   };
+}
+
+/**
+ * Ensure forceCampaign exists (load compat for pre-sticky state files).
+ * @param {object} state
+ */
+export function normalizeForceCampaign(state) {
+  const base = emptyState(state.conversationId || "unknown", state.startedAt || Date.now())
+    .forceCampaign;
+  if (!state.forceCampaign || typeof state.forceCampaign !== "object") {
+    state.forceCampaign = { ...base };
+  } else {
+    state.forceCampaign = { ...base, ...state.forceCampaign };
+  }
+  return state;
 }
 
 /**
@@ -198,8 +234,9 @@ export function loadState(conversationId, workspaceRoots, now = Date.now()) {
   }
   try {
     const raw = JSON.parse(readFileSync(path, "utf8"));
+    const fresh = emptyState(conversationId, now);
     const state = {
-      ...emptyState(conversationId, now),
+      ...fresh,
       ...raw,
       firedCheckpoints: {
         ...(raw.firedCheckpoints || {}),
@@ -208,21 +245,26 @@ export function loadState(conversationId, workspaceRoots, now = Date.now()) {
         ...(raw.delivery || {}),
       },
       greenEvidence: {
-        ...emptyState(conversationId, now).greenEvidence,
+        ...fresh.greenEvidence,
         ...(raw.greenEvidence || {}),
         verifies: {
           ...(raw.greenEvidence?.verifies || {}),
         },
       },
       mainMoves: {
-        ...emptyState(conversationId, now).mainMoves,
+        ...fresh.mainMoves,
         ...(raw.mainMoves || {}),
+      },
+      forceCampaign: {
+        ...fresh.forceCampaign,
+        ...(raw.forceCampaign || {}),
       },
       signatures: raw.signatures || {},
       waitPolls: raw.waitPolls || {},
       thrashWarned: raw.thrashWarned || {},
       interventions: Array.isArray(raw.interventions) ? raw.interventions : [],
     };
+    normalizeForceCampaign(state);
     return normalizeDeliveryState(state);
   } catch {
     return emptyState(conversationId, now);

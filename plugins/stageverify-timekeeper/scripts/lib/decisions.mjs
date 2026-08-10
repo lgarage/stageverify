@@ -3,6 +3,8 @@ import {
   THRASH_FAIL_LIMIT,
   WAIT_POLL_SOFT_LIMIT,
   SHELL_HOOK_DEDUPE_MS,
+  STICKY_FORCE_COOLDOWN_MS,
+  STICKY_FORCE_KIND,
   ELAPSED_CHECKPOINT_ORDER,
   elapsedMs,
   formatElapsed,
@@ -10,6 +12,7 @@ import {
   getDeliveryStatus,
   setDelivery,
   normalizeDeliveryState,
+  normalizeForceCampaign,
 } from "./state.mjs";
 import {
   classifyFailure,
@@ -67,8 +70,130 @@ export const ELAPSED_CHECKPOINT_COPY = {
   },
 };
 
+/** Sticky post-35m D-66 nudge (cooldown; advise-only). */
+export const STICKY_FORCE_COPY = {
+  stateLabel: "force_choice",
+  reason: "past ~35m — sticky terminal nudge",
+  decision: [
+    "TIMEKEEPER sticky (≥35m) — stop expanding scope. Finish the current safe bounded unit of work, then return exactly one D-66 outcome: DONE / BLOCKED / FAILED / PARTIAL.",
+    "Hand remaining work to a continuation/new job if needed.",
+    "Waiting on Dan approval → BLOCKED and return. Deploy/CI propagation wait → BLOCKED or PARTIAL with exact state (do not burn another 20–30m). Unrelated issue → record it; do not chase it here. Required D-60/D-38/verify still running → finish that bounded gate safely, then terminate.",
+  ].join(" "),
+};
+
+/** Compact stop followup while force_choice (re-issuable; loop_limit caps auto-loops). */
+export const FORCE35_STOP_FOLLOWUP =
+  "TIMEKEEPER 35m — stop expanding scope. Finish the current safe unit, then produce D-66: DONE / BLOCKED / FAILED / PARTIAL. Waiting on Dan → BLOCKED. External wait → BLOCKED/PARTIAL with state. Do not skip required D-38/D-60/verify gates.";
+
 const HARD_CONTRACT =
   "HARD CONTRACT: Never skip required D-38/D-60/D-42/D-51/verify:* / D-50 ladders. Timekeeper complements; it does not weaken safety.";
+
+/** D-66 terminal first lines (done-signal.mdc). */
+const TERMINAL_PATTERNS = [
+  { re: /\bDONE\s*[—-]\s*finished\b/i, outcome: "DONE" },
+  { re: /\bBLOCKED\s*[—-]\s*needs input\b/i, outcome: "BLOCKED" },
+  { re: /\bFAILED\s*[—-]\s*stopped\b/i, outcome: "FAILED" },
+  { re: /\bPARTIAL\s*[—-]\s*some work completed\b/i, outcome: "PARTIAL" },
+];
+
+/**
+ * Detect D-66 terminal outcome from hook event / prior state.
+ * @param {object} event
+ * @param {object} state
+ * @returns {null|"DONE"|"BLOCKED"|"FAILED"|"PARTIAL"}
+ */
+export function detectTerminalOutcome(event = {}, state = {}) {
+  normalizeForceCampaign(state);
+  if (state.forceCampaign.terminalOutcome) return state.forceCampaign.terminalOutcome;
+
+  const explicit = event.terminal_outcome || event.terminalOutcome || event.d66_outcome;
+  if (explicit) {
+    const u = String(explicit).toUpperCase();
+    if (u === "DONE" || u === "BLOCKED" || u === "FAILED" || u === "PARTIAL") return u;
+  }
+
+  const blobs = [
+    event.last_assistant_message,
+    event.assistant_message,
+    event.final_response,
+    event.completion_message,
+    event.message,
+    event.text,
+    event.output,
+    event.tool_output,
+  ];
+  for (const blob of blobs) {
+    if (blob == null) continue;
+    const text = typeof blob === "string" ? blob : JSON.stringify(blob);
+    for (const { re, outcome } of TERMINAL_PATTERNS) {
+      if (re.test(text)) return outcome;
+    }
+  }
+  return null;
+}
+
+/**
+ * Arm / update force campaign bookkeeping when force35 is first delivered.
+ * @param {object} state
+ * @param {number} now
+ * @param {string} hook
+ */
+export function armForceCampaign(state, now, hook = "") {
+  normalizeForceCampaign(state);
+  state.mode = "force_choice";
+  state.forceCampaign.active = true;
+  // Start cooldown clock so sticky is ~5m after force35, not on the next tool.
+  if (state.forceCampaign.lastStickyAt == null) {
+    state.forceCampaign.lastStickyAt = now;
+  }
+  if (hook) state.forceCampaign.lastDeliveryHook = hook;
+}
+
+/**
+ * Build a sticky intervention when due (reliable hook, past cooldown, non-terminal).
+ * @returns {Intervention|null}
+ */
+export function maybeStickyForceIntervention(state, hook, now) {
+  normalizeForceCampaign(state);
+  if (!isReliableDeliveryHook(hook)) return null;
+  if (state.forceCampaign.terminalOutcome) return null;
+  if (state.mode !== "force_choice") return null;
+  if (getDeliveryStatus(state, "force35") !== "delivered") return null;
+
+  const last = state.forceCampaign.lastStickyAt;
+  if (typeof last === "number" && now - last < STICKY_FORCE_COOLDOWN_MS) {
+    return null;
+  }
+
+  return {
+    kind: STICKY_FORCE_KIND,
+    family: "sticky",
+    stateLabel: STICKY_FORCE_COPY.stateLabel,
+    reason: STICKY_FORCE_COPY.reason,
+    decision: STICKY_FORCE_COPY.decision,
+  };
+}
+
+/**
+ * Record sticky emission (cooldown + observability).
+ * @param {object} state
+ * @param {number} now
+ * @param {string} hook
+ */
+export function recordStickyEmission(state, now, hook) {
+  normalizeForceCampaign(state);
+  state.forceCampaign.active = true;
+  state.forceCampaign.lastStickyAt = now;
+  state.forceCampaign.stickyCount = (state.forceCampaign.stickyCount || 0) + 1;
+  state.forceCampaign.lastDeliveryHook = hook || state.forceCampaign.lastDeliveryHook;
+  state.lastInterventionAt = now;
+  state.interventions.push({
+    at: now,
+    kind: STICKY_FORCE_KIND,
+    reason: STICKY_FORCE_COPY.reason,
+    decision: STICKY_FORCE_COPY.decision,
+  });
+}
 
 /**
  * Format TIMEKEEPER block (compact for elapsed; slightly richer for thrash/stall).
@@ -77,7 +202,12 @@ const HARD_CONTRACT =
  * @param {Intervention} intervention
  */
 export function formatTimekeeperBlock(state, now, intervention) {
-  if (intervention.family === "elapsed" || ELAPSED_CHECKPOINT_ORDER.includes(intervention.kind)) {
+  if (
+    intervention.family === "elapsed" ||
+    intervention.family === "sticky" ||
+    intervention.kind === STICKY_FORCE_KIND ||
+    ELAPSED_CHECKPOINT_ORDER.includes(intervention.kind)
+  ) {
     return [intervention.decision, HARD_CONTRACT].join("\n");
   }
   const elapsed = formatElapsed(elapsedMs(state.startedAt, now));
@@ -168,8 +298,13 @@ export function selectPendingForDelivery(state, hook, now = Date.now()) {
  * @param {Intervention[]} interventions
  * @param {number} now
  */
-export function markDelivered(state, interventions, now = Date.now()) {
+export function markDelivered(state, interventions, now = Date.now(), hook = "") {
   for (const i of interventions) {
+    // Sticky nudges are cooldown-replayable — do not consume via delivery map.
+    if (i.kind === STICKY_FORCE_KIND || i.family === "sticky") {
+      recordStickyEmission(state, now, hook);
+      continue;
+    }
     setDelivery(state, i.kind, {
       status: "delivered",
       deliveredAt: now,
@@ -181,6 +316,9 @@ export function markDelivered(state, interventions, now = Date.now()) {
       reason: i.reason,
       decision: i.decision,
     });
+    if (i.kind === "force35") {
+      armForceCampaign(state, now, hook);
+    }
     // Back-compat thrashWarned for signatures
     if (i.kind.startsWith("thrash:") || i.kind === "thrash" || i.kind === "thrash_pre") {
       const sig = i.kind.startsWith("thrash:") ? i.kind.slice("thrash:".length) : null;
@@ -515,9 +653,24 @@ function observeAndQueue(state, event, now) {
  */
 export function evaluate(state, event, now = Date.now()) {
   const hook = event.hook_event_name || event.hook || "";
+  normalizeForceCampaign(state);
+
+  // Terminal outcome suppresses sticky campaign (even before observe).
+  const terminal = detectTerminalOutcome(event, state);
+  if (terminal) {
+    state.forceCampaign.terminalOutcome = terminal;
+    state.forceCampaign.active = false;
+  }
+
   const { progress } = observeAndQueue(state, event, now);
 
+  /** @type {Intervention[]} */
   const interventions = selectPendingForDelivery(state, hook, now);
+
+  // Sticky post-35m re-nudge on reliable hooks after cooldown (not Policy B elapsed).
+  const sticky = maybeStickyForceIntervention(state, hook, now);
+  if (sticky) interventions.push(sticky);
+
   for (const i of interventions) {
     i.message = formatTimekeeperBlock(state, now, i);
   }
@@ -525,7 +678,7 @@ export function evaluate(state, event, now = Date.now()) {
   // Mark delivered only for reliable hooks that will carry advice fields.
   // buildHookResponse always attaches a field when interventions.length > 0 on those hooks.
   if (interventions.length && isReliableDeliveryHook(hook)) {
-    markDelivered(state, interventions, now);
+    markDelivered(state, interventions, now, hook);
   }
 
   return {
@@ -545,6 +698,7 @@ export function evaluate(state, event, now = Date.now()) {
 export function buildHookResponse(hook, interventions, state, event) {
   /** @type {Record<string, unknown>} */
   const out = {};
+  normalizeForceCampaign(state);
 
   // Never deny for thrash. Explicit allow on permission hooks.
   if (
@@ -558,17 +712,28 @@ export function buildHookResponse(hook, interventions, state, event) {
   }
 
   if (!interventions.length) {
-    if (hook === "stop" && state.mode === "force_choice") {
-      const already = state.interventions.filter((x) => x.kind === "force35_followup");
-      if (already.length === 0 && (event.loop_count || 0) < 1) {
+    // While force_choice and non-terminal: re-issue D-66 followup on stop.
+    // Respect Cursor loop_limit (hooks.json = 2) to prevent infinite stop loops.
+    if (
+      hook === "stop" &&
+      state.mode === "force_choice" &&
+      !state.forceCampaign.terminalOutcome
+    ) {
+      const loopCount = Number(event.loop_count || 0);
+      const loopLimit = Number(
+        event.loop_limit != null ? event.loop_limit : 2
+      );
+      if (loopCount < loopLimit) {
+        const now = Date.now();
         state.interventions.push({
-          at: Date.now(),
+          at: now,
           kind: "force35_followup",
           reason: "stop at force_choice",
           decision: "require D-66 terminal",
         });
-        out.followup_message =
-          "TIMEKEEPER 35m — before ending, produce the required D-66 outcome: DONE / BLOCKED / FAILED / PARTIAL.";
+        state.forceCampaign.lastDeliveryHook = "stop";
+        state.forceCampaign.active = true;
+        out.followup_message = FORCE35_STOP_FOLLOWUP;
       }
     }
     return out;

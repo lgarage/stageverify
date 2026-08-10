@@ -1,4 +1,5 @@
 import {
+  ZONE_CLEARED_DELIVERY_STATUSES,
   getAllStagingLocationIds,
   isLocationActive,
   isOversizedSpot,
@@ -84,6 +85,8 @@ export function buildGloballyAssignedStagingLocationIds(
     if (delivery.id === excludeDeliveryId) continue;
     // Will-Call / no-shop-staging do not hold shop spots for assignment blocking.
     if (skipsShopStaging(delivery)) continue;
+    // Picked up / installed must not block assignment via stale planned refs.
+    if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
     for (const locId of delivery.plannedStagingLocationIds ?? []) {
       ids.add(locId);
     }

@@ -1,11 +1,15 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import {
+  computeDeliveryReadiness,
   computePhysicalDropoffComplete,
+  isDispatcherPickupEligible,
   isPickupEligible,
   type DeliveryDoc,
+  type DeliveryReadinessResult,
   type ItemDoc,
 } from "./deliveryReadiness";
+import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 import { skipsShopStaging } from "./invoice/invoiceShellDisplayHelpers";
 import type { InvoiceFulfillmentMethod } from "./invoice/types";
 import { assertPickupAccessForJob } from "./pickupAccessValidation";
@@ -106,6 +110,26 @@ function remainingLocationIds(delivery: DeliveryRecord): string[] {
   return allStagingIds(delivery).filter((id) => !picked.has(id));
 }
 
+/** Snapshot readiness onto pickupEvents for audit (manual vs system-ready). */
+function pickupReadinessAuditFields(
+  isDispatcherCall: boolean,
+  readiness: DeliveryReadinessResult,
+): Record<string, unknown> {
+  const systemReadyAtPickup = readiness.readyForPickup === true;
+  const manualPickup = isDispatcherCall && !systemReadyAtPickup;
+  return {
+    systemReadyAtPickup,
+    manualPickup,
+    ...(manualPickup
+      ? {
+          readinessBlockReasonsAtPickup: [
+            ...readiness.evidence.readinessBlockReasons,
+          ],
+        }
+      : {}),
+  };
+}
+
 export const recordPickupEvent = onCall(
   {
     region: "us-central1",
@@ -155,7 +179,11 @@ export const recordPickupEvent = onCall(
 
     const db = getDb();
     let technicianIdentityName = technicianName;
-    if (!request.auth) {
+    let isDispatcherCall = false;
+    if (request.auth) {
+      await requireDispatcherAuth(request);
+      isDispatcherCall = true;
+    } else {
       const access = await assertPickupAccessForJob(db, jobId, {
         pickupToken: data.pickupToken,
         technicianSessionToken: data.technicianSessionToken,
@@ -225,7 +253,13 @@ export const recordPickupEvent = onCall(
       const assignedLocations = allStagingIds(delivery);
       const skipShopStagingPickup = skipsShopStaging(delivery);
 
-      if (!skipShopStagingPickup && assignedLocations.length === 0) {
+      // VDO still requires staging unless dispatcher is recording a manual
+      // pickup with nothing staged to release (Assigned/Planned zero-staging).
+      if (
+        !skipShopStagingPickup &&
+        assignedLocations.length === 0 &&
+        !isDispatcherCall
+      ) {
         throw new HttpsError(
           "failed-precondition",
           "Delivery has no assigned staging locations.",
@@ -275,15 +309,51 @@ export const recordPickupEvent = onCall(
         }
       }
 
-      const eligibility = isPickupEligible(delivery, items, vendorDeliveryMode);
-      if (!eligibility.eligible) {
-        throw new HttpsError(
-          "failed-precondition",
-          `Pickup not allowed: ${eligibility.reason ?? "ineligible"}.`,
+      let readiness: DeliveryReadinessResult;
+      if (isDispatcherCall) {
+        const eligibility = isDispatcherPickupEligible(
+          delivery,
+          items,
+          vendorDeliveryMode,
+        );
+        if (!eligibility.eligible) {
+          throw new HttpsError(
+            "failed-precondition",
+            `Pickup not allowed: ${eligibility.reason ?? "ineligible"}.`,
+          );
+        }
+        readiness = eligibility.readiness;
+      } else {
+        const eligibility = isPickupEligible(
+          delivery,
+          items,
+          vendorDeliveryMode,
+        );
+        if (!eligibility.eligible) {
+          throw new HttpsError(
+            "failed-precondition",
+            `Pickup not allowed: ${eligibility.reason ?? "ineligible"}.`,
+          );
+        }
+        readiness = computeDeliveryReadiness(
+          delivery,
+          items,
+          new Date().toISOString(),
+          vendorDeliveryMode,
         );
       }
+      const readinessAudit = pickupReadinessAuditFields(
+        isDispatcherCall,
+        readiness,
+      );
 
-      if (skipShopStagingPickup) {
+      // Will-Call (skip shop staging) OR dispatcher manual pickup with no
+      // staging assigned — immediate full pickup, nothing left to release.
+      const immediateFullPickup =
+        skipShopStagingPickup ||
+        (isDispatcherCall && assignedLocations.length === 0);
+
+      if (immediateFullPickup) {
         const now = new Date().toISOString();
         const pickupEventId = crypto.randomUUID();
         const historyId = `event-${pickupEventId}`;
@@ -306,14 +376,18 @@ export const recordPickupEvent = onCall(
           updatedAt: now,
           status: "picked_up",
           readinessStatus: "picked_up",
-          invoiceImportStatus: "closed_picked_up",
           stagingLocationId: "",
           additionalStagingLocationIds: [],
+          plannedStagingLocationIds: [],
           combinationStagingGroupId: "",
           combinationMemberLocationIds: [],
           pickedUpStagingLocationIds: [],
           pickupCheckedItemIds: [],
         };
+        // closed_picked_up is Will-Call invoice semantics only — not VDO manual.
+        if (skipShopStagingPickup) {
+          deliveryPatch.invoiceImportStatus = "closed_picked_up";
+        }
 
         tx.set(db.collection("pickupEvents").doc(pickupEventId), {
           id: pickupEventId,
@@ -325,6 +399,7 @@ export const recordPickupEvent = onCall(
           ...(notes ? { notes } : {}),
           clientOperationId,
           stagingLocationIds: [],
+          ...readinessAudit,
         });
 
         tx.update(deliveryRef, deliveryPatch);
@@ -377,7 +452,11 @@ export const recordPickupEvent = onCall(
         };
       }
 
-      if (!computePhysicalDropoffComplete(delivery, items, vendorDeliveryMode)) {
+      // System readiness gate — skipped for dispatcher manual pickup override.
+      if (
+        !isDispatcherCall &&
+        !computePhysicalDropoffComplete(delivery, items, vendorDeliveryMode)
+      ) {
         throw new HttpsError(
           "failed-precondition",
           "Physical drop-off is incomplete for this delivery.",
@@ -453,6 +532,7 @@ export const recordPickupEvent = onCall(
         deliveryPatch.status = "picked_up";
         deliveryPatch.stagingLocationId = "";
         deliveryPatch.additionalStagingLocationIds = [];
+        deliveryPatch.plannedStagingLocationIds = [];
         deliveryPatch.combinationStagingGroupId = "";
         deliveryPatch.combinationMemberLocationIds = [];
         deliveryPatch.readinessStatus = "picked_up";
@@ -469,6 +549,7 @@ export const recordPickupEvent = onCall(
         ...(notes ? { notes } : {}),
         clientOperationId,
         stagingLocationIds: targetLocations,
+        ...readinessAudit,
       });
 
       tx.update(deliveryRef, deliveryPatch);

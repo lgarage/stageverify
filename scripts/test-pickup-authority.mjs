@@ -9,8 +9,16 @@ import { resolve } from "path";
 import { initializeTestEnvironment } from "@firebase/rules-unit-testing";
 import { initializeApp } from "firebase/app";
 import {
+  connectAuthEmulator,
+  createUserWithEmailAndPassword,
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut,
+} from "firebase/auth";
+import {
   collection,
   doc,
+  getDoc,
   getDocs,
   query,
   setDoc,
@@ -26,6 +34,20 @@ import { recalcPayload, seedVendorSession } from "./test-vendor-session-helper.m
 const PROJECT_ID = "stageverify-db";
 const RULES_PATH = resolve(process.cwd(), "firestore.rules");
 
+const firebaseConfig = {
+  apiKey: "AIzaSyALKllET2wQoAm7-3RiHrRJjMsVq315WaE",
+  authDomain: "stageverify-db.firebaseapp.com",
+  projectId: PROJECT_ID,
+  storageBucket: "stageverify-db.firebasestorage.app",
+  messagingSenderId: "784751243681",
+  appId: "1:784751243681:web:31fa71762b94f878fd1be0",
+};
+
+const DISPATCHER_TEST_EMAIL = "pickup-dispatcher-test@stageverify.test";
+const DISPATCHER_TEST_PASSWORD = "StageVerifyTest1!";
+const NON_DISPATCHER_EMAIL = "pickup-nodispatcher-test@stageverify.test";
+const NON_DISPATCHER_PASSWORD = "StageVerifyTest1!";
+
 const testEnv = await initializeTestEnvironment({
   projectId: PROJECT_ID,
   firestore: {
@@ -35,7 +57,9 @@ const testEnv = await initializeTestEnvironment({
   },
 });
 
-const clientApp = initializeApp({ projectId: PROJECT_ID });
+const clientApp = initializeApp(firebaseConfig);
+const auth = getAuth(clientApp);
+connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
 const functions = getFunctions(clientApp, "us-central1");
 connectFunctionsEmulator(functions, "127.0.0.1", 5001);
 
@@ -856,7 +880,6 @@ try {
     const unauth = testEnv.unauthenticatedContext();
     const unauthDb = unauth.firestore();
     try {
-      const { getDoc } = await import("firebase/firestore");
       await getDoc(doc(unauthDb, "deliveries", "del-tech-session"));
       fail("unauthenticated getDoc(deliveries) should be denied by rules");
     } catch {
@@ -864,6 +887,331 @@ try {
     }
     await unauth.cleanup();
   }
+
+  console.log("\n=== Dispatcher manual pickup authority ===\n");
+
+  async function seedDispatcherRole(uid, { active = true } = {}) {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "dispatcherRoles", uid), {
+        active,
+        role: "dispatcher",
+        updatedAt: "2026-01-01T00:00:00Z",
+      });
+    });
+  }
+
+  async function ensureAuthUser(email, password) {
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+    } catch {
+      // may already exist from prior emulator runs
+    }
+    await signInWithEmailAndPassword(auth, email, password);
+    return auth.currentUser.uid;
+  }
+
+  async function seedAssignedPlannedVdo(db, {
+    id,
+    jobId = "job-manual-1",
+    status = "pending",
+    stagingLocationId = "",
+    plannedStagingLocationIds = ["loc-planned-g12"],
+    itemCount = 5,
+    qtyReceived = 0,
+  }) {
+    await setDoc(doc(db, "jobs", jobId), {
+      id: jobId,
+      jobNumber: "26-MANUAL",
+      jobName: "Manual pickup job",
+      status: "active",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+    await setDoc(doc(db, "purchaseOrders", `po-${id}`), {
+      id: `po-${id}`,
+      poNumber: `PO-${id}`,
+      jobId,
+      vendorId: "vendor-1",
+      status: "open",
+    });
+    await setDoc(doc(db, "deliveries", id), {
+      id,
+      orderNumber: `ORD-${id}`,
+      jobId,
+      vendorId: "vendor-1",
+      purchaseOrderId: `po-${id}`,
+      deliveryDate: "2026-06-12",
+      status,
+      invoiceFulfillmentMethod: "delivery",
+      vendorOrderComplete: false,
+      physicalDropoffComplete: false,
+      stagingAssignmentComplete: Boolean(stagingLocationId),
+      stagingLocationId: stagingLocationId || "",
+      additionalStagingLocationIds: [],
+      plannedStagingLocationIds,
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+    for (let i = 0; i < itemCount; i++) {
+      await setDoc(doc(db, "items", `${id}-item-${i}`), {
+        id: `${id}-item-${i}`,
+        deliveryOrderId: id,
+        description: `Line ${i}`,
+        qtyOrdered: 1,
+        qtyReceived,
+        qtyMissing: Math.max(0, 1 - qtyReceived),
+        qtyDamaged: 0,
+        qtyBackordered: 0,
+        status: qtyReceived > 0 ? "partial" : "missing",
+      });
+    }
+  }
+
+  // (a) Assigned/Planned VDO, incomplete, no staging — dispatcher can complete
+  await seed(async (db) => {
+    await seedAssignedPlannedVdo(db, { id: "del-manual-zero-stage" });
+    await seedPickupToken(db, "job-manual-1");
+  });
+  const dispatcherUid = await ensureAuthUser(
+    DISPATCHER_TEST_EMAIL,
+    DISPATCHER_TEST_PASSWORD,
+  );
+  await seedDispatcherRole(dispatcherUid, { active: true });
+
+  const zeroStageResult = await recordPickup({
+    deliveryOrderId: "del-manual-zero-stage",
+    jobId: "job-manual-1",
+    technicianName: "Tech Manual",
+    itemsPickedSummary: "Manual closeout",
+    clientOperationId: `op-manual-zero-${crypto.randomUUID()}`,
+  });
+  if (
+    zeroStageResult.data.duplicate === false &&
+    zeroStageResult.data.deliveryStatus === "picked_up"
+  ) {
+    pass("dispatcher Assigned/Planned VDO (no staging) → picked_up");
+  } else {
+    fail(
+      "dispatcher Assigned/Planned VDO (no staging) should succeed",
+      new Error(JSON.stringify(zeroStageResult.data)),
+    );
+  }
+
+  let zeroStagePickupEvent = null;
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const snap = await getDoc(
+      doc(ctx.firestore(), "deliveries", "del-manual-zero-stage"),
+    );
+    const zeroData = snap.data() ?? {};
+    if (zeroData.status !== "picked_up") {
+      fail("delivery status not picked_up after dispatcher manual pickup");
+    } else {
+      pass("delivery status persisted picked_up after manual pickup");
+    }
+    const plannedLeft = zeroData.plannedStagingLocationIds ?? ["stale"];
+    if (Array.isArray(plannedLeft) && plannedLeft.length === 0) {
+      pass("plannedStagingLocationIds cleared on zero-stage manual pickup");
+    } else {
+      fail(
+        "plannedStagingLocationIds should clear on full pickup",
+        new Error(JSON.stringify(plannedLeft)),
+      );
+    }
+    const itemsSnap = await getDocs(
+      query(
+        collection(ctx.firestore(), "items"),
+        where("deliveryOrderId", "==", "del-manual-zero-stage"),
+      ),
+    );
+    const mutated = itemsSnap.docs.some((d) => (d.data()?.qtyReceived ?? 0) !== 0);
+    if (mutated) {
+      fail("manual pickup must not rewrite item qtyReceived");
+    } else {
+      pass("item qtyReceived left intact after manual pickup");
+    }
+    const events = await getDocs(collection(ctx.firestore(), "pickupEvents"));
+    zeroStagePickupEvent = events.docs
+      .map((d) => d.data())
+      .find((e) => e.deliveryOrderId === "del-manual-zero-stage");
+  });
+  if (
+    zeroStagePickupEvent?.manualPickup === true &&
+    zeroStagePickupEvent?.systemReadyAtPickup === false &&
+    Array.isArray(zeroStagePickupEvent?.readinessBlockReasonsAtPickup)
+  ) {
+    pass("pickupEvent audit records manualPickup + readiness snapshot");
+  } else {
+    fail(
+      "pickupEvent missing manual pickup audit fields",
+      new Error(JSON.stringify(zeroStagePickupEvent)),
+    );
+  }
+
+  // (b) Same incomplete VDO via pickupToken only (signed out) — still rejected
+  await signOut(auth);
+  await seed(async (db) => {
+    await seedAssignedPlannedVdo(db, { id: "del-manual-token-block" });
+    await seedPickupToken(db, "job-manual-1");
+  });
+  try {
+    await recordPickup({
+      deliveryOrderId: "del-manual-token-block",
+      jobId: "job-manual-1",
+      technicianName: "Tech Token",
+      itemsPickedSummary: "Should fail",
+      clientOperationId: `op-manual-token-${crypto.randomUUID()}`,
+      pickupToken: TEST_PICKUP_TOKEN,
+    });
+    fail("token path must still reject Assigned/Planned VDO");
+  } catch {
+    pass("token path still rejects Assigned/Planned VDO (readiness gate)");
+  }
+
+  // (c) Signed-in user without dispatcherRoles — rejected
+  await ensureAuthUser(NON_DISPATCHER_EMAIL, NON_DISPATCHER_PASSWORD);
+  // ensure no active role doc
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "dispatcherRoles", auth.currentUser.uid), {
+      active: false,
+      role: "dispatcher",
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+  });
+  await seed(async (db) => {
+    await seedAssignedPlannedVdo(db, { id: "del-manual-norole" });
+  });
+  try {
+    await recordPickup({
+      deliveryOrderId: "del-manual-norole",
+      jobId: "job-manual-1",
+      technicianName: "No Role",
+      itemsPickedSummary: "Should fail",
+      clientOperationId: `op-manual-norole-${crypto.randomUUID()}`,
+    });
+    fail("signed-in non-dispatcher should be denied");
+  } catch {
+    pass("signed-in non-dispatcher denied (requireDispatcherAuth)");
+  }
+
+  // (d) Terminal picked_up — dispatcher duplicate/idempotent, not a new pickup
+  await ensureAuthUser(DISPATCHER_TEST_EMAIL, DISPATCHER_TEST_PASSWORD);
+  await seedDispatcherRole(auth.currentUser.uid, { active: true });
+  await seed(async (db) => {
+    await seedAssignedPlannedVdo(db, { id: "del-manual-terminal" });
+    await setDoc(doc(db, "deliveries", "del-manual-terminal"), {
+      id: "del-manual-terminal",
+      orderNumber: "ORD-del-manual-terminal",
+      jobId: "job-manual-1",
+      vendorId: "vendor-1",
+      purchaseOrderId: "po-del-manual-terminal",
+      status: "picked_up",
+      readinessStatus: "picked_up",
+      invoiceFulfillmentMethod: "delivery",
+      stagingLocationId: "",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+    await setDoc(doc(db, "items", "del-manual-terminal-item-0"), {
+      id: "del-manual-terminal-item-0",
+      deliveryOrderId: "del-manual-terminal",
+      description: "Done",
+      qtyOrdered: 1,
+      qtyReceived: 1,
+      qtyMissing: 0,
+      qtyDamaged: 0,
+      qtyBackordered: 0,
+      status: "received",
+    });
+  });
+  const terminal = await recordPickup({
+    deliveryOrderId: "del-manual-terminal",
+    jobId: "job-manual-1",
+    technicianName: "Tech Manual",
+    itemsPickedSummary: "Already done",
+    clientOperationId: `op-manual-term-${crypto.randomUUID()}`,
+  });
+  if (
+    terminal.data.duplicate === true &&
+    terminal.data.deliveryStatus === "picked_up"
+  ) {
+    pass("dispatcher terminal picked_up returns duplicate (no re-pickup)");
+  } else {
+    fail(
+      "dispatcher terminal should be idempotent duplicate",
+      new Error(JSON.stringify(terminal.data)),
+    );
+  }
+
+  // (e) VDO with staging + incomplete items — pickup succeeds and staging clears
+  await seed(async (db) => {
+    await seedAssignedPlannedVdo(db, {
+      id: "del-manual-staged",
+      status: "arrived",
+      stagingLocationId: "loc-g12",
+      itemCount: 3,
+      qtyReceived: 0,
+    });
+    await setDoc(doc(db, "stagingLocations", "loc-g12"), {
+      id: "loc-g12",
+      code: "G12",
+      status: "Active",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+  });
+  const staged = await recordPickup({
+    deliveryOrderId: "del-manual-staged",
+    jobId: "job-manual-1",
+    technicianName: "Tech Staged",
+    itemsPickedSummary: "Staged incomplete closeout",
+    clientOperationId: `op-manual-staged-${crypto.randomUUID()}`,
+  });
+  if (staged.data.duplicate === false && staged.data.deliveryStatus === "picked_up") {
+    pass("dispatcher incomplete VDO with staging → picked_up");
+  } else {
+    fail(
+      "dispatcher incomplete VDO with staging should succeed",
+      new Error(JSON.stringify(staged.data)),
+    );
+  }
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const snap = await getDoc(
+      doc(ctx.firestore(), "deliveries", "del-manual-staged"),
+    );
+    const data = snap.data() ?? {};
+    if (
+      data.status === "picked_up" &&
+      (data.stagingLocationId === "" || !data.stagingLocationId) &&
+      Array.isArray(data.additionalStagingLocationIds) &&
+      data.additionalStagingLocationIds.length === 0 &&
+      Array.isArray(data.plannedStagingLocationIds) &&
+      data.plannedStagingLocationIds.length === 0
+    ) {
+      pass("staging released on dispatcher pickup of staged VDO");
+    } else {
+      fail(
+        "staging should clear after dispatcher pickup",
+        new Error(JSON.stringify({
+          status: data.status,
+          stagingLocationId: data.stagingLocationId,
+          additional: data.additionalStagingLocationIds,
+          planned: data.plannedStagingLocationIds,
+        })),
+      );
+    }
+    const itemsSnap = await getDocs(
+      query(
+        collection(ctx.firestore(), "items"),
+        where("deliveryOrderId", "==", "del-manual-staged"),
+      ),
+    );
+    const rewritten = itemsSnap.docs.some((d) => (d.data()?.qtyReceived ?? 0) !== 0);
+    if (rewritten) {
+      fail("staged manual pickup must not rewrite items");
+    } else {
+      pass("incomplete item evidence preserved after staged manual pickup");
+    }
+  });
 
   console.log(`\n=== Summary: ${passed} passed, ${failed} failed ===\n`);
   if (failed > 0) process.exit(1);

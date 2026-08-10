@@ -292,3 +292,45 @@ export function isPickupEligible(
   }
   return { eligible: true };
 }
+
+/**
+ * Dispatcher manual-pickup authority — records actual pickup even when system
+ * readiness is incomplete. Does not replace {@link isPickupEligible} (token /
+ * technician paths stay readiness-gated).
+ */
+export function isDispatcherPickupEligible(
+  delivery: DeliveryDoc,
+  items: ItemDoc[],
+  vendorDeliveryMode?: VendorDeliveryMode,
+): {
+  eligible: boolean;
+  reason?: string;
+  readiness: DeliveryReadinessResult;
+} {
+  const readiness = computeDeliveryReadiness(
+    delivery,
+    items,
+    new Date().toISOString(),
+    vendorDeliveryMode,
+  );
+  if (delivery.status === "picked_up" || delivery.status === "installed") {
+    return { eligible: false, reason: "already_picked_up", readiness };
+  }
+
+  const allowedStatuses: DeliveryStatus[] = [
+    "pending",
+    "shipped",
+    "arrived",
+    "partial",
+    "ready_for_pickup",
+    "complete",
+  ];
+  if (!allowedStatuses.includes(delivery.status)) {
+    return {
+      eligible: false,
+      reason: "delivery_not_pickup_eligible",
+      readiness,
+    };
+  }
+  return { eligible: true, readiness };
+}
