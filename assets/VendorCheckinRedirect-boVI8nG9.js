@@ -1,0 +1,1 @@
+import{Oa as e,Qn as t,ja as n}from"./index-YiqknWIg.js";var r=t();function i(){let{orderId:t}=n(),i=t?.trim()??``;return(0,r.jsx)(e,{to:i?`/receive?id=${encodeURIComponent(i)}`:`/receive`,replace:!0})}export{i as CheckinToReceiveRedirect};
