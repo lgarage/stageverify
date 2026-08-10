@@ -1,0 +1,567 @@
+/**
+ * Lane C C3-D.1 — evaluate distinct-document votes → propose / auto-suspend.
+ * No parse effect. No Manager activate. Does not mutate examples.
+ */
+import type { Firestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { Timestamp } from "firebase-admin/firestore";
+import {
+  FIELD_LESSON_EXAMPLE_COLLECTION,
+  buildScopeKey,
+  type FieldLessonExampleDoc,
+} from "./indexFieldLessonExample";
+import { deriveAnchorMatch } from "./patternFingerprint";
+import {
+  FIELD_LESSON_CATEGORY,
+  FIELD_LESSON_COLLECTION,
+  FIELD_LESSON_EVALUATOR_VERSION,
+  MIN_DISTINCT_DOCUMENT_VOTES,
+  buildLessonDocId,
+  hashPatternFingerprint,
+  hashTextWindow,
+  type FieldLessonEvidenceSnapshot,
+  type FieldLessonEvidenceSnapshotVote,
+  type VendorInvoiceFieldLessonDoc,
+} from "./vendorInvoiceFieldLessons";
+import { writeFieldLessonAuditEvent } from "./fieldLessonAudit";
+import { isCorrectableFieldKey } from "./correctionAllowlist";
+import { C3D1_ALLOWED_PARSER_FORMAT_ID } from "./labelAnchorAllowlist";
+
+const MAX_DISTINCT_DOCS_PER_EVAL = 40;
+
+export type EvaluateScopeInput = {
+  vendorKey: string;
+  parserFormatId: string;
+  senderDomain: string;
+  field: string;
+};
+
+export type EvaluateFieldLessonResult = {
+  scopeKey: string;
+  outcome:
+    | "proposed"
+    | "proposal_refreshed"
+    | "contradiction_blocked"
+    | "contradiction_auto_suspended"
+    | "threshold_auto_suspended"
+    | "below_threshold"
+    | "noop"
+    | "skipped_format";
+  lessonId: string | null;
+  distinctDocumentCount: number;
+  patternFingerprint: string | null;
+  competingFingerprints: string[];
+  skippedVotes: number;
+};
+
+function archiveAfterAtMillis(raw: unknown): number | null {
+  if (!raw) return null;
+  if (raw instanceof Timestamp) return raw.toMillis();
+  if (typeof raw === "object" && raw !== null) {
+    const o = raw as { toMillis?: () => number; seconds?: number; _seconds?: number };
+    if (typeof o.toMillis === "function") return o.toMillis();
+    if (typeof o.seconds === "number") return o.seconds * 1000;
+    if (typeof o._seconds === "number") return o._seconds * 1000;
+  }
+  return null;
+}
+
+function isTimeEligible(example: FieldLessonExampleDoc, nowMs: number): boolean {
+  const ms = archiveAfterAtMillis(example.archiveAfterAt);
+  if (ms == null) return false;
+  return ms > nowMs;
+}
+
+/**
+ * Live extracted text at the frozen example span must still equal the
+ * corrected value (trim only). Prevents stale-offset / re-OCR false votes.
+ */
+export function spanMatchesCorrectedValue(input: {
+  combinedExtractedText: string;
+  evidenceSpanStart?: number;
+  evidenceSpanEnd?: number;
+  correctedValue: string;
+}): boolean {
+  const text = input.combinedExtractedText ?? "";
+  const start = input.evidenceSpanStart;
+  const end = input.evidenceSpanEnd;
+  if (
+    typeof start !== "number" ||
+    typeof end !== "number" ||
+    !Number.isFinite(start) ||
+    !Number.isFinite(end) ||
+    start < 0 ||
+    end <= start ||
+    end > text.length
+  ) {
+    return false;
+  }
+  const slice = text.slice(start, end).trim();
+  const expected = (input.correctedValue ?? "").trim();
+  if (!expected) return false;
+  return slice === expected;
+}
+
+async function loadCombinedExtractedText(
+  db: Firestore,
+  vendorInvoiceImportId: string,
+): Promise<{ text: string; inboundId: string | null }> {
+  const impSnap = await db
+    .collection("vendorInvoiceImports")
+    .doc(vendorInvoiceImportId)
+    .get();
+  if (!impSnap.exists) return { text: "", inboundId: null };
+  const inboundId =
+    typeof impSnap.data()?.inboundEmailProcessingId === "string"
+      ? (impSnap.data()!.inboundEmailProcessingId as string).trim()
+      : "";
+  if (!inboundId) return { text: "", inboundId: null };
+  const inSnap = await db.collection("inboundEmailProcessing").doc(inboundId).get();
+  if (!inSnap.exists) return { text: "", inboundId };
+  const text =
+    typeof inSnap.data()?.combinedExtractedText === "string"
+      ? (inSnap.data()!.combinedExtractedText as string)
+      : "";
+  return { text, inboundId };
+}
+
+type VoteCluster = {
+  patternFingerprint: string;
+  votes: FieldLessonEvidenceSnapshotVote[];
+  captureShapeId: FieldLessonEvidenceSnapshotVote["captureShapeId"];
+  matchedLiterals: string[];
+  anchorKey: string;
+};
+
+function pickLatestPerDocument(
+  docs: QueryDocumentSnapshot[],
+): Map<string, FieldLessonExampleDoc & { exampleId: string }> {
+  const byDoc = new Map<string, FieldLessonExampleDoc & { exampleId: string }>();
+  for (const d of docs) {
+    const data = d.data() as FieldLessonExampleDoc;
+    if (data.evidenceType !== "document_evidence") continue;
+    // Use stored example parserFormatId only (never re-route)
+    if (data.parserFormatId !== C3D1_ALLOWED_PARSER_FORMAT_ID) continue;
+    const key = data.sourceDocumentKey?.trim();
+    if (!key) continue;
+    const prev = byDoc.get(key);
+    if (!prev) {
+      byDoc.set(key, { ...data, exampleId: d.id });
+      continue;
+    }
+    const prevT = Date.parse(prev.verifiedAt || "") || 0;
+    const nextT = Date.parse(data.verifiedAt || "") || 0;
+    if (nextT >= prevT) {
+      byDoc.set(key, { ...data, exampleId: d.id });
+    }
+  }
+  return byDoc;
+}
+
+export async function evaluateFieldLessonScope(input: {
+  db: Firestore;
+  scope: EvaluateScopeInput;
+  actorUid: string;
+  nowMs?: number;
+}): Promise<EvaluateFieldLessonResult> {
+  const nowMs = input.nowMs ?? Date.now();
+  const vendorKey = input.scope.vendorKey.trim().toLowerCase();
+  const parserFormatId = input.scope.parserFormatId.trim();
+  const senderDomain = input.scope.senderDomain.trim().toLowerCase();
+  const field = input.scope.field.trim();
+
+  const scopeKey = buildScopeKey({
+    vendorKey,
+    parserFormatId,
+    senderDomain,
+    field,
+  });
+
+  if (parserFormatId !== C3D1_ALLOWED_PARSER_FORMAT_ID) {
+    return {
+      scopeKey,
+      outcome: "skipped_format",
+      lessonId: null,
+      distinctDocumentCount: 0,
+      patternFingerprint: null,
+      competingFingerprints: [],
+      skippedVotes: 0,
+    };
+  }
+  if (!isCorrectableFieldKey(field)) {
+    return {
+      scopeKey,
+      outcome: "noop",
+      lessonId: null,
+      distinctDocumentCount: 0,
+      patternFingerprint: null,
+      competingFingerprints: [],
+      skippedVotes: 0,
+    };
+  }
+
+  const snap = await input.db
+    .collection(FIELD_LESSON_EXAMPLE_COLLECTION)
+    .where("scopeKey", "==", scopeKey)
+    .orderBy("verifiedAt", "desc")
+    .limit(200)
+    .get();
+
+  const latest = pickLatestPerDocument(snap.docs);
+  const clusters = new Map<string, VoteCluster>();
+  let skippedVotes = 0;
+  let processed = 0;
+
+  for (const [, example] of latest) {
+    if (processed >= MAX_DISTINCT_DOCS_PER_EVAL) break;
+    processed += 1;
+    if (!isTimeEligible(example, nowMs)) {
+      skippedVotes += 1;
+      continue;
+    }
+    const { text, inboundId } = await loadCombinedExtractedText(
+      input.db,
+      example.vendorInvoiceImportId,
+    );
+    if (
+      !spanMatchesCorrectedValue({
+        combinedExtractedText: text,
+        evidenceSpanStart: example.evidenceSpanStart,
+        evidenceSpanEnd: example.evidenceSpanEnd,
+        correctedValue: example.correctedValue,
+      })
+    ) {
+      skippedVotes += 1;
+      continue;
+    }
+    const match = deriveAnchorMatch({
+      parserFormatId: example.parserFormatId,
+      field: example.field,
+      combinedExtractedText: text,
+      evidenceSpanStart: example.evidenceSpanStart,
+      evidenceSpanEnd: example.evidenceSpanEnd,
+    });
+    if ("skipReason" in match) {
+      skippedVotes += 1;
+      continue;
+    }
+    const windowStart = Math.max(0, (example.evidenceSpanStart ?? 0) - 80);
+    const windowEnd = Math.min(
+      text.length,
+      (example.evidenceSpanEnd ?? 0) + 80,
+    );
+    const vote: FieldLessonEvidenceSnapshotVote = {
+      sourceDocumentKey: example.sourceDocumentKey,
+      exampleId: example.exampleId,
+      correctedValue: example.correctedValue,
+      verifiedAt: example.verifiedAt,
+      textWindowHash: hashTextWindow(text.slice(windowStart, windowEnd)),
+      inboundEmailProcessingId: inboundId,
+      captureShapeId: match.captureShapeId,
+      matchedLiteral: match.matchedLiteral,
+    };
+    const existing = clusters.get(match.patternFingerprint);
+    if (existing) {
+      existing.votes.push(vote);
+      if (!existing.matchedLiterals.includes(match.matchedLiteral)) {
+        existing.matchedLiterals.push(match.matchedLiteral);
+      }
+    } else {
+      clusters.set(match.patternFingerprint, {
+        patternFingerprint: match.patternFingerprint,
+        votes: [vote],
+        captureShapeId: match.captureShapeId,
+        matchedLiterals: [match.matchedLiteral],
+        anchorKey: match.anchorKey,
+      });
+    }
+  }
+
+  const competing = [...clusters.entries()]
+    .filter(([, c]) => c.votes.length >= 1)
+    .map(([fp]) => fp);
+  const contradiction = competing.length >= 2;
+
+  if (contradiction) {
+    const suspendResult = await autoSuspendLessonsInScope({
+      db: input.db,
+      scopeKey,
+      actorUid: input.actorUid,
+      reason: "contradictory_evidence",
+      detail: `competing fingerprints: ${competing.join(",")}`,
+    });
+    await writeFieldLessonAuditEvent(input.db, {
+      lessonId: suspendResult.lessonId ?? `scope:${scopeKey}`,
+      eventType: suspendResult.suspended
+        ? "contradiction_auto_suspended"
+        : "contradiction_blocked",
+      actorUid: input.actorUid,
+      priorStatus: suspendResult.priorStatus,
+      newStatus: suspendResult.suspended ? "suspended" : null,
+      scopeKey,
+      detail: `competing fingerprints: ${competing.join(",")}`,
+      distinctDocumentCount: 0,
+    });
+    return {
+      scopeKey,
+      outcome: suspendResult.suspended
+        ? "contradiction_auto_suspended"
+        : "contradiction_blocked",
+      lessonId: suspendResult.lessonId,
+      distinctDocumentCount: 0,
+      patternFingerprint: null,
+      competingFingerprints: competing,
+      skippedVotes,
+    };
+  }
+
+  const winner = [...clusters.values()].sort(
+    (a, b) => b.votes.length - a.votes.length,
+  )[0];
+  if (!winner || winner.votes.length < MIN_DISTINCT_DOCUMENT_VOTES) {
+    // Below threshold — suspend any proposed lesson that lost eligibility
+    const suspendResult = await autoSuspendLessonsInScope({
+      db: input.db,
+      scopeKey,
+      actorUid: input.actorUid,
+      reason: "eligible_votes_below_threshold",
+      detail: `votes=${winner?.votes.length ?? 0}`,
+      onlyIfProposed: true,
+    });
+    if (suspendResult.suspended) {
+      await writeFieldLessonAuditEvent(input.db, {
+        lessonId: suspendResult.lessonId!,
+        eventType: "threshold_auto_suspended",
+        actorUid: input.actorUid,
+        priorStatus: "proposed",
+        newStatus: "suspended",
+        scopeKey,
+        distinctDocumentCount: winner?.votes.length ?? 0,
+      });
+      return {
+        scopeKey,
+        outcome: "threshold_auto_suspended",
+        lessonId: suspendResult.lessonId,
+        distinctDocumentCount: winner?.votes.length ?? 0,
+        patternFingerprint: winner?.patternFingerprint ?? null,
+        competingFingerprints: [],
+        skippedVotes,
+      };
+    }
+    return {
+      scopeKey,
+      outcome: "below_threshold",
+      lessonId: null,
+      distinctDocumentCount: winner?.votes.length ?? 0,
+      patternFingerprint: winner?.patternFingerprint ?? null,
+      competingFingerprints: [],
+      skippedVotes,
+    };
+  }
+
+  const patternFingerprintHash = hashPatternFingerprint(
+    winner.patternFingerprint,
+  );
+  const lessonId = buildLessonDocId({
+    vendorKey,
+    parserFormatId,
+    senderDomain,
+    field,
+    patternFingerprint: winner.patternFingerprint,
+  });
+  const evaluatedAt = new Date(nowMs).toISOString();
+  const evidenceSnapshot: FieldLessonEvidenceSnapshot = {
+    distinctSourceDocumentKeys: winner.votes.map((v) => v.sourceDocumentKey),
+    exampleIds: winner.votes.map((v) => v.exampleId),
+    distinctDocumentCount: winner.votes.length,
+    patternFingerprint: winner.patternFingerprint,
+    patternFingerprintHash,
+    votes: winner.votes,
+    evaluatedAt,
+    evaluatorVersion: FIELD_LESSON_EVALUATOR_VERSION,
+  };
+
+  const lessonRef = input.db.collection(FIELD_LESSON_COLLECTION).doc(lessonId);
+  const writeOutcome = await input.db.runTransaction(async (tx) => {
+    const existing = await tx.get(lessonRef);
+    if (!existing.exists) {
+      const doc: VendorInvoiceFieldLessonDoc = {
+        id: lessonId,
+        category: FIELD_LESSON_CATEGORY,
+        field,
+        vendorKey,
+        parserFormatId: "johnstone",
+        senderDomain,
+        scopeKey,
+        status: "proposed",
+        version: 1,
+        patternFingerprint: winner.patternFingerprint,
+        patternFingerprintHash,
+        extractionPattern: {
+          category: FIELD_LESSON_CATEGORY,
+          field,
+          canonicalAnchorKeys: [winner.anchorKey],
+          matchedLiteralAnchors: winner.matchedLiterals,
+          captureShapeId: winner.captureShapeId,
+          captureShapeNote: "bounded_token_near_anchor",
+        },
+        evidenceSnapshot,
+        distinctDocumentCount: winner.votes.length,
+        proposedAt: evaluatedAt,
+        proposedBy: input.actorUid,
+        suspendedAt: null,
+        suspendedBy: null,
+        disabledReason: null,
+        fpUndoCount: 0,
+        circuitBreakerTrips: [],
+        source: "c3d1_evaluate",
+      };
+      tx.set(lessonRef, doc);
+      return "proposed" as const;
+    }
+    const cur = existing.data() as VendorInvoiceFieldLessonDoc;
+    // Never rewrite extractionPattern after first propose; refresh snapshot/counts only
+    if (cur.patternFingerprint !== winner.patternFingerprint) {
+      // Different fingerprint ⇒ different lessonId by construction; treat as noop here
+      return "noop" as const;
+    }
+    if (cur.status === "suspended") {
+      // D.1 does not auto-reactivate
+      return "noop" as const;
+    }
+    const nextVersion = (cur.version ?? 1) + 1;
+    tx.update(lessonRef, {
+      version: nextVersion,
+      evidenceSnapshot,
+      distinctDocumentCount: winner.votes.length,
+    });
+    return "proposal_refreshed" as const;
+  });
+
+  if (writeOutcome === "proposed" || writeOutcome === "proposal_refreshed") {
+    await writeFieldLessonAuditEvent(input.db, {
+      lessonId,
+      eventType: writeOutcome === "proposed" ? "proposed" : "proposal_refreshed",
+      actorUid: input.actorUid,
+      priorStatus: writeOutcome === "proposed" ? null : "proposed",
+      newStatus: "proposed",
+      scopeKey,
+      patternFingerprint: winner.patternFingerprint,
+      distinctDocumentCount: winner.votes.length,
+    });
+    // Supersede: suspend any other proposed lesson in this scope with a
+    // different fingerprint (winner moved; prior proposal must not hang).
+    const supersede = await autoSuspendLessonsInScope({
+      db: input.db,
+      scopeKey,
+      actorUid: input.actorUid,
+      reason: "superseded_by_winning_pattern",
+      detail: `winner fingerprint: ${winner.patternFingerprint}`,
+      onlyIfProposed: true,
+      excludePatternFingerprint: winner.patternFingerprint,
+    });
+    if (supersede.suspended && supersede.lessonId) {
+      await writeFieldLessonAuditEvent(input.db, {
+        lessonId: supersede.lessonId,
+        eventType: "pattern_superseded_auto_suspended",
+        actorUid: input.actorUid,
+        priorStatus: supersede.priorStatus,
+        newStatus: "suspended",
+        scopeKey,
+        patternFingerprint: winner.patternFingerprint,
+        detail: `winner fingerprint: ${winner.patternFingerprint}`,
+        distinctDocumentCount: winner.votes.length,
+      });
+    }
+  }
+
+  return {
+    scopeKey,
+    outcome: writeOutcome,
+    lessonId,
+    distinctDocumentCount: winner.votes.length,
+    patternFingerprint: winner.patternFingerprint,
+    competingFingerprints: [],
+    skippedVotes,
+  };
+}
+
+async function autoSuspendLessonsInScope(input: {
+  db: Firestore;
+  scopeKey: string;
+  actorUid: string;
+  reason:
+    | "contradictory_evidence"
+    | "eligible_votes_below_threshold"
+    | "superseded_by_winning_pattern";
+  detail: string;
+  onlyIfProposed?: boolean;
+  /** When set, skip lessons already on this fingerprint (keep winner). */
+  excludePatternFingerprint?: string;
+}): Promise<{
+  suspended: boolean;
+  lessonId: string | null;
+  priorStatus: string | null;
+}> {
+  const snap = await input.db
+    .collection(FIELD_LESSON_COLLECTION)
+    .where("scopeKey", "==", input.scopeKey)
+    .limit(20)
+    .get();
+  if (snap.empty) {
+    return { suspended: false, lessonId: null, priorStatus: null };
+  }
+  let any = false;
+  let lessonId: string | null = null;
+  let priorStatus: string | null = null;
+  const nowIso = new Date().toISOString();
+  for (const d of snap.docs) {
+    const data = d.data() as VendorInvoiceFieldLessonDoc;
+    if (data.status === "suspended") continue;
+    if (input.onlyIfProposed && data.status !== "proposed") continue;
+    // D.1: only proposed docs exist; never touch active
+    if (data.status !== "proposed") continue;
+    if (
+      input.excludePatternFingerprint &&
+      data.patternFingerprint === input.excludePatternFingerprint
+    ) {
+      continue;
+    }
+    await d.ref.update({
+      status: "suspended",
+      version: (data.version ?? 1) + 1,
+      suspendedAt: nowIso,
+      suspendedBy: input.actorUid,
+      disabledReason: input.reason,
+    });
+    any = true;
+    lessonId = d.id;
+    priorStatus = data.status;
+  }
+  return { suspended: any, lessonId, priorStatus };
+}
+
+/** List distinct scopeKeys from recent examples (bounded) for batch evaluate. */
+export async function listRecentExampleScopeKeys(
+  db: Firestore,
+  limit = 50,
+): Promise<string[]> {
+  const snap = await db
+    .collection(FIELD_LESSON_EXAMPLE_COLLECTION)
+    .orderBy("verifiedAt", "desc")
+    .limit(Math.min(Math.max(limit, 1), 200))
+    .get();
+  const keys = new Set<string>();
+  for (const d of snap.docs) {
+    const sk = d.data()?.scopeKey;
+    if (typeof sk === "string" && sk.trim()) keys.add(sk.trim());
+  }
+  return [...keys];
+}
+
+export function parseScopeKey(scopeKey: string): EvaluateScopeInput | null {
+  const parts = scopeKey.split("__");
+  if (parts.length !== 4) return null;
+  const [vendorKey, parserFormatId, senderDomain, field] = parts;
+  if (!vendorKey || !parserFormatId || !senderDomain || !field) return null;
+  return { vendorKey, parserFormatId, senderDomain, field };
+}
