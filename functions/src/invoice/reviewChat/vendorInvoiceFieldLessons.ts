@@ -17,6 +17,7 @@ export type FieldLessonStatusD1 = "proposed" | "suspended";
 export type FieldLessonDisabledReason =
   | "contradictory_evidence"
   | "eligible_votes_below_threshold"
+  | "superseded_by_winning_pattern"
   | "manual_suspend"
   | "auto_false_positive";
 

@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.spanMatchesCorrectedValue = spanMatchesCorrectedValue;
 exports.evaluateFieldLessonScope = evaluateFieldLessonScope;
 exports.listRecentExampleScopeKeys = listRecentExampleScopeKeys;
 exports.parseScopeKey = parseScopeKey;
@@ -32,6 +33,29 @@ function isTimeEligible(example, nowMs) {
     if (ms == null)
         return false;
     return ms > nowMs;
+}
+/**
+ * Live extracted text at the frozen example span must still equal the
+ * corrected value (trim only). Prevents stale-offset / re-OCR false votes.
+ */
+function spanMatchesCorrectedValue(input) {
+    const text = input.combinedExtractedText ?? "";
+    const start = input.evidenceSpanStart;
+    const end = input.evidenceSpanEnd;
+    if (typeof start !== "number" ||
+        typeof end !== "number" ||
+        !Number.isFinite(start) ||
+        !Number.isFinite(end) ||
+        start < 0 ||
+        end <= start ||
+        end > text.length) {
+        return false;
+    }
+    const slice = text.slice(start, end).trim();
+    const expected = (input.correctedValue ?? "").trim();
+    if (!expected)
+        return false;
+    return slice === expected;
 }
 async function loadCombinedExtractedText(db, vendorInvoiceImportId) {
     const impSnap = await db
@@ -131,6 +155,15 @@ async function evaluateFieldLessonScope(input) {
             continue;
         }
         const { text, inboundId } = await loadCombinedExtractedText(input.db, example.vendorInvoiceImportId);
+        if (!spanMatchesCorrectedValue({
+            combinedExtractedText: text,
+            evidenceSpanStart: example.evidenceSpanStart,
+            evidenceSpanEnd: example.evidenceSpanEnd,
+            correctedValue: example.correctedValue,
+        })) {
+            skippedVotes += 1;
+            continue;
+        }
         const match = (0, patternFingerprint_1.deriveAnchorMatch)({
             parserFormatId: example.parserFormatId,
             field: example.field,
@@ -334,6 +367,30 @@ async function evaluateFieldLessonScope(input) {
             patternFingerprint: winner.patternFingerprint,
             distinctDocumentCount: winner.votes.length,
         });
+        // Supersede: suspend any other proposed lesson in this scope with a
+        // different fingerprint (winner moved; prior proposal must not hang).
+        const supersede = await autoSuspendLessonsInScope({
+            db: input.db,
+            scopeKey,
+            actorUid: input.actorUid,
+            reason: "superseded_by_winning_pattern",
+            detail: `winner fingerprint: ${winner.patternFingerprint}`,
+            onlyIfProposed: true,
+            excludePatternFingerprint: winner.patternFingerprint,
+        });
+        if (supersede.suspended && supersede.lessonId) {
+            await (0, fieldLessonAudit_1.writeFieldLessonAuditEvent)(input.db, {
+                lessonId: supersede.lessonId,
+                eventType: "pattern_superseded_auto_suspended",
+                actorUid: input.actorUid,
+                priorStatus: supersede.priorStatus,
+                newStatus: "suspended",
+                scopeKey,
+                patternFingerprint: winner.patternFingerprint,
+                detail: `winner fingerprint: ${winner.patternFingerprint}`,
+                distinctDocumentCount: winner.votes.length,
+            });
+        }
     }
     return {
         scopeKey,
@@ -367,6 +424,10 @@ async function autoSuspendLessonsInScope(input) {
         // D.1: only proposed docs exist; never touch active
         if (data.status !== "proposed")
             continue;
+        if (input.excludePatternFingerprint &&
+            data.patternFingerprint === input.excludePatternFingerprint) {
+            continue;
+        }
         await d.ref.update({
             status: "suspended",
             version: (data.version ?? 1) + 1,

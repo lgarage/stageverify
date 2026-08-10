@@ -71,6 +71,36 @@ function isTimeEligible(example: FieldLessonExampleDoc, nowMs: number): boolean 
   return ms > nowMs;
 }
 
+/**
+ * Live extracted text at the frozen example span must still equal the
+ * corrected value (trim only). Prevents stale-offset / re-OCR false votes.
+ */
+export function spanMatchesCorrectedValue(input: {
+  combinedExtractedText: string;
+  evidenceSpanStart?: number;
+  evidenceSpanEnd?: number;
+  correctedValue: string;
+}): boolean {
+  const text = input.combinedExtractedText ?? "";
+  const start = input.evidenceSpanStart;
+  const end = input.evidenceSpanEnd;
+  if (
+    typeof start !== "number" ||
+    typeof end !== "number" ||
+    !Number.isFinite(start) ||
+    !Number.isFinite(end) ||
+    start < 0 ||
+    end <= start ||
+    end > text.length
+  ) {
+    return false;
+  }
+  const slice = text.slice(start, end).trim();
+  const expected = (input.correctedValue ?? "").trim();
+  if (!expected) return false;
+  return slice === expected;
+}
+
 async function loadCombinedExtractedText(
   db: Firestore,
   vendorInvoiceImportId: string,
@@ -192,6 +222,17 @@ export async function evaluateFieldLessonScope(input: {
       input.db,
       example.vendorInvoiceImportId,
     );
+    if (
+      !spanMatchesCorrectedValue({
+        combinedExtractedText: text,
+        evidenceSpanStart: example.evidenceSpanStart,
+        evidenceSpanEnd: example.evidenceSpanEnd,
+        correctedValue: example.correctedValue,
+      })
+    ) {
+      skippedVotes += 1;
+      continue;
+    }
     const match = deriveAnchorMatch({
       parserFormatId: example.parserFormatId,
       field: example.field,
@@ -407,6 +448,30 @@ export async function evaluateFieldLessonScope(input: {
       patternFingerprint: winner.patternFingerprint,
       distinctDocumentCount: winner.votes.length,
     });
+    // Supersede: suspend any other proposed lesson in this scope with a
+    // different fingerprint (winner moved; prior proposal must not hang).
+    const supersede = await autoSuspendLessonsInScope({
+      db: input.db,
+      scopeKey,
+      actorUid: input.actorUid,
+      reason: "superseded_by_winning_pattern",
+      detail: `winner fingerprint: ${winner.patternFingerprint}`,
+      onlyIfProposed: true,
+      excludePatternFingerprint: winner.patternFingerprint,
+    });
+    if (supersede.suspended && supersede.lessonId) {
+      await writeFieldLessonAuditEvent(input.db, {
+        lessonId: supersede.lessonId,
+        eventType: "pattern_superseded_auto_suspended",
+        actorUid: input.actorUid,
+        priorStatus: supersede.priorStatus,
+        newStatus: "suspended",
+        scopeKey,
+        patternFingerprint: winner.patternFingerprint,
+        detail: `winner fingerprint: ${winner.patternFingerprint}`,
+        distinctDocumentCount: winner.votes.length,
+      });
+    }
   }
 
   return {
@@ -424,9 +489,14 @@ async function autoSuspendLessonsInScope(input: {
   db: Firestore;
   scopeKey: string;
   actorUid: string;
-  reason: "contradictory_evidence" | "eligible_votes_below_threshold";
+  reason:
+    | "contradictory_evidence"
+    | "eligible_votes_below_threshold"
+    | "superseded_by_winning_pattern";
   detail: string;
   onlyIfProposed?: boolean;
+  /** When set, skip lessons already on this fingerprint (keep winner). */
+  excludePatternFingerprint?: string;
 }): Promise<{
   suspended: boolean;
   lessonId: string | null;
@@ -450,6 +520,12 @@ async function autoSuspendLessonsInScope(input: {
     if (input.onlyIfProposed && data.status !== "proposed") continue;
     // D.1: only proposed docs exist; never touch active
     if (data.status !== "proposed") continue;
+    if (
+      input.excludePatternFingerprint &&
+      data.patternFingerprint === input.excludePatternFingerprint
+    ) {
+      continue;
+    }
     await d.ref.update({
       status: "suspended",
       version: (data.version ?? 1) + 1,

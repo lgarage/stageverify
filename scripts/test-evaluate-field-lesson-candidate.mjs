@@ -373,4 +373,96 @@ function ok(label) {
   ok("D.1 never writes active/rejected/archived");
 }
 
+// span/value integrity — mutated extracted text at frozen offsets skips vote
+{
+  const db = createMemoryDb();
+  const scopeKey = seedExample(db, {
+    importId: "imp-mut1",
+    correctedValue: "KEEP1",
+  });
+  seedExample(db, { importId: "imp-mut2", correctedValue: "KEEP2" });
+  seedExample(db, { importId: "imp-mut3", correctedValue: "KEEP3" });
+  // Corrupt live text for mut1 so span no longer equals correctedValue
+  db._store.set("inboundEmailProcessing/inbound-imp-mut1", {
+    combinedExtractedText: "Customer P/O #\nZZZ_WRONG\n",
+    senderEmail: "orders@johnstone.com",
+  });
+  const r = await evalMod.evaluateFieldLessonScope({
+    db,
+    scope: evalMod.parseScopeKey(scopeKey),
+    actorUid: "mgr1",
+  });
+  assert.equal(r.outcome, "below_threshold");
+  assert.equal(r.distinctDocumentCount, 2);
+  assert.ok(r.skippedVotes >= 1);
+  ok("mutated span text skips vote (dynamic evidence fail-closed)");
+}
+
+// fingerprint supersede — old proposed lesson suspended when votes move
+{
+  const db = createMemoryDb();
+  const values = [
+    { importId: "imp-sup1", correctedValue: "SUP1" },
+    { importId: "imp-sup2", correctedValue: "SUP2" },
+    { importId: "imp-sup3", correctedValue: "SUP3" },
+  ];
+  let scopeKey = "";
+  for (const v of values) {
+    scopeKey = seedExample(db, v); // stacked → anchor_above_line
+  }
+  const first = await evalMod.evaluateFieldLessonScope({
+    db,
+    scope: evalMod.parseScopeKey(scopeKey),
+    actorUid: "mgr1",
+  });
+  assert.equal(first.outcome, "proposed");
+  const oldLessonId = first.lessonId;
+  assert.ok(oldLessonId);
+  assert.match(
+    first.patternFingerprint,
+    /anchor_above_line/,
+    "first pattern is above-line",
+  );
+
+  // Rewrite all three imports to inline capture shape; refresh spans
+  for (const v of values) {
+    const extracted = `Customer P/O #: ${v.correctedValue} trailing\n`;
+    const start = extracted.indexOf(v.correctedValue);
+    db._store.set(`inboundEmailProcessing/inbound-${v.importId}`, {
+      combinedExtractedText: extracted,
+      senderEmail: "orders@johnstone.com",
+    });
+    const exKey = [...db._store.keys()].find(
+      (k) =>
+        k.startsWith("vendorInvoiceFieldLessonExamples/") &&
+        db._store.get(k).vendorInvoiceImportId === v.importId,
+    );
+    assert.ok(exKey);
+    const ex = db._store.get(exKey);
+    ex.evidenceSpanStart = start;
+    ex.evidenceSpanEnd = start + v.correctedValue.length;
+    ex.evidenceCitationText = v.correctedValue;
+    db._store.set(exKey, ex);
+  }
+
+  const second = await evalMod.evaluateFieldLessonScope({
+    db,
+    scope: evalMod.parseScopeKey(scopeKey),
+    actorUid: "mgr1",
+  });
+  assert.equal(second.outcome, "proposed");
+  assert.match(second.patternFingerprint, /anchor_left_inline/);
+  assert.notEqual(second.lessonId, oldLessonId);
+  const oldLesson = db._store.get(
+    `${lessonsMod.FIELD_LESSON_COLLECTION}/${oldLessonId}`,
+  );
+  assert.equal(oldLesson.status, "suspended");
+  assert.equal(oldLesson.disabledReason, "superseded_by_winning_pattern");
+  const newLesson = db._store.get(
+    `${lessonsMod.FIELD_LESSON_COLLECTION}/${second.lessonId}`,
+  );
+  assert.equal(newLesson.status, "proposed");
+  ok("fingerprint supersede suspends prior proposed lesson");
+}
+
 console.log(`\nevaluate-field-lesson-candidate: ${passed} passed`);

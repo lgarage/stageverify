@@ -12,6 +12,7 @@ export type FieldLessonAuditEventType =
   | "contradiction_blocked"
   | "contradiction_auto_suspended"
   | "threshold_auto_suspended"
+  | "pattern_superseded_auto_suspended"
   | "evaluate_noop";
 
 export type FieldLessonAuditEventDoc = {
