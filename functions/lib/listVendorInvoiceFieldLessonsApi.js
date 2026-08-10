@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.listVendorInvoiceFieldLessons = void 0;
 /**
- * Lane C C3-D.1 — minimal Manager/Admin read-only list of proposed/suspended lessons.
+ * Lane C C3-D — Manager/Admin list of field lessons (all lifecycle statuses).
  * NOT a generic C3-C.2 evidence browser.
  */
 const admin = require("firebase-admin");
@@ -29,9 +29,26 @@ function sanitizeLesson(doc) {
         distinctDocumentCount: doc.distinctDocumentCount,
         proposedAt: doc.proposedAt,
         proposedBy: doc.proposedBy,
-        suspendedAt: doc.suspendedAt,
-        suspendedBy: doc.suspendedBy,
-        disabledReason: doc.disabledReason,
+        suspendedAt: doc.suspendedAt ?? null,
+        suspendedBy: doc.suspendedBy ?? null,
+        disabledReason: doc.disabledReason ?? null,
+        activatedAt: doc.activatedAt ?? null,
+        activatedBy: doc.activatedBy ?? null,
+        rejectedAt: doc.rejectedAt ?? null,
+        rejectedBy: doc.rejectedBy ?? null,
+        rejectionNote: doc.rejectionNote ?? null,
+        reactivatedAt: doc.reactivatedAt ?? null,
+        reactivatedBy: doc.reactivatedBy ?? null,
+        lastRevalidation: doc.lastRevalidation ?? null,
+        lastMutation: doc.lastMutation
+            ? {
+                idempotencyKey: doc.lastMutation.idempotencyKey,
+                action: doc.lastMutation.action,
+                resultStatus: doc.lastMutation.resultStatus,
+                resultVersion: doc.lastMutation.resultVersion,
+                atIso: doc.lastMutation.atIso,
+            }
+            : null,
         evidenceSnapshot: {
             distinctDocumentCount: doc.evidenceSnapshot?.distinctDocumentCount ?? 0,
             distinctSourceDocumentKeys: doc.evidenceSnapshot?.distinctSourceDocumentKeys ?? [],
@@ -56,7 +73,10 @@ exports.listVendorInvoiceFieldLessons = (0, https_1.onCall)({ region: "us-centra
     await (0, dispatcherAuth_1.requireManagerAuth)(request);
     const data = (request.data ?? {});
     const limit = (0, dispatcherAuth_1.clampListLimit)(data.limit, 50, 100);
-    const status = data.status === "proposed" || data.status === "suspended"
+    const status = data.status === "proposed" ||
+        data.status === "suspended" ||
+        data.status === "active" ||
+        data.status === "rejected"
         ? data.status
         : null;
     const scopeKey = typeof data.scopeKey === "string" && data.scopeKey.trim()

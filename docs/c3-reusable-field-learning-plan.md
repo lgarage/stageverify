@@ -15,7 +15,7 @@
 | **C3-A** | **COMPLETE** — D-59 #7/#8 amend + threshold/invariants authoritative in `PROJECT_STATUS/DECISIONS.md` (2026-08-09) |
 | **C3-B** | **COMPLETE / LIVE** — Johnstone PO grid-bleed + INVOICE banner; CF syncInboundGmail + reparseVendorInvoiceImportCallable deployed |
 | **C3-C** | **C3-C.1 LIVE** (PR #125 merge `68ddc9b1`, D-81) — CF `applyInvoiceReviewFieldCorrection` + deny-all rules deployed; inert `vendorInvoiceFieldLessonExamples` with `archiveAfterAt` (no TTL/delete). **C3-C.2 list/UI remains deferred** |
-| **C3-D** | **C3-D.1 LIVE** (PR #137 merge `7a6d5bb3`, D-83) — Johnstone-only literal anchors + evaluate/propose/list callables + deny-all lessons/audit rules deployed; Activate/Reject/C3-D.2 not started |
+| **C3-D** | **C3-D.1 ACCEPTED** (prod evaluate/list LIVE; 23/23 prod verify PASS; Dan visual accept read-only Settings → Invoice Learning). **C3-D.2 WIP** on branch `cursor/c3d2-manager-lesson-lifecycle-2711` — lifecycle callable + revalidation + evaluator fixes; **no CF deploy yet**. **C3-D.3 Novel Format Trainer** planned NEXT (investigation-only `invoiceFormatLearningState` concept — do not implement) |
 | **C3-E** | not started |
 | **C3-F** | not started |
 
@@ -512,7 +512,7 @@ Johnstone already has multi-path PO extraction (`pickPoValue`, tabular/stacked/l
 | **Likely risk tier** | **High-risk** (CF/rules/auth) |
 | **Likely deploy surface** | Firebase + Settings UI |
 | **Prerequisites** | C3-A + C3-C |
-| **Completion status** | **C3-D.1 LIVE** (PR #137; CF+rules+indexes deployed; Johnstone anchors only; evaluate + list; no Activate/Reject; no parse effect). C3-D.2 not started |
+| **Completion status** | **C3-D.1 ACCEPTED** (prod evaluate/list LIVE; 23/23 prod verify PASS; read-only Invoice Learning UI accepted). **C3-D.2 WIP** — Manager activate/reject/suspend/reactivate + revalidation + audit (no deploy yet). **C3-D.3 Novel Format Trainer** planned NEXT |
 
 ### C3-E — Deterministic active overlay + reparse ordering
 
@@ -553,11 +553,11 @@ Do **not** skip to C3-E without A+D. Do **not** create a lesson store to avoid a
 | C3-A | **COMPLETE** |
 | C3-B | **COMPLETE / LIVE** — PO bleed + INVOICE banner; CF deployed |
 | C3-C | **C3-C.1 LIVE**; C3-C.2 deferred |
-| C3-D | **C3-D.1 LIVE**; C3-D.2 not started |
+| C3-D | **C3-D.1 ACCEPTED**; **C3-D.2 WIP** (lifecycle backend); **C3-D.3 Novel Format Trainer** planned NEXT |
 | C3-E | not started |
 | C3-F | not started |
 
-**NEXT C3 JOB:** C3-D.2 Activate/Reject (after Dan accepts C3-D.1). Do not start C3-E/F here.
+**NEXT C3 JOB:** **C3-D.2** lifecycle backend (WIP — Sol UI follows). Then **C3-D.3 Novel Format Trainer** (roadmap-only; `invoiceFormatLearningState` investigation — do not implement). Do not start C3-E/F here.
 
 **Discovery:** This file is linked from `PROJECT_STATUS/CURRENT_STATE.md` (Queued product / Canonical references) and `docs/roadmap.md` (Lane C notes).
 

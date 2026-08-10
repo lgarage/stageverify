@@ -13,7 +13,13 @@ export type FieldLessonAuditEventType =
   | "contradiction_auto_suspended"
   | "threshold_auto_suspended"
   | "pattern_superseded_auto_suspended"
-  | "evaluate_noop";
+  | "evaluate_noop"
+  | "activated"
+  | "activation_revalidation_failed"
+  | "rejected"
+  | "manual_suspended"
+  | "reactivated"
+  | "reactivation_revalidation_failed";
 
 export type FieldLessonAuditEventDoc = {
   lessonId: string;

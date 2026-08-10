@@ -185,6 +185,7 @@
     "test:index-field-lesson-example": "cd functions && npm run build && cd .. && node scripts/test-index-field-lesson-example.mjs",
     "test:pattern-fingerprint": "cd functions && npm run build && cd .. && node scripts/test-pattern-fingerprint.mjs",
     "test:evaluate-field-lesson-candidate": "cd functions && npm run build && cd .. && node scripts/test-evaluate-field-lesson-candidate.mjs",
+    "test:set-field-lesson-status": "cd functions && npm run build && cd .. && node scripts/test-set-field-lesson-status.mjs",
     "test:field-lesson-no-parse-effect": "node scripts/test-field-lesson-no-parse-effect.mjs",
     "test:firestore-rules-field-lessons": "npx firebase-tools emulators:exec --only firestore \"node scripts/test-firestore-rules-field-lessons.mjs\"",
     "test:invoice-fulfillment-override": "cd functions && npm run build && cd .. && node scripts/test-invoice-fulfillment-override.mjs",

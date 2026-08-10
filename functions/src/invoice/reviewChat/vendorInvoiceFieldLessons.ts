@@ -1,6 +1,6 @@
 /**
- * Lane C C3-D.1 — vendorInvoiceFieldLessons collection types (lifecycle control-plane).
- * No parse effect. D.1 may write proposed | suspended only.
+ * Lane C C3-D — vendorInvoiceFieldLessons collection types (lifecycle control-plane).
+ * No parse effect. D.1 evaluator writes proposed | suspended only; D.2 Manager lifecycle adds active | rejected.
  */
 import { createHash } from "crypto";
 import type { InvoiceCorrectableFieldKey } from "./correctionAllowlist";
@@ -11,8 +11,20 @@ export const FIELD_LESSON_COLLECTION = "vendorInvoiceFieldLessons";
 export const FIELD_LESSON_CATEGORY = "header_field_extraction" as const;
 export const MIN_DISTINCT_DOCUMENT_VOTES = 3;
 
-/** D.1-writable statuses only. active|rejected|archived unreachable until C3-D.2. */
+export type FieldLessonStatus =
+  | "proposed"
+  | "active"
+  | "suspended"
+  | "rejected";
+
+/** @deprecated Use FieldLessonStatus — kept for D.1-era imports */
 export type FieldLessonStatusD1 = "proposed" | "suspended";
+
+export type FieldLessonLifecycleAction =
+  | "activate"
+  | "reject"
+  | "suspend"
+  | "reactivate";
 
 export type FieldLessonDisabledReason =
   | "contradictory_evidence"
@@ -53,6 +65,21 @@ export type FieldLessonEvidenceSnapshot = {
   evaluatorVersion: string;
 };
 
+export type FieldLessonLastRevalidation = {
+  at: string;
+  evaluatorVersion: string;
+  confirmedDistinctDocumentCount: number;
+  droppedVoteCount: number;
+};
+
+export type FieldLessonLastMutation = {
+  idempotencyKey: string;
+  action: FieldLessonLifecycleAction;
+  resultStatus: FieldLessonStatus;
+  resultVersion: number;
+  atIso: string;
+};
+
 export type VendorInvoiceFieldLessonDoc = {
   id: string;
   category: typeof FIELD_LESSON_CATEGORY;
@@ -61,7 +88,7 @@ export type VendorInvoiceFieldLessonDoc = {
   parserFormatId: "johnstone";
   senderDomain: string;
   scopeKey: string;
-  status: FieldLessonStatusD1;
+  status: FieldLessonStatus;
   version: number;
   patternFingerprint: string;
   patternFingerprintHash: string;
@@ -73,6 +100,15 @@ export type VendorInvoiceFieldLessonDoc = {
   suspendedAt: string | null;
   suspendedBy: string | null;
   disabledReason: FieldLessonDisabledReason | null;
+  activatedAt: string | null;
+  activatedBy: string | null;
+  rejectedAt: string | null;
+  rejectedBy: string | null;
+  rejectionNote: string | null;
+  reactivatedAt: string | null;
+  reactivatedBy: string | null;
+  lastRevalidation: FieldLessonLastRevalidation | null;
+  lastMutation: FieldLessonLastMutation | null;
   fpUndoCount: number;
   circuitBreakerTrips: string[];
   source: "c3d1_evaluate";
