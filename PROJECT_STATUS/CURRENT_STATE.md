@@ -96,6 +96,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
+- **Lane C C3-D P2** — Dan approve/reject literal label-anchor allowlist (inventory in Cursor job); then C3-D.1 only (no activation UI). D-82 recorded. No C3-D product edits until allowlist approval.
 - **Change Location LIVE (v0.0.280)** — hard-refresh → Vendor Drop-Off with staging → yellow **Change Location** → map reassign → Cancel (no write) → Confirm new spot → drawer/list/map + hard refresh; Will-Call no CTA; Assign merge unchanged. Keep Cursor job open until Dan accepts.
 - **Delivery Details 2×2 + table simplify (v0.0.281 tip)** — hard-refresh Dispatcher when 281 LIVE → confirm 2×2 Fulfillment/Status controls, row-click opens drawer.
 - **Will-Call pink category (v0.0.279 LIVE)** — regression reference: Drop-Off+G12 → Will-Call → pink category, no green Staged; reverse → STAGING LOCATION NEEDED.
