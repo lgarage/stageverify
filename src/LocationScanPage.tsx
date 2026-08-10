@@ -978,87 +978,181 @@ export function LocationScanPage() {
   }
 
   if (step === "tech-list" && branding) {
+    const techContextParts = [branding.code, technicianName].filter(
+      (part): part is string => Boolean(part),
+    );
+    const techContextLabel = techContextParts.join(" · ");
+
     return (
       <div
-        className="app-container flex flex-col h-screen h-dvh bg-bg-primary overflow-hidden"
+        className="app-container vendor-mobile-shell tech-released-jobs bg-bg-primary"
         data-testid="technician-released-jobs"
       >
-        <div className="shrink-0 px-6 py-4 border-b border-border bg-bg-surface">
-          <p className="text-xs uppercase tracking-widest text-text-secondary">
-            {`You're at ${branding.code}`}
-            {technicianName ? ` · ${technicianName}` : ""}
-          </p>
-          <h1 className="text-lg font-bold text-text-primary mt-1">
-            Pick up today
-          </h1>
-          <p className="text-sm text-text-secondary mt-1">
-            Jobs dispatch released for you — tap to open pickup.
-          </p>
-        </div>
-
-        {error && (
-          <p className="px-6 py-2 text-sm text-accent-red" role="alert">
-            {error}
-          </p>
-        )}
-
-        {jobsRevalidating && releasedJobs.length > 0 && (
-          <p
-            className="px-6 py-1 text-xs text-text-secondary text-center"
-            data-testid="technician-jobs-revalidating"
+        <div className="vendor-hub-layout h-full min-h-0">
+          <header
+            className="vendor-hub-header px-4 pb-4"
+            style={{
+              paddingTop: "max(env(safe-area-inset-top, 0px), 16px)",
+            }}
           >
-            Updating…
-          </p>
-        )}
-
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-          {loading && releasedJobs.length === 0 && (
-            <p
-              className="text-sm text-text-secondary text-center py-8"
-              data-testid="technician-jobs-loading"
-            >
-              Loading your pickups…
+            <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={resetFlow}
+                className="tap-target -ml-2 flex min-h-11 min-w-11 shrink-0 items-center px-2 text-sm font-semibold text-[#cbd5e1]"
+              >
+                ← Back
+              </button>
+              {techContextLabel ? (
+                <p className="min-w-0 truncate text-right text-[11px] font-semibold uppercase tracking-[0.16em] text-text-secondary">
+                  {techContextLabel}
+                </p>
+              ) : null}
+            </div>
+            <h1 className="tech-released-jobs-title mt-3 text-2xl leading-7 font-bold tracking-tight text-text-primary">
+              Pick up today
+            </h1>
+            <p className="mt-1 text-sm leading-5 text-[#cbd5e1]">
+              Tap a released job to open its pickup.
             </p>
-          )}
-          {releasedJobs.map((row) => (
-            <button
-              key={row.jobId}
-              type="button"
-              disabled={loading && releasedJobs.length === 0}
-              onClick={() => openTechnicianJobPickup(row)}
-              className="w-full text-left rounded-xl border border-border bg-bg-surface p-4 active:scale-[0.99] transition-transform"
-              data-testid={`tech-released-job-${row.jobId}`}
-            >
-              <p className="font-semibold text-text-primary">{row.jobName}</p>
-              <p className="text-sm text-text-secondary mt-1">
-                Go to:{" "}
-                {row.stagingLocationCodes.length > 0
-                  ? row.stagingLocationCodes.join(", ")
-                  : "Spots not assigned yet"}
-              </p>
-              <p className="text-xs text-text-secondary mt-1">
-                {row.readyForPickupCount} ready · {row.deliveryCount} deliveries
-              </p>
-            </button>
-          ))}
-          {releasedJobs.length === 0 && !loading && (
-            <p
-              className="text-sm text-text-secondary text-center py-8"
-              data-testid="technician-empty-released"
-            >
-              Nothing released for you yet
-            </p>
-          )}
-        </div>
+          </header>
 
-        <div className="shrink-0 px-6 py-4 border-t border-border">
-          <button
-            type="button"
-            onClick={resetFlow}
-            className="action-btn action-btn-secondary w-full"
+          <main
+            className="vendor-hub-scroll px-4 pt-4"
+            style={{
+              paddingBottom: "max(env(safe-area-inset-bottom, 0px), 24px)",
+            }}
           >
-            ← Back
-          </button>
+            {error && (
+              <div
+                className="mb-4 rounded-xl border border-accent-red/30 bg-accent-red/10 px-3 py-2 text-sm text-accent-red"
+                role="alert"
+              >
+                {error}
+              </div>
+            )}
+
+            <div className="tech-released-jobs-section-label mb-4 flex flex-wrap items-center gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-secondary">
+                Released jobs
+              </p>
+              {jobsRevalidating && releasedJobs.length > 0 && (
+                <span
+                  className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-secondary"
+                  data-testid="technician-jobs-revalidating"
+                >
+                  Updating…
+                </span>
+              )}
+            </div>
+
+            <div className="tech-released-jobs-card-list flex flex-col gap-4">
+              {loading && releasedJobs.length === 0 && (
+                <div data-testid="technician-jobs-loading">
+                  <div
+                    className="min-h-[136px] w-full animate-pulse rounded-2xl border border-white/10 bg-bg-secondary"
+                    aria-hidden
+                  />
+                  <p className="mt-3 text-center text-sm text-text-secondary">
+                    Loading your pickups…
+                  </p>
+                </div>
+              )}
+
+              {releasedJobs.map((row) => (
+                <button
+                  key={row.jobId}
+                  type="button"
+                  disabled={loading && releasedJobs.length === 0}
+                  onClick={() => openTechnicianJobPickup(row)}
+                  className="min-h-[136px] w-full rounded-2xl border border-white/10 bg-bg-secondary p-4 text-left shadow-lg shadow-black/20 touch-manipulation transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  data-testid={`tech-released-job-${row.jobId}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-secondary">
+                        Pickup job
+                      </p>
+                      <p className="tech-released-jobs-job-name mt-1 text-lg leading-6 font-bold text-text-primary">
+                        {row.jobName}
+                      </p>
+                    </div>
+                    <span
+                      className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent"
+                      aria-hidden
+                    >
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="m9 18 6-6-6-6" />
+                      </svg>
+                    </span>
+                  </div>
+
+                  <div className="tech-released-jobs-go-to mt-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-secondary">
+                      Go to
+                    </p>
+                    <div className="tech-released-jobs-chip-row mt-1.5 flex flex-wrap gap-1.5">
+                      {row.stagingLocationCodes.length > 0 ? (
+                        row.stagingLocationCodes.map((code) => (
+                          <span
+                            key={code}
+                            className="rounded-lg bg-accent/15 px-2.5 py-1 font-mono text-sm font-semibold text-accent"
+                          >
+                            {code}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-sm text-[#cbd5e1]">
+                          Awaiting staging spot
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="tech-released-jobs-card-footer mt-4 flex items-center justify-between gap-3 border-t border-white/10 pt-3">
+                    <p
+                      className={`text-sm font-semibold ${
+                        row.readyForPickupCount > 0
+                          ? "text-[#6ee7b7]"
+                          : "text-text-secondary"
+                      }`}
+                    >
+                      {row.readyForPickupCount > 0
+                        ? `${row.readyForPickupCount} ready for pickup`
+                        : "No deliveries ready yet"}
+                    </p>
+                    <p className="shrink-0 text-sm font-semibold text-text-primary">
+                      {row.deliveryCount}{" "}
+                      {row.deliveryCount === 1 ? "delivery" : "deliveries"}
+                    </p>
+                  </div>
+                </button>
+              ))}
+
+              {releasedJobs.length === 0 && !loading && (
+                <div
+                  className="rounded-2xl border border-white/10 bg-bg-secondary px-5 py-7 text-center"
+                  data-testid="technician-empty-released"
+                >
+                  <h2 className="text-lg font-bold text-text-primary">
+                    Nothing released yet
+                  </h2>
+                  <p className="mt-2 text-sm leading-5 text-text-secondary">
+                    When dispatch releases a pickup job, it&apos;ll appear here.
+                  </p>
+                </div>
+              )}
+            </div>
+          </main>
         </div>
       </div>
     );

@@ -576,6 +576,93 @@ button:active {
   }
 }
 
+/**
+ * Technician released-jobs landing — scoped spacing restore.
+ * Global unlayered `* { margin:0; padding:0 }` wins over Tailwind v4 layers;
+ * these unlayered rules match the Tailwind utilities on this surface only.
+ */
+[data-testid="technician-released-jobs"] header.vendor-hub-header {
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-bottom: 16px;
+}
+
+[data-testid="technician-released-jobs"] main.vendor-hub-scroll {
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-top: 16px;
+}
+
+[data-testid="technician-released-jobs"] header .tech-released-jobs-title {
+  margin-top: 12px;
+}
+
+[data-testid="technician-released-jobs"] header .tech-released-jobs-title + p {
+  margin-top: 4px;
+}
+
+[data-testid="technician-released-jobs"] header button.tap-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+[data-testid="technician-released-jobs"] main.vendor-hub-scroll > [role="alert"] {
+  margin-bottom: 16px;
+  padding: 8px 12px;
+}
+
+[data-testid="technician-released-jobs"] .tech-released-jobs-section-label {
+  margin-bottom: 16px;
+  gap: 8px;
+}
+
+[data-testid="technician-released-jobs"] .tech-released-jobs-card-list {
+  gap: 16px;
+}
+
+[data-testid="technician-released-jobs"] [data-testid^="tech-released-job-"] {
+  padding: 16px;
+  min-height: 136px;
+}
+
+[data-testid="technician-released-jobs"] [data-testid^="tech-released-job-"] .tech-released-jobs-job-name {
+  margin-top: 4px;
+}
+
+[data-testid="technician-released-jobs"] [data-testid^="tech-released-job-"] .tech-released-jobs-go-to {
+  margin-top: 12px;
+}
+
+[data-testid="technician-released-jobs"] [data-testid^="tech-released-job-"] .tech-released-jobs-chip-row {
+  margin-top: 6px;
+  gap: 6px;
+}
+
+[data-testid="technician-released-jobs"] [data-testid^="tech-released-job-"] .tech-released-jobs-chip-row > span {
+  padding: 4px 10px;
+}
+
+[data-testid="technician-released-jobs"] [data-testid^="tech-released-job-"] .tech-released-jobs-card-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+}
+
+[data-testid="technician-released-jobs"] [data-testid="technician-empty-released"] {
+  padding: 28px 20px;
+}
+
+[data-testid="technician-released-jobs"] [data-testid="technician-empty-released"] p {
+  margin-top: 8px;
+}
+
+[data-testid="technician-released-jobs"] [data-testid="technician-jobs-revalidating"] {
+  padding: 2px 8px;
+}
+
+[data-testid="technician-released-jobs"] [data-testid="technician-jobs-loading"] p {
+  margin-top: 12px;
+}
+
 /* html5-qrcode injects <video> into the reader div — fill viewport on phones */
 .qr-scanner-reader video {
   width: 100% !important;
