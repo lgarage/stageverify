@@ -14,8 +14,6 @@ import {
   listVendorEmailEventsForDelivery,
   listShopStockMappings,
   fetchVendorInvoiceImportById,
-  approveVendorInvoiceImport,
-  INVOICE_TRAINING_LESSON_TOAST,
 } from "../firestoreService";
 import { useDispatcherPortal } from "../DispatcherPortalContext";
 import {
@@ -93,16 +91,7 @@ import {
   buildVendorCommsIssueSubject,
 } from "./vendorCommsIssueDraft";
 import { CreditReturnDeliveryBanner } from "./CreditReturnDeliveryBanner";
-import {
-  buildDeliveryDrawerRejectLessonNote,
-  isCreditReturnLinkedImport,
-  linkedImportRejectBlockedReason,
-} from "../invoice/deliveryCreditReturn";
-import { InvoiceRejectReasonDialog } from "../invoice/InvoiceRejectReasonDialog";
-import {
-  defaultRejectReasonId,
-  type InvoiceRejectReasonId,
-} from "../invoice/invoiceRejectReasons";
+import { isCreditReturnLinkedImport } from "../invoice/deliveryCreditReturn";
 import type { VendorInvoiceImportReview } from "../models";
 import {
   buildSuggestedResolutionNote,
@@ -250,7 +239,6 @@ export function DetailContent({
   onUpdateStatus,
   onRecordPickup,
   onUpdateFulfillmentMethod,
-  onStatusAndAssignSpot,
   onUpdateIssueSummary,
   onSetDeliverToSiteConfirmed,
   onUpdateItemReceiptStatus,
@@ -263,7 +251,6 @@ export function DetailContent({
   onNavigateToChangeLocation,
   onNavigateToStagingMap,
   onJobReleased,
-  onImportRejected,
 }: {
   loading: boolean;
   error: string | null;
@@ -277,7 +264,6 @@ export function DetailContent({
   onUpdateFulfillmentMethod: (
     method: "delivery" | "will_call_pickup",
   ) => Promise<void>;
-  onStatusAndAssignSpot: (spotId: string) => Promise<void>;
   onUpdateIssueSummary: (summary: string) => Promise<void>;
   onSetDeliverToSiteConfirmed: (confirmed: boolean) => Promise<void>;
   onUpdateItemReceiptStatus: (
@@ -302,7 +288,6 @@ export function DetailContent({
   onNavigateToChangeLocation?: (deliveryId: string) => void;
   onNavigateToStagingMap?: (spotCode: string) => void;
   onJobReleased?: () => void | Promise<void>;
-  onImportRejected?: () => void | Promise<void>;
 }) {
   const [resolveIssueId, setResolveIssueId] = useState<string | null>(null);
   const [resolutionType, setResolutionType] =
@@ -335,15 +320,7 @@ export function DetailContent({
   const [linkedImport, setLinkedImport] =
     useState<VendorInvoiceImportReview | null>(null);
   const [linkedImportLoading, setLinkedImportLoading] = useState(false);
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [rejectReasonId, setRejectReasonId] = useState<
-    InvoiceRejectReasonId | ""
-  >("");
-  const [rejectDetailText, setRejectDetailText] = useState("");
-  const [rejectActionLoading, setRejectActionLoading] = useState(false);
-  const [importRejectToast, setImportRejectToast] = useState<string | null>(
-    null,
-  );
+  const stagingNeededBannerRef = useRef<HTMLDivElement | null>(null);
   const [showPickupInput, setShowPickupInput] = useState(false);
   const [pendingStatusSelection, setPendingStatusSelection] =
     useState<DeliveryStatus | null>(null);
@@ -355,10 +332,6 @@ export function DetailContent({
     setActivityHistoryExpanded(false);
     setActivityHistoryFullView(false);
     setDrawerEmailModalOpen(false);
-    setRejectDialogOpen(false);
-    setRejectReasonId("");
-    setRejectDetailText("");
-    setImportRejectToast(null);
     setShowPickupInput(false);
     setPendingStatusSelection(null);
     setPickupTechnicianName("");
@@ -632,23 +605,6 @@ export function DetailContent({
   const showCreditReturnBanner =
     linkedImport != null && isCreditReturnLinkedImport(linkedImport);
 
-  const openRejectDialog = () => {
-    setRejectReasonId(
-      defaultRejectReasonId(
-        linkedImport ? isCreditReturnLinkedImport(linkedImport) : false,
-      ),
-    );
-    setRejectDetailText("");
-    setRejectDialogOpen(true);
-  };
-
-  const closeRejectDialog = () => {
-    if (rejectActionLoading) return;
-    setRejectDialogOpen(false);
-    setRejectReasonId("");
-    setRejectDetailText("");
-  };
-
   const pickupEligible = isDispatcherPickupEligible(
     delivery,
     details.items,
@@ -670,49 +626,13 @@ export function DetailContent({
     });
   };
 
-  const confirmRejectLinkedImport = async () => {
-    if (!rejectReasonId || !delivery.vendorInvoiceImportId?.trim()) return;
-    const lessonNote = buildDeliveryDrawerRejectLessonNote(
-      rejectReasonId,
-      rejectDetailText,
+  const focusStagingNeededAssignLocation = () => {
+    const banner = stagingNeededBannerRef.current;
+    banner?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const assignBtn = banner?.querySelector<HTMLButtonElement>(
+      '[data-testid="drawer-staging-location-assign"]',
     );
-    setRejectActionLoading(true);
-    setImportRejectToast(null);
-    try {
-      const result = await approveVendorInvoiceImport({
-        vendorInvoiceImportId: delivery.vendorInvoiceImportId.trim(),
-        action: "reject",
-        correctionNote: lessonNote,
-      });
-      if (result.trainingLessonWrote) {
-        setImportRejectToast(INVOICE_TRAINING_LESSON_TOAST);
-      } else if (result.trainingLessonPendingAdminReview) {
-        setImportRejectToast(
-          "This note is pending Admin review — patterns may need a fix before it can be saved.",
-        );
-      } else {
-        setImportRejectToast("Linked import moved to Rejected Invoices.");
-      }
-      setLinkedImport((prev) =>
-        prev
-          ? {
-              ...prev,
-              reviewStatus: "rejected",
-              skipReason: "credit_return",
-            }
-          : prev,
-      );
-      setRejectDialogOpen(false);
-      setRejectReasonId("");
-      setRejectDetailText("");
-      await onImportRejected?.();
-    } catch (err) {
-      setImportRejectToast(
-        err instanceof Error ? err.message : "Failed to reject linked import.",
-      );
-    } finally {
-      setRejectActionLoading(false);
-    }
+    assignBtn?.focus();
   };
 
   const handleAssignLocationNavigate = () => {
@@ -781,24 +701,6 @@ export function DetailContent({
             importLoading={linkedImportLoading}
             font={font}
           />
-        ) : null}
-        {importRejectToast ? (
-          <p
-            data-testid="delivery-import-reject-toast"
-            style={{
-              margin: 0,
-              fontSize: 12,
-              color: importRejectToast.includes("Failed") ? "var(--admin-danger-text)" : "var(--admin-success-text)",
-              backgroundColor: importRejectToast.includes("Failed")
-                ? "var(--admin-danger-bg)"
-                : "var(--admin-success-bg)",
-              border: `1px solid ${importRejectToast.includes("Failed") ? "var(--admin-danger-border)" : "#bbf7d0"}`,
-              borderRadius: 6,
-              padding: "8px 12px",
-            }}
-          >
-            {importRejectToast}
-          </p>
         ) : null}
         {renderDrawerSection(
           "Delivery Basics",
@@ -901,16 +803,8 @@ export function DetailContent({
                 font={font}
                 onRecordPickup={onRecordPickup}
                 onUpdateFulfillmentMethod={onUpdateFulfillmentMethod}
-                onStatusAndAssignSpot={onStatusAndAssignSpot}
-                onRejectImport={openRejectDialog}
-                rejectImportBlockedReason={
-                  linkedImportLoading
-                    ? "Loading linked import…"
-                    : linkedImportRejectBlockedReason(
-                        linkedImport,
-                        delivery.vendorInvoiceImportId,
-                      )
-                }
+                onUpdateStatus={onUpdateStatus}
+                onRequestStagingAssignment={focusStagingNeededAssignLocation}
                 pickupForm={{
                   showPickupInput,
                   setShowPickupInput,
@@ -921,14 +815,16 @@ export function DetailContent({
                 }}
               />
               {showStagingLocationBanner ? (
-                <StagingLocationBanner
-                  font={font}
-                  onAssignLocation={
-                    onNavigateToAssignLocation
-                      ? handleAssignLocationNavigate
-                      : () => {}
-                  }
-                />
+                <div ref={stagingNeededBannerRef}>
+                  <StagingLocationBanner
+                    font={font}
+                    onAssignLocation={
+                      onNavigateToAssignLocation
+                        ? handleAssignLocationNavigate
+                        : () => {}
+                    }
+                  />
+                </div>
               ) : null}
               <div
                 data-testid="delivery-basics-staging-locations"
@@ -1998,18 +1894,6 @@ export function DetailContent({
           await sendVendorEmail(input);
         }}
       />
-      <InvoiceRejectReasonDialog
-        open={rejectDialogOpen}
-        title="Reject linked credit/return import?"
-        helpText="This moves the linked import to Rejected Invoices and saves a training lesson so credit/return memos do not create pickup-ready deliveries again."
-        reasonId={rejectReasonId}
-        detailText={rejectDetailText}
-        loading={rejectActionLoading}
-        onReasonIdChange={setRejectReasonId}
-        onDetailTextChange={setRejectDetailText}
-        onCancel={closeRejectDialog}
-        onConfirm={() => void confirmRejectLinkedImport()}
-      />
     </>
   );
 }
@@ -2021,6 +1905,7 @@ const PICKUP_FORM_RED = "#bf0a30";
 /** Shared cell chrome for the Fulfillment / Status 2×2 control group. */
 const FULFILLMENT_STATUS_CELL_BASE: CSSProperties = {
   minHeight: 52,
+  minWidth: 0,
   padding: "9px 12px",
   borderRadius: 8,
   fontSize: 12,
@@ -2033,6 +1918,13 @@ const FULFILLMENT_STATUS_CELL_BASE: CSSProperties = {
   textAlign: "center",
   letterSpacing: "0.01em",
 };
+
+/** Selected Vendor Drop-Off — same yellow family as Assigned / Planned list badge. */
+const VENDOR_DROPOFF_SELECTED = {
+  bg: "#facc15",
+  text: "#422006",
+  border: "#ca8a04",
+} as const;
 
 type DeliveryPickupFormState = {
   showPickupInput: boolean;
@@ -2070,13 +1962,11 @@ function DeliveryStatusControls({
   stagingLocations,
   loading,
   pickupError,
-  navy,
   font,
   onRecordPickup,
   onUpdateFulfillmentMethod,
-  onStatusAndAssignSpot,
-  onRejectImport,
-  rejectImportBlockedReason,
+  onUpdateStatus,
+  onRequestStagingAssignment,
   pickupForm,
 }: {
   details: DeliveryDetails;
@@ -2089,9 +1979,8 @@ function DeliveryStatusControls({
   onUpdateFulfillmentMethod: (
     method: "delivery" | "will_call_pickup",
   ) => Promise<void>;
-  onStatusAndAssignSpot: (spotId: string) => Promise<void>;
-  onRejectImport: () => void;
-  rejectImportBlockedReason: string | null;
+  onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
+  onRequestStagingAssignment: () => void;
   pickupForm: DeliveryPickupFormState;
 }) {
   const delivery = details.delivery;
@@ -2099,20 +1988,15 @@ function DeliveryStatusControls({
   const {
     showPickupInput,
     setShowPickupInput,
-    pendingStatusSelection,
     setPendingStatusSelection,
     pickupTechnicianName,
     setPickupTechnicianName,
   } = pickupForm;
-  const [showSpotPicker, setShowSpotPicker] = useState(false);
-  const [selectedSpotId, setSelectedSpotId] = useState(
-    delivery.stagingLocationId ?? "",
-  );
-  const [rejectUnavailableMessage, setRejectUnavailableMessage] = useState<
-    string | null
-  >(null);
   const pickupInputRef = useRef<HTMLInputElement>(null);
-
+  const locById = useMemo(
+    () => new Map(stagingLocations.map((loc) => [loc.id, loc])),
+    [stagingLocations],
+  );
   const displayState = useMemo(
     () =>
       computeDeliveryDisplayState(
@@ -2130,34 +2014,32 @@ function DeliveryStatusControls({
   const isWillCall = fulfillmentMethod === "will_call_pickup";
   const stagedSelected =
     currentStatus === "ready_for_pickup" && !isWillCall;
+  /** Authoritative resolvable shop staging — same helper as Assign/Change Location. */
+  const hasActiveStaging = hasActiveShopStagingAssignment(delivery, locById);
+  const canTransitionStaged = drawerStatusOptionEnabled(
+    currentStatus,
+    "ready_for_pickup",
+    delivery,
+    details.items,
+  );
+  const needsStagingForStaged =
+    !isWillCall &&
+    !stagedSelected &&
+    !hasActiveStaging &&
+    !skipsShopStaging(delivery) &&
+    delivery.status !== "picked_up" &&
+    delivery.status !== "installed";
   const stagedActionable =
     !stagedSelected &&
     !loading &&
     !isWillCall &&
-    drawerStatusOptionEnabled(
-      currentStatus,
-      "ready_for_pickup",
-      delivery,
-      details.items,
-    );
-  const statusLabelText =
-    pendingStatusSelection === "picked_up" || currentStatus === "picked_up"
-      ? DELIVERY_STATUS_LABEL.picked_up
-      : displayState.statusDisplayLabel;
-  const showWillCallChip =
-    isWillCall || statusLabelText === "Will-Call / Pickup";
-  const tileRepresentsStatus = stagedSelected || showWillCallChip;
-  const showCurrentStatusLine =
-    !tileRepresentsStatus || pendingStatusSelection === "picked_up";
+    ((hasActiveStaging && canTransitionStaged) || needsStagingForStaged);
 
   useEffect(() => {
-    setSelectedSpotId(delivery.stagingLocationId ?? "");
     setShowPickupInput(false);
-    setShowSpotPicker(false);
     setPickupTechnicianName("");
     setPendingStatusSelection(null);
-    setRejectUnavailableMessage(null);
-  }, [delivery.id, delivery.stagingLocationId]);
+  }, [delivery.id]);
 
   useEffect(() => {
     if (currentStatus === "picked_up") {
@@ -2169,28 +2051,25 @@ function DeliveryStatusControls({
 
   useEffect(() => {
     if (showPickupInput) {
-      setShowSpotPicker(false);
       const t = setTimeout(() => pickupInputRef.current?.focus(), 50);
       return () => clearTimeout(t);
     }
   }, [showPickupInput]);
 
-  const handleRejectImport = () => {
-    if (rejectImportBlockedReason) {
-      setRejectUnavailableMessage(rejectImportBlockedReason);
-      return;
-    }
-    setRejectUnavailableMessage(null);
-    onRejectImport();
-  };
-
-  /** Reuse prior dropdown transition authority for staged (spot picker) only. */
+  /**
+   * Case A: active staging exists → existing ready_for_pickup path (no inline picker).
+   * Case B: no active staging → focus STAGING LOCATION NEEDED / Assign Location map flow.
+   */
   const handleStagedReadyClick = () => {
     if (!stagedActionable) return;
-    setRejectUnavailableMessage(null);
     setPendingStatusSelection(null);
     setShowPickupInput(false);
-    setShowSpotPicker(true);
+    if (hasActiveStaging) {
+      if (!canTransitionStaged) return;
+      void onUpdateStatus("ready_for_pickup");
+      return;
+    }
+    onRequestStagingAssignment();
   };
 
   const handleConfirmPickup = () => {
@@ -2199,12 +2078,6 @@ function DeliveryStatusControls({
     const itemCount = details.items.length;
     const summary = itemCount === 1 ? "1 item" : `${itemCount} items`;
     void onRecordPickup(trimmedName, summary);
-  };
-
-  const handleConfirmSpot = () => {
-    if (!selectedSpotId.trim()) return;
-    void onStatusAndAssignSpot(selectedSpotId);
-    setShowSpotPicker(false);
   };
 
   const unselectedCellStyle: CSSProperties = {
@@ -2219,6 +2092,8 @@ function DeliveryStatusControls({
   return (
     <div
       data-testid="delivery-status-controls"
+      data-delivery-status={currentStatus}
+      data-fulfillment={isWillCall ? "will_call_pickup" : "delivery"}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -2246,56 +2121,6 @@ function DeliveryStatusControls({
         >
           Fulfillment / Status
         </span>
-        <p
-          data-testid="delivery-status-current-label"
-          style={{
-            margin: 0,
-            fontSize: 13,
-            color: "var(--admin-text-data)",
-            fontWeight: 600,
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          {showCurrentStatusLine && !showWillCallChip ? (
-            <span style={{ color: "var(--admin-text-muted)", fontWeight: 500 }}>
-              Current:
-            </span>
-          ) : null}
-          {showWillCallChip ? (
-            <span
-              data-testid="delivery-status-will-call-chip"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 5,
-                padding: "2px 8px",
-                borderRadius: 999,
-                border: "1.5px solid var(--admin-willcall-border)",
-                backgroundColor: "var(--admin-willcall-bg)",
-                color: "var(--admin-willcall-text)",
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-            >
-              <span
-                aria-hidden
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  backgroundColor: "var(--admin-willcall-dot)",
-                  flexShrink: 0,
-                }}
-              />
-              Will-Call / Pickup
-            </span>
-          ) : (
-            statusLabelText
-          )}
-        </p>
 
         <div
           data-testid="delivery-fulfillment-status-grid"
@@ -2319,11 +2144,11 @@ function DeliveryStatusControls({
               ...unselectedCellStyle,
               ...(!isWillCall
                 ? {
-                    border: "2px solid #60a5fa",
-                    backgroundColor: "#2563eb",
-                    color: "var(--admin-on-navy)",
+                    border: `2px solid ${VENDOR_DROPOFF_SELECTED.border}`,
+                    backgroundColor: VENDOR_DROPOFF_SELECTED.bg,
+                    color: VENDOR_DROPOFF_SELECTED.text,
                     boxShadow:
-                      "0 0 0 1px rgba(37, 99, 235, 0.45), 0 2px 10px rgba(37, 99, 235, 0.4)",
+                      "0 0 0 1px rgba(202, 138, 4, 0.45), 0 2px 10px rgba(234, 179, 8, 0.3)",
                     cursor: "default",
                   }
                 : {
@@ -2386,6 +2211,7 @@ function DeliveryStatusControls({
             type="button"
             data-testid="delivery-status-staged-ready"
             data-selected={stagedSelected ? "true" : "false"}
+            data-has-active-staging={hasActiveStaging ? "true" : "false"}
             aria-pressed={stagedSelected}
             disabled={!stagedActionable}
             aria-disabled={!stagedActionable}
@@ -2422,141 +2248,7 @@ function DeliveryStatusControls({
             Staged — Ready for Pickup
           </button>
         </div>
-
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-            alignItems: "flex-start",
-          }}
-        >
-          <button
-            type="button"
-            data-testid="delivery-status-reject-action"
-            disabled={loading}
-            onClick={handleRejectImport}
-            style={{
-              margin: 0,
-              padding: "2px 0",
-              border: "none",
-              background: "transparent",
-              color: "var(--admin-danger-text)",
-              fontSize: 12,
-              fontWeight: 700,
-              fontFamily: font,
-              cursor: loading ? "default" : "pointer",
-              textDecoration: "underline",
-              opacity: loading ? 0.7 : 1,
-            }}
-          >
-            Reject…
-          </button>
-          {rejectUnavailableMessage ? (
-            <p
-              data-testid="delivery-status-reject-unavailable"
-              style={{
-                margin: 0,
-                fontSize: 12,
-                color: "var(--admin-danger-text)",
-                lineHeight: 1.4,
-              }}
-            >
-              {rejectUnavailableMessage}
-            </p>
-          ) : null}
-        </div>
       </div>
-
-      {showSpotPicker ? (
-        <div data-testid="delivery-status-spot-picker">
-          <label
-            htmlFor="delivery-status-spot-select"
-            style={{
-              display: "block",
-              marginBottom: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              color: "var(--admin-text)",
-              fontFamily: font,
-            }}
-          >
-            Assign staging spot for Staged — Ready for Pickup
-          </label>
-          <select
-            id="delivery-status-spot-select"
-            data-testid="delivery-status-spot-select"
-            value={selectedSpotId}
-            disabled={loading}
-            onChange={(e) => setSelectedSpotId(e.target.value)}
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              padding: "8px 10px",
-              border: "1.5px solid var(--admin-border)",
-              borderRadius: 6,
-              fontSize: 14,
-              fontFamily: font,
-              color: "var(--admin-text)",
-              backgroundColor: "var(--admin-surface)",
-              marginBottom: 8,
-            }}
-          >
-            <option value="">Select a spot…</option>
-            {stagingLocations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.code}
-                {loc.label ? ` — ${loc.label}` : ""}
-              </option>
-            ))}
-          </select>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              type="button"
-              onClick={handleConfirmSpot}
-              disabled={loading || !selectedSpotId.trim()}
-              style={{
-                backgroundColor:
-                  loading || !selectedSpotId.trim() ? "var(--admin-surface-2)" : navy,
-                color:
-                  loading || !selectedSpotId.trim() ? "var(--admin-text-muted)" : "var(--admin-text)",
-                border: `1.5px solid ${
-                  loading || !selectedSpotId.trim() ? "var(--admin-border)" : navy
-                }`,
-                borderRadius: 4,
-                padding: "6px 12px",
-                fontSize: 12,
-                fontWeight: 700,
-                cursor:
-                  loading || !selectedSpotId.trim()
-                    ? "not-allowed"
-                    : "pointer",
-                fontFamily: font,
-              }}
-            >
-              {loading ? "Saving…" : "Save spot + stage"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowSpotPicker(false)}
-              disabled={loading}
-              style={{
-                backgroundColor: "var(--admin-surface)",
-                color: "var(--admin-text)",
-                border: "1.5px solid var(--admin-border)",
-                borderRadius: 4,
-                padding: "6px 12px",
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: font,
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : null}
 
       {showPickupInput ? (
         <div

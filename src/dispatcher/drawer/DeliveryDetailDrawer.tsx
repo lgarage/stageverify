@@ -272,34 +272,6 @@ export function DeliveryDetailDrawer({
     }
   };
 
-  const handleStatusAndAssignSpot = async (spotId: string) => {
-    if (!deliveryId) return;
-    setMutationLoading(true);
-    setMutationError(null);
-    try {
-      const updatedDetails =
-        await firestoreDataService.updateStatusAndAssignSpot(
-          deliveryId,
-          spotId,
-        );
-      if (updatedDetails) {
-        await refreshAfter(updatedDetails);
-        closeAfterSuccessfulStatusChange();
-      } else {
-        setMutationError(
-          "Failed to assign staging spot. The transition may be invalid.",
-        );
-      }
-    } catch (e) {
-      setMutationError(
-        "An unexpected error occurred while assigning staging spot.",
-      );
-      console.error(e);
-    } finally {
-      setMutationLoading(false);
-    }
-  };
-
   const handleUpdateIssueSummary = async (summary: string): Promise<void> => {
     if (!deliveryId) return;
     setMutationLoading(true);
@@ -549,7 +521,6 @@ export function DeliveryDetailDrawer({
             onUpdateStatus={handleUpdateStatus}
             onRecordPickup={handleRecordPickup}
             onUpdateFulfillmentMethod={handleUpdateFulfillmentMethod}
-            onStatusAndAssignSpot={handleStatusAndAssignSpot}
             onUpdateIssueSummary={handleUpdateIssueSummary}
             onSetDeliverToSiteConfirmed={handleSetDeliverToSiteConfirmed}
             onUpdateItemReceiptStatus={handleUpdateItemReceiptStatus}
@@ -562,7 +533,6 @@ export function DeliveryDetailDrawer({
             onNavigateToChangeLocation={handleNavigateToChangeLocation}
             onNavigateToStagingMap={handleNavigateToStagingMap}
             onJobReleased={() => void onDataChanged?.()}
-            onImportRejected={() => void onDataChanged?.()}
           />
         </div>
       </div>
