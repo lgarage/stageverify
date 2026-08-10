@@ -47,8 +47,6 @@
     "verify:vendor-unplanned-delivery": "node scripts/verify-vendor-unplanned-delivery.mjs",
     "verify:vendor-unplanned-delivery:prod": "node scripts/run-verify-with-learning.mjs --script verify:vendor-unplanned-delivery:prod scripts/verify-vendor-unplanned-delivery.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:settings-staging": "node scripts/verify-settings-staging.mjs",
-    "verify:settings-invoice-learning": "node scripts/run-verify-with-learning.mjs --script verify:settings-invoice-learning scripts/verify-settings-invoice-learning.mjs",
-    "verify:settings-invoice-learning:prod": "node scripts/run-verify-with-learning.mjs --script verify:settings-invoice-learning:prod scripts/verify-settings-invoice-learning.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:settings-technicians": "node scripts/run-verify-with-learning.mjs --script verify:settings-technicians scripts/verify-settings-technicians.mjs",
     "verify:settings-technicians:prod": "node scripts/run-verify-with-learning.mjs --script verify:settings-technicians:prod scripts/verify-settings-technicians.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:settings-admin-access": "node scripts/run-verify-with-learning.mjs --script verify:settings-admin-access scripts/verify-settings-admin-access.mjs",
