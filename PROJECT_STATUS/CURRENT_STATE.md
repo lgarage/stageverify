@@ -119,7 +119,7 @@
 ## Queued product (deferred)
 - **away-138** — durable StageVerify PDF storage (D-64 TARGET); blocked until Dan queues post–Monday MVP.
 - **After D-59 phases P1–P7 deploy:** **away-137** — tighten `firestore.rules` so `deliveries`/`items` are not writable by any authenticated client; high-risk; blocked until training-note hardening phases complete (`docs/training-note-ignore-spec.md` §29 #9).
-- **Lane C C3:** **C3-A COMPLETE**; **C3-B LIVE** (PR #111 `04031ca9`). **C3-C.1 on PR #125 (deploy NOT approved)** — `vendorInvoiceFieldLessonExamples` + apply hook + deny-all rules + D-80 `sourceDocumentKey` + **archive-oriented retention** (`archiveAfterAt`, no TTL/delete; archiver deferred); C3-C.2 list/UI deferred. Authorized fields only: `customerPoOrReference`, `vendorOrderNumber`, `vendorInvoiceNumber`. P8 `fulfillment_mapping` stays separate.
+- **Lane C C3:** **C3-A COMPLETE**; **C3-B LIVE**; **C3-C.1 LIVE** (PR #125 / D-81). **C3-D:** D-82 patternFingerprint consistency APPROVED; P2 literal anchor allowlist inventory awaiting Dan; **C3-D.1** (evaluate/propose/list/audit; no activation UI; no parse effect) blocked until allowlist approval; C3-D.2 deferred; C3-E/F not started. C3-C.2 generic evidence browser stays deferred.
 - **Phase 5 Slice B:** pickup verification v2 polish (per-location confirms, exception flags).
 
 ## Canonical references

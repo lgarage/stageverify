@@ -15,7 +15,7 @@
 | **C3-A** | **COMPLETE** — D-59 #7/#8 amend + threshold/invariants authoritative in `PROJECT_STATUS/DECISIONS.md` (2026-08-09) |
 | **C3-B** | **COMPLETE / LIVE** — Johnstone PO grid-bleed + INVOICE banner; CF syncInboundGmail + reparseVendorInvoiceImportCallable deployed |
 | **C3-C** | **C3-C.1 LIVE** (PR #125 merge `68ddc9b1`, D-81) — CF `applyInvoiceReviewFieldCorrection` + deny-all rules deployed; inert `vendorInvoiceFieldLessonExamples` with `archiveAfterAt` (no TTL/delete). **C3-C.2 list/UI remains deferred** |
-| **C3-D** | **NEXT** — not started (threshold / distinct-`sourceDocumentKey` lifecycle) |
+| **C3-D** | **DESIGN IN PROGRESS** — D-82 patternFingerprint consistency APPROVED; P2 literal anchor allowlist inventory awaiting Dan; C3-D.1 (no activation UI) next after allowlist; C3-D.2 deferred |
 | **C3-E** | not started |
 | **C3-F** | not started |
 
@@ -290,17 +290,20 @@ Important concepts / fields:
 
 **Examples are evidence, not rules.** An example never affects parse by itself.
 
-#### C3-D threshold counting lock (D-81 — encode now, implement in C3-D)
+#### C3-D threshold counting lock (D-81 + **D-82 amend**)
 
 Future ≥3 qualification **MUST** mean independent documents, not correction-event volume:
 
-1. Count **DISTINCT `sourceDocumentKey`** within the same `vendorKey` + `parserFormatId` + `senderDomain` + `field` (+ consistent extraction pattern when C3-D adds anchors).
+1. Count **DISTINCT `sourceDocumentKey`** within the same `vendorKey` + `parserFormatId` + `senderDomain` + `field` + same canonical **`patternFingerprint`** (Dan-approved literal label anchors → `bounded_token_near_anchor`; **D-82**).
 2. Positive evidence allowlist for counting: **`document_evidence` only** (`dispatcher_assertion` / other types never count).
-3. **≤1 threshold vote per `sourceDocumentKey`** = the **latest** applied `document_evidence` correctedValue for that field on that document. Earlier same-doc corrections remain immutable history (contradiction/audit) but do not add votes.
-4. Consistent correctedValue across the distinct-document set is required for promotion; contradictory values across documents block promotion.
+3. **≤1 threshold vote per `sourceDocumentKey`** = the **latest** qualifying `document_evidence` for that field on that document (vote carries that document’s corrected value for audit, but **consistency is pattern-based**, not identical values — D-82). Earlier same-doc corrections remain immutable history but do not add votes.
+4. **D-82:** different correctedValues that share the same `patternFingerprint` **support** the same lesson; competing current-vote patterns in the same scope **fail closed** (block proposal + may auto-suspend proposed/active). Value-memorization lessons are forbidden.
 5. Do **not** treat raw example-doc / `correctionId` cardinality as confidence.
+6. Time eligibility: `archiveAfterAt > now` (365d active evidence window — not deletion; ignore deferred archiver `status`).
 
 Residual v1 gap (accepted): a vendor re-send that creates a new `vendorInvoiceImportId` is a new `sourceDocumentKey` (no content-hash fingerprint in C3-C).
+
+**P2 gate:** C3-D.1 product implementation waits on Dan approval of the literal label-anchor allowlist (≠ `FIELD_ALIASES`).
 
 ### Do not use as authoritative C3 store
 
@@ -552,12 +555,12 @@ Do **not** skip to C3-E without A+D. Do **not** create a lesson store to avoid a
 | ----- | ------ |
 | C3-A | **COMPLETE** |
 | C3-B | **COMPLETE / LIVE** — PO bleed + INVOICE banner; CF deployed |
-| C3-C | **C3-C.1 code ready (deploy pending); C3-C.2 deferred** |
-| C3-D | not started |
+| C3-C | **C3-C.1 LIVE**; C3-C.2 deferred |
+| C3-D | **DESIGN** — D-82 APPROVED; P2 anchor allowlist awaiting Dan; then C3-D.1 only |
 | C3-E | not started |
 | C3-F | not started |
 
-**NEXT C3 JOB:** C3-C.1 CF/rules deploy (Dan approval) → optional C3-C.2 visibility → C3-D. Do not start C3-E/F here.
+**NEXT C3 JOB:** Dan approves P2 literal anchor allowlist → C3-D.1 implement (no activation UI). Do not start C3-D.2/E/F here.
 
 **Discovery:** This file is linked from `PROJECT_STATUS/CURRENT_STATE.md` (Queued product / Canonical references) and `docs/roadmap.md` (Lane C notes).
 
