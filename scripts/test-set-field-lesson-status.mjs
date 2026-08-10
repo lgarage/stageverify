@@ -108,7 +108,10 @@ function createMemoryDb(seed = {}) {
     collection(name) {
       return {
         doc(id) {
-          return makeDocRef(`${name}/${id}`);
+          const docId =
+            id ??
+            `auto-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+          return makeDocRef(`${name}/${docId}`);
         },
         where(field, op, value) {
           return makeQuery(name, [[field, op, value]]);
@@ -578,6 +581,72 @@ function ok(label) {
   assert.equal(unchanged.status, "proposed");
   assert.equal(unchanged.version, 2);
   ok("tx version race → lesson_version_mismatch, no audit");
+}
+
+// F1: newer same-doc example supersedes snapshot vote → activate fails (below threshold)
+{
+  const db = createMemoryDb();
+  const { lessonId } = await proposeLesson(db);
+  seedExample(db, {
+    importId: "lc-a",
+    correctionId: "lc-a__customerPoOrReference__c2",
+    correctedValue: "NEWER-PO-VALUE",
+    verifiedAt: "2026-12-01T00:00:00.000Z",
+  });
+  const lesson = db._store.get(
+    `${lessonsMod.FIELD_LESSON_COLLECTION}/${lessonId}`,
+  );
+  const r = await lifecycleMod.applyFieldLessonStatusTransition({
+    db,
+    request: {
+      lessonId,
+      action: "activate",
+      expectedVersion: lesson.version,
+      idempotencyKey: "supersede-doc",
+      actorUid: "mgr1",
+    },
+  });
+  assert.equal(r.ok, false);
+  assert.equal(r.code, "revalidation_failed");
+  assert.match(
+    r.revalidation?.failureReason ?? "",
+    /distinct_documents_below_threshold/,
+  );
+  const unchanged = db._store.get(
+    `${lessonsMod.FIELD_LESSON_COLLECTION}/${lessonId}`,
+  );
+  assert.equal(unchanged.status, "proposed");
+  ok("newer same-doc example supersedes snapshot vote → activate fails");
+}
+
+// F2: success audit written atomically with lesson update (same tx)
+{
+  const db = createMemoryDb();
+  const { lessonId } = await proposeLesson(db);
+  const lesson = db._store.get(
+    `${lessonsMod.FIELD_LESSON_COLLECTION}/${lessonId}`,
+  );
+  const auditsBefore = countAuditEvents(db);
+  const r = await lifecycleMod.applyFieldLessonStatusTransition({
+    db,
+    request: {
+      lessonId,
+      action: "reject",
+      expectedVersion: lesson.version,
+      idempotencyKey: "audit-tx-1",
+      note: "Audit tx test",
+      actorUid: "mgr1",
+    },
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.result.alreadyApplied, false);
+  assert.equal(countAuditEvents(db), auditsBefore + 1);
+  const auditRow = [...db._store.entries()].find(
+    ([, v]) => v.eventType === "rejected" && v.lessonId === lessonId,
+  );
+  assert.ok(auditRow, "success audit doc exists");
+  assert.equal(auditRow[1].newStatus, "rejected");
+  ok("success audit written in same transaction as status update");
 }
 
 console.log(`\nset-field-lesson-status: ${passed} passed`);

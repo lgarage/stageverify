@@ -123,19 +123,28 @@ async function collectLiveScopeFingerprints(db, scopeKey, nowMs) {
 async function runFieldLessonRevalidation(input) {
     const nowMs = input.nowMs ?? Date.now();
     const lesson = input.lesson;
+    const scopeSnap = await input.db
+        .collection(indexFieldLessonExample_1.FIELD_LESSON_EXAMPLE_COLLECTION)
+        .where("scopeKey", "==", lesson.scopeKey)
+        .orderBy("verifiedAt", "desc")
+        .limit(MAX_SCOPE_EXAMPLES)
+        .get();
+    const latestByDocument = pickLatestPerDocument(scopeSnap.docs);
     const votes = (lesson.evidenceSnapshot?.votes ?? []).slice(0, MAX_REVALIDATION_VOTES);
     const retainedDocKeys = new Set();
     let droppedVoteCount = 0;
     for (const vote of votes) {
-        const exSnap = await input.db
-            .collection(indexFieldLessonExample_1.FIELD_LESSON_EXAMPLE_COLLECTION)
-            .doc(vote.exampleId)
-            .get();
-        if (!exSnap.exists) {
+        const docKey = vote.sourceDocumentKey?.trim();
+        if (!docKey) {
             droppedVoteCount += 1;
             continue;
         }
-        const example = exSnap.data();
+        const latest = latestByDocument.get(docKey);
+        if (!latest || latest.exampleId !== vote.exampleId) {
+            droppedVoteCount += 1;
+            continue;
+        }
+        const example = latest;
         if (example.evidenceType !== "document_evidence") {
             droppedVoteCount += 1;
             continue;
@@ -169,7 +178,7 @@ async function runFieldLessonRevalidation(input) {
             droppedVoteCount += 1;
             continue;
         }
-        retainedDocKeys.add(vote.sourceDocumentKey);
+        retainedDocKeys.add(docKey);
     }
     const confirmedDistinctDocumentCount = retainedDocKeys.size;
     if (confirmedDistinctDocumentCount < vendorInvoiceFieldLessons_1.MIN_DISTINCT_DOCUMENT_VOTES) {
@@ -356,6 +365,27 @@ async function applyFieldLessonStatusTransition(input) {
         default:
             break;
     }
+    const successAuditEvent = request.action === "activate"
+        ? "activated"
+        : request.action === "reject"
+            ? "rejected"
+            : request.action === "suspend"
+                ? "manual_suspended"
+                : "reactivated";
+    const auditRef = input.db.collection(fieldLessonAudit_1.FIELD_LESSON_AUDIT_COLLECTION).doc();
+    const auditInput = {
+        lessonId,
+        eventType: successAuditEvent,
+        actorUid: request.actorUid,
+        priorStatus: cur.status,
+        newStatus: nextStatus,
+        scopeKey: cur.scopeKey,
+        patternFingerprint: cur.patternFingerprint,
+        distinctDocumentCount: revalidation?.confirmedDistinctDocumentCount,
+        detail: request.action === "reject" && request.note?.trim()
+            ? request.note.trim().slice(0, 500)
+            : undefined,
+    };
     let txOutcome;
     try {
         txOutcome = await input.db.runTransaction(async (tx) => {
@@ -372,6 +402,7 @@ async function applyFieldLessonStatusTransition(input) {
                 return { kind: "lesson_version_mismatch" };
             }
             tx.update(ref, patch);
+            (0, fieldLessonAudit_1.writeFieldLessonAuditEventInTransaction)(tx, auditRef, auditInput, nowIso);
             return { kind: "applied" };
         });
     }
@@ -416,26 +447,6 @@ async function applyFieldLessonStatusTransition(input) {
             },
         };
     }
-    const auditEvent = request.action === "activate"
-        ? "activated"
-        : request.action === "reject"
-            ? "rejected"
-            : request.action === "suspend"
-                ? "manual_suspended"
-                : "reactivated";
-    await (0, fieldLessonAudit_1.writeFieldLessonAuditEvent)(input.db, {
-        lessonId,
-        eventType: auditEvent,
-        actorUid: request.actorUid,
-        priorStatus: cur.status,
-        newStatus: nextStatus,
-        scopeKey: cur.scopeKey,
-        patternFingerprint: cur.patternFingerprint,
-        distinctDocumentCount: revalidation?.confirmedDistinctDocumentCount,
-        detail: request.action === "reject" && request.note?.trim()
-            ? request.note.trim().slice(0, 500)
-            : undefined,
-    });
     return {
         ok: true,
         result: {

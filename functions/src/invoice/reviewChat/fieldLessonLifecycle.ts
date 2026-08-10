@@ -20,7 +20,12 @@ import {
   FIELD_LESSON_EXAMPLE_COLLECTION,
   type FieldLessonExampleDoc,
 } from "./indexFieldLessonExample";
-import { writeFieldLessonAuditEvent } from "./fieldLessonAudit";
+import {
+  FIELD_LESSON_AUDIT_COLLECTION,
+  writeFieldLessonAuditEvent,
+  writeFieldLessonAuditEventInTransaction,
+  type FieldLessonAuditEventType,
+} from "./fieldLessonAudit";
 import { C3D1_ALLOWED_PARSER_FORMAT_ID } from "./labelAnchorAllowlist";
 
 const MAX_REVALIDATION_VOTES = 40;
@@ -181,6 +186,15 @@ export async function runFieldLessonRevalidation(input: {
 }): Promise<RevalidationResult> {
   const nowMs = input.nowMs ?? Date.now();
   const lesson = input.lesson;
+
+  const scopeSnap = await input.db
+    .collection(FIELD_LESSON_EXAMPLE_COLLECTION)
+    .where("scopeKey", "==", lesson.scopeKey)
+    .orderBy("verifiedAt", "desc")
+    .limit(MAX_SCOPE_EXAMPLES)
+    .get();
+  const latestByDocument = pickLatestPerDocument(scopeSnap.docs);
+
   const votes = (lesson.evidenceSnapshot?.votes ?? []).slice(
     0,
     MAX_REVALIDATION_VOTES,
@@ -189,15 +203,17 @@ export async function runFieldLessonRevalidation(input: {
   let droppedVoteCount = 0;
 
   for (const vote of votes) {
-    const exSnap = await input.db
-      .collection(FIELD_LESSON_EXAMPLE_COLLECTION)
-      .doc(vote.exampleId)
-      .get();
-    if (!exSnap.exists) {
+    const docKey = vote.sourceDocumentKey?.trim();
+    if (!docKey) {
       droppedVoteCount += 1;
       continue;
     }
-    const example = exSnap.data() as FieldLessonExampleDoc;
+    const latest = latestByDocument.get(docKey);
+    if (!latest || latest.exampleId !== vote.exampleId) {
+      droppedVoteCount += 1;
+      continue;
+    }
+    const example = latest;
     if (example.evidenceType !== "document_evidence") {
       droppedVoteCount += 1;
       continue;
@@ -236,7 +252,7 @@ export async function runFieldLessonRevalidation(input: {
       droppedVoteCount += 1;
       continue;
     }
-    retainedDocKeys.add(vote.sourceDocumentKey);
+    retainedDocKeys.add(docKey);
   }
 
   const confirmedDistinctDocumentCount = retainedDocKeys.size;
@@ -475,6 +491,31 @@ export async function applyFieldLessonStatusTransition(input: {
     | { kind: "lesson_deleted" }
     | { kind: "lesson_version_mismatch" };
 
+  const successAuditEvent: FieldLessonAuditEventType =
+    request.action === "activate"
+      ? "activated"
+      : request.action === "reject"
+        ? "rejected"
+        : request.action === "suspend"
+          ? "manual_suspended"
+          : "reactivated";
+
+  const auditRef = input.db.collection(FIELD_LESSON_AUDIT_COLLECTION).doc();
+  const auditInput = {
+    lessonId,
+    eventType: successAuditEvent,
+    actorUid: request.actorUid,
+    priorStatus: cur.status,
+    newStatus: nextStatus,
+    scopeKey: cur.scopeKey,
+    patternFingerprint: cur.patternFingerprint,
+    distinctDocumentCount: revalidation?.confirmedDistinctDocumentCount,
+    detail:
+      request.action === "reject" && request.note?.trim()
+        ? request.note.trim().slice(0, 500)
+        : undefined,
+  };
+
   let txOutcome: TxOutcome;
   try {
     txOutcome = await input.db.runTransaction(async (tx) => {
@@ -493,6 +534,7 @@ export async function applyFieldLessonStatusTransition(input: {
         return { kind: "lesson_version_mismatch" as const };
       }
       tx.update(ref, patch);
+      writeFieldLessonAuditEventInTransaction(tx, auditRef, auditInput, nowIso);
       return { kind: "applied" as const };
     });
   } catch (err) {
@@ -537,30 +579,6 @@ export async function applyFieldLessonStatusTransition(input: {
       },
     };
   }
-
-  const auditEvent =
-    request.action === "activate"
-      ? "activated"
-      : request.action === "reject"
-        ? "rejected"
-        : request.action === "suspend"
-          ? "manual_suspended"
-          : "reactivated";
-
-  await writeFieldLessonAuditEvent(input.db, {
-    lessonId,
-    eventType: auditEvent,
-    actorUid: request.actorUid,
-    priorStatus: cur.status,
-    newStatus: nextStatus,
-    scopeKey: cur.scopeKey,
-    patternFingerprint: cur.patternFingerprint,
-    distinctDocumentCount: revalidation?.confirmedDistinctDocumentCount,
-    detail:
-      request.action === "reject" && request.note?.trim()
-        ? request.note.trim().slice(0, 500)
-        : undefined,
-  });
 
   return {
     ok: true,

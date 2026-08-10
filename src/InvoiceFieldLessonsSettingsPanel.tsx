@@ -127,6 +127,32 @@ function isVerificationFixture(
   );
 }
 
+function firebaseErrorCode(err: unknown): string | null {
+  if (typeof err !== "object" || err === null) return null;
+  const code = (err as { code?: unknown }).code;
+  return typeof code === "string" ? code : null;
+}
+
+function lifecycleActionErrorMessage(err: unknown): string {
+  const code = firebaseErrorCode(err);
+  const message =
+    err instanceof Error && err.message.trim()
+      ? err.message.trim()
+      : "The lesson status could not be updated.";
+  if (
+    code === "functions/failed-precondition" ||
+    code === "failed-precondition" ||
+    message.includes("lesson_version_mismatch") ||
+    message.includes("version mismatch")
+  ) {
+    return "This lesson changed on the server (version, status, or evidence). The list has been refreshed — review the updated lesson before trying again.";
+  }
+  if (code === "functions/invalid-argument" || code === "invalid-argument") {
+    return message;
+  }
+  return message;
+}
+
 function statusAccent(
   lesson: VendorInvoiceFieldLessonListItem,
 ): string {
@@ -946,34 +972,40 @@ export function InvoiceFieldLessonsSettingsPanel({
     (lesson) => lesson.status === "rejected",
   ).length;
 
+  const refreshLessons = async (focusLessonId?: string) => {
+    const nextLessons = await listVendorInvoiceFieldLessons();
+    setLessons(nextLessons);
+    if (focusLessonId) {
+      setSelectedLesson(
+        nextLessons.find((lesson) => lesson.id === focusLessonId) ?? null,
+      );
+    }
+    return nextLessons;
+  };
+
   const handleLessonAction = async (
     action: FieldLessonLifecycleAction,
     note?: string,
   ) => {
     if (!selectedLesson) return;
     const lessonAtMutation = selectedLesson;
-    const result = await setVendorInvoiceFieldLessonStatus({
-      lessonId: lessonAtMutation.id,
-      action,
-      expectedVersion: lessonAtMutation.version,
-      idempotencyKey: `${lessonAtMutation.id}:${action}:${lessonAtMutation.version}`,
-      ...(note ? { note } : {}),
-    });
-
-    let nextLessons = lessons.map((lesson) =>
-      lesson.id === result.lessonId
-        ? { ...lesson, status: result.status, version: result.version }
-        : lesson,
-    );
     try {
-      nextLessons = await listVendorInvoiceFieldLessons();
-    } catch {
-      // Mutation result remains authoritative if the follow-up list refresh is unavailable.
+      const result = await setVendorInvoiceFieldLessonStatus({
+        lessonId: lessonAtMutation.id,
+        action,
+        expectedVersion: lessonAtMutation.version,
+        idempotencyKey: `${lessonAtMutation.id}:${action}:${lessonAtMutation.version}`,
+        ...(note ? { note } : {}),
+      });
+      await refreshLessons(result.lessonId);
+    } catch (err: unknown) {
+      try {
+        await refreshLessons(lessonAtMutation.id);
+      } catch {
+        // Surface the action error even if the refresh fails.
+      }
+      throw new Error(lifecycleActionErrorMessage(err));
     }
-    setLessons(nextLessons);
-    setSelectedLesson(
-      nextLessons.find((lesson) => lesson.id === result.lessonId) ?? null,
-    );
   };
 
   return (
