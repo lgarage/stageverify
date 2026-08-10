@@ -1,12 +1,10 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { applyDeliveryReadinessTransaction } from "./applyDeliveryReadiness";
+import { applyVendorDeliveredReceiving } from "./applyVendorDeliveredReceiving";
 import {
   asDeliveryId,
   asSessionToken,
-  assertVendorSessionForDelivery,
 } from "./vendorSessionValidation";
-import { hasAssignableSpot } from "./vendorDeliverySpotUtils";
 
 function getDb() {
   return admin.firestore();
@@ -25,14 +23,6 @@ type DeliveryStatus =
   | "picked_up"
   | "installed";
 
-interface DeliveryDoc {
-  status: DeliveryStatus;
-  vendorId?: string;
-  vendorPhysicalDropoffConfirmed?: boolean;
-  vendorPhysicalDropoffConfirmedAt?: string;
-  deliveredAt?: string;
-}
-
 interface MarkVendorDeliveriesBulkRequest {
   sessionToken?: string;
   deliveryIds?: string[];
@@ -46,6 +36,7 @@ interface BulkMarkResult {
   status?: DeliveryStatus;
   vendorPhysicalDropoffConfirmed?: boolean;
   idempotent?: boolean;
+  itemsUpdated?: number;
 }
 
 function asActorName(value: unknown): string {
@@ -104,76 +95,20 @@ async function markOneDeliveryDelivered(
   actorName: string,
 ): Promise<BulkMarkResult> {
   try {
-    await assertVendorSessionForDelivery(sessionToken, deliveryId);
-
-    const deliveryRef = getDb().collection("deliveries").doc(deliveryId);
-    const deliverySnap = await deliveryRef.get();
-    if (!deliverySnap.exists) {
-      return { deliveryId, success: false, error: "Delivery not found." };
-    }
-
-    const delivery = deliverySnap.data() as DeliveryDoc;
-
-    if (!hasAssignableSpot(deliverySnap.data() as admin.firestore.DocumentData)) {
-      return {
-        deliveryId,
-        success: false,
-        error: "No assigned spot — ask dispatch.",
-      };
-    }
-
-    const alreadyConfirmed = delivery.vendorPhysicalDropoffConfirmed === true;
-    const fromStatus = delivery.status;
-    const toStatus: DeliveryStatus =
-      fromStatus === "pending" || fromStatus === "shipped"
-        ? "arrived"
-        : fromStatus;
-
-    const now = new Date().toISOString();
-    const confirmedAt =
-      alreadyConfirmed && delivery.vendorPhysicalDropoffConfirmedAt
-        ? delivery.vendorPhysicalDropoffConfirmedAt
-        : now;
-
-    const batch = getDb().batch();
-    batch.update(deliveryRef, {
-      status: toStatus,
-      submittedAt: now,
-      vendorPhysicalDropoffConfirmed: true,
-      vendorPhysicalDropoffConfirmedAt: confirmedAt,
-      deliveredAt:
-        alreadyConfirmed && delivery.deliveredAt ? delivery.deliveredAt : now,
-      physicalDropoffSource: "physical_checkin",
-      updatedAt: now,
+    // Bulk path is complete-all only (no per-line exceptions in Slice 1).
+    const result = await applyVendorDeliveredReceiving(getDb(), {
+      deliveryId,
+      sessionToken,
+      actorName,
+      lineExceptions: [],
     });
-
-    if (fromStatus !== toStatus) {
-      const eventId = `event-${crypto.randomUUID()}`;
-      batch.set(getDb().collection("statusHistory").doc(eventId), {
-        id: eventId,
-        entityType: "delivery_order",
-        entityId: deliveryId,
-        fromStatus,
-        toStatus,
-        reason: "Vendor confirmed delivery",
-        actorType: "vendor",
-        actorName,
-        createdAt: now,
-      });
-    }
-
-    await batch.commit();
-
-    await applyDeliveryReadinessTransaction(getDb(), deliveryId, {
-      historyReason: "Vendor DELIVERED readiness recalculation",
-    });
-
     return {
       deliveryId,
       success: true,
-      status: toStatus,
+      status: result.status,
       vendorPhysicalDropoffConfirmed: true,
-      idempotent: alreadyConfirmed && fromStatus === toStatus,
+      idempotent: result.idempotent,
+      itemsUpdated: result.itemsUpdated,
     };
   } catch (err) {
     const message =
@@ -186,7 +121,7 @@ async function markOneDeliveryDelivered(
   }
 }
 
-/** Bulk vendor DELIVERED — vendor-scoped sessions only; per-id assert + spot checks. */
+/** Bulk vendor DELIVERED — vendor-scoped sessions; complete-all receiving truth. */
 export const markVendorDeliveriesBulk = onCall(
   {
     region: "us-central1",

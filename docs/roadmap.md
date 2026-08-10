@@ -62,6 +62,8 @@
 
 ## NOW (Phase 5 prototype)
 
+**In flight (2026-08-10):** **D-84–D-90 receiving/readiness** — Slice 1 exception-oriented vendor Delivered qty SoT on `cursor/receiving-readiness-d84-slice1-c86f` (**v0.0.287**); CF `markVendorDelivered` / bulk + hub exception panel; **CF/rules/gh-pages deploy NOT approved**. Next slices: Unplanned→CA (D-85), auto-Ready (D-84), manual Ready (D-87).
+
 **Shipped (2026-08-09):** Settings PIN visit-scoped green **PIN # updated** row badge (right of Deactivate; clears on leave Settings; toast `New PIN saved` kept) — **v0.0.271** gh-pages FE-only; no CF/rules.
 
 **Shipped (2026-08-10):** Delivery Details 2×2 yellow Vendor Drop-Off + Staged authoritative staging (v0.0.283) — remove Current line / Delivery Details Reject / inline spot picker; Staged uses `hasActiveShopStagingAssignment` or STAGING LOCATION NEEDED map flow; Invoice Review Reject preserved; D-82 Complete Pickup warning preserved; FE-only.
@@ -90,7 +92,7 @@
 
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
-**Shipped (2026-08-10):** Technician post-PIN **Pick up today** landing polish — vendor-shell safe-area, header Back, elevated pickup cards + destination chips — **v0.0.287** gh-pages (FE-only; Sol visual PASS).
+**Shipped (2026-08-10):** Technician post-PIN **Pick up today** landing polish — vendor-shell safe-area, header Back, elevated pickup cards + destination chips — **v0.0.289** gh-pages (FE-only; Sol visual PASS).
 **Shipped (2026-08-09):** Location/Technician PIN mobile polish (PR #79) — role-track white-alpha; VendorPinGate embedded top-flow; short-viewport Verify — **v0.0.253** gh-pages.
 
 **Phase 5 — Vendor Email Parsing Prototype** — active per `CURRENT_STATE.md` (Phase 3 + Phase 4 gates closed 2026-06-20). Phase 2 gate passed 2026-06-08.
@@ -168,8 +170,8 @@ _These fields are recommendations to evaluate at gate review — not committed s
 Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** (pickup resolution readback + `verify:phase4-integration`). **Active away queue** may prioritize work ahead of phase gates — see `PROJECT_STATUS/CURRENT_STATE.md` + `npm run away:next`.
 
 - **Lane C C1 LIVE:** Invoice Review Chat — `vendorInvoiceImportChats` rules + CF `reviewAgentTurn` (`reviewagentturn-00002-fit`) + gh-pages **v0.0.247**; Training note behind Advanced; live multi-turn/durability PASS (mock OFF). Hotfix PR #69 omit undefined `citation.field`.
-- **Lane C C2 LIVE:** current-import field correction — propose in chat → Apply/`Yes, apply it` → CF `applyInvoiceReviewFieldCorrection` + `vendorInvoiceFieldCorrections` audit (D-68); merge `c0375110` / **v0.0.248**. **C3-A COMPLETE** (D-59 #7/#8 amend; plan `docs/c3-reusable-field-learning-plan.md`); **C3-B NEXT** — Johnstone universal parser-miss harden before lesson store.
-- **Invoice approve fulfillment wizard (WIP branch `cursor/invoice-approve-fulfillment-flow-6f9a`, v0.0.282):** Approve → in-modal fulfillment choice (Vendor Drop-Off / Will-Call) → map `approveFlow=1` authoritative approve or Will-Call confirm; CF `fulfillmentDecision` @ `ae336ea1`; FE not deployed pending Sol review + parent PR.
+- **Lane C C2 LIVE:** current-import field correction — propose in chat → Apply/`Yes, apply it` → CF `applyInvoiceReviewFieldCorrection` + `vendorInvoiceFieldCorrections` audit (D-68); merge `c0375110` / **v0.0.248**. **C3-A COMPLETE** (D-59 #7/#8 amend; plan `docs/c3-reusable-field-learning-plan.md`). **C3-D.1 ACCEPTED** (prod evaluate/list; read-only Invoice Learning UI). **C3-D.2 LIVE** (PR #146 merge `7aa3a4d8` / D-91 / v0.0.288 — Manager lifecycle; await Dan MANUAL). **NEXT:** C3-D.3 Novel Format Trainer / strong-model format discovery (roadmap-only; `invoiceFormatLearningState` investigation — do not implement).
+- **Invoice approve fulfillment LIVE (PR #145 / v0.0.286):** Approve → in-modal fulfillment choice → Confirm sole CF commit; CF `approveVendorInvoiceImport` ACTIVE; await Dan MANUAL.
 
 ### Phase 3 Slice 1 — Report Issue + dispatcher visibility ✅ (shipped 2026-06-08)
 

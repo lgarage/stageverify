@@ -4,7 +4,7 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 
 | Date | Task type (archetype) | Tier | Recommended model | confStart | confAfter | Outcome | Note |
 |------|----------------------|------|-------------------|-----------|-----------|---------|------|
-| 2026-08-10 | ui-component / css-restyle (visual-judgment mobile) | T1 | Sol Medium design (Task→High fallback) + Composer implement | 97 | 99 | ok | Tech PIN landing polish v0.0.287; Sol PASS bc-b803f25f |
+| 2026-08-10 | ui-component / css-restyle (visual-judgment mobile) | T1 | Sol Medium design (Task→High fallback) + Composer implement | 97 | 99 | ok | Tech PIN landing polish v0.0.289; Sol PASS bc-b803f25f |
 | 2026-08-05 | backend-write-critical (CF redeploy only — no code edits) | T3 | Composer 2.5 Fast (shell/deploy; Sonnet gate already on prior ship) | 98 | 99 | ok | `applyVendorReplyClearBackorder` redeployed to stageverify-db |
 | 2026-08-05 | product-requirements / UX Q&A (drawer status dropdown) | T0 Q&A | GPT-5.4 Mini (facilitate Q&A); later build → Composer 2.5 T2 multi-file-feature | 95 | 95 | ok | No implement; scenario questions only; delivery-status + delivery-display-wiring |
 | 2026-08-05 | product-requirements synthesize (status dropdown answers) | T0 Q&A | GPT-5.4 Mini; later build → Composer 2.5 T2 (+ high-risk if enum/CF) | 92 | 94 | ok | Locked 1–9,13–14; clarify Staged spot + revert; open Complete/Installed/label |
@@ -142,3 +142,5 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-10 | bugfix (D-82 map staging release after Complete Pickup) | T1 FE | Composer 2.5 Fast | 98 | 98 | ok (PR; CF unchanged) | Root C stale occupancy; prod 6169414/6169474 CF cleared; G6/G10 FREE |
 | 2026-08-10 | ship-op (PR #137 merge + C3-D.1 CF/rules/indexes deploy + prod verify) | T3 high-risk | Composer 2.5 Fast | 99 | 99 | ok LIVE (awaiting Dan MANUAL) | merge 7a6d5bb3; CF 00001-voy/ziy; ruleset 1b15110d; indexes READY; verify:c3d1:prod 23/23; D-83 |
 | 2026-08-10 | ship-op (PR #145 merge + approveVendorInvoiceImport CF + gh-pages; await Dan MANUAL) | T3 high-risk | Composer 2.5 Fast (prior D-60/D-38 on PR) | 99 | 99 | ok LIVE (awaiting Dan MANUAL) | merge 1a8ae4e4; CF hash 08a36b96 gen 1786328949406674; reassign NOT redeployed (9beb3543); FE v0.0.286 index-BCFUzHaM.js; no rules |
+| 2026-08-10 | backend-write-critical (C3-D.2 lifecycle backend + tests) | T3 | Composer 2.5 Fast (+ Sol UI deferred) | 98 | 98 | ok (branch; shipping) | setVendorInvoiceFieldLessonStatus; revalidation; evaluator D.2 fixes; D-84 |
+| 2026-08-10 | backend-write-critical (C3-D.2 Manager lesson lifecycle) | T3 | Composer 2.5 Fast (+ Sol High UI) | 98 | 99 | ok (Dan deploy approved — shipping) | PR #146 rebase onto main v0.0.286; D-60+D-38 PASS |

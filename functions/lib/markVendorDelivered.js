@@ -3,9 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.markVendorDelivered = void 0;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
-const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
+const applyVendorDeliveredReceiving_1 = require("./applyVendorDeliveredReceiving");
 const vendorSessionValidation_1 = require("./vendorSessionValidation");
-const vendorDeliverySpotUtils_1 = require("./vendorDeliverySpotUtils");
+const vendorDeliveredItemTruth_1 = require("./vendorDeliveredItemTruth");
 function getDb() {
     return admin.firestore();
 }
@@ -15,7 +15,7 @@ function asActorName(value) {
     const trimmed = value.trim();
     return trimmed.length > 0 && trimmed.length <= 128 ? trimmed : "Vendor Driver";
 }
-/** Server-owned vendor DELIVERED — validates session, writes evidence, recalculates readiness. */
+/** Server-owned vendor DELIVERED — session, item qty truth, readiness. */
 exports.markVendorDelivered = (0, https_1.onCall)({
     region: "us-central1",
     cors: [
@@ -28,59 +28,27 @@ exports.markVendorDelivered = (0, https_1.onCall)({
     const deliveryId = (0, vendorSessionValidation_1.asDeliveryId)(data.deliveryId);
     const sessionToken = (0, vendorSessionValidation_1.asSessionToken)(data.sessionToken);
     const actorName = asActorName(data.actorName);
+    const lineExceptions = (0, vendorDeliveredItemTruth_1.parseLineExceptions)(data.lineExceptions);
     if (!deliveryId || !sessionToken) {
         throw new https_1.HttpsError("invalid-argument", "Invalid session.");
     }
-    await (0, vendorSessionValidation_1.assertVendorSessionForDelivery)(sessionToken, deliveryId);
-    const deliveryRef = getDb().collection("deliveries").doc(deliveryId);
-    const deliverySnap = await deliveryRef.get();
-    if (!deliverySnap.exists) {
-        throw new https_1.HttpsError("not-found", "Delivery not found.");
+    if (lineExceptions === null) {
+        throw new https_1.HttpsError("invalid-argument", "Invalid line exceptions.");
     }
-    const delivery = deliverySnap.data();
-    if (!(0, vendorDeliverySpotUtils_1.hasAssignableSpot)(deliverySnap.data())) {
-        throw new https_1.HttpsError("failed-precondition", "No assigned spot — ask dispatch.");
-    }
-    const alreadyConfirmed = delivery.vendorPhysicalDropoffConfirmed === true;
-    const fromStatus = delivery.status;
-    const toStatus = fromStatus === "pending" || fromStatus === "shipped" ? "arrived" : fromStatus;
-    const now = new Date().toISOString();
-    const confirmedAt = alreadyConfirmed && delivery.vendorPhysicalDropoffConfirmedAt
-        ? delivery.vendorPhysicalDropoffConfirmedAt
-        : now;
-    const batch = getDb().batch();
-    batch.update(deliveryRef, {
-        status: toStatus,
-        submittedAt: now,
-        vendorPhysicalDropoffConfirmed: true,
-        vendorPhysicalDropoffConfirmedAt: confirmedAt,
-        deliveredAt: alreadyConfirmed && delivery.deliveredAt ? delivery.deliveredAt : now,
-        physicalDropoffSource: "physical_checkin",
-        updatedAt: now,
-    });
-    if (fromStatus !== toStatus) {
-        const eventId = `event-${crypto.randomUUID()}`;
-        batch.set(getDb().collection("statusHistory").doc(eventId), {
-            id: eventId,
-            entityType: "delivery_order",
-            entityId: deliveryId,
-            fromStatus,
-            toStatus,
-            reason: "Vendor confirmed delivery",
-            actorType: "vendor",
-            actorName,
-            createdAt: now,
-        });
-    }
-    await batch.commit();
-    const readiness = await (0, applyDeliveryReadiness_1.applyDeliveryReadinessTransaction)(getDb(), deliveryId, { historyReason: "Vendor DELIVERED readiness recalculation" });
-    return {
+    const result = await (0, applyVendorDeliveredReceiving_1.applyVendorDeliveredReceiving)(getDb(), {
         deliveryId,
-        status: toStatus,
-        vendorPhysicalDropoffConfirmed: true,
-        vendorPhysicalDropoffConfirmedAt: confirmedAt,
-        idempotent: alreadyConfirmed && fromStatus === toStatus,
-        readiness,
+        sessionToken,
+        actorName,
+        lineExceptions,
+    });
+    return {
+        deliveryId: result.deliveryId,
+        status: result.status,
+        vendorPhysicalDropoffConfirmed: result.vendorPhysicalDropoffConfirmed,
+        vendorPhysicalDropoffConfirmedAt: result.vendorPhysicalDropoffConfirmedAt,
+        idempotent: result.idempotent,
+        itemsUpdated: result.itemsUpdated,
+        readiness: result.readiness,
     };
 });
 //# sourceMappingURL=markVendorDelivered.js.map

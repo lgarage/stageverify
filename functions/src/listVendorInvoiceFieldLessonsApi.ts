@@ -1,5 +1,5 @@
 /**
- * Lane C C3-D.1 — minimal Manager/Admin read-only list of proposed/suspended lessons.
+ * Lane C C3-D — Manager/Admin list of field lessons (all lifecycle statuses).
  * NOT a generic C3-C.2 evidence browser.
  */
 import * as admin from "firebase-admin";
@@ -35,9 +35,26 @@ function sanitizeLesson(doc: VendorInvoiceFieldLessonDoc & { id: string }) {
     distinctDocumentCount: doc.distinctDocumentCount,
     proposedAt: doc.proposedAt,
     proposedBy: doc.proposedBy,
-    suspendedAt: doc.suspendedAt,
-    suspendedBy: doc.suspendedBy,
-    disabledReason: doc.disabledReason,
+    suspendedAt: doc.suspendedAt ?? null,
+    suspendedBy: doc.suspendedBy ?? null,
+    disabledReason: doc.disabledReason ?? null,
+    activatedAt: doc.activatedAt ?? null,
+    activatedBy: doc.activatedBy ?? null,
+    rejectedAt: doc.rejectedAt ?? null,
+    rejectedBy: doc.rejectedBy ?? null,
+    rejectionNote: doc.rejectionNote ?? null,
+    reactivatedAt: doc.reactivatedAt ?? null,
+    reactivatedBy: doc.reactivatedBy ?? null,
+    lastRevalidation: doc.lastRevalidation ?? null,
+    lastMutation: doc.lastMutation
+      ? {
+          idempotencyKey: doc.lastMutation.idempotencyKey,
+          action: doc.lastMutation.action,
+          resultStatus: doc.lastMutation.resultStatus,
+          resultVersion: doc.lastMutation.resultVersion,
+          atIso: doc.lastMutation.atIso,
+        }
+      : null,
     evidenceSnapshot: {
       distinctDocumentCount: doc.evidenceSnapshot?.distinctDocumentCount ?? 0,
       distinctSourceDocumentKeys:
@@ -72,7 +89,10 @@ export const listVendorInvoiceFieldLessons = onCall(
     };
     const limit = clampListLimit(data.limit, 50, 100);
     const status =
-      data.status === "proposed" || data.status === "suspended"
+      data.status === "proposed" ||
+      data.status === "suspended" ||
+      data.status === "active" ||
+      data.status === "rejected"
         ? data.status
         : null;
     const scopeKey =

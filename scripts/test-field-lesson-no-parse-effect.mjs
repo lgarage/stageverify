@@ -10,7 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
 const FORBIDDEN_IMPORT =
-  /vendorInvoiceFieldLessons|evaluateFieldLessonCandidate|labelAnchorAllowlist|patternFingerprint|fieldLessonAudit|listVendorInvoiceFieldLessons|evaluateVendorInvoiceFieldLesson/;
+  /vendorInvoiceFieldLessons|evaluateFieldLessonCandidate|labelAnchorAllowlist|patternFingerprint|fieldLessonAudit|fieldLessonLifecycle|setVendorInvoiceFieldLessonStatus|listVendorInvoiceFieldLessons|evaluateVendorInvoiceFieldLesson/;
 
 const FORBIDDEN_DIRS = [
   "functions/src/invoice/parseJohnstoneInvoice.ts",

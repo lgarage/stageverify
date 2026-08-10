@@ -103,6 +103,8 @@ import type {
   BulkReopenImportsSkippedByRuleResult,
   DispatcherRoleDoc,
   ListVendorInvoiceFieldLessonsResult,
+  SetVendorInvoiceFieldLessonStatusRequest,
+  SetVendorInvoiceFieldLessonStatusResult,
   VendorInvoiceFieldLessonListItem,
 } from "./models";
 import {
@@ -1274,6 +1276,12 @@ export class FirestoreDataService implements DispatcherDataService {
   async markVendorDelivered(
     deliveryId: string,
     actorName = "Vendor Driver",
+    lineExceptions?: Array<{
+      itemId: string;
+      qtyReceived: number;
+      qtyBackordered: number;
+      qtyDamaged: number;
+    }>,
   ): Promise<DeliveryDetails | null> {
     const sessionToken = getVendorSessionToken(deliveryId);
     if (!sessionToken) {
@@ -1286,6 +1294,9 @@ export class FirestoreDataService implements DispatcherDataService {
         deliveryId,
         sessionToken,
         actorName,
+        ...(lineExceptions && lineExceptions.length > 0
+          ? { lineExceptions }
+          : {}),
       });
     } catch (err) {
       throw new VendorSessionError(vendorSessionErrorMessage(err));
@@ -2761,12 +2772,17 @@ const listVendorIgnoreRulesCallable = httpsCallable<
 
 const listVendorInvoiceFieldLessonsCallable = httpsCallable<
   {
-    status?: "proposed" | "suspended";
+    status?: "proposed" | "suspended" | "active" | "rejected";
     limit?: number;
     scopeKey?: string;
   },
   ListVendorInvoiceFieldLessonsResult
 >(functions, "listVendorInvoiceFieldLessons");
+
+const setVendorInvoiceFieldLessonStatusCallable = httpsCallable<
+  SetVendorInvoiceFieldLessonStatusRequest,
+  SetVendorInvoiceFieldLessonStatusResult
+>(functions, "setVendorInvoiceFieldLessonStatus");
 
 const updateVendorIgnoreRuleCallable = httpsCallable<
   {
@@ -3274,12 +3290,19 @@ export async function listVendorIgnoreRules(input: {
 
 /** C3-D.1 — Manager/Admin read-only list. No Firestore client reads of lesson docs. */
 export async function listVendorInvoiceFieldLessons(input?: {
-  status?: "proposed" | "suspended";
+  status?: "proposed" | "suspended" | "active" | "rejected";
   limit?: number;
   scopeKey?: string;
 }): Promise<VendorInvoiceFieldLessonListItem[]> {
   const response = await listVendorInvoiceFieldLessonsCallable(input ?? {});
   return response.data.lessons ?? [];
+}
+
+export async function setVendorInvoiceFieldLessonStatus(
+  input: SetVendorInvoiceFieldLessonStatusRequest,
+): Promise<SetVendorInvoiceFieldLessonStatusResult> {
+  const response = await setVendorInvoiceFieldLessonStatusCallable(input);
+  return response.data;
 }
 
 export async function updateVendorIgnoreRule(input: {

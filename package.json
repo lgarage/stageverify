@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.287",
+  "version": "0.0.289",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -143,6 +143,7 @@
     "aecs:export:write": "node aecs/release/export.mjs --write",
     "aecs:test": "node --test aecs/installer/paths.test.mjs aecs/installer/install.test.mjs aecs/updater/update.test.mjs aecs/updater/hardening.test.mjs aecs/updater/rollback-progress.test.mjs aecs/release/export.test.mjs",
     "test:mark-vendor-delivered": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-mark-vendor-delivered.mjs\"",
+    "test:vendor-delivered-item-truth": "npx tsx scripts/test-vendor-delivered-item-truth.mjs",
     "test:reassign-staging-location": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-reassign-staging-location.mjs\"",
     "test:vendor-unplanned-delivery": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-vendor-unplanned-delivery.mjs\"",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"node scripts/test-delivery-status-transitions.mjs\"",
@@ -184,6 +185,7 @@
     "test:index-field-lesson-example": "cd functions && npm run build && cd .. && node scripts/test-index-field-lesson-example.mjs",
     "test:pattern-fingerprint": "cd functions && npm run build && cd .. && node scripts/test-pattern-fingerprint.mjs",
     "test:evaluate-field-lesson-candidate": "cd functions && npm run build && cd .. && node scripts/test-evaluate-field-lesson-candidate.mjs",
+    "test:set-field-lesson-status": "cd functions && npm run build && cd .. && node scripts/test-set-field-lesson-status.mjs",
     "test:field-lesson-no-parse-effect": "node scripts/test-field-lesson-no-parse-effect.mjs",
     "test:firestore-rules-field-lessons": "npx firebase-tools emulators:exec --only firestore \"node scripts/test-firestore-rules-field-lessons.mjs\"",
     "test:invoice-fulfillment-override": "cd functions && npm run build && cd .. && node scripts/test-invoice-fulfillment-override.mjs",
