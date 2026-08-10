@@ -150,32 +150,17 @@ const SORT_COLUMNS: Array<{
   label: string;
   key?: DeliverySortField;
   className?: string;
-  minWidth?: number;
+  /** Percent width hint for table-layout:fixed (sums ~100). */
+  widthPct: number;
 }> = [
-  { label: "Status", key: "status", minWidth: 150 },
-  {
-    label: "Fulfillment",
-    key: "fulfillmentDisplayLabel",
-    minWidth: 190,
-  },
-  { label: "Vendor", key: "vendorName", minWidth: 150 },
-  { label: "Job Name", key: "jobName", minWidth: 180 },
-  { label: "Invoice #", key: "vendorInvoiceNumber", minWidth: 120 },
-  { label: "PO #", key: "poNumber", minWidth: 110 },
-  {
-    label: "Staging Location",
-    key: "stagingLocationCode",
-    minWidth: 150,
-  },
-  { label: "Items", key: "itemsReceivedLabel", minWidth: 70 },
-  {
-    label: "Delivery / Pickup Date",
-    key: "deliveryDate",
-    minWidth: 150,
-  },
-  { label: "Issue", key: "issueSummary", minWidth: 220 },
-  { label: "Assigned Technician", minWidth: 180 },
-  { label: "Action", className: "text-right", minWidth: 80 },
+  { label: "Status", key: "status", widthPct: 14 },
+  { label: "Fulfillment", key: "fulfillmentDisplayLabel", widthPct: 14 },
+  { label: "Job Name", key: "jobName", widthPct: 16 },
+  { label: "Invoice #", key: "vendorInvoiceNumber", widthPct: 10 },
+  { label: "PO #", key: "poNumber", widthPct: 9 },
+  { label: "Staging Location", key: "stagingLocationCode", widthPct: 13 },
+  { label: "Issue", key: "issueSummary", widthPct: 11 },
+  { label: "Assigned Technician", widthPct: 13 },
 ];
 
 type ListQueryState = {
@@ -944,12 +929,18 @@ export function DispatcherDashboardPage() {
               </div>
             </div>
 
-            {/* Scrollable table */}
-            <div style={{ overflowX: "auto" }}>
+            {/* Primary deliveries board — fixed layout, no desktop H-scroll */}
+            <div
+              data-testid="dispatcher-deliveries-table-scroll"
+              style={{ overflowX: "auto", width: "100%" }}
+            >
               <table
                 className="admin-table"
+                data-testid="dispatcher-deliveries-table"
                 style={{
-                  minWidth: 1750,
+                  width: "100%",
+                  minWidth: 0,
+                  tableLayout: "fixed",
                   fontSize: 14,
                   fontFamily: FONT,
                 }}
@@ -968,10 +959,10 @@ export function DispatcherDashboardPage() {
                             textAlign: col.className?.includes("text-right")
                               ? "right"
                               : "left",
-                            whiteSpace: "nowrap",
+                            whiteSpace: "normal",
                             letterSpacing: "normal",
                             userSelect: "none",
-                            minWidth: col.minWidth,
+                            width: `${col.widthPct}%`,
                           }}
                         >
                           {col.key ? (
@@ -1066,16 +1057,17 @@ export function DispatcherDashboardPage() {
                           }
                         }}
                         onFocus={(e) => {
-                          (
-                            e.currentTarget as HTMLElement
-                          ).style.backgroundColor = selected
+                          const el = e.currentTarget as HTMLElement;
+                          el.style.backgroundColor = selected
                             ? "var(--admin-row-selected)"
                             : "var(--admin-row-hover)";
+                          el.style.boxShadow =
+                            "inset 0 0 0 2px var(--admin-accent-soft)";
                         }}
                         onBlur={(e) => {
-                          (
-                            e.currentTarget as HTMLElement
-                          ).style.backgroundColor = rowBg;
+                          const el = e.currentTarget as HTMLElement;
+                          el.style.backgroundColor = rowBg;
+                          el.style.boxShadow = "none";
                         }}
                       >
                         {/* Status badge */}
@@ -1083,6 +1075,7 @@ export function DispatcherDashboardPage() {
                           style={{
                             padding: "14px 12px",
                             borderBottom: cellBorder,
+                            verticalAlign: "top",
                           }}
                         >
                           <span
@@ -1096,7 +1089,8 @@ export function DispatcherDashboardPage() {
                               backgroundColor: b.bg,
                               color: b.text,
                               border: `1px solid ${b.border}`,
-                              whiteSpace: "nowrap",
+                              whiteSpace: "normal",
+                              lineHeight: 1.25,
                             }}
                           >
                             <span
@@ -1136,7 +1130,10 @@ export function DispatcherDashboardPage() {
                             borderBottom: cellBorder,
                             fontWeight: 600,
                             color: cellBody,
-                            minWidth: 190,
+                            verticalAlign: "top",
+                            whiteSpace: "normal",
+                            overflowWrap: "anywhere",
+                            lineHeight: 1.3,
                           }}
                         >
                           {row.fulfillmentDisplayLabel}
@@ -1145,19 +1142,12 @@ export function DispatcherDashboardPage() {
                           style={{
                             padding: "14px 12px",
                             borderBottom: cellBorder,
-                            color: cellBody,
-                            minWidth: 150,
-                          }}
-                        >
-                          {row.vendorName}
-                        </td>
-                        <td
-                          style={{
-                            padding: "14px 12px",
-                            borderBottom: cellBorder,
                             fontWeight: 600,
                             color: cellStrong,
-                            minWidth: 180,
+                            verticalAlign: "top",
+                            whiteSpace: "normal",
+                            overflowWrap: "anywhere",
+                            lineHeight: 1.3,
                           }}
                         >
                           {row.jobName}
@@ -1169,6 +1159,8 @@ export function DispatcherDashboardPage() {
                             fontFamily: "monospace",
                             color: cellMuted,
                             fontSize: 13,
+                            verticalAlign: "top",
+                            overflowWrap: "anywhere",
                           }}
                         >
                           {row.vendorInvoiceNumber ?? "—"}
@@ -1180,6 +1172,8 @@ export function DispatcherDashboardPage() {
                             fontFamily: "monospace",
                             color: cellMuted,
                             fontSize: 13,
+                            verticalAlign: "top",
+                            overflowWrap: "anywhere",
                           }}
                         >
                           {row.poNumber ?? "—"}
@@ -1188,8 +1182,7 @@ export function DispatcherDashboardPage() {
                           style={{
                             padding: "14px 12px",
                             borderBottom: cellBorder,
-                            maxWidth: 180,
-                            verticalAlign: "middle",
+                            verticalAlign: "top",
                           }}
                         >
                           <span
@@ -1239,29 +1232,11 @@ export function DispatcherDashboardPage() {
                           style={{
                             padding: "14px 12px",
                             borderBottom: cellBorder,
-                            fontFamily: "monospace",
-                            color: cellBody,
-                            fontWeight: 600,
-                          }}
-                        >
-                          {row.itemsReceivedLabel}
-                        </td>
-                        <td
-                          style={{
-                            padding: "14px 12px",
-                            borderBottom: cellBorder,
-                            color: cellBody,
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {row.deliveryDate}
-                        </td>
-                        <td
-                          style={{
-                            padding: "14px 12px",
-                            borderBottom: cellBorder,
                             color: issueSummaryColor,
-                            maxWidth: 200,
+                            verticalAlign: "top",
+                            whiteSpace: "normal",
+                            overflowWrap: "anywhere",
+                            lineHeight: 1.3,
                           }}
                         >
                           {row.missingStagingAssignment && (
@@ -1324,6 +1299,7 @@ export function DispatcherDashboardPage() {
                           style={{
                             padding: "14px 12px",
                             borderBottom: cellBorder,
+                            verticalAlign: "top",
                           }}
                         >
                           {(() => {
@@ -1341,7 +1317,6 @@ export function DispatcherDashboardPage() {
                                   flexWrap: "wrap",
                                   gap: 4,
                                   alignItems: "center",
-                                  maxWidth: 200,
                                 }}
                               >
                                 {entries.map((entry) => {
@@ -1360,10 +1335,10 @@ export function DispatcherDashboardPage() {
                                         borderRadius: 999,
                                         fontSize: 12,
                                         fontWeight: 700,
-                                        whiteSpace: "nowrap",
-                                        maxWidth: 160,
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
+                                        whiteSpace: "normal",
+                                        maxWidth: "100%",
+                                        overflowWrap: "anywhere",
+                                        lineHeight: 1.25,
                                         backgroundColor: badgeStyle.bg,
                                         color: badgeStyle.text,
                                         border: `1px solid ${badgeStyle.border}`,
@@ -1387,6 +1362,11 @@ export function DispatcherDashboardPage() {
                                       row.jobId,
                                       techIds,
                                     );
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.stopPropagation();
+                                    }
                                   }}
                                   style={{
                                     display: "inline-flex",
@@ -1413,60 +1393,6 @@ export function DispatcherDashboardPage() {
                             );
                           })()}
                         </td>
-                        <td
-                          style={{
-                            padding: "14px 12px",
-                            borderBottom: cellBorder,
-                            textAlign: "right",
-                          }}
-                        >
-                          <button
-                            data-testid="dispatcher-delivery-view"
-                            className="admin-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void selectDelivery(row.deliveryId);
-                            }}
-                            style={{
-                              backgroundColor: selected ? NAVY : "var(--admin-surface)",
-                              color: selected
-                                ? "var(--admin-on-navy)"
-                                : "var(--admin-accent-soft)",
-                              border: selected
-                                ? `1.5px solid ${NAVY}`
-                                : "1.5px solid var(--admin-accent-soft)",
-                              borderRadius: "var(--admin-control-radius)",
-                              padding: "0 14px",
-                              fontSize: 12,
-                              fontWeight: 700,
-                              cursor: "pointer",
-                              letterSpacing: "normal",
-                              transition: "all 0.13s",
-                              outline: "none",
-                              fontFamily: FONT,
-                            }}
-                            onMouseEnter={(e) => {
-                              const el = e.currentTarget as HTMLElement;
-                              el.style.backgroundColor = NAVY;
-                              el.style.color = "var(--admin-on-navy)";
-                              el.style.borderColor = NAVY;
-                            }}
-                            onMouseLeave={(e) => {
-                              const el = e.currentTarget as HTMLElement;
-                              if (!selected) {
-                                el.style.backgroundColor = "var(--admin-surface)";
-                                el.style.color = "var(--admin-accent-soft)";
-                                el.style.borderColor = "var(--admin-accent-soft)";
-                              } else {
-                                el.style.backgroundColor = NAVY;
-                                el.style.color = "var(--admin-on-navy)";
-                                el.style.borderColor = NAVY;
-                              }
-                            }}
-                          >
-                            View
-                          </button>
-                        </td>
                       </tr>
                     );
                   })}
@@ -1475,7 +1401,7 @@ export function DispatcherDashboardPage() {
                   {!listLoading && !listError && paged.items.length === 0 && (
                     <tr>
                       <td
-                        colSpan={12}
+                        colSpan={8}
                         style={{ padding: "60px 24px", textAlign: "center" }}
                       >
                         <div

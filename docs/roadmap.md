@@ -64,6 +64,7 @@
 
 **Shipped (2026-08-09):** Settings PIN visit-scoped green **PIN # updated** row badge (right of Deactivate; clears on leave Settings; toast `New PIN saved` kept) — **v0.0.271** gh-pages FE-only; no CF/rules.
 
+**Shipped (2026-08-10):** Delivery Details 2×2 Fulfillment/Status controls + Dispatcher Deliveries table column simplification (v0.0.281) — Status dropdown removed; row-click opens drawer; no desktop H-scroll; FE-only; D-80 / Will-Call derived category unchanged.
 **Shipped (2026-08-09):** Will-Call / Pickup pink Dispatcher category (v0.0.279 / PR #127) on D-80 staging release (v0.0.278) — derived category (not new status enum); reverse Drop-Off never restores prior spot; FE-only this PR.
 **Shipped (2026-08-09):** Delivery Details staging-needed card consistency (v0.0.277) — Vendor Drop-Off + no resolvable active staging always shows STAGING LOCATION NEEDED / Assign Location; FE-only.
 **Shipped (2026-08-09):** Staging Map action buttons into map guide header (v0.0.276) — FE-only vertical relocate; zoom/canvas unchanged.
@@ -313,7 +314,8 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 - **Drawer/readiness UX (away-072, away-073, clarity correction):** ✅ Shipped — Issue Summary item table only (no Open Issues accordion); calm **Waiting on Delivery** banner for normal pending; **What Needs Attention** only for true exceptions; exception-only issue counts; `verify:delivery-consistency` + `test:demo-matrix`
 - **Demo drawer uniformity (2026-06-24):** ✅ Shipped — ORD-005 layout/rules on all seed orders (ORD-001..006); hidden lower sections global; verify loop per demo order
 - **Firestore doc id + prod demo hide (2026-07-05, v0.0.14):** ✅ Shipped — `fetchAll`/`fetchWhere` merge doc id; seed demo ORD rows hidden on prod gh-pages list; drawer opens via correct `deliveryId`
-- **Dispatcher Deliveries column order (2026-08-08):** ✅ Shipped v0.0.236 — locked Status → Fulfillment → Vendor → Job Name → Invoice # → PO # → Staging Location → Items → Delivery / Pickup Date → Issue → Assigned Technician → Action; Job #/Order # table-only remove; Status workflow-only; Issue exceptions-only; merge `b183b4e6`
+- **Dispatcher Deliveries column order (2026-08-10):** ✅ Simplified v0.0.281 — Status → Fulfillment → Job Name → Invoice # → PO # → Staging Location → Issue → Assigned Technician (removed Vendor, Items, Delivery/Pickup Date, Action/View; row-click opens drawer)
+- **Dispatcher Deliveries column order (2026-08-08):** ✅ Shipped v0.0.236 — prior full column set Status → Fulfillment → Vendor → Job Name → Invoice # → PO # → Staging Location → Items → Delivery / Pickup Date → Issue → Assigned Technician → Action; superseded by v0.0.281 simplification; merge `b183b4e6`
 - **Dark mode navy section hierarchy (2026-08-08):** ✅ Shipped v0.0.238 — PR #53 branded L0–L3 blue-navy surfaces + cool blue-gray borders; light mode unchanged; merge `4b406c13`; gh-pages only
 - **Dispatcher list/drawer polish (2026-06-24):** ✅ Shipped — delivery label modal dismiss + Push to E-Tag copy; activity history compact dedup + raw full view; Issue Summary column Pickup Scheduled priority when ready
 - **Short pickup clipboard (2026-07-03):** ✅ Shipped — Copy Pickup Information omits status/items/qty; demo ORD-001..006 short-format + staging rules in `verify:delivery-consistency`

@@ -107,11 +107,6 @@ const STATUS_CONTROL_CONTRAST = {
   rootSelector: '[data-testid="delivery-status-controls"]',
   elements: [
     {
-      name: "status dropdown",
-      selector: '[data-testid="delivery-status-dropdown"]',
-      large: false,
-    },
-    {
       name: "status current label",
       selector: '[data-testid="delivery-status-current-label"]',
       large: false,
@@ -124,6 +119,16 @@ const STATUS_CONTROL_CONTRAST = {
     {
       name: "fulfillment will-call pickup button",
       selector: '[data-testid="delivery-fulfillment-will_call_pickup"]',
+      large: false,
+    },
+    {
+      name: "staged ready button",
+      selector: '[data-testid="delivery-status-staged-ready"]',
+      large: false,
+    },
+    {
+      name: "status placeholder",
+      selector: '[data-testid="delivery-status-placeholder"]',
       large: false,
     },
   ],
@@ -157,6 +162,46 @@ const ASSIGN_LOCATION_CONTRAST = {
   });
   await page.waitForTimeout(1500);
 
+  const tableHeader = page.getByTestId("dispatcher-deliveries-table-header");
+  await tableHeader.waitFor({ timeout: 20_000 });
+  const thTexts = (await tableHeader.locator("th").allInnerTexts()).map((t) =>
+    t.replace(/\s+/g, " ").replace(/\s*↕\s*/g, "").trim().toLowerCase(),
+  );
+  for (const removed of ["vendor", "items", "delivery / pickup date", "action"]) {
+    if (thTexts.includes(removed)) {
+      throw new Error(
+        `FAIL: Deliveries table still shows removed column "${removed}".`,
+      );
+    }
+  }
+  for (const kept of [
+    "status",
+    "fulfillment",
+    "job name",
+    "invoice #",
+    "po #",
+    "staging location",
+    "issue",
+    "assigned technician",
+  ]) {
+    if (!thTexts.includes(kept)) {
+      throw new Error(
+        `FAIL: Deliveries table missing retained column "${kept}".`,
+      );
+    }
+  }
+  if ((await page.getByTestId("dispatcher-delivery-view").count()) > 0) {
+    throw new Error("FAIL: View button should be removed from deliveries table.");
+  }
+  const scrollHost = page.getByTestId("dispatcher-deliveries-table-scroll");
+  const noHScroll = await scrollHost.evaluate((el) => el.scrollWidth <= el.clientWidth + 1);
+  if (!noHScroll) {
+    throw new Error(
+      "FAIL: Deliveries table requires horizontal scrolling at desktop width.",
+    );
+  }
+  console.log("PASS: Deliveries table columns simplified (no H-scroll at 1400px)");
+
   await openDeliveryDrawerForNavVerify(page);
   console.log("PASS: Opened delivery drawer");
 
@@ -166,13 +211,18 @@ const ASSIGN_LOCATION_CONTRAST = {
   const basicsCard = page.getByTestId("delivery-basics-card");
   await basicsCard.waitFor({ timeout: 20_000 });
 
-  const statusDropdown = page.getByTestId("delivery-status-dropdown");
-  await statusDropdown.waitFor({ timeout: 10_000 });
-  console.log("PASS: Status dropdown present under Delivery Basics");
+  if ((await page.getByTestId("delivery-status-dropdown").count()) > 0) {
+    throw new Error(
+      "FAIL: Legacy Status dropdown should be removed — 2×2 Fulfillment/Status grid replaces it.",
+    );
+  }
+  console.log("PASS: Status dropdown removed");
 
   const fulfillmentControl = page.getByTestId("delivery-fulfillment-control");
   await fulfillmentControl.waitFor({ timeout: 10_000 });
-  console.log("PASS: Fulfillment control present");
+  const statusGrid = page.getByTestId("delivery-fulfillment-status-grid");
+  await statusGrid.waitFor({ timeout: 10_000 });
+  console.log("PASS: Fulfillment / Status 2×2 control present");
 
   const vendorDropOffButton = page.getByTestId(
     "delivery-fulfillment-delivery",
@@ -180,6 +230,27 @@ const ASSIGN_LOCATION_CONTRAST = {
   const willCallPickupButton = page.getByTestId(
     "delivery-fulfillment-will_call_pickup",
   );
+  const stagedReadyButton = page.getByTestId("delivery-status-staged-ready");
+  const placeholderButton = page.getByTestId("delivery-status-placeholder");
+  await stagedReadyButton.waitFor({ timeout: 10_000 });
+  await placeholderButton.waitFor({ timeout: 10_000 });
+  if (!(await placeholderButton.isDisabled())) {
+    throw new Error("FAIL: Placeholder cell must be disabled / non-actionable.");
+  }
+  const placeholderText = (await placeholderButton.innerText()).trim();
+  if (placeholderText !== "—") {
+    throw new Error(
+      `FAIL: Placeholder label should be "—" — got "${placeholderText}".`,
+    );
+  }
+  console.log("PASS: Placeholder cell present and non-actionable");
+  const stagedLabel = (await stagedReadyButton.innerText()).trim();
+  if (stagedLabel !== "Staged — Ready for Pickup") {
+    throw new Error(
+      `FAIL: Staged button label unexpected — got "${stagedLabel}".`,
+    );
+  }
+  console.log("PASS: Staged — Ready for Pickup button present");
   const vendorDropOffText = (await vendorDropOffButton.innerText()).trim();
   const willCallPickupText = (await willCallPickupButton.innerText()).trim();
   if (vendorDropOffText !== "Vendor Drop-Off") {
@@ -213,19 +284,18 @@ const ASSIGN_LOCATION_CONTRAST = {
   });
   const willCallActive =
     (await willCallPickupButton.getAttribute("data-selected")) === "true";
+  const dropOffActive =
+    (await vendorDropOffButton.getAttribute("data-selected")) === "true";
+  if (willCallActive === dropOffActive) {
+    throw new Error(
+      "FAIL: Exactly one fulfillment button must be selected (Drop-Off vs Will-Call).",
+    );
+  }
   const expectedFulfillmentContext = willCallActive
     ? "Will-Call / Pickup from Vendor"
     : "Vendor Drop-Off";
-  const statusContextText = (
-    await page.getByTestId("delivery-status-current-label").innerText()
-  ).trim();
-  if (!statusContextText.includes(`· ${expectedFulfillmentContext}`)) {
-    throw new Error(
-      `FAIL: Status context should include "· ${expectedFulfillmentContext}" — got "${statusContextText}".`,
-    );
-  }
   console.log(
-    `PASS: Status context uses "${expectedFulfillmentContext}" for active fixture`,
+    `PASS: Active fulfillment selection is "${expectedFulfillmentContext}"`,
   );
 
   const poRow = basicsCard.locator("text=PO #");
@@ -264,8 +334,13 @@ const ASSIGN_LOCATION_CONTRAST = {
     );
   }
   const hasAssignedStaging = hasAssignedStagingAttribute === "true";
+  const currentStatusForBanner = (
+    await page.getByTestId("delivery-status-current-label").innerText()
+  ).trim();
+  const terminalOrClosed =
+    /Picked Up|Complete|Installed|Cancelled/i.test(currentStatusForBanner);
 
-  if (willCallActive || hasAssignedStaging) {
+  if (willCallActive || hasAssignedStaging || terminalOrClosed) {
     if (stagingBannerCount > 0) {
       throw new Error(
         `FAIL: Staging banner should be absent for ${
@@ -275,7 +350,11 @@ const ASSIGN_LOCATION_CONTRAST = {
     }
     console.log(
       `PASS: Staging banner absent for ${
-        willCallActive ? "Will-Call / Pickup from Vendor" : "assigned staging IDs"
+        willCallActive
+          ? "Will-Call / Pickup from Vendor"
+          : terminalOrClosed
+            ? "closed/picked-up"
+            : "assigned staging IDs"
       } fixture`,
     );
   } else {
@@ -342,46 +421,42 @@ const ASSIGN_LOCATION_CONTRAST = {
     console.log("PASS: Report Issue path accessible");
   }
 
-  const readyOption = statusDropdown.locator('option[value="ready_for_pickup"]');
-  if ((await readyOption.count()) > 0) {
-    const disabled = await readyOption.isDisabled();
-    const willCallActive = await page
-      .getByTestId("delivery-fulfillment-will_call_pickup")
-      .evaluate((el) => {
-        const bg = getComputedStyle(el).backgroundColor;
-        return bg !== "rgb(255, 255, 255)" && bg !== "rgba(0, 0, 0, 0)";
-      })
-      .catch(() => false);
-    if (willCallActive && !disabled) {
-      console.log(
-        "WARN: Staged — Ready for Pickup option not disabled on will-call delivery (fixture may allow).",
-      );
-    } else if (willCallActive) {
-      console.log("PASS: Staged — Ready for Pickup grayed/disabled on will-call delivery");
-    } else {
-      console.log("PASS: Staged — Ready for Pickup option present in dropdown");
-    }
+  const willCallSelected =
+    (await willCallPickupButton.getAttribute("data-selected")) === "true";
+  const stagedSelected =
+    (await stagedReadyButton.getAttribute("data-selected")) === "true";
+  const stagedDisabled = await stagedReadyButton.isDisabled();
+  if (willCallSelected && stagedSelected) {
+    throw new Error(
+      "FAIL: Will-Call and Staged must not both show selected/current state.",
+    );
+  }
+  if (willCallSelected && !stagedDisabled) {
+    console.log(
+      "WARN: Staged button enabled on Will-Call delivery (fixture may allow).",
+    );
+  } else if (willCallSelected) {
+    console.log("PASS: Staged button disabled on Will-Call delivery");
+  } else {
+    console.log("PASS: Staged button present for Vendor Drop-Off delivery");
   }
 
   await assertReadableTextContrast(page, STATUS_CONTROL_CONTRAST);
   console.log("PASS: D-42 contrast on status + fulfillment controls");
 
-  const rejectOption = statusDropdown.locator(
-    `option[value="__reject_import__"]`,
-  );
-  if ((await rejectOption.count()) === 0) {
-    throw new Error("FAIL: Status dropdown missing Reject action option.");
+  const rejectAction = page.getByTestId("delivery-status-reject-action");
+  if ((await rejectAction.count()) === 0) {
+    throw new Error("FAIL: Reject… secondary control missing under 2×2 grid.");
   }
-  const rejectLabel = (await rejectOption.innerText()).trim();
+  const rejectLabel = (await rejectAction.innerText()).trim();
   if (!rejectLabel.includes("Reject")) {
     throw new Error(
-      `FAIL: Reject option label unexpected — got "${rejectLabel}"`,
+      `FAIL: Reject control label unexpected — got "${rejectLabel}"`,
     );
   }
-  console.log("PASS: Reject action option present in status dropdown");
+  console.log("PASS: Reject… secondary control present under 2×2 grid");
 
-  const priorDropdownValue = await statusDropdown.inputValue();
-  await statusDropdown.selectOption({ value: "__reject_import__" });
+  await rejectAction.click();
   await page.waitForTimeout(400);
 
   const rejectDialog = page.getByTestId("invoice-reject-reason-dialog");
@@ -400,27 +475,10 @@ const ASSIGN_LOCATION_CONTRAST = {
     console.log(`PASS: Reject shows cannot-reject message — "${msg.slice(0, 60)}…"`);
   } else {
     throw new Error(
-      "FAIL: Selecting Reject should open dialog or show cannot-reject message.",
+      "FAIL: Reject should open dialog or show cannot-reject message.",
     );
   }
-
-  const dropdownAfterReject = await statusDropdown.inputValue();
-  if (dropdownAfterReject === "__reject_import__") {
-    throw new Error(
-      "FAIL: Dropdown should not stay on Reject after action — still reject selected.",
-    );
-  }
-  if (
-    priorDropdownValue &&
-    priorDropdownValue !== "__reject_import__" &&
-    dropdownAfterReject !== priorDropdownValue
-  ) {
-    console.log(
-      `WARN: Dropdown value changed after reject attempt (${priorDropdownValue} → ${dropdownAfterReject}).`,
-    );
-  } else {
-    console.log("PASS: Dropdown retains delivery status after Reject action");
-  }
+  console.log("PASS: Reject action does not alter 2×2 selection state");
 
   const creditBanner = page.getByTestId("delivery-credit-return-banner");
   if ((await creditBanner.count()) > 0) {
@@ -454,7 +512,7 @@ const ASSIGN_LOCATION_CONTRAST = {
     const rejectBtn = page.getByTestId("delivery-credit-return-reject-btn");
     if ((await rejectBtn.count()) > 0) {
       throw new Error(
-        "FAIL: Redundant Reject linked import button should be removed — use Status dropdown.",
+        "FAIL: Redundant Reject linked import button should be removed — use Reject… under Fulfillment / Status.",
       );
     }
     console.log("PASS: Credit/return banner has no duplicate reject button");
@@ -476,7 +534,6 @@ const ASSIGN_LOCATION_CONTRAST = {
     console.log("SKIP: No credit/return rows in deliveries list this run");
   }
 
-  const pickedUpOption = statusDropdown.locator('option[value="picked_up"]');
   const emailVendorButton = page.getByTestId("delivery-basics-email-vendor");
   await emailVendorButton.waitFor({ timeout: 10_000 });
   console.log("PASS: Email Vendor button present in Delivery Basics");
@@ -485,25 +542,10 @@ const ASSIGN_LOCATION_CONTRAST = {
     "delivery-basics-complete-pickup",
   );
   const completePickupCount = await completePickupButton.count();
-  const statusPickedUpEnabled =
-    (await pickedUpOption.count()) > 0 && !(await pickedUpOption.isDisabled());
   const ctaEnabled =
     completePickupCount > 0 && !(await completePickupButton.isDisabled());
-  // Actionability SoT: Status→Picked Up and Complete Pickup share isPickupEligible + jobId.
-  if (statusPickedUpEnabled !== ctaEnabled) {
-    throw new Error(
-      `FAIL: Status Picked Up enabled=${statusPickedUpEnabled} but Complete Pickup enabled=${ctaEnabled} — eligibility SoT mismatch.`,
-    );
-  }
-  console.log(
-    "PASS: Status→Picked Up and Complete Pickup actionability match",
-  );
-  if (statusPickedUpEnabled) {
-    if (completePickupCount === 0) {
-      throw new Error(
-        "FAIL: Complete Pickup CTA should show when picked_up transition is enabled.",
-      );
-    }
+  // Picked Up authority remains Complete Pickup → recordPickupEvent (dropdown removed).
+  if (ctaEnabled) {
     const emailBox = await emailVendorButton.boundingBox();
     const completeBox = await completePickupButton.boundingBox();
     if (!emailBox || !completeBox || completeBox.y <= emailBox.y) {
@@ -524,56 +566,20 @@ const ASSIGN_LOCATION_CONTRAST = {
       );
     }
     console.log("PASS: Full-width Complete Pickup CTA hidden while form open");
-    await page
-      .getByTestId("delivery-status-pickup-input")
-      .getByRole("button", { name: "Cancel" })
-      .click();
-    await page.waitForTimeout(200);
-  } else if (completePickupCount > 0) {
-    // Visible but disabled (e.g. missing jobId) is allowed; Status must also be disabled.
-    const hint = page.getByTestId("delivery-basics-complete-pickup-hint");
-    if ((await hint.count()) === 0) {
-      throw new Error(
-        "FAIL: Complete Pickup visible+disabled should show job-link hint.",
-      );
-    }
-    console.log(
-      "PASS: Complete Pickup visible but disabled (hint shown); Status Picked Up also disabled",
-    );
-  } else {
-    console.log(
-      "SKIP: Complete Pickup CTA hidden (pickup not eligible via isPickupEligible)",
-    );
-  }
-
-  if ((await pickedUpOption.count()) > 0 && !(await pickedUpOption.isDisabled())) {
-    await statusDropdown.selectOption("picked_up");
-    await page.waitForTimeout(300);
 
     await drawer.waitFor({ state: "visible", timeout: 5000 });
     console.log("PASS: Drawer stays open while pickup form is pending");
 
     const currentLabel = page.getByTestId("delivery-status-current-label");
     const labelText = (await currentLabel.innerText()).trim();
-    if (!labelText.startsWith("Picked Up")) {
+    if (!labelText.includes("Picked Up")) {
       throw new Error(
-        `FAIL: Selecting Picked Up should update status label — got "${labelText}"`,
+        `FAIL: Opening Complete Pickup should update status label — got "${labelText}"`,
       );
     }
-    console.log("PASS: Status label shows Picked Up after dropdown selection");
-
-    const dropdownValue = await statusDropdown.inputValue();
-    if (dropdownValue !== "picked_up") {
-      throw new Error(
-        `FAIL: Dropdown should show picked_up after selection — got "${dropdownValue}"`,
-      );
-    }
-    console.log("PASS: Dropdown value is picked_up while pickup form pending");
+    console.log("PASS: Status label shows Picked Up while pickup form pending");
 
     const pickupInput = page.getByTestId("delivery-status-pickup-input");
-    await pickupInput.waitFor({ timeout: 5000 });
-    console.log("PASS: Who picked up? form visible after Picked Up selection");
-
     const cancelBtn = pickupInput.getByRole("button", { name: "Cancel" });
     await cancelBtn.click();
     await page.waitForTimeout(300);
@@ -586,13 +592,21 @@ const ASSIGN_LOCATION_CONTRAST = {
       const currentStatusLabel = (
         await page.getByTestId("delivery-status-current-label").innerText()
       ).trim();
-      if (currentStatusLabel.startsWith("Staged — Ready for Pickup")) {
-        await statusDropdown.selectOption("picked_up");
+      const stagedIsCurrent =
+        (await page
+          .getByTestId("delivery-status-staged-ready")
+          .getAttribute("data-selected")) === "true" ||
+        currentStatusLabel.includes("Staged — Ready for Pickup");
+      if (stagedIsCurrent) {
+        await completePickupButton.click();
         await page.waitForTimeout(300);
         await page
           .getByTestId("delivery-status-pickup-name")
           .fill("Verify Script Tech");
-        await pickupInput.getByRole("button", { name: "Complete Pickup" }).click();
+        await page
+          .getByTestId("delivery-status-pickup-input")
+          .getByRole("button", { name: "Complete Pickup" })
+          .click();
         await drawer.waitFor({ state: "hidden", timeout: 20_000 });
         console.log("PASS: Drawer closed after successful Complete Pickup");
       } else {
@@ -605,9 +619,19 @@ const ASSIGN_LOCATION_CONTRAST = {
         "SKIP: Drawer close-on-success (set STAGEVERIFY_DRAWER_STATUS_CLOSE_VERIFY=1 to enable)",
       );
     }
+  } else if (completePickupCount > 0) {
+    const hint = page.getByTestId("delivery-basics-complete-pickup-hint");
+    if ((await hint.count()) === 0) {
+      throw new Error(
+        "FAIL: Complete Pickup visible+disabled should show job-link hint.",
+      );
+    }
+    console.log(
+      "PASS: Complete Pickup visible but disabled (hint shown); pickup not eligible",
+    );
   } else {
     console.log(
-      "SKIP: picked_up option not enabled on fixture delivery (no transition available)",
+      "SKIP: Complete Pickup CTA hidden (pickup not eligible via isPickupEligible)",
     );
   }
 
@@ -773,17 +797,35 @@ const ASSIGN_LOCATION_CONTRAST = {
       );
     }
     await page.waitForFunction(() => {
-      const el = document.querySelector(
-        '[data-testid="delivery-status-current-label"]',
+      const btn = document.querySelector(
+        '[data-testid="delivery-fulfillment-will_call_pickup"]',
       );
-      return el?.textContent?.includes("Will-Call / Pickup from Vendor") ?? false;
+      return btn?.getAttribute("data-selected") === "true";
     }, null, { timeout: 10_000 });
-    const willCallCtx = (
-      await page.getByTestId("delivery-status-current-label").innerText()
-    ).trim();
-    if (!willCallCtx.includes("Will-Call / Pickup from Vendor")) {
+    const willCallSelectedAfter = await page
+      .getByTestId("delivery-fulfillment-will_call_pickup")
+      .getAttribute("data-selected");
+    if (willCallSelectedAfter !== "true") {
       throw new Error(
-        `FAIL CASE D: status context should show Will-Call / Pickup from Vendor — got "${willCallCtx}".`,
+        "FAIL CASE D: Will-Call fulfillment button should be selected after switch.",
+      );
+    }
+    const willCallChip = page.getByTestId("delivery-status-will-call-chip");
+    if ((await willCallChip.count()) === 0) {
+      throw new Error(
+        "FAIL CASE D: Will-Call / Pickup pink chip should show in current status.",
+      );
+    }
+    const chipText = (await willCallChip.innerText()).trim();
+    if (!chipText.includes("Will-Call / Pickup")) {
+      throw new Error(
+        `FAIL CASE D: Will-Call chip unexpected — got "${chipText}".`,
+      );
+    }
+    const stagedAfterWillCall = page.getByTestId("delivery-status-staged-ready");
+    if ((await stagedAfterWillCall.getAttribute("data-selected")) === "true") {
+      throw new Error(
+        "FAIL CASE D: Staged must not stay selected green under Will-Call.",
       );
     }
     // Restore Vendor Drop-Off so seed fixture stays drop-off for other verifies

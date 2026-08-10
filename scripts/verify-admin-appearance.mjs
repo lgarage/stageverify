@@ -71,8 +71,8 @@ const DISPATCHER_SURFACE_ELEMENTS = [
     large: true,
   },
   {
-    name: "dispatcher delivery view",
-    selector: '[data-testid="dispatcher-delivery-view"]',
+    name: "dispatcher delivery row",
+    selector: '[data-testid^="dispatcher-delivery-row-"]',
   },
   {
     name: "dispatcher Pending filter pill",
@@ -259,8 +259,8 @@ async function assertDispatcherRouteSurfaces(page, appBase, modeLabel) {
     state: "visible",
     timeout: 15_000,
   });
-  // Delivery rows hydrate after header — wait for View before required contrast checks.
-  await page.getByTestId("dispatcher-delivery-view").first().waitFor({
+  // Delivery rows hydrate after header — wait for a row before required contrast checks.
+  await page.locator('[data-testid^="dispatcher-delivery-row-"]').first().waitFor({
     state: "visible",
     timeout: 20_000,
   });
@@ -268,7 +268,7 @@ async function assertDispatcherRouteSurfaces(page, appBase, modeLabel) {
     ...DISPATCHER_SURFACE_ELEMENTS,
   ]);
 
-  await page.getByTestId("dispatcher-delivery-view").first().click();
+  await page.locator('[data-testid^="dispatcher-delivery-row-"]').first().click();
   await page.getByTestId("delivery-detail-drawer").waitFor({
     state: "visible",
     timeout: 15_000,
