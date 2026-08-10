@@ -97,7 +97,7 @@
 
 ## Immediate Next Step
 - **Change Location LIVE (v0.0.280)** — hard-refresh → Vendor Drop-Off with staging → yellow **Change Location** → map reassign → Cancel (no write) → Confirm new spot → drawer/list/map + hard refresh; Will-Call no CTA; Assign merge unchanged. Keep Cursor job open until Dan accepts.
-- **Delivery Details 2×2 + table simplify (v0.0.281 tip)** — hard-refresh Dispatcher when 281 LIVE → confirm 2×2 Fulfillment/Status controls, row-click opens drawer.
+- **Delivery Details 2×2 + table simplify (v0.0.281 LIVE)** — hard-refresh Dispatcher → confirm 2×2 Fulfillment/Status controls, no desktop H-scroll, row-click opens drawer (MANUAL TEST in ship report). ARCHIVE Cursor job after Dan accepts.
 - **Will-Call pink category (v0.0.279 LIVE)** — regression reference: Drop-Off+G12 → Will-Call → pink category, no green Staged; reverse → STAGING LOCATION NEEDED.
 - **Delivery Details staging-needed card (v0.0.277)** — hard-refresh dispatcher → open Vendor Drop-Off with no staging → confirm STAGING LOCATION NEEDED + yellow Assign Location; Assign → Staging Map confirm; Will-Call hides card.
 - **PR #97 Invoice Review Staging Map Assign LIVE (merge `b62401eb` / PR #119 / packaged v0.0.274; served under tip **v0.0.276**) — waiting Dan manual acceptance:** Will-Call → Confirm Drop-Off → STAGING LOCATION NEEDED card → Assign Location → Staging Map → Confirm draft → reopen shows location + Change Location; hard refresh; spot not occupied pre-Approve.
