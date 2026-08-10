@@ -3,7 +3,8 @@
  *
  * Usage:
  *   npm run dev   (another terminal)
- *   npm run verify:settings-invoice-learning
+ *   node scripts/verify-settings-invoice-learning.mjs
+ *   node scripts/verify-settings-invoice-learning.mjs --base-url=https://lgarage.github.io/stageverify
  *
  * Credentials from .env.local (STAGEVERIFY_TEST_EMAIL / STAGEVERIFY_TEST_PASSWORD).
  */
