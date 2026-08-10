@@ -62,6 +62,8 @@
 
 ## NOW (Phase 5 prototype)
 
+**In flight (2026-08-10):** **D-84–D-90 receiving/readiness** — Slice 1 exception-oriented vendor Delivered qty SoT on `cursor/receiving-readiness-d84-slice1-c86f` (**v0.0.287**); CF `markVendorDelivered` / bulk + hub exception panel; **CF/rules/gh-pages deploy NOT approved**. Next slices: Unplanned→CA (D-85), auto-Ready (D-84), manual Ready (D-87).
+
 **Shipped (2026-08-09):** Settings PIN visit-scoped green **PIN # updated** row badge (right of Deactivate; clears on leave Settings; toast `New PIN saved` kept) — **v0.0.271** gh-pages FE-only; no CF/rules.
 
 **Shipped (2026-08-10):** Delivery Details 2×2 yellow Vendor Drop-Off + Staged authoritative staging (v0.0.283) — remove Current line / Delivery Details Reject / inline spot picker; Staged uses `hasActiveShopStagingAssignment` or STAGING LOCATION NEEDED map flow; Invoice Review Reject preserved; D-82 Complete Pickup warning preserved; FE-only.
