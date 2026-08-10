@@ -5,6 +5,7 @@ exports.computePhysicalDropoffComplete = computePhysicalDropoffComplete;
 exports.computeStagingAssignmentComplete = computeStagingAssignmentComplete;
 exports.computeDeliveryReadiness = computeDeliveryReadiness;
 exports.isPickupEligible = isPickupEligible;
+exports.isDispatcherPickupEligible = isDispatcherPickupEligible;
 const invoiceShellDisplayHelpers_1 = require("./invoice/invoiceShellDisplayHelpers");
 function hasOutstandingQuantities(items) {
     return items.some((item) => item.qtyReceived < item.qtyOrdered ||
@@ -173,5 +174,32 @@ function isPickupEligible(delivery, items, vendorDeliveryMode) {
         };
     }
     return { eligible: true };
+}
+/**
+ * Dispatcher manual-pickup authority — records actual pickup even when system
+ * readiness is incomplete. Does not replace {@link isPickupEligible} (token /
+ * technician paths stay readiness-gated).
+ */
+function isDispatcherPickupEligible(delivery, items, vendorDeliveryMode) {
+    const readiness = computeDeliveryReadiness(delivery, items, new Date().toISOString(), vendorDeliveryMode);
+    if (delivery.status === "picked_up" || delivery.status === "installed") {
+        return { eligible: false, reason: "already_picked_up", readiness };
+    }
+    const allowedStatuses = [
+        "pending",
+        "shipped",
+        "arrived",
+        "partial",
+        "ready_for_pickup",
+        "complete",
+    ];
+    if (!allowedStatuses.includes(delivery.status)) {
+        return {
+            eligible: false,
+            reason: "delivery_not_pickup_eligible",
+            readiness,
+        };
+    }
+    return { eligible: true, readiness };
 }
 //# sourceMappingURL=deliveryReadiness.js.map
