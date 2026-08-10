@@ -2,10 +2,14 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type {
   FieldLessonCaptureShapeId,
   FieldLessonDisabledReason,
+  FieldLessonLifecycleAction,
   InvoiceCorrectableFieldKey,
   VendorInvoiceFieldLessonListItem,
 } from "./dispatcher/models";
-import { listVendorInvoiceFieldLessons } from "./dispatcher/firestoreService";
+import {
+  listVendorInvoiceFieldLessons,
+  setVendorInvoiceFieldLessonStatus,
+} from "./dispatcher/firestoreService";
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 const NAVY = "#0a3161";
@@ -30,6 +34,48 @@ const SUSPENSION_LABELS: Record<FieldLessonDisabledReason, string> = {
   superseded_by_winning_pattern: "A stronger pattern replaced this lesson",
   manual_suspend: "Suspended for review",
   auto_false_positive: "Automatic false-positive safeguard",
+};
+
+const ACTION_LABELS: Record<FieldLessonLifecycleAction, string> = {
+  activate: "Activate",
+  reject: "Reject",
+  suspend: "Suspend",
+  reactivate: "Reactivate",
+};
+
+const ACTION_EXPLANATIONS: Record<FieldLessonLifecycleAction, string> = {
+  activate:
+    "Approve this deterministic pattern for future parser application. Parser application is not live yet.",
+  reject:
+    "Reject this proposed pattern after reviewing its evidence. Rejected lessons cannot be activated.",
+  suspend:
+    "Pause this active pattern from future parser application while it is reviewed.",
+  reactivate:
+    "Ask the server to revalidate the current evidence before restoring this lesson to Active.",
+};
+
+const primaryButtonStyle: CSSProperties = {
+  border: `1px solid ${NAVY}`,
+  borderRadius: 7,
+  padding: "9px 14px",
+  backgroundColor: NAVY,
+  color: "var(--admin-on-navy, #fff)",
+  fontFamily: FONT,
+  fontSize: 12,
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const secondaryButtonStyle: CSSProperties = {
+  border: "1px solid var(--admin-border-strong)",
+  borderRadius: 7,
+  padding: "9px 14px",
+  backgroundColor: "var(--admin-surface-2)",
+  color: TEXT,
+  fontFamily: FONT,
+  fontSize: 12,
+  fontWeight: 800,
+  cursor: "pointer",
 };
 
 const detailLabelStyle: CSSProperties = {
@@ -81,6 +127,21 @@ function isVerificationFixture(
   );
 }
 
+function statusAccent(
+  lesson: VendorInvoiceFieldLessonListItem,
+): string {
+  switch (lesson.status) {
+    case "proposed":
+      return "var(--admin-warning-text)";
+    case "active":
+      return "var(--admin-success-text)";
+    case "suspended":
+      return "var(--admin-danger-text)";
+    case "rejected":
+      return "var(--admin-text-muted)";
+  }
+}
+
 function LessonDatum({
   label,
   value,
@@ -116,31 +177,51 @@ function StatusBadge({
 }: {
   lesson: VendorInvoiceFieldLessonListItem;
 }) {
-  const suspended = lesson.status === "suspended";
+  const statusStyle = {
+    proposed: {
+      border: "var(--admin-warning-border)",
+      background: "var(--admin-warning-bg)",
+      color: "var(--admin-warning-text)",
+      label: "Proposed — awaiting Manager review",
+    },
+    active: {
+      border: "var(--admin-success-border)",
+      background: "var(--admin-success-bg)",
+      color: "var(--admin-success-text)",
+      label: "Active — approved for future parser application.",
+    },
+    suspended: {
+      border: "var(--admin-danger-border)",
+      background: "var(--admin-danger-bg)",
+      color: "var(--admin-danger-text)",
+      label: "Suspended",
+    },
+    rejected: {
+      border: "var(--admin-border-strong)",
+      background: "var(--admin-surface-3)",
+      color: TEXT,
+      label: "Rejected",
+    },
+  }[lesson.status];
+
   return (
     <span
+      data-testid="invoice-learning-status"
+      data-status={lesson.status}
       style={{
         display: "inline-flex",
         alignItems: "center",
         padding: "4px 9px",
         borderRadius: 999,
-        border: `1px solid ${
-          suspended
-            ? "var(--admin-danger-border)"
-            : "var(--admin-warning-border)"
-        }`,
-        backgroundColor: suspended
-          ? "var(--admin-danger-bg)"
-          : "var(--admin-warning-bg)",
-        color: suspended
-          ? "var(--admin-danger-text)"
-          : "var(--admin-warning-text)",
+        border: `1px solid ${statusStyle.border}`,
+        backgroundColor: statusStyle.background,
+        color: statusStyle.color,
         fontSize: 11,
         fontWeight: 800,
         lineHeight: 1.3,
       }}
     >
-      {suspended ? "Suspended" : "Proposed — awaiting Manager review capability"}
+      {statusStyle.label}
     </span>
   );
 }
@@ -195,11 +276,56 @@ function CountCard({
 function LessonDetail({
   lesson,
   onClose,
+  onAction,
 }: {
   lesson: VendorInvoiceFieldLessonListItem;
   onClose: () => void;
+  onAction: (
+    action: FieldLessonLifecycleAction,
+    note?: string,
+  ) => Promise<void>;
 }) {
   const captureShape = lesson.extractionPattern.captureShapeId;
+  const [pendingAction, setPendingAction] =
+    useState<FieldLessonLifecycleAction | null>(null);
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const hasContradiction =
+    lesson.disabledReason === "contradictory_evidence";
+
+  useEffect(() => {
+    setPendingAction(null);
+    setNote("");
+    setSubmitting(false);
+    setActionError(null);
+  }, [lesson.id, lesson.status, lesson.version]);
+
+  const beginAction = (action: FieldLessonLifecycleAction) => {
+    setPendingAction(action);
+    setNote("");
+    setActionError(null);
+  };
+
+  const confirmAction = async () => {
+    if (!pendingAction || submitting) return;
+    setSubmitting(true);
+    setActionError(null);
+    try {
+      await onAction(pendingAction, note.trim() || undefined);
+      setSubmitting(false);
+      setPendingAction(null);
+      setNote("");
+    } catch (err: unknown) {
+      setActionError(
+        err instanceof Error
+          ? err.message
+          : "The lesson status could not be updated.",
+      );
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div
       role="presentation"
@@ -218,6 +344,7 @@ function LessonDetail({
         aria-modal="true"
         aria-labelledby="invoice-learning-detail-title"
         data-testid="invoice-learning-detail"
+        data-status={lesson.status}
         style={{
           width: "min(760px, 100%)",
           maxHeight: "min(88vh, 900px)",
@@ -377,10 +504,48 @@ function LessonDetail({
                 label="Suspension reason"
                 value={friendlySuspensionReason(lesson.disabledReason)}
                 secondary={
-                  lesson.suspendedAt
-                    ? `Suspended ${formatDate(lesson.suspendedAt)}`
-                    : undefined
+                  lesson.disabledReason === "manual_suspend"
+                    ? `Manager · ${lesson.suspendedBy || "actor unavailable"} · ${formatDate(
+                        lesson.suspendedAt,
+                      )}`
+                    : `System · ${formatDate(lesson.suspendedAt)}`
                 }
+              />
+            )}
+            {lesson.status === "active" && (
+              <>
+                <LessonDatum
+                  label="Activated"
+                  value={formatDate(lesson.activatedAt)}
+                  secondary={`Manager · ${lesson.activatedBy || "actor unavailable"}`}
+                />
+                {lesson.reactivatedAt && (
+                  <LessonDatum
+                    label="Last reactivated"
+                    value={formatDate(lesson.reactivatedAt)}
+                    secondary={`Manager · ${lesson.reactivatedBy || "actor unavailable"}`}
+                  />
+                )}
+              </>
+            )}
+            {lesson.status === "rejected" && (
+              <>
+                <LessonDatum
+                  label="Rejected"
+                  value={formatDate(lesson.rejectedAt)}
+                  secondary={`Manager · ${lesson.rejectedBy || "actor unavailable"}`}
+                />
+                <LessonDatum
+                  label="Rejection reason"
+                  value={lesson.rejectionNote || "Reason not provided"}
+                />
+              </>
+            )}
+            {lesson.lastRevalidation && (
+              <LessonDatum
+                label="Last evidence revalidation"
+                value={formatDate(lesson.lastRevalidation.at)}
+                secondary={`${lesson.lastRevalidation.confirmedDistinctDocumentCount} documents confirmed · ${lesson.lastRevalidation.droppedVoteCount} dropped`}
               />
             )}
           </div>
@@ -472,6 +637,238 @@ function LessonDetail({
               ))}
             </div>
           </section>
+
+          <section
+            data-testid="invoice-learning-lifecycle"
+            style={{
+              marginTop: 22,
+              paddingTop: 18,
+              borderTop: "1px solid var(--admin-border)",
+            }}
+          >
+            <h4
+              style={{
+                margin: "0 0 5px",
+                color: TEXT,
+                fontSize: 15,
+              }}
+            >
+              Manager decision
+            </h4>
+            <p
+              style={{
+                margin: "0 0 13px",
+                color: SECONDARY,
+                fontSize: 12,
+                lineHeight: 1.5,
+              }}
+            >
+              Actions are available here only after the supporting evidence has
+              been reviewed.
+            </p>
+
+            {hasContradiction && (
+              <div
+                role="alert"
+                data-testid="invoice-learning-conflict"
+                style={{
+                  marginBottom: 13,
+                  padding: "11px 12px",
+                  border: "1px solid var(--admin-danger-border)",
+                  borderRadius: 8,
+                  backgroundColor: "var(--admin-danger-bg)",
+                  color: "var(--admin-danger-text)",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  lineHeight: 1.45,
+                }}
+              >
+                Conflicting evidence detected. Activation is unavailable while
+                the contradiction remains.
+              </div>
+            )}
+
+            {!pendingAction && (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: 9,
+                }}
+              >
+                {lesson.status === "proposed" && !hasContradiction && (
+                  <button
+                    type="button"
+                    onClick={() => beginAction("activate")}
+                    style={primaryButtonStyle}
+                  >
+                    Activate
+                  </button>
+                )}
+                {lesson.status === "proposed" && (
+                  <button
+                    type="button"
+                    onClick={() => beginAction("reject")}
+                    style={secondaryButtonStyle}
+                  >
+                    Reject
+                  </button>
+                )}
+                {lesson.status === "active" && (
+                  <button
+                    type="button"
+                    onClick={() => beginAction("suspend")}
+                    style={secondaryButtonStyle}
+                  >
+                    Suspend
+                  </button>
+                )}
+                {lesson.status === "suspended" && (
+                  <button
+                    type="button"
+                    onClick={() => beginAction("reactivate")}
+                    style={primaryButtonStyle}
+                  >
+                    Reactivate
+                  </button>
+                )}
+                {lesson.status === "rejected" && (
+                  <p
+                    style={{
+                      margin: 0,
+                      color: MUTED,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    Rejected lessons are retained for audit and cannot be
+                    activated.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {pendingAction && (
+              <div
+                data-testid="invoice-learning-action-confirm"
+                style={{
+                  padding: 14,
+                  border: "1px solid var(--admin-border-strong)",
+                  borderRadius: 9,
+                  backgroundColor: "var(--admin-surface-2)",
+                }}
+              >
+                <h5
+                  style={{
+                    margin: "0 0 5px",
+                    color: TEXT,
+                    fontSize: 14,
+                  }}
+                >
+                  Confirm {ACTION_LABELS[pendingAction]}
+                </h5>
+                <p
+                  style={{
+                    margin: "0 0 12px",
+                    color: SECONDARY,
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {ACTION_EXPLANATIONS[pendingAction]}
+                </p>
+
+                {(pendingAction === "reject" ||
+                  pendingAction === "suspend") && (
+                  <label
+                    style={{
+                      display: "grid",
+                      gap: 6,
+                      marginBottom: 12,
+                      color: TEXT,
+                      fontSize: 12,
+                      fontWeight: 800,
+                    }}
+                  >
+                    Reason (recommended)
+                    <textarea
+                      value={note}
+                      onChange={(event) => setNote(event.target.value)}
+                      rows={3}
+                      maxLength={500}
+                      placeholder={
+                        pendingAction === "reject"
+                          ? "Why should this proposed pattern be rejected?"
+                          : "Why is this active pattern being suspended?"
+                      }
+                      style={{
+                        boxSizing: "border-box",
+                        width: "100%",
+                        resize: "vertical",
+                        border: "1px solid var(--admin-border-strong)",
+                        borderRadius: 7,
+                        padding: "9px 10px",
+                        backgroundColor: "var(--admin-surface)",
+                        color: TEXT,
+                        fontFamily: FONT,
+                        fontSize: 13,
+                        lineHeight: 1.45,
+                      }}
+                    />
+                  </label>
+                )}
+
+                {actionError && (
+                  <p
+                    role="alert"
+                    style={{
+                      margin: "0 0 10px",
+                      color: "var(--admin-danger-text)",
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {actionError}
+                  </p>
+                )}
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => void confirmAction()}
+                    style={{
+                      ...primaryButtonStyle,
+                      cursor: submitting ? "wait" : "pointer",
+                      opacity: submitting ? 0.68 : 1,
+                    }}
+                  >
+                    {submitting
+                      ? "Saving…"
+                      : `Confirm ${ACTION_LABELS[pendingAction]}`}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => {
+                      setPendingAction(null);
+                      setNote("");
+                      setActionError(null);
+                    }}
+                    style={{
+                      ...secondaryButtonStyle,
+                      cursor: submitting ? "not-allowed" : "pointer",
+                      opacity: submitting ? 0.68 : 1,
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
         </div>
       </section>
     </div>
@@ -524,7 +921,13 @@ export function InvoiceFieldLessonsSettingsPanel({
     () =>
       [...lessons].sort((left, right) => {
         if (left.status !== right.status) {
-          return left.status === "proposed" ? -1 : 1;
+          const statusOrder = {
+            proposed: 0,
+            active: 1,
+            suspended: 2,
+            rejected: 3,
+          };
+          return statusOrder[left.status] - statusOrder[right.status];
         }
         return Date.parse(right.proposedAt) - Date.parse(left.proposedAt);
       }),
@@ -536,6 +939,42 @@ export function InvoiceFieldLessonsSettingsPanel({
   const suspendedCount = lessons.filter(
     (lesson) => lesson.status === "suspended",
   ).length;
+  const activeCount = lessons.filter(
+    (lesson) => lesson.status === "active",
+  ).length;
+  const rejectedCount = lessons.filter(
+    (lesson) => lesson.status === "rejected",
+  ).length;
+
+  const handleLessonAction = async (
+    action: FieldLessonLifecycleAction,
+    note?: string,
+  ) => {
+    if (!selectedLesson) return;
+    const lessonAtMutation = selectedLesson;
+    const result = await setVendorInvoiceFieldLessonStatus({
+      lessonId: lessonAtMutation.id,
+      action,
+      expectedVersion: lessonAtMutation.version,
+      idempotencyKey: `${lessonAtMutation.id}:${action}:${lessonAtMutation.version}`,
+      ...(note ? { note } : {}),
+    });
+
+    let nextLessons = lessons.map((lesson) =>
+      lesson.id === result.lessonId
+        ? { ...lesson, status: result.status, version: result.version }
+        : lesson,
+    );
+    try {
+      nextLessons = await listVendorInvoiceFieldLessons();
+    } catch {
+      // Mutation result remains authoritative if the follow-up list refresh is unavailable.
+    }
+    setLessons(nextLessons);
+    setSelectedLesson(
+      nextLessons.find((lesson) => lesson.id === result.lessonId) ?? null,
+    );
+  };
 
   return (
     <div
@@ -556,8 +995,8 @@ export function InvoiceFieldLessonsSettingsPanel({
           lineHeight: 1.55,
         }}
       >
-        StageVerify is identifying repeatable invoice extraction patterns from
-        verified invoice evidence. These lessons do not affect invoice parsing yet.
+        These are deterministic extraction patterns StageVerify has learned from
+        verified invoice evidence. Parser application is not live yet.
       </p>
 
       {!canView ? (
@@ -578,7 +1017,7 @@ export function InvoiceFieldLessonsSettingsPanel({
         <>
           <div
             data-testid="invoice-learning-summary"
-            aria-label={`Proposed ${proposedCount}, Suspended ${suspendedCount}, Active 0`}
+            aria-label={`Proposed ${proposedCount}, Active ${activeCount}, Suspended ${suspendedCount}, Rejected ${rejectedCount}`}
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
@@ -593,15 +1032,21 @@ export function InvoiceFieldLessonsSettingsPanel({
               accent="var(--admin-warning-text)"
             />
             <CountCard
+              label="Active"
+              count={activeCount}
+              testId="invoice-learning-active-count"
+              accent="var(--admin-success-text)"
+            />
+            <CountCard
               label="Suspended"
               count={suspendedCount}
               testId="invoice-learning-suspended-count"
               accent="var(--admin-danger-text)"
             />
             <CountCard
-              label="Active"
-              count={0}
-              testId="invoice-learning-active-count"
+              label="Rejected"
+              count={rejectedCount}
+              testId="invoice-learning-rejected-count"
               accent={NAVY}
             />
           </div>
@@ -678,6 +1123,7 @@ export function InvoiceFieldLessonsSettingsPanel({
                     tabIndex={0}
                     aria-label={`View ${FIELD_LABELS[lesson.field]} invoice lesson`}
                     data-testid={`invoice-learning-lesson-${lesson.id}`}
+                    data-status={lesson.status}
                     onClick={() => setSelectedLesson(lesson)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
@@ -690,11 +1136,7 @@ export function InvoiceFieldLessonsSettingsPanel({
                       boxSizing: "border-box",
                       padding: 15,
                       border: "1px solid var(--admin-border)",
-                      borderLeft: `4px solid ${
-                        lesson.status === "suspended"
-                          ? "var(--admin-danger-text)"
-                          : "var(--admin-warning-text)"
-                      }`,
+                      borderLeft: `4px solid ${statusAccent(lesson)}`,
                       borderRadius: 9,
                       backgroundColor: "var(--admin-surface-2)",
                       color: TEXT,
@@ -817,6 +1259,7 @@ export function InvoiceFieldLessonsSettingsPanel({
         <LessonDetail
           lesson={selectedLesson}
           onClose={() => setSelectedLesson(null)}
+          onAction={handleLessonAction}
         />
       )}
     </div>
