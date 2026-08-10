@@ -247,7 +247,8 @@
     "prepare": "node scripts/install-git-hooks.mjs",
     "verifier:log": "node scripts/verifier-log.mjs",
     "verifier:stats": "node scripts/verifier-log.mjs --stats",
-    "test:remove-dispatcher": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-remove-dispatcher.mjs\""
+    "test:remove-dispatcher": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-remove-dispatcher.mjs\"",
+    "verify:c3d1:prod": "node scripts/verify-c3d1-prod-deploy.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
