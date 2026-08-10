@@ -31,3 +31,28 @@ export function buildInvoiceApproveToastMessage(
 }
 
 export const INVOICE_APPROVE_FLOW_STORAGE_KEY = "stageverify-invoice-approve-flow";
+
+/** Carry Drop-Off map-confirm success toast across navigate → Dispatcher. */
+export const INVOICE_APPROVE_SUCCESS_TOAST_KEY =
+  "stageverify-invoice-approve-success-toast";
+
+export function stashInvoiceApproveSuccessToast(message: string): void {
+  const trimmed = message.trim();
+  if (!trimmed) return;
+  try {
+    sessionStorage.setItem(INVOICE_APPROVE_SUCCESS_TOAST_KEY, trimmed);
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+export function consumeInvoiceApproveSuccessToast(): string | null {
+  try {
+    const value = sessionStorage.getItem(INVOICE_APPROVE_SUCCESS_TOAST_KEY);
+    sessionStorage.removeItem(INVOICE_APPROVE_SUCCESS_TOAST_KEY);
+    const trimmed = value?.trim() ?? "";
+    return trimmed || null;
+  } catch {
+    return null;
+  }
+}

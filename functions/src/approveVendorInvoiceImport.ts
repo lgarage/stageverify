@@ -918,7 +918,11 @@ export const approveVendorInvoiceImport = onCall(
       const fresh = freshImport.data() as VendorInvoiceImportDoc;
       assertDeliveryAllowedForImport(fresh);
       if (fresh.reviewStatus === "approved") {
-        const replayDelivery = await tx.get(deliveryRef);
+        const linkedId = fresh.linkedDeliveryOrderId?.trim() ?? "";
+        const linkedRef = linkedId
+          ? getDb().collection("deliveries").doc(linkedId)
+          : deliveryRef;
+        const replayDelivery = await tx.get(linkedRef);
         idempotentReplayResult = resolveApproveIdempotentReplay({
           importId,
           importDoc: fresh,

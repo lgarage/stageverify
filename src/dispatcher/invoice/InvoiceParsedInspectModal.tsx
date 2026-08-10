@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { useAdminAppearance } from "../../adminAppearance";
 import type {
@@ -175,6 +181,7 @@ export function InvoiceParsedInspectModal({
   const [selectedStagingIds, setSelectedStagingIds] = useState<string[]>([]);
   const [approveWizardPhase, setApproveWizardPhase] =
     useState<ApproveWizardPhase>("idle");
+  const approveWizardHeadingRef = useRef<HTMLParagraphElement | null>(null);
   const liveZones = useLiveZoneOccupancy(true);
   const [toast, setToast] = useState<string | null>(null);
   const [saveLessonLoading, setSaveLessonLoading] = useState(false);
@@ -524,6 +531,11 @@ export function InvoiceParsedInspectModal({
       setSelectedStagingIds([]);
     }
   }, [stagingSkipped, importRow.id]);
+
+  useEffect(() => {
+    if (approveWizardPhase === "idle") return;
+    approveWizardHeadingRef.current?.focus();
+  }, [approveWizardPhase]);
 
   const selectedStagingCodes = useMemo(() => {
     const byId = new Map(liveZones.zones.map((z) => [z.id, z]));
@@ -1486,6 +1498,8 @@ export function InvoiceParsedInspectModal({
               {approveWizardPhase === "fulfillment_choice" && (
                 <div
                   data-testid="invoice-approve-fulfillment-choice"
+                  role="group"
+                  aria-labelledby="invoice-approve-fulfillment-heading"
                   style={{
                     width: "100%",
                     display: "flex",
@@ -1494,6 +1508,9 @@ export function InvoiceParsedInspectModal({
                   }}
                 >
                   <p
+                    ref={approveWizardHeadingRef}
+                    id="invoice-approve-fulfillment-heading"
+                    tabIndex={-1}
                     style={{
                       margin: 0,
                       fontSize: 14,
@@ -1502,6 +1519,7 @@ export function InvoiceParsedInspectModal({
                       textTransform: "uppercase",
                       color: "var(--admin-text-label)",
                       fontFamily: FONT,
+                      outline: "none",
                     }}
                   >
                     How will this order be fulfilled?
@@ -1575,6 +1593,8 @@ export function InvoiceParsedInspectModal({
 
               {approveWizardPhase === "dropoff_staging" && (
                 <div
+                  role="group"
+                  aria-labelledby="invoice-approve-dropoff-heading"
                   style={{
                     width: "100%",
                     display: "flex",
@@ -1582,6 +1602,23 @@ export function InvoiceParsedInspectModal({
                     gap: 12,
                   }}
                 >
+                  <p
+                    ref={approveWizardHeadingRef}
+                    id="invoice-approve-dropoff-heading"
+                    tabIndex={-1}
+                    style={{
+                      margin: 0,
+                      fontSize: 13,
+                      fontWeight: 800,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      color: "var(--admin-text-label)",
+                      fontFamily: FONT,
+                      outline: "none",
+                    }}
+                  >
+                    Vendor Drop-Off — assign staging
+                  </p>
                   <StagingLocationBanner
                     font={FONT}
                     testIdPrefix="invoice-parsed-inspect-staging"
@@ -1596,7 +1633,7 @@ export function InvoiceParsedInspectModal({
                       onClick={() => setApproveWizardPhase("fulfillment_choice")}
                       style={{ ...HEADER_BTN }}
                     >
-                      Cancel
+                      Back
                     </button>
                   </div>
                 </div>
@@ -1604,14 +1641,50 @@ export function InvoiceParsedInspectModal({
 
               {approveWizardPhase === "willcall_confirm" && (
                 <div
+                  role="group"
+                  aria-labelledby="invoice-approve-willcall-heading"
                   style={{
                     width: "100%",
                     display: "flex",
                     flexDirection: "column",
                     gap: 12,
                     alignItems: "stretch",
+                    borderRadius: 8,
+                    border: "2px solid var(--admin-willcall-border)",
+                    backgroundColor: "var(--admin-willcall-bg)",
+                    padding: "14px 16px",
                   }}
                 >
+                  <p
+                    ref={approveWizardHeadingRef}
+                    id="invoice-approve-willcall-heading"
+                    tabIndex={-1}
+                    style={{
+                      margin: 0,
+                      fontSize: 13,
+                      fontWeight: 800,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      color: "var(--admin-willcall-text)",
+                      fontFamily: FONT,
+                      outline: "none",
+                    }}
+                  >
+                    Will-Call / Pickup
+                  </p>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 14,
+                      fontWeight: 500,
+                      color: "var(--admin-willcall-text)",
+                      fontFamily: FONT,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    Material will remain at the vendor for technician pickup. No
+                    shop staging required. Confirm to approve this invoice.
+                  </p>
                   <button
                     type="button"
                     data-testid="invoice-approve-willcall-confirm"
@@ -1619,20 +1692,20 @@ export function InvoiceParsedInspectModal({
                     onClick={() => void handleWillCallConfirm()}
                     style={{
                       width: "100%",
-                      minHeight: 72,
-                      padding: "16px 20px",
+                      minHeight: 56,
+                      padding: "14px 18px",
                       borderRadius: 8,
                       border: "2px solid var(--admin-willcall-border)",
-                      backgroundColor: "var(--admin-willcall-bg)",
-                      color: "var(--admin-willcall-text)",
-                      fontSize: 16,
+                      backgroundColor: "var(--admin-willcall-text)",
+                      color: "var(--admin-willcall-bg)",
+                      fontSize: 15,
                       fontWeight: 800,
                       cursor: actionLoading ? "not-allowed" : "pointer",
                       fontFamily: FONT,
                       opacity: actionLoading ? 0.55 : 1,
                     }}
                   >
-                    Will-Call / Pickup
+                    Confirm Will-Call &amp; Approve
                   </button>
                   <div style={{ display: "flex", justifyContent: "flex-end" }}>
                     <button
@@ -1642,7 +1715,7 @@ export function InvoiceParsedInspectModal({
                       onClick={() => setApproveWizardPhase("fulfillment_choice")}
                       style={{ ...HEADER_BTN }}
                     >
-                      Cancel
+                      Back
                     </button>
                   </div>
                 </div>

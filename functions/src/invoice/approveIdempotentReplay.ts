@@ -3,7 +3,10 @@
  */
 import { HttpsError } from "firebase-functions/v2/https";
 import type { VendorInvoiceImportDoc } from "../inboundEmail/types";
-import { isInvoiceShellNoShopStaging } from "./invoiceShellDisplayHelpers";
+import {
+  isInvoiceShellNoShopStaging,
+  skipsShopStaging,
+} from "./invoiceShellDisplayHelpers";
 import { shellDeliveryIdForImport } from "./createDeliveryShellFromImport";
 
 export type ApproveFulfillmentDecision = "delivery" | "will_call_pickup";
@@ -54,12 +57,17 @@ function livePlannedIds(live: Record<string, unknown>): string[] {
 function replayStagingSkipped(
   importDoc: VendorInvoiceImportDoc,
   live: Record<string, unknown>,
+  fulfillmentDecision?: ApproveFulfillmentDecision,
 ): boolean {
+  // First-approve Will-Call ignores client staging even for matched non-shell
+  // deliveries; replay must not require empty plannedStagingLocationIds match.
+  if (fulfillmentDecision === "will_call_pickup") return true;
+
   const fulfillment =
     typeof live.invoiceFulfillmentMethod === "string"
       ? live.invoiceFulfillmentMethod
       : undefined;
-  return isInvoiceShellNoShopStaging({
+  const fields = {
     createdFromInvoiceImport: live.createdFromInvoiceImport === true,
     invoiceImportStatus:
       typeof live.invoiceImportStatus === "string"
@@ -71,7 +79,8 @@ function replayStagingSkipped(
       | "unknown"
       | undefined,
     invoiceDeliverToSite: live.invoiceDeliverToSite === true,
-  });
+  };
+  return isInvoiceShellNoShopStaging(fields) || skipsShopStaging(fields);
 }
 
 /**
@@ -123,7 +132,11 @@ export function resolveApproveIdempotentReplay(
     );
   }
 
-  const stagingSkipped = replayStagingSkipped(input.importDoc, live);
+  const stagingSkipped = replayStagingSkipped(
+    input.importDoc,
+    live,
+    input.fulfillmentDecision,
+  );
   if (!stagingSkipped && input.requestedPlannedIds.length > 0) {
     const requested = plannedSet(input.requestedPlannedIds);
     const liveSet = plannedSet(livePlannedIds(live));

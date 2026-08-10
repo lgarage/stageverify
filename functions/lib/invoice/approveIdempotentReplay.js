@@ -24,18 +24,23 @@ function livePlannedIds(live) {
         return [];
     return live.plannedStagingLocationIds.filter((id) => typeof id === "string" && id.trim().length > 0);
 }
-function replayStagingSkipped(importDoc, live) {
+function replayStagingSkipped(importDoc, live, fulfillmentDecision) {
+    // First-approve Will-Call ignores client staging even for matched non-shell
+    // deliveries; replay must not require empty plannedStagingLocationIds match.
+    if (fulfillmentDecision === "will_call_pickup")
+        return true;
     const fulfillment = typeof live.invoiceFulfillmentMethod === "string"
         ? live.invoiceFulfillmentMethod
         : undefined;
-    return (0, invoiceShellDisplayHelpers_1.isInvoiceShellNoShopStaging)({
+    const fields = {
         createdFromInvoiceImport: live.createdFromInvoiceImport === true,
         invoiceImportStatus: typeof live.invoiceImportStatus === "string"
             ? live.invoiceImportStatus
             : importDoc.importStatus,
         invoiceFulfillmentMethod: fulfillment,
         invoiceDeliverToSite: live.invoiceDeliverToSite === true,
-    });
+    };
+    return (0, invoiceShellDisplayHelpers_1.isInvoiceShellNoShopStaging)(fields) || (0, invoiceShellDisplayHelpers_1.skipsShopStaging)(fields);
 }
 /**
  * When reviewStatus is already approved, validate retry params and return replay
@@ -64,7 +69,7 @@ function resolveApproveIdempotentReplay(input) {
         liveFulfillment !== input.fulfillmentDecision) {
         throw new https_1.HttpsError("failed-precondition", "Import was already approved with a different fulfillment decision — reload and retry.");
     }
-    const stagingSkipped = replayStagingSkipped(input.importDoc, live);
+    const stagingSkipped = replayStagingSkipped(input.importDoc, live, input.fulfillmentDecision);
     if (!stagingSkipped && input.requestedPlannedIds.length > 0) {
         const requested = plannedSet(input.requestedPlannedIds);
         const liveSet = plannedSet(livePlannedIds(live));

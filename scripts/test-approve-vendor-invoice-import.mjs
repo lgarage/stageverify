@@ -1500,6 +1500,14 @@ const dropOffHeader = {
   vendorOrderNumber: "DROP-STG-1",
 };
 
+const willCallHeader = {
+  ...header,
+  fulfillmentMethod: "will_call_pickup",
+  customerPoOrReference: "WILL CALL STAGING",
+  vendorInvoiceNumber: "WILL-STG-1",
+  vendorOrderNumber: "WILL-STG-1",
+};
+
 /** Seed staging locations scoped to a scenario prefix to avoid cross-scenario occupancy. */
 async function seedScenarioStagingLocations(adminDb, prefix, codes) {
   for (const code of codes) {
@@ -2258,6 +2266,61 @@ if (
     actual: matchedWillActual,
     combo: matchedWillCombo,
     releases: willSnap.data()?.plannedLocationReleases,
+  });
+}
+
+// Matched non-shell Will-Call: first approve ignores client staging; retry with
+// same staging ids must still idempotentReplay (not staging-mismatch fail).
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await seedScenarioStagingLocations(adminDb, "idempotent-matched-wc", ["mw1"]);
+  await seedHighConfidenceMatchCase(adminDb, {
+    importId: "vii-idempotent-matched-wc",
+    orderNumber: "MATCH-WC-IDEM",
+    poNumber: "PO-IDEM-WC",
+    fulfillmentMethod: "will_call_pickup",
+    importStatus: "pickup_at_vendor",
+    deliveryExtras: {
+      plannedStagingLocationIds: ["staging-idempotent-matched-wc-mw1"],
+      stagingLocationId: "staging-idempotent-matched-wc-mw1",
+      status: "arrived",
+      notes: "Matched Will-Call idempotent",
+    },
+  });
+});
+let matchedWcFirst;
+try {
+  matchedWcFirst = await approveImport({
+    vendorInvoiceImportId: "vii-idempotent-matched-wc",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+    plannedStagingLocationIds: ["staging-idempotent-matched-wc-mw1"],
+  });
+} catch (err) {
+  fail("matched will-call first approve failed", err?.message);
+}
+let matchedWcSecond;
+try {
+  matchedWcSecond = await approveImport({
+    vendorInvoiceImportId: "vii-idempotent-matched-wc",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+    plannedStagingLocationIds: ["staging-idempotent-matched-wc-mw1"],
+  });
+} catch (err) {
+  fail("matched will-call idempotent retry failed", err?.message);
+}
+const matchedWcDeliveryId = "delivery-for-vii-idempotent-matched-wc";
+if (
+  matchedWcFirst?.data?.deliveryMatched === true &&
+  matchedWcSecond?.data?.idempotentReplay === true &&
+  matchedWcSecond?.data?.deliveryOrderId === matchedWcDeliveryId
+) {
+  pass("matched will-call + staging ids idempotent retry succeeds");
+} else {
+  fail("matched will-call idempotent", {
+    first: matchedWcFirst?.data,
+    second: matchedWcSecond?.data,
   });
 }
 

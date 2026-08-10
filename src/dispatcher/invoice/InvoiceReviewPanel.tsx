@@ -35,6 +35,7 @@ import {
 } from "./creditReturnSkip";
 import {
   buildInvoiceApproveToastMessage,
+  consumeInvoiceApproveSuccessToast,
   INVOICE_APPROVE_FLOW_STORAGE_KEY,
 } from "./invoiceApproveToast";
 import type { InvoiceApproveOptions } from "./invoiceApproveToast";
@@ -345,6 +346,11 @@ export function InvoiceReviewPanel({
     } catch {
       sessionStorage.removeItem(INVOICE_DRAFT_STAGING_STORAGE_KEY);
     }
+  }, []);
+
+  useEffect(() => {
+    const toast = consumeInvoiceApproveSuccessToast();
+    if (toast) setSuccessMessage(toast);
   }, []);
 
   useEffect(() => {

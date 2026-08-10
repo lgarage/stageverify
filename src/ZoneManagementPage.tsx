@@ -33,6 +33,7 @@ import {
 import {
   buildInvoiceApproveToastMessage,
   INVOICE_APPROVE_FLOW_STORAGE_KEY,
+  stashInvoiceApproveSuccessToast,
 } from "./dispatcher/invoice/invoiceApproveToast";
 import { resolveDeliveryPoNumber } from "./dispatcher/invoice/invoiceShellDisplayHelpers";
 import { readInvoiceHeaderField } from "./dispatcher/invoice/invoiceReviewHeaderHelpers";
@@ -1176,7 +1177,7 @@ export function ZoneManagementPage() {
               : {}),
           });
           sessionStorage.removeItem(INVOICE_APPROVE_FLOW_STORAGE_KEY);
-          showAssignToast(
+          stashInvoiceApproveSuccessToast(
             buildInvoiceApproveToastMessage(result, "delivery"),
           );
           setPendingAssignSpot(null);
@@ -1640,7 +1641,7 @@ export function ZoneManagementPage() {
                         borderRadius: 6,
                         border: "none",
                         backgroundColor: assignSaving ? "#fdba74" : "#ea580c",
-                        color: "var(--admin-on-navy)",
+                        color: "#1c1917",
                         fontWeight: 800,
                         fontSize: 14,
                         cursor: assignSaving ? "not-allowed" : "pointer",
