@@ -248,12 +248,12 @@ function assertOfflineStagingActionRules() {
     zeroReceivedItems,
   );
   record(
-    "offline — fulfillment-only will_call_pickup status is workflow-derived",
+    "offline — fulfillment-only will_call_pickup primary category is Will-Call / Pickup",
     deliveryReadinessDisplayLabel(
       fulfillmentOnlyWillCall,
       fulfillmentReadiness,
       zeroReceivedItems,
-    ) === "Assigned / Planned",
+    ) === "Will-Call / Pickup",
   );
   record(
     "offline — exact will-call fulfillment table label",
@@ -461,7 +461,8 @@ async function assertStagingLocationCard(page, record, label, expectAssigned) {
   if (expectAssigned) {
     record(
       `${label} — assigned staging shown in Delivery Basics`,
-      (await page.getByTestId("delivery-basics-staging-unassigned").count()) === 0,
+      (await page.getByTestId("delivery-basics-staging-unassigned").count()) === 0 &&
+        (await page.getByTestId("delivery-basics-staging-unresolved").count()) === 0,
     );
     const basicsText = (await basicsStaging.innerText()).trim();
     record(
@@ -470,9 +471,20 @@ async function assertStagingLocationCard(page, record, label, expectAssigned) {
       basicsText.slice(0, 80),
     );
   } else {
+    const unassignedCount = await page
+      .getByTestId("delivery-basics-staging-unassigned")
+      .count();
+    const unresolvedCount = await page
+      .getByTestId("delivery-basics-staging-unresolved")
+      .count();
     record(
       `${label} — unassigned staging in Delivery Basics`,
-      (await page.getByTestId("delivery-basics-staging-unassigned").count()) > 0,
+      unassignedCount > 0 || unresolvedCount > 0,
+      unassignedCount > 0
+        ? "Not Assigned"
+        : unresolvedCount > 0
+          ? "Staging location missing"
+          : "neither",
     );
   }
 }
@@ -575,17 +587,30 @@ async function assertDeliveryBasicsStaging(page, record, label, expectUnassigned
       (await heading.innerText()).trim().toUpperCase() === "STAGING LOCATIONS",
   );
   const unassigned = page.getByTestId("delivery-basics-staging-unassigned");
+  const unresolved = page.getByTestId("delivery-basics-staging-unresolved");
   if (expectUnassigned) {
+    const unassignedOk =
+      (await unassigned.count()) > 0 &&
+      (await unassigned.innerText()).trim() === "Not Assigned";
+    const unresolvedOk =
+      (await unresolved.count()) > 0 &&
+      /Staging location missing/i.test((await unresolved.innerText()).trim());
     record(
       `${label} — Delivery Basics shows Staging Locations: Not Assigned`,
-      (await unassigned.count()) > 0 &&
-        (await unassigned.innerText()).trim() === "Not Assigned",
+      unassignedOk || unresolvedOk,
+      unassignedOk
+        ? "Not Assigned"
+        : unresolvedOk
+          ? (await unresolved.innerText()).trim()
+          : "neither Not Assigned nor unresolved missing",
     );
   } else {
     const chips = page.locator('[data-testid^="delivery-basics-staging-chip-"]');
     record(
       `${label} — Delivery Basics shows map-style staging chips`,
-      (await unassigned.count()) === 0 && (await chips.count()) > 0,
+      (await unassigned.count()) === 0 &&
+        (await unresolved.count()) === 0 &&
+        (await chips.count()) > 0,
     );
   }
 }
@@ -665,6 +690,10 @@ async function assertStagingActionRowsMatchStagingColumn(page, record) {
       !hasOrangeRowClass,
       hasOrangeRowClass ? "unexpected orange row" : "normal row",
     );
+    const stagingNeeded = stagingCell.locator(
+      '[data-testid^="delivery-list-staging-needed-"]',
+    );
+    const hasStagingNeeded = (await stagingNeeded.count()) > 0;
     if (hasStagingNa) {
       record(
         `${orderNumber} — Will-Call staging Loc. shows quiet empty marker`,
@@ -678,14 +707,22 @@ async function assertStagingActionRowsMatchStagingColumn(page, record) {
       );
       continue;
     }
-    if (stagingUnassigned) {
+    if (stagingUnassigned || hasStagingNeeded) {
       const pill = row.locator(`[data-testid^="staging-assignment-pill-"]`);
       const pillCount = await pill.count();
-      record(
-        `${orderNumber} — unassigned staging shows quiet empty marker`,
-        (await stagingUnassignedMarker.innerText()).trim() === "—",
-        "—",
-      );
+      if (hasStagingNeeded) {
+        record(
+          `${orderNumber} — unassigned staging shows Needs staging pill`,
+          /Needs staging/i.test((await stagingNeeded.innerText()).trim()),
+          (await stagingNeeded.innerText()).trim(),
+        );
+      } else {
+        record(
+          `${orderNumber} — unassigned staging shows quiet empty marker`,
+          (await stagingUnassignedMarker.innerText()).trim() === "—",
+          "—",
+        );
+      }
       record(
         `${orderNumber} — staging assignment red pill when action required`,
         pillCount === 0 || (await pill.innerText()).includes("Staging spot"),
@@ -733,6 +770,33 @@ async function assertDispatcherStagingActionRows(page, record) {
       : "none",
   );
 
+  const willCallFilter = page.getByTestId("deliveries-will-call-filter");
+  record(
+    "Will-Call / Pickup filter chip present",
+    (await willCallFilter.count()) > 0,
+  );
+  if ((await willCallFilter.count()) > 0) {
+    try {
+      await assertReadableTextContrast(page, {
+        rootSelector: "body",
+        elements: [
+          {
+            name: "Will-Call filter chip",
+            selector: '[data-testid="deliveries-will-call-filter"]',
+            large: false,
+          },
+        ],
+      });
+      record("Will-Call filter chip readable contrast (D-42)", true);
+    } catch (err) {
+      record(
+        "Will-Call filter chip readable contrast (D-42)",
+        false,
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+
   const legend = page.getByTestId("deliveries-staging-legend");
   record(
     "Deliveries staging color legend visible",
@@ -741,12 +805,13 @@ async function assertDispatcherStagingActionRows(page, record) {
   if ((await legend.count()) > 0) {
     const legendText = (await legend.innerText()).trim();
     record(
-      "Legend includes Assigned / Planned, Staged — Ready for Pickup, Unplanned, Shop Stock",
+      "Legend includes Assigned / Planned, Staged, Will-Call / Pickup, Unplanned, Shop Stock",
       /Assigned \/ Planned/i.test(legendText) &&
         /Staged — Ready for Pickup/i.test(legendText) &&
+        /Will-Call \/ Pickup/i.test(legendText) &&
         /Unplanned/i.test(legendText) &&
         /Shop Stock/i.test(legendText),
-      legendText.slice(0, 120),
+      legendText.slice(0, 160),
     );
     try {
       await assertReadableTextContrast(page, {
@@ -830,10 +895,16 @@ async function openRowByStagingAssignment(page, wantUnassigned) {
     const isWillCallNa =
       (await stagingCell.locator('[data-testid^="delivery-list-staging-na-"]').count()) >
       0;
-    const isUnassigned =
+    const isUnassignedMarker =
       (await stagingCell
         .locator('[data-testid^="delivery-list-staging-unassigned-"]')
         .count()) > 0;
+    const isNeedsStaging =
+      (await stagingCell
+        .locator('[data-testid^="delivery-list-staging-needed-"]')
+        .count()) > 0;
+    // v0.0.277+: Drop-Off without resolvable staging shows Needs staging (not bare —).
+    const isUnassigned = isUnassignedMarker || isNeedsStaging;
     if (!wantUnassigned && isWillCallNa) continue;
     if (isUnassigned === wantUnassigned) {
       await page.keyboard.press("Escape");
@@ -2481,7 +2552,7 @@ async function assertOrd006EmailReviewAction(page, record) {
     record(
       "Unassigned staging row present for banner test",
       false,
-      "no row with empty Staging Loc.",
+      "no row with Needs staging / empty Staging Loc.",
     );
   }
 

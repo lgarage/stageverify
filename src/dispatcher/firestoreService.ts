@@ -42,6 +42,7 @@ import {
   invoiceShellBackfillCandidate,
   scheduleInvoiceShellBackfill as scheduleInvoiceShellBackfillCore,
 } from "./invoiceShellBackfillSchedule";
+import { buildWillCallActiveStagingClearPatch } from "./willCallStagingRelease";
 import type {
   DeliveryDetails,
   DeliveryListRow,
@@ -586,6 +587,9 @@ export class FirestoreDataService implements DispatcherDataService {
       ) {
         return false;
       }
+      if (q.willCallOnly && !row.stagingLocationListNotApplicable) {
+        return false;
+      }
       return true;
     });
 
@@ -922,13 +926,33 @@ export class FirestoreDataService implements DispatcherDataService {
       updatedAt: now,
     };
     // Pair fulfillment with import-status skip-staging gates (same pairing as Handle Arrival).
+    // D-80: clear via buildWillCallActiveStagingClearPatch (not bare deleteField).
+    // Reverse → Vendor Drop-Off never restores prior spots; re-clear stale refs.
     if (method === "will_call_pickup") {
       patch.invoiceImportStatus = "pickup_at_vendor";
-    } else if (
-      method === "delivery" &&
-      existing.invoiceImportStatus === "pickup_at_vendor"
-    ) {
-      patch.invoiceImportStatus = "pending";
+      const clear = buildWillCallActiveStagingClearPatch(existing, {
+        releasedBy: "dispatcher",
+        releasedAt: now,
+      });
+      Object.assign(patch, clear.fields);
+      if (clear.releaseEntries.length > 0) {
+        patch.plannedLocationReleases = arrayUnion(...clear.releaseEntries);
+      }
+    } else if (method === "delivery") {
+      const leavingWillCall =
+        existing.invoiceFulfillmentMethod === "will_call_pickup" ||
+        existing.invoiceImportStatus === "pickup_at_vendor";
+      if (existing.invoiceImportStatus === "pickup_at_vendor") {
+        patch.invoiceImportStatus = "pending";
+      }
+      if (leavingWillCall) {
+        // Empty active staging only — no will-call release audit on reverse.
+        const clear = buildWillCallActiveStagingClearPatch(existing, {
+          releasedBy: "dispatcher",
+          releasedAt: now,
+        });
+        Object.assign(patch, clear.fields);
+      }
     }
 
     await setDoc(doc(db, "deliveries", deliveryId), patch, { merge: true });

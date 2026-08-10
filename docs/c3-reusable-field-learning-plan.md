@@ -14,12 +14,12 @@
 | ----- | ------ |
 | **C3-A** | **COMPLETE** — D-59 #7/#8 amend + threshold/invariants authoritative in `PROJECT_STATUS/DECISIONS.md` (2026-08-09) |
 | **C3-B** | **COMPLETE / LIVE** — Johnstone PO grid-bleed + INVOICE banner; CF syncInboundGmail + reparseVendorInvoiceImportCallable deployed |
-| **C3-C** | **NEXT** — not started |
-| **C3-D** | not started |
+| **C3-C** | **C3-C.1 LIVE** (PR #125 merge `68ddc9b1`, D-81) — CF `applyInvoiceReviewFieldCorrection` + deny-all rules deployed; inert `vendorInvoiceFieldLessonExamples` with `archiveAfterAt` (no TTL/delete). **C3-C.2 list/UI remains deferred** |
+| **C3-D** | **NEXT** — not started (threshold / distinct-`sourceDocumentKey` lifecycle) |
 | **C3-E** | not started |
 | **C3-F** | not started |
 
-**NEXT C3 JOB:** **C3-C** — collect/index verified C2 examples (no parse effect). Do **not** start C3-D/E/F in a C3-C conversation. C3-B is COMPLETE / LIVE.
+**NEXT C3 JOB:** **C3-D** design/implement (distinct-document ≥3 threshold) — do **not** start until Dan asks. C3-C.2 admin visibility remains deferred. Do **not** start C3-E/F here.
 
 ---
 
@@ -162,7 +162,7 @@ Landed in `PROJECT_STATUS/DECISIONS.md` **D-59** (amended C3-A). Exact final wor
 ### Amend packet extras (record with C3-A, not soft implication)
 
 - CF-only writes to lesson/example collections
-- Retention/TTL appropriate for examples containing PO/order/invoice identifiers
+- Archive-oriented retention for examples containing PO/order/invoice identifiers (active → archived after 365d; **never auto-delete** / no Firestore TTL)
 - Sender-domain scope; never-unknown vendor/format
 - Extraction false-positive circuit breaker
 - C2 CURRENT corrections always win over learned overlays on the same import
@@ -274,17 +274,33 @@ Important concepts / fields:
 
 ### Collection: examples / evidence (flexible name)
 
-Suggested: `vendorInvoiceFieldLessonExamples` (top-level or subcollection).
+**Authoritative C3-C.1 name:** `vendorInvoiceFieldLessonExamples` (top-level).
 
 | Concept | Intent |
 | ------- | ------ |
-| Link to C2 | `correctionId`, `vendorInvoiceImportId` |
+| Link to C2 | `correctionId` (= doc id), `vendorInvoiceImportId` |
+| **Distinct document identity** | **`sourceDocumentKey` = `vendorInvoiceImportId`** — required on every example |
 | Evidence class | `document_evidence` \| `dispatcher_assertion` |
-| Span / citation | Optional copy of C2 evidence span fields |
-| Scope denorm | vendorKey, parserFormatId, field, senderDomain, anchors observed |
+| Span / citation | Optional copy of C2 evidence span fields (bounded; no full PDF/text) |
+| Scope denorm | vendorKey, parserFormatId, field, senderDomain, `scopeKey` |
 | Timestamps / actor | When confirmed, by whom |
+| Lifecycle | `status: active\|archived`; `retentionDays: 365`; `archiveAfterAt` Timestamp (+365d); `archivedAt: null` until archived |
+| No deletion | **Never** Firestore TTL / auto-delete — archive keeps documents for audit/history |
+| Immutability (C3-C.1) | `.create()` only; multiple corrections on one import → multiple example docs sharing one `sourceDocumentKey`; archiver deferred |
 
 **Examples are evidence, not rules.** An example never affects parse by itself.
+
+#### C3-D threshold counting lock (D-81 — encode now, implement in C3-D)
+
+Future ≥3 qualification **MUST** mean independent documents, not correction-event volume:
+
+1. Count **DISTINCT `sourceDocumentKey`** within the same `vendorKey` + `parserFormatId` + `senderDomain` + `field` (+ consistent extraction pattern when C3-D adds anchors).
+2. Positive evidence allowlist for counting: **`document_evidence` only** (`dispatcher_assertion` / other types never count).
+3. **≤1 threshold vote per `sourceDocumentKey`** = the **latest** applied `document_evidence` correctedValue for that field on that document. Earlier same-doc corrections remain immutable history (contradiction/audit) but do not add votes.
+4. Consistent correctedValue across the distinct-document set is required for promotion; contradictory values across documents block promotion.
+5. Do **not** treat raw example-doc / `correctionId` cardinality as confidence.
+
+Residual v1 gap (accepted): a vendor re-send that creates a new `vendorInvoiceImportId` is a new `sourceDocumentKey` (no content-hash fingerprint in C3-C).
 
 ### Do not use as authoritative C3 store
 
@@ -397,7 +413,7 @@ Symmetric in spirit to Dan #3 (ignore: 2 admin re-opens → auto-disable), but c
 - **No client writes** to reusable lessons
 - **Sender-domain pinning** required for activation/match
 - **No cross-vendor leakage** (no wildcards, no “all vendors”)
-- Examples/lessons may retain **PO / order / invoice identifiers** — unlike Lane A playbook redaction — so require **retention/TTL + access control** appropriate to that sensitivity; do not dump full values into unstructured logs beyond current policy
+- Examples/lessons may retain **PO / order / invoice identifiers** — unlike Lane A playbook redaction — so require **archive-oriented retention + access control** (active → archived after 365d; never TTL-delete); do not dump full values into unstructured logs beyond current policy
 - **Audit** activation, match, suspend, archive, breaker trips
 - Validation failures **fail closed** (no lesson saved/activated; import stays reviewable)
 - Do not feed free-form training notes into a model to invent extraction rules in v1
@@ -485,7 +501,7 @@ Johnstone already has multi-path PO extraction (`pickPoValue`, tabular/stacked/l
 | **Likely risk tier** | **High-risk** (CF + `firestore.rules` for new collections) |
 | **Likely deploy surface** | Firebase functions + rules; optional Settings UI (gh-pages) |
 | **Prerequisites** | **C3-A** authoritative; preferably C3-B assessed |
-| **Completion status** | **NEXT** — not started |
+| **Completion status** | **C3-C.1 code ready — deploy pending Dan approval**; archive fields written (`archiveAfterAt`); **automatic archiver deferred**; C3-C.2 (list callable + admin UI) **deferred**; **no Firestore TTL** |
 
 ### C3-D — Proposed → active lifecycle + audit + circuit breaker
 
@@ -536,12 +552,12 @@ Do **not** skip to C3-E without A+D. Do **not** create a lesson store to avoid a
 | ----- | ------ |
 | C3-A | **COMPLETE** |
 | C3-B | **COMPLETE / LIVE** — PO bleed + INVOICE banner; CF deployed |
-| C3-C | **NEXT** — collect/index verified C2 examples (no parse effect) |
+| C3-C | **C3-C.1 code ready (deploy pending); C3-C.2 deferred** |
 | C3-D | not started |
 | C3-E | not started |
 | C3-F | not started |
 
-**NEXT C3 JOB:** **C3-C** — collect/index verified C2 examples (no parse effect). Do not start C3-D/E/F here. C3-B is COMPLETE / LIVE.
+**NEXT C3 JOB:** C3-C.1 CF/rules deploy (Dan approval) → optional C3-C.2 visibility → C3-D. Do not start C3-E/F here.
 
 **Discovery:** This file is linked from `PROJECT_STATUS/CURRENT_STATE.md` (Queued product / Canonical references) and `docs/roadmap.md` (Lane C notes).
 
@@ -603,7 +619,7 @@ Future agents **must** read this section before implementation.
 
 ```
 C3-A: COMPLETE
-C3-B: COMPLETE / LIVE; NEXT C3 JOB = C3-C
+C3-B: COMPLETE / LIVE; C3-C.1 code ready (deploy pending Dan); C3-C.2 deferred; NEXT after deploy = C3-C.2 or C3-D
 ```
 
 Update the Status table when each phase ships; keep amend wording in sync with `PROJECT_STATUS/DECISIONS.md`.*

@@ -34,6 +34,7 @@ import {
   rowMatchesOverviewStatusFilter,
   DELIVERY_OVERVIEW_STATUS_ORDER,
   isWillCallPickupStagingListNa,
+  isWillCallOverviewRow,
   isDispatcherTableStagingActionRequired,
 } from "../src/dispatcher/deliveryDisplayHelpers.ts";
 
@@ -155,12 +156,52 @@ const willCallFulfillmentReadiness = computeDeliveryReadiness(
   willCallItems,
 );
 assert(
-  "fulfillment-only will_call_pickup status remains workflow-derived",
+  "fulfillment-only will_call_pickup primary category is Will-Call / Pickup (not shop Staged)",
   deliveryReadinessDisplayLabel(
     willCallFulfillmentOnlyDelivery,
     willCallFulfillmentReadiness,
     willCallItems,
-  ) === "Assigned / Planned",
+  ) === "Will-Call / Pickup",
+);
+
+const vendorReadyWillCallDelivery = {
+  ...willCallFulfillmentOnlyDelivery,
+  id: "delivery-willcall-vendor-ready",
+  status: "ready_for_pickup",
+  invoiceImportStatus: "pickup_at_vendor",
+  invoiceFulfillmentMethod: "will_call_pickup",
+  vendorOrderComplete: true,
+};
+const vendorReadyWillCallItems = willCallItems.map((item) => ({
+  ...item,
+  id: `${item.id}-vr`,
+  deliveryOrderId: vendorReadyWillCallDelivery.id,
+}));
+const vendorReadyWillCallReadiness = computeDeliveryReadiness(
+  vendorReadyWillCallDelivery,
+  vendorReadyWillCallItems,
+);
+assert(
+  "vendor-ready Will-Call still primary Will-Call / Pickup (not Staged green)",
+  deliveryReadinessDisplayLabel(
+    vendorReadyWillCallDelivery,
+    vendorReadyWillCallReadiness,
+    vendorReadyWillCallItems,
+  ) === "Will-Call / Pickup",
+);
+const vendorReadyWillCallRow = {
+  status: vendorReadyWillCallDelivery.status,
+  statusDisplayLabel: "Will-Call / Pickup",
+  fulfillmentDisplayLabel: "Will-Call / Pickup @ Vendor",
+  stagingLocationListNotApplicable: true,
+};
+assert(
+  "Will-Call overview row is recognized",
+  isWillCallOverviewRow(vendorReadyWillCallRow),
+);
+assert(
+  "Will-Call does not match Staged — Ready for Pickup filter",
+  !rowMatchesOverviewStatusFilter(vendorReadyWillCallRow, "ready_for_pickup"),
 );
 
 assert(
