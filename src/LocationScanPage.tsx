@@ -766,7 +766,14 @@ export function LocationScanPage() {
     }
   };
 
-  const handleMarkDelivered = async (): Promise<boolean> => {
+  const handleMarkDelivered = async (
+    lineExceptions?: Array<{
+      itemId: string;
+      qtyReceived: number;
+      qtyBackordered: number;
+      qtyDamaged: number;
+    }>,
+  ): Promise<boolean> => {
     if (!deliveryDetails) return false;
     if (vendorGeofenceEnforce && outsideGeofence) {
       setError("You must be at the shop to confirm delivery.");
@@ -777,6 +784,8 @@ export function LocationScanPage() {
     try {
       const updated = await firestoreDataService.markVendorDelivered(
         deliveryDetails.delivery.id,
+        "Vendor Driver",
+        lineExceptions,
       );
       if (updated) {
         setDeliveryDetails(updated);
@@ -788,7 +797,9 @@ export function LocationScanPage() {
         handlePinSessionExpired();
         return false;
       }
-      setError("Failed to confirm delivery");
+      setError(
+        err instanceof Error ? err.message : "Failed to confirm delivery",
+      );
       return false;
     } finally {
       setLoading(false);
@@ -1559,7 +1570,9 @@ export function LocationScanPage() {
                 prev ? { ...prev, delivery: updated } : prev,
               );
             }}
-            onDelivered={() => handleMarkDelivered()}
+            onDelivered={(lineExceptions) =>
+              handleMarkDelivered(lineExceptions)
+            }
             onUndoDelivered={() => handleRevertDelivered()}
             onBack={() => {
               if (sessionScope === "vendor" && vendorId) {
