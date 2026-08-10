@@ -343,3 +343,39 @@ export function isPickupEligible(
   }
   return { eligible: true };
 }
+
+/**
+ * Dispatcher manual-pickup authority (Complete Pickup + Status → Picked Up).
+ * System readiness remains separate for display / warning copy only.
+ */
+export function isDispatcherPickupEligible(
+  delivery: DeliveryOrder,
+  items: Item[],
+  options?: ReadinessComputeOptions,
+): {
+  eligible: boolean;
+  reason?: string;
+  readiness: DeliveryReadinessResult;
+} {
+  const readiness = computeDeliveryReadiness(delivery, items, options);
+  if (delivery.status === "picked_up" || delivery.status === "installed") {
+    return { eligible: false, reason: "already_picked_up", readiness };
+  }
+
+  const allowedStatuses: DeliveryStatus[] = [
+    "pending",
+    "shipped",
+    "arrived",
+    "partial",
+    "ready_for_pickup",
+    "complete",
+  ];
+  if (!allowedStatuses.includes(delivery.status)) {
+    return {
+      eligible: false,
+      reason: "delivery_not_pickup_eligible",
+      readiness,
+    };
+  }
+  return { eligible: true, readiness };
+}

@@ -63,10 +63,11 @@ import {
   formatActivityHistoryHeadline,
   formatActivityHistoryMeta,
   computeDeliveryDisplayState,
+  buildManualPickupWarningSummary,
   isWillCallPickupStagingListNa,
   UNPLANNED_BADGE,
 } from "../deliveryDisplayHelpers";
-import { isPickupEligible } from "../readiness";
+import { isDispatcherPickupEligible } from "../readiness";
 import {
   fulfillmentDisplayLabel,
   resolveDeliveryPoNumber,
@@ -648,7 +649,10 @@ export function DetailContent({
     setRejectDetailText("");
   };
 
-  const pickupEligible = isPickupEligible(delivery, details.items).eligible;
+  const pickupEligible = isDispatcherPickupEligible(
+    delivery,
+    details.items,
+  ).eligible;
   const showCompletePickupCta =
     !showPickupInput &&
     delivery.status !== "picked_up" &&
@@ -2051,10 +2055,10 @@ function drawerStatusOptionEnabled(
   ) {
     return false;
   }
-  // Picked Up shares recordPickupEvent / isPickupEligible SoT with Complete Pickup.
+  // Picked Up shares recordPickupEvent / isDispatcherPickupEligible with Complete Pickup.
   if (option === "picked_up") {
     if (!delivery.jobId?.trim()) return false;
-    return isPickupEligible(delivery, items).eligible;
+    return isDispatcherPickupEligible(delivery, items).eligible;
   }
   const possibleNext = VALID_TRANSITIONS[current] ?? [];
   const revertTarget = DISPATCHER_REVERT_TARGETS[current];
@@ -2555,28 +2559,112 @@ function DeliveryStatusControls({
       ) : null}
 
       {showPickupInput ? (
-        <div data-testid="delivery-status-pickup-input">
-          <p
-            data-testid="delivery-status-pickup-intro"
-            style={{
-              margin: "0 0 8px",
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--admin-text-data)",
-              fontFamily: font,
-              lineHeight: 1.4,
-            }}
-          >
-            Complete pickup? This will move the delivery to Picked Up.
-          </p>
+        <div
+          data-testid="delivery-status-pickup-input"
+          data-readiness={
+            displayState.readiness.readyForPickup ? "ready" : "not-ready"
+          }
+        >
+          {displayState.readiness.readyForPickup ? (
+            <p
+              data-testid="delivery-status-pickup-intro"
+              style={{
+                margin: "0 0 8px",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--admin-text-data)",
+                fontFamily: font,
+                lineHeight: 1.4,
+              }}
+            >
+              Complete pickup? This will move the delivery to Picked Up.
+            </p>
+          ) : (
+            <>
+              <p
+                data-testid="delivery-status-pickup-heading"
+                style={{
+                  margin: "0 0 8px",
+                  fontSize: 14,
+                  fontWeight: 800,
+                  color: "var(--admin-text-data)",
+                  fontFamily: font,
+                  lineHeight: 1.35,
+                }}
+              >
+                Complete pickup?
+              </p>
+              <div
+                data-testid="delivery-status-pickup-warning"
+                id="delivery-status-pickup-warning"
+                style={{
+                  margin: "0 0 10px",
+                  padding: "10px 12px",
+                  borderRadius: 6,
+                  backgroundColor: "var(--admin-danger-bg)",
+                  border: "1px solid var(--admin-danger-border)",
+                  borderLeft: `3px solid ${PICKUP_FORM_RED}`,
+                  boxSizing: "border-box",
+                }}
+              >
+                <p
+                  data-testid="delivery-status-pickup-warning-message"
+                  style={{
+                    margin: "0 0 6px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "var(--admin-danger-text)",
+                    fontFamily: font,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  This delivery is not currently marked Ready for Pickup.
+                </p>
+                <div data-testid="delivery-status-pickup-blocker-summary">
+                  {buildManualPickupWarningSummary(
+                    delivery,
+                    details.items,
+                    displayState.readiness.evidence.readinessBlockReasons,
+                  ).map((line) => (
+                    <p
+                      key={line}
+                      style={{
+                        margin: "0 0 4px",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "var(--admin-danger-text)",
+                        fontFamily: font,
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              </div>
+              <p
+                data-testid="delivery-status-pickup-consequence"
+                style={{
+                  margin: "0 0 10px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--admin-text-data)",
+                  fontFamily: font,
+                  lineHeight: 1.4,
+                }}
+              >
+                Recording pickup will move the delivery to Picked Up.
+              </p>
+            </>
+          )}
           <label
             htmlFor="delivery-status-pickup-name"
             style={{
               display: "block",
               marginBottom: 6,
               fontSize: 12,
-              fontWeight: 600,
-              color: "var(--admin-text)",
+              fontWeight: 700,
+              color: "var(--admin-text-label, var(--admin-text))",
               fontFamily: font,
             }}
           >
@@ -2585,11 +2673,17 @@ function DeliveryStatusControls({
           <input
             ref={pickupInputRef}
             id="delivery-status-pickup-name"
+            data-testid="delivery-status-pickup-name"
             type="text"
             value={pickupTechnicianName}
             onChange={(e) => setPickupTechnicianName(e.target.value)}
             placeholder="Enter technician name"
             disabled={loading}
+            aria-describedby={
+              displayState.readiness.readyForPickup
+                ? undefined
+                : "delivery-status-pickup-warning"
+            }
             style={{
               width: "100%",
               boxSizing: "border-box",
@@ -2617,13 +2711,46 @@ function DeliveryStatusControls({
               {pickupError}
             </p>
           ) : null}
-          <div style={{ display: "flex", gap: 8 }}>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 8,
+            }}
+          >
+            <button
+              type="button"
+              data-testid="delivery-status-pickup-cancel"
+              onClick={() => {
+                setShowPickupInput(false);
+                setPickupTechnicianName("");
+                setPendingStatusSelection(null);
+              }}
+              disabled={loading}
+              style={{
+                flex: "1 1 120px",
+                minHeight: 44,
+                backgroundColor: "var(--admin-surface)",
+                color: "var(--admin-text)",
+                border: "1.5px solid var(--admin-border)",
+                borderRadius: 4,
+                padding: "8px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: font,
+              }}
+            >
+              Cancel
+            </button>
             <button
               type="button"
               data-testid="delivery-status-pickup-submit"
               onClick={handleConfirmPickup}
               disabled={loading || !pickupTechnicianName.trim()}
               style={{
+                flex: "1 1 140px",
+                minHeight: 44,
                 backgroundColor:
                   loading || !pickupTechnicianName.trim()
                     ? "var(--admin-surface-2)"
@@ -2638,7 +2765,7 @@ function DeliveryStatusControls({
                     : PICKUP_FORM_RED
                 }`,
                 borderRadius: 4,
-                padding: "6px 12px",
+                padding: "8px 12px",
                 fontSize: 12,
                 fontWeight: 700,
                 cursor:
@@ -2649,28 +2776,6 @@ function DeliveryStatusControls({
               }}
             >
               {loading ? "Saving…" : "Complete Pickup"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowPickupInput(false);
-                setPickupTechnicianName("");
-                setPendingStatusSelection(null);
-              }}
-              disabled={loading}
-              style={{
-                backgroundColor: "var(--admin-surface)",
-                color: "var(--admin-text)",
-                border: "1.5px solid var(--admin-border)",
-                borderRadius: 4,
-                padding: "6px 12px",
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: font,
-              }}
-            >
-              Cancel
             </button>
           </div>
         </div>
