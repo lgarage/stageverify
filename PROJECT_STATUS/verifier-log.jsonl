@@ -205,3 +205,5 @@
 {"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-ff4b31b6-2f1a-5a1c-b479-844e8c0fc0a9","model":"cursor-grok-4.5-high-fast","real":"na","note":"v0.0.275 Complete Pickup isPickupEligible SoT"}
 {"date":"2026-08-09","role":"ship","verdict":"PASS","taskId":"bc-68b6a400-156f-5def-8469-e8948f305254","model":"cursor-grok-4.5-high-fast","real":"na","note":"v0.0.276 Staging Map toolbar LIVE; fix-closure after docs hotfix"}
 {"date":"2026-08-10","role":"ship","verdict":"PASS","taskId":"bc-8cdeab84-b069-5e95-8446-0488c150fa97","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-08-10","role":"security","verdict":"PASS","taskId":"bc-0a88d16a-5d34-59b9-a3e4-9bba4f797410","model":"claude-sonnet-5-thinking-high","real":"na","note":"C3-D.1 D-38"}
+{"date":"2026-08-10","role":"ship","verdict":"PASS","taskId":"bc-2e46eebc-0de0-50ab-92ed-eb49bb8c6a82","model":"cursor-grok-4.5-high-fast","real":"na","note":"C3-D.1 PR137 no deploy"}
