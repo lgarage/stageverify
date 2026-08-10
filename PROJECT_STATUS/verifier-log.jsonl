@@ -210,3 +210,4 @@
 {"date":"2026-08-10","role":"ship","verdict":"PASS","taskId":"bc-ebfebb91-3bd4-5203-83cc-c68346337a07","model":"cursor-grok-4.5-high-fast","real":"na","note":"D-82 deploy ship"}
 {"date":"2026-08-10","role":"security","verdict":"PASS","taskId":"bc-0a88d16a-5d34-59b9-a3e4-9bba4f797410","model":"claude-sonnet-5-thinking-high","real":"na","note":"C3-D.1 D-38"}
 {"date":"2026-08-10","role":"ship","verdict":"PASS","taskId":"bc-2e46eebc-0de0-50ab-92ed-eb49bb8c6a82","model":"cursor-grok-4.5-high-fast","real":"na","note":"C3-D.1 PR137 no deploy"}
+{"date":"2026-08-10","role":"ship","verdict":"PASS","taskId":"bc-84b36a92","model":"cursor-grok-4.5-high-fast","real":"na","note":"v0.0.283 FE staged authoritative LIVE"}
