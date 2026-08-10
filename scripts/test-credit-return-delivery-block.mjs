@@ -165,5 +165,160 @@ if (isCreditReturnImportDoc(creditDoc)) {
   fail("credit detection regression");
 }
 
+console.log("\n=== mixed invoice vs line-level core/return (doc vs line) ===\n");
+
+/** Literal production false-positive: CORE-16 return line inside a normal invoice. */
+const mixedCoreReturnDoc = {
+  parsedHeader: {
+    vendorBranchName: "Johnstone Supply",
+    vendorInvoiceNumber: "6169999",
+    customerPoOrReference: "SHOP STOCK PICKUP",
+  },
+  parsedLines: [
+    {
+      lineNumber: 1,
+      quantityOrdered: 1,
+      quantityShipped: 1,
+      quantityBackordered: 0,
+      vendorProductNumber: "AOX-016",
+      description: "R410A CYLINDER",
+      lineType: "product",
+      excludeFromExpectedItems: false,
+      extensionAmount: 120.5,
+    },
+    {
+      lineNumber: 2,
+      quantityOrdered: 1,
+      quantityShipped: 1,
+      quantityBackordered: 0,
+      vendorProductNumber: "S81-288",
+      description: "MOTOR COND",
+      lineType: "product",
+      excludeFromExpectedItems: false,
+      extensionAmount: 166.14,
+    },
+    {
+      lineNumber: 3,
+      quantityOrdered: 1,
+      quantityShipped: -1,
+      quantityBackordered: 0,
+      vendorProductNumber: "CORE-16",
+      description: "CORE CHARGE MC ACETYLENE 10C Return from Invoice # 6163055",
+      lineType: "core_charge",
+      excludeFromExpectedItems: true,
+      extensionAmount: -95.25,
+    },
+  ],
+  orderNotes: [],
+};
+
+if (!isCreditReturnImportDoc(mixedCoreReturnDoc)) {
+  pass("mixed invoice + negative CORE-16 return line is NOT document credit");
+} else {
+  fail("mixed CORE-16 return incorrectly classified as document credit");
+}
+if (!creditReturnBlocksDeliveryCreation(mixedCoreReturnDoc)) {
+  pass("mixed CORE-16 invoice does not block delivery creation");
+} else {
+  fail("mixed CORE-16 invoice incorrectly blocked for delivery");
+}
+const coreLine = mixedCoreReturnDoc.parsedLines[2];
+if (
+  coreLine.quantityShipped === -1 &&
+  coreLine.extensionAmount === -95.25 &&
+  /Return from Invoice # 6163055/i.test(coreLine.description) &&
+  coreLine.lineType === "core_charge"
+) {
+  pass("CORE-16 line preserves negative qty, extension, return ref, lineType");
+} else {
+  fail("CORE-16 line evidence was altered", coreLine);
+}
+
+/** inv-6164242 shape: separate negative return-typed line + positive products. */
+const mixedReturnLineDoc = {
+  parsedHeader: {
+    vendorBranchName: "Johnstone Supply",
+    vendorInvoiceNumber: "6164242",
+    customerPoOrReference: "TOPS STOCK PICKUP",
+  },
+  parsedLines: [
+    {
+      lineNumber: 1,
+      quantityOrdered: 2,
+      quantityShipped: 2,
+      vendorProductNumber: "AOX-016",
+      description: "R410A CYLINDER",
+      lineType: "product",
+      excludeFromExpectedItems: false,
+    },
+    {
+      lineNumber: 2,
+      quantityOrdered: 1,
+      quantityShipped: 1,
+      vendorProductNumber: "CORE-16",
+      description: "CORE CHARGE",
+      lineType: "core_charge",
+      excludeFromExpectedItems: true,
+    },
+    {
+      lineNumber: 3,
+      quantityOrdered: 1,
+      quantityShipped: -1,
+      vendorProductNumber: "AOX-045",
+      description: "R410A-25 Return from Invoice # 6164000",
+      lineType: "return",
+      excludeFromExpectedItems: true,
+    },
+    {
+      lineNumber: 4,
+      quantityOrdered: 1,
+      quantityShipped: 1,
+      vendorProductNumber: "AOX-045",
+      description: "R410A-25 R410A CYLINDER",
+      lineType: "product",
+      excludeFromExpectedItems: false,
+    },
+  ],
+  orderNotes: [],
+};
+
+if (!isCreditReturnImportDoc(mixedReturnLineDoc)) {
+  pass("mixed positive + separate return line is NOT document credit");
+} else {
+  fail("mixed return-line invoice incorrectly classified as document credit");
+}
+
+/** Return-only document (no positive sale lines) — still document credit. */
+const returnOnlyDoc = {
+  parsedHeader: {
+    vendorBranchName: "Johnstone Supply",
+    vendorInvoiceNumber: "6169001",
+    customerPoOrReference: "STOCK CHECK",
+  },
+  parsedLines: [
+    {
+      lineNumber: 1,
+      quantityOrdered: 1,
+      quantityShipped: -1,
+      vendorProductNumber: "AOX-045",
+      description: "R410A-25 Return from Invoice # 6164000",
+      lineType: "return",
+      excludeFromExpectedItems: true,
+    },
+  ],
+  orderNotes: [],
+};
+
+if (isCreditReturnImportDoc(returnOnlyDoc)) {
+  pass("return-only document still classified as document credit");
+} else {
+  fail("return-only document lost credit detection");
+}
+if (creditReturnBlocksDeliveryCreation(returnOnlyDoc)) {
+  pass("return-only document still blocks delivery creation");
+} else {
+  fail("return-only document should still block delivery");
+}
+
 console.log(`\ntest-credit-return-delivery-block: ${failed === 0 ? "PASS" : "FAIL"} (${passed} passed, ${failed} failed)\n`);
 process.exit(failed === 0 ? 0 : 1);

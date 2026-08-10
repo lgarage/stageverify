@@ -186,7 +186,14 @@ export function isCreditReturnImportDoc(doc: {
     return /\bRETURN\b/i.test(po) || parsedBranchIsCredit(branch);
   }
 
-  const anyNegShip = lines.some((l) => (l.quantityShipped ?? 0) < 0);
+  // Mirror isCreditReturnInvoice: line-level core/return negatives must not
+  // flip a mixed sale invoice to document-level credit/return.
+  const expectedItemLines = lines.filter((l) => !l.excludeFromExpectedItems);
+  const negShipScanLines =
+    expectedItemLines.length > 0 ? expectedItemLines : lines;
+  const anyNegShip = negShipScanLines.some(
+    (l) => (l.quantityShipped ?? 0) < 0,
+  );
   const anyReturnLine = lines.some((l) => l.lineType === "return");
   const returnDesc = lines.some((l) =>
     /return from invoice/i.test(l.description ?? ""),

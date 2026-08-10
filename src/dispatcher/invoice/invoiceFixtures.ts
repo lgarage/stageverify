@@ -689,4 +689,40 @@ LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
 please call 605-338-2652
 `.trim(),
   },
+  /**
+   * Normal invoice with one negative CORE-16 "Return from Invoice #" line.
+   * Document must stay a sale invoice; line remains core_charge / excluded.
+   */
+  {
+    pageId: "inv-core-return-mixed",
+    importBatchId: "batch-core-return-mixed",
+    pageIndexInBatch: 0,
+    extractedText: `
+Johnstone Supply
+Remit To: Johnstone Supply
+335 N Weber Ave
+Sioux Falls SD 57103
+
+Customer #: 0018114
+Sales Order #: 6169999
+Invoice #: 6169999
+Customer P/O #: SHOP STOCK PICKUP
+Order Date: 08/10/2026
+Invoice Date: 08/10/2026
+Ship Date: 08/10/2026
+Buyer: DAN DAY
+Ship Via:
+
+Sold To: TWIN PILLAR HEATING & COOLING
+Ship To: TWIN PILLAR HEATING & COOLING
+2944 HOLMGREN WAY, GREEN BAY WI 54304
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 1 1 0 AOX-016 R410A-25 R410A CYLINDER
+2 1 1 0 S81-288 ORM5484BF MOTOR COND
+3 1 -1 0 CORE-16 CORECHARGE CORE CHARGE MC ACETYLENE 10C Return from Invoice # 6163055
+
+please call 605-338-2652
+`.trim(),
+  },
 ];
