@@ -126,8 +126,11 @@ function createMemoryDb(seed = {}) {
     },
     async runTransaction(fn) {
       const tx = {
-        async get(ref) {
-          return ref.get();
+        async get(refOrQuery) {
+          if (refOrQuery && typeof refOrQuery.get === "function" && !refOrQuery.path) {
+            return refOrQuery.get();
+          }
+          return refOrQuery.get();
         },
         set(ref, data) {
           store.set(ref.path, structuredClone(data));
@@ -647,6 +650,54 @@ function ok(label) {
   assert.ok(auditRow, "success audit doc exists");
   assert.equal(auditRow[1].newStatus, "rejected");
   ok("success audit written in same transaction as status update");
+}
+
+// TOCTOU — newer same-doc example inserted after pre-tx revalidation → commit fails
+{
+  const db = createMemoryDb();
+  const { lessonId } = await proposeLesson(db);
+  const lesson = db._store.get(
+    `${lessonsMod.FIELD_LESSON_COLLECTION}/${lessonId}`,
+  );
+  const origRunTransaction = db.runTransaction.bind(db);
+  db.runTransaction = async (fn) => {
+    seedExample(db, {
+      importId: "lc-a",
+      correctionId: "lc-a__customerPoOrReference__toctou-newer",
+      correctedValue: "TOCTOU-NEWER-PO",
+      verifiedAt: "2027-01-01T00:00:00.000Z",
+    });
+    return origRunTransaction(fn);
+  };
+  const auditsBefore = countAuditEvents(db);
+  const r = await lifecycleMod.applyFieldLessonStatusTransition({
+    db,
+    request: {
+      lessonId,
+      action: "activate",
+      expectedVersion: lesson.version,
+      idempotencyKey: "toctou-newer-ex",
+      actorUid: "mgr1",
+    },
+  });
+  assert.equal(r.ok, false);
+  assert.equal(r.code, "revalidation_failed");
+  assert.match(
+    r.revalidation?.failureReason ?? "",
+    /distinct_documents_below_threshold/,
+  );
+  const unchanged = db._store.get(
+    `${lessonsMod.FIELD_LESSON_COLLECTION}/${lessonId}`,
+  );
+  assert.equal(unchanged.status, "proposed");
+  assert.equal(countAuditEvents(db), auditsBefore + 1, "activation_revalidation_failed audit");
+  const failAudit = [...db._store.entries()].find(
+    ([, v]) =>
+      v.eventType === "activation_revalidation_failed" &&
+      v.lessonId === lessonId,
+  );
+  assert.ok(failAudit, "commit-time revalidation failure audit written");
+  ok("TOCTOU newer example before commit → activate fails, audit written");
 }
 
 console.log(`\nset-field-lesson-status: ${passed} passed`);

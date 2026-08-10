@@ -2,7 +2,7 @@
  * Lane C C3-D.2 — shared revalidation + Manager lifecycle transitions.
  * No parse effect. Never mutates evidenceSnapshot or extractionPattern after propose.
  */
-import type { Firestore, QueryDocumentSnapshot } from "firebase-admin/firestore";
+import type { Firestore, QueryDocumentSnapshot, Transaction } from "firebase-admin/firestore";
 import { Timestamp } from "firebase-admin/firestore";
 import { deriveAnchorMatch } from "./patternFingerprint";
 import { spanMatchesCorrectedValue } from "./evaluateFieldLessonCandidate";
@@ -289,6 +289,147 @@ export async function runFieldLessonRevalidation(input: {
   };
 }
 
+/** Latest example identity per sourceDocumentKey — snapshot for commit-time tx verification. */
+export type LatestExampleGuardEntry = {
+  exampleId: string;
+  verifiedAt: string;
+};
+
+export async function loadScopeLatestExampleGuard(
+  db: Firestore,
+  scopeKey: string,
+): Promise<Record<string, LatestExampleGuardEntry>> {
+  const snap = await db
+    .collection(FIELD_LESSON_EXAMPLE_COLLECTION)
+    .where("scopeKey", "==", scopeKey)
+    .orderBy("verifiedAt", "desc")
+    .limit(MAX_SCOPE_EXAMPLES)
+    .get();
+  const latestByDocument = pickLatestPerDocument(snap.docs);
+  const guard: Record<string, LatestExampleGuardEntry> = {};
+  for (const [docKey, example] of latestByDocument) {
+    guard[docKey] = {
+      exampleId: example.exampleId,
+      verifiedAt: example.verifiedAt || "",
+    };
+  }
+  return guard;
+}
+
+/**
+ * Commit-time revalidation inside a Firestore transaction.
+ * Re-reads latest-per-document via tx.get(query), then verifies each snapshot vote
+ * still references that latest example (closes TOCTOU vs pre-tx revalidation).
+ */
+export async function verifyRevalidationAtCommit(input: {
+  tx: Transaction;
+  db: Firestore;
+  lesson: VendorInvoiceFieldLessonDoc;
+  /** Pre-tx guard — used to detect example doc mutation between guard load and tx. */
+  expectedLatestByDocKey: Record<string, LatestExampleGuardEntry>;
+  nowMs: number;
+}): Promise<RevalidationResult> {
+  const scopeQuery = input.db
+    .collection(FIELD_LESSON_EXAMPLE_COLLECTION)
+    .where("scopeKey", "==", input.lesson.scopeKey)
+    .orderBy("verifiedAt", "desc")
+    .limit(MAX_SCOPE_EXAMPLES);
+  const scopeSnap = await input.tx.get(scopeQuery);
+  const latestByDocument = pickLatestPerDocument(scopeSnap.docs);
+
+  const votes = (input.lesson.evidenceSnapshot?.votes ?? []).slice(
+    0,
+    MAX_REVALIDATION_VOTES,
+  );
+  const retainedDocKeys = new Set<string>();
+  let droppedVoteCount = 0;
+  const exampleCol = input.db.collection(FIELD_LESSON_EXAMPLE_COLLECTION);
+
+  for (const vote of votes) {
+    const docKey = vote.sourceDocumentKey?.trim();
+    if (!docKey) {
+      droppedVoteCount += 1;
+      continue;
+    }
+    const latest = latestByDocument.get(docKey);
+    if (!latest || vote.exampleId !== latest.exampleId) {
+      droppedVoteCount += 1;
+      continue;
+    }
+    const expected = input.expectedLatestByDocKey[docKey];
+    if (!expected || expected.exampleId !== latest.exampleId) {
+      droppedVoteCount += 1;
+      continue;
+    }
+    const exSnap = await input.tx.get(exampleCol.doc(latest.exampleId));
+    if (!exSnap.exists) {
+      droppedVoteCount += 1;
+      continue;
+    }
+    const example = exSnap.data() as FieldLessonExampleDoc;
+    if ((example.verifiedAt || "") !== expected.verifiedAt) {
+      droppedVoteCount += 1;
+      continue;
+    }
+    if (example.sourceDocumentKey?.trim() !== docKey) {
+      droppedVoteCount += 1;
+      continue;
+    }
+    if (example.evidenceType !== "document_evidence") {
+      droppedVoteCount += 1;
+      continue;
+    }
+    if (!isTimeEligible(example, input.nowMs)) {
+      droppedVoteCount += 1;
+      continue;
+    }
+    retainedDocKeys.add(docKey);
+  }
+
+  const confirmedDistinctDocumentCount = retainedDocKeys.size;
+  if (confirmedDistinctDocumentCount < MIN_DISTINCT_DOCUMENT_VOTES) {
+    return {
+      pass: false,
+      confirmedDistinctDocumentCount,
+      droppedVoteCount,
+      failureReason: "distinct_documents_below_threshold",
+    };
+  }
+
+  return {
+    pass: true,
+    confirmedDistinctDocumentCount,
+    droppedVoteCount,
+  };
+}
+
+async function writeRevalidationFailureAudit(
+  db: Firestore,
+  input: {
+    lessonId: string;
+    action: FieldLessonLifecycleAction;
+    actorUid: string;
+    lesson: VendorInvoiceFieldLessonDoc;
+    revalidation: RevalidationResult;
+  },
+): Promise<void> {
+  const failEvent =
+    input.action === "activate"
+      ? "activation_revalidation_failed"
+      : "reactivation_revalidation_failed";
+  await writeFieldLessonAuditEvent(db, {
+    lessonId: input.lessonId,
+    eventType: failEvent,
+    actorUid: input.actorUid,
+    priorStatus: input.lesson.status,
+    newStatus: null,
+    scopeKey: input.lesson.scopeKey,
+    patternFingerprint: input.lesson.patternFingerprint,
+    distinctDocumentCount: input.revalidation.confirmedDistinctDocumentCount,
+    detail: input.revalidation.failureReason ?? "revalidation_failed",
+  });
+}
+
 function isValidTransition(
   action: FieldLessonLifecycleAction,
   from: FieldLessonStatus,
@@ -401,20 +542,12 @@ export async function applyFieldLessonStatusTransition(input: {
       nowMs,
     });
     if (!revalidation.pass) {
-      const failEvent =
-        request.action === "activate"
-          ? "activation_revalidation_failed"
-          : "reactivation_revalidation_failed";
-      await writeFieldLessonAuditEvent(input.db, {
+      await writeRevalidationFailureAudit(input.db, {
         lessonId,
-        eventType: failEvent,
+        action: request.action,
         actorUid: request.actorUid,
-        priorStatus: cur.status,
-        newStatus: null,
-        scopeKey: cur.scopeKey,
-        patternFingerprint: cur.patternFingerprint,
-        distinctDocumentCount: revalidation.confirmedDistinctDocumentCount,
-        detail: revalidation.failureReason ?? "revalidation_failed",
+        lesson: cur,
+        revalidation,
       });
       return {
         ok: false,
@@ -423,6 +556,34 @@ export async function applyFieldLessonStatusTransition(input: {
         revalidation,
       };
     }
+  }
+
+  let commitExampleGuard: Record<string, LatestExampleGuardEntry> | undefined;
+  if (request.action === "activate" || request.action === "reactivate") {
+    revalidation = await runFieldLessonRevalidation({
+      db: input.db,
+      lesson: { ...cur, id: lessonId },
+      nowMs,
+    });
+    if (!revalidation.pass) {
+      await writeRevalidationFailureAudit(input.db, {
+        lessonId,
+        action: request.action,
+        actorUid: request.actorUid,
+        lesson: cur,
+        revalidation,
+      });
+      return {
+        ok: false,
+        code: "revalidation_failed",
+        message: revalidation.failureReason ?? "Revalidation failed.",
+        revalidation,
+      };
+    }
+    commitExampleGuard = await loadScopeLatestExampleGuard(
+      input.db,
+      cur.scopeKey,
+    );
   }
 
   const nextStatus = targetStatus(request.action);
@@ -489,7 +650,9 @@ export async function applyFieldLessonStatusTransition(input: {
     | { kind: "applied" }
     | { kind: "alreadyApplied" }
     | { kind: "lesson_deleted" }
-    | { kind: "lesson_version_mismatch" };
+    | { kind: "lesson_version_mismatch" }
+    | { kind: "invalid_transition" }
+    | { kind: "revalidation_failed"; revalidation: RevalidationResult };
 
   const successAuditEvent: FieldLessonAuditEventType =
     request.action === "activate"
@@ -533,6 +696,28 @@ export async function applyFieldLessonStatusTransition(input: {
       if ((freshData.version ?? 1) !== request.expectedVersion) {
         return { kind: "lesson_version_mismatch" as const };
       }
+      if (!isValidTransition(request.action, freshData.status)) {
+        return { kind: "invalid_transition" as const };
+      }
+      if (
+        (request.action === "activate" || request.action === "reactivate") &&
+        commitExampleGuard
+      ) {
+        const commitReval = await verifyRevalidationAtCommit({
+          tx,
+          db: input.db,
+          lesson: freshData,
+          expectedLatestByDocKey: commitExampleGuard,
+          nowMs,
+        });
+        if (!commitReval.pass) {
+          return {
+            kind: "revalidation_failed" as const,
+            revalidation: commitReval,
+          };
+        }
+        revalidation = commitReval;
+      }
       tx.update(ref, patch);
       writeFieldLessonAuditEventInTransaction(tx, auditRef, auditInput, nowIso);
       return { kind: "applied" as const };
@@ -560,6 +745,29 @@ export async function applyFieldLessonStatusTransition(input: {
       ok: false,
       code: "lesson_version_mismatch",
       message: "Lesson version mismatch.",
+    };
+  }
+  if (txOutcome.kind === "invalid_transition") {
+    return {
+      ok: false,
+      code: "invalid_transition",
+      message: `Cannot ${request.action} from current status.`,
+    };
+  }
+  if (txOutcome.kind === "revalidation_failed") {
+    await writeRevalidationFailureAudit(input.db, {
+      lessonId,
+      action: request.action,
+      actorUid: request.actorUid,
+      lesson: cur,
+      revalidation: txOutcome.revalidation,
+    });
+    return {
+      ok: false,
+      code: "revalidation_failed",
+      message:
+        txOutcome.revalidation.failureReason ?? "Revalidation failed at commit.",
+      revalidation: txOutcome.revalidation,
     };
   }
   if (txOutcome.kind === "alreadyApplied") {
