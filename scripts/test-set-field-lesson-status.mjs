@@ -139,6 +139,40 @@ function createMemoryDb(seed = {}) {
   };
 }
 
+const AUDIT_COLLECTION = "vendorInvoiceFieldLessonAuditEvents";
+
+function countAuditEvents(db) {
+  const prefix = `${AUDIT_COLLECTION}/`;
+  return [...db._store.keys()].filter((k) => k.startsWith(prefix)).length;
+}
+
+/** Intercept lesson doc .get() to simulate races between pre-check and transaction. */
+function wrapDbLessonGets(db, lessonPath, onLessonGet) {
+  const origCollection = db.collection.bind(db);
+  db.collection = (name) => {
+    const col = origCollection(name);
+    const origDoc = col.doc.bind(col);
+    col.doc = (id) => {
+      const ref = origDoc(id);
+      const fullPath = `${name}/${id}`;
+      if (fullPath !== lessonPath) return ref;
+      return {
+        ...ref,
+        path: ref.path,
+        id: ref.id,
+        async get() {
+          if (onLessonGet) {
+            await onLessonGet(fullPath, db._store);
+          }
+          return ref.get();
+        },
+      };
+    };
+    return col;
+  };
+  return db;
+}
+
 function archiveAfter(daysFromNow) {
   return timestampFromMillis(Date.now() + daysFromNow * 86400000);
 }
@@ -466,6 +500,84 @@ function ok(label) {
   );
   assert.equal(unchanged.status, "proposed");
   ok("revalidation fail → no status mutation");
+}
+
+// tx discovers concurrent winner (lastMutation set between pre-check and tx) — no duplicate audit
+{
+  const db = createMemoryDb();
+  const { lessonId } = await proposeLesson(db);
+  const lessonPath = `${lessonsMod.FIELD_LESSON_COLLECTION}/${lessonId}`;
+  let lessonGetPass = 0;
+  wrapDbLessonGets(db, lessonPath, async (path, store) => {
+    lessonGetPass += 1;
+    if (lessonGetPass === 2) {
+      const cur = store.get(path);
+      store.set(path, {
+        ...cur,
+        status: "rejected",
+        version: 2,
+        rejectedAt: new Date().toISOString(),
+        rejectedBy: "other-mgr",
+        lastMutation: {
+          idempotencyKey: "race-1",
+          action: "reject",
+          resultStatus: "rejected",
+          resultVersion: 2,
+          atIso: new Date().toISOString(),
+        },
+      });
+    }
+  });
+  const auditsBefore = countAuditEvents(db);
+  const r = await lifecycleMod.applyFieldLessonStatusTransition({
+    db,
+    request: {
+      lessonId,
+      action: "reject",
+      expectedVersion: 1,
+      idempotencyKey: "race-1",
+      actorUid: "mgr1",
+    },
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.result.alreadyApplied, true);
+  assert.equal(r.result.status, "rejected");
+  assert.equal(r.result.version, 2);
+  assert.equal(countAuditEvents(db), auditsBefore, "no duplicate audit on tx alreadyApplied");
+  ok("tx concurrent lastMutation → alreadyApplied, no audit");
+}
+
+// version advances between pre-check and tx → lesson_version_mismatch, no audit
+{
+  const db = createMemoryDb();
+  const { lessonId } = await proposeLesson(db);
+  const lessonPath = `${lessonsMod.FIELD_LESSON_COLLECTION}/${lessonId}`;
+  let lessonGetPass = 0;
+  wrapDbLessonGets(db, lessonPath, async (path, store) => {
+    lessonGetPass += 1;
+    if (lessonGetPass === 2) {
+      const cur = store.get(path);
+      store.set(path, { ...cur, version: 2 });
+    }
+  });
+  const auditsBefore = countAuditEvents(db);
+  const r = await lifecycleMod.applyFieldLessonStatusTransition({
+    db,
+    request: {
+      lessonId,
+      action: "reject",
+      expectedVersion: 1,
+      idempotencyKey: "ver-race-1",
+      actorUid: "mgr1",
+    },
+  });
+  assert.equal(r.ok, false);
+  assert.equal(r.code, "lesson_version_mismatch");
+  assert.equal(countAuditEvents(db), auditsBefore, "no audit on tx version mismatch");
+  const unchanged = db._store.get(lessonPath);
+  assert.equal(unchanged.status, "proposed");
+  assert.equal(unchanged.version, 2);
+  ok("tx version race → lesson_version_mismatch, no audit");
 }
 
 console.log(`\nset-field-lesson-status: ${passed} passed`);

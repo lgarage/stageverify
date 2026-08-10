@@ -356,21 +356,66 @@ async function applyFieldLessonStatusTransition(input) {
         default:
             break;
     }
-    await input.db.runTransaction(async (tx) => {
-        const fresh = await tx.get(ref);
-        if (!fresh.exists) {
-            throw new Error("lesson_deleted");
+    let txOutcome;
+    try {
+        txOutcome = await input.db.runTransaction(async (tx) => {
+            const fresh = await tx.get(ref);
+            if (!fresh.exists) {
+                return { kind: "lesson_deleted" };
+            }
+            const freshData = fresh.data();
+            if (freshData.lastMutation?.idempotencyKey === idempotencyKey &&
+                freshData.lastMutation.action === request.action) {
+                return { kind: "alreadyApplied" };
+            }
+            if ((freshData.version ?? 1) !== request.expectedVersion) {
+                return { kind: "lesson_version_mismatch" };
+            }
+            tx.update(ref, patch);
+            return { kind: "applied" };
+        });
+    }
+    catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg === "lesson_deleted") {
+            return { ok: false, code: "not_found", message: "Lesson not found." };
         }
-        const freshData = fresh.data();
-        if ((freshData.version ?? 1) !== request.expectedVersion) {
-            throw new Error("lesson_version_mismatch");
+        if (msg === "lesson_version_mismatch") {
+            return {
+                ok: false,
+                code: "lesson_version_mismatch",
+                message: "Lesson version mismatch.",
+            };
         }
-        if (freshData.lastMutation?.idempotencyKey === idempotencyKey &&
-            freshData.lastMutation.action === request.action) {
-            return;
+        throw err;
+    }
+    if (txOutcome.kind === "lesson_deleted") {
+        return { ok: false, code: "not_found", message: "Lesson not found." };
+    }
+    if (txOutcome.kind === "lesson_version_mismatch") {
+        return {
+            ok: false,
+            code: "lesson_version_mismatch",
+            message: "Lesson version mismatch.",
+        };
+    }
+    if (txOutcome.kind === "alreadyApplied") {
+        const freshSnap = await ref.get();
+        if (!freshSnap.exists) {
+            return { ok: false, code: "not_found", message: "Lesson not found." };
         }
-        tx.update(ref, patch);
-    });
+        const freshData = freshSnap.data();
+        return {
+            ok: true,
+            result: {
+                lessonId,
+                action: request.action,
+                status: freshData.status,
+                version: freshData.version ?? 1,
+                alreadyApplied: true,
+            },
+        };
+    }
     const auditEvent = request.action === "activate"
         ? "activated"
         : request.action === "reject"
