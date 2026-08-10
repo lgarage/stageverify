@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import { clearPickupTokenForJob } from "../../pickupTokenSession";
@@ -247,8 +248,6 @@ export function DetailContent({
   mutationError,
   onUpdateStatus,
   onRecordPickup,
-  onRevertStatus,
-  onMarkShipped,
   onUpdateFulfillmentMethod,
   onStatusAndAssignSpot,
   onUpdateIssueSummary,
@@ -274,8 +273,6 @@ export function DetailContent({
   mutationError: string | null;
   onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
   onRecordPickup: (technicianName: string, itemsSummary: string) => Promise<void>;
-  onRevertStatus: () => Promise<void>;
-  onMarkShipped: () => Promise<void>;
   onUpdateFulfillmentMethod: (
     method: "delivery" | "will_call_pickup",
   ) => Promise<void>;
@@ -898,10 +895,7 @@ export function DetailContent({
                 pickupError={mutationError}
                 navy={navy}
                 font={font}
-                onUpdateStatus={onUpdateStatus}
                 onRecordPickup={onRecordPickup}
-                onRevertStatus={onRevertStatus}
-                onMarkShipped={onMarkShipped}
                 onUpdateFulfillmentMethod={onUpdateFulfillmentMethod}
                 onStatusAndAssignSpot={onStatusAndAssignSpot}
                 onRejectImport={openRejectDialog}
@@ -2018,19 +2012,23 @@ export function DetailContent({
 
 /* ─── Delivery status + fulfillment (Delivery Basics) ─────────────────── */
 
-const DRAWER_STATUS_DROPDOWN_OPTIONS: DeliveryStatus[] = [
-  "pending",
-  "shipped",
-  "arrived",
-  "partial",
-  "ready_for_pickup",
-  "picked_up",
-];
-
-/** Action pseudo-value — not a DeliveryStatus; last option in status dropdown. */
-const DRAWER_STATUS_REJECT_ACTION = "__reject_import__";
-
 const PICKUP_FORM_RED = "#bf0a30";
+
+/** Shared cell chrome for the Fulfillment / Status 2×2 control group. */
+const FULFILLMENT_STATUS_CELL_BASE: CSSProperties = {
+  minHeight: 52,
+  padding: "9px 12px",
+  borderRadius: 8,
+  fontSize: 12,
+  fontWeight: 800,
+  lineHeight: 1.25,
+  whiteSpace: "normal",
+  overflowWrap: "anywhere",
+  width: "100%",
+  boxSizing: "border-box",
+  textAlign: "center",
+  letterSpacing: "0.01em",
+};
 
 type DeliveryPickupFormState = {
   showPickupInput: boolean;
@@ -2070,10 +2068,7 @@ function DeliveryStatusControls({
   pickupError,
   navy,
   font,
-  onUpdateStatus,
   onRecordPickup,
-  onRevertStatus,
-  onMarkShipped,
   onUpdateFulfillmentMethod,
   onStatusAndAssignSpot,
   onRejectImport,
@@ -2086,10 +2081,7 @@ function DeliveryStatusControls({
   pickupError: string | null;
   navy: string;
   font: string;
-  onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
   onRecordPickup: (technicianName: string, itemsSummary: string) => Promise<void>;
-  onRevertStatus: () => Promise<void>;
-  onMarkShipped: () => Promise<void>;
   onUpdateFulfillmentMethod: (
     method: "delivery" | "will_call_pickup",
   ) => Promise<void>;
@@ -2131,19 +2123,28 @@ function DeliveryStatusControls({
     delivery.invoiceFulfillmentMethod === "will_call_pickup"
       ? "will_call_pickup"
       : "delivery";
-  const fulfillmentContextLabel =
-    fulfillmentMethod === "will_call_pickup"
-      ? "Will-Call / Pickup from Vendor"
-      : "Vendor Drop-Off";
-
-  const selectValue = DRAWER_STATUS_DROPDOWN_OPTIONS.includes(currentStatus)
-    ? currentStatus
-    : "";
-  const effectiveSelectValue = pendingStatusSelection ?? selectValue;
+  const isWillCall = fulfillmentMethod === "will_call_pickup";
+  const stagedSelected =
+    currentStatus === "ready_for_pickup" && !isWillCall;
+  const stagedActionable =
+    !stagedSelected &&
+    !loading &&
+    !isWillCall &&
+    drawerStatusOptionEnabled(
+      currentStatus,
+      "ready_for_pickup",
+      delivery,
+      details.items,
+    );
   const statusLabelText =
     pendingStatusSelection === "picked_up" || currentStatus === "picked_up"
       ? DELIVERY_STATUS_LABEL.picked_up
       : displayState.statusDisplayLabel;
+  const showWillCallChip =
+    isWillCall || statusLabelText === "Will-Call / Pickup";
+  const tileRepresentsStatus = stagedSelected || showWillCallChip;
+  const showCurrentStatusLine =
+    !tileRepresentsStatus || pendingStatusSelection === "picked_up";
 
   useEffect(() => {
     setSelectedSpotId(delivery.stagingLocationId ?? "");
@@ -2170,48 +2171,22 @@ function DeliveryStatusControls({
     }
   }, [showPickupInput]);
 
-  const handleStatusChange = (raw: string) => {
-    if (raw === DRAWER_STATUS_REJECT_ACTION) {
-      if (rejectImportBlockedReason) {
-        setRejectUnavailableMessage(rejectImportBlockedReason);
-        return;
-      }
-      setRejectUnavailableMessage(null);
-      onRejectImport();
+  const handleRejectImport = () => {
+    if (rejectImportBlockedReason) {
+      setRejectUnavailableMessage(rejectImportBlockedReason);
       return;
     }
     setRejectUnavailableMessage(null);
-    const option = raw as DeliveryStatus;
-    if (option === currentStatus && option !== "picked_up") return;
-    if (option === "picked_up") {
-      if (
-        !delivery.jobId?.trim() ||
-        !isPickupEligible(delivery, details.items).eligible
-      ) {
-        return;
-      }
-      setShowSpotPicker(false);
-      setPendingStatusSelection("picked_up");
-      setShowPickupInput(true);
-      return;
-    }
+    onRejectImport();
+  };
+
+  /** Reuse prior dropdown transition authority for staged (spot picker) only. */
+  const handleStagedReadyClick = () => {
+    if (!stagedActionable) return;
+    setRejectUnavailableMessage(null);
     setPendingStatusSelection(null);
-    if (option === "ready_for_pickup") {
-      setShowPickupInput(false);
-      setShowSpotPicker(true);
-      return;
-    }
-    const revertTarget = DISPATCHER_REVERT_TARGETS[currentStatus];
-    const inTransitions = VALID_TRANSITIONS[currentStatus]?.includes(option);
-    if (option === revertTarget && !inTransitions) {
-      void onRevertStatus();
-      return;
-    }
-    if (option === "shipped" && currentStatus === "pending") {
-      void onMarkShipped();
-      return;
-    }
-    void onUpdateStatus(option);
+    setShowPickupInput(false);
+    setShowSpotPicker(true);
   };
 
   const handleConfirmPickup = () => {
@@ -2228,6 +2203,15 @@ function DeliveryStatusControls({
     setShowSpotPicker(false);
   };
 
+  const unselectedCellStyle: CSSProperties = {
+    ...FULFILLMENT_STATUS_CELL_BASE,
+    border: "1.5px solid var(--admin-border-strong)",
+    backgroundColor: "var(--admin-surface-2)",
+    color: "var(--admin-text-data)",
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)",
+    fontFamily: font,
+  };
+
   return (
     <div
       data-testid="delivery-status-controls"
@@ -2240,10 +2224,11 @@ function DeliveryStatusControls({
       }}
     >
       <div
+        data-testid="delivery-fulfillment-control"
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: 4,
+          gap: 6,
         }}
       >
         <span
@@ -2255,7 +2240,7 @@ function DeliveryStatusControls({
             textTransform: "uppercase",
           }}
         >
-          Status
+          Fulfillment / Status
         </span>
         <p
           data-testid="delivery-status-current-label"
@@ -2270,7 +2255,12 @@ function DeliveryStatusControls({
             gap: 8,
           }}
         >
-          {statusLabelText === "Will-Call / Pickup" ? (
+          {showCurrentStatusLine && !showWillCallChip ? (
+            <span style={{ color: "var(--admin-text-muted)", fontWeight: 500 }}>
+              Current:
+            </span>
+          ) : null}
+          {showWillCallChip ? (
             <span
               data-testid="delivery-status-will-call-chip"
               style={{
@@ -2296,149 +2286,181 @@ function DeliveryStatusControls({
                   flexShrink: 0,
                 }}
               />
-              {statusLabelText}
+              Will-Call / Pickup
             </span>
           ) : (
             statusLabelText
           )}
-          <span style={{ color: "var(--admin-text-muted)", fontWeight: 500 }}>
-            · {fulfillmentContextLabel}
-          </span>
         </p>
-        <select
-          data-testid="delivery-status-dropdown"
-          value={effectiveSelectValue}
-          disabled={loading || currentStatus === "issue"}
-          onChange={(e) => handleStatusChange(e.target.value)}
+
+        <div
+          data-testid="delivery-fulfillment-status-grid"
           style={{
-            width: "100%",
-            boxSizing: "border-box",
-            padding: "8px 10px",
-            border: "1.5px solid var(--admin-border)",
-            borderRadius: 6,
-            fontSize: 14,
-            fontFamily: font,
-            color: "var(--admin-text)",
-            backgroundColor: "var(--admin-surface)",
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 8,
           }}
         >
-          {!effectiveSelectValue ? (
-            <option value="" disabled>
-              {currentStatus === "issue"
-                ? "Issue — use Report Issue below"
-                : DELIVERY_STATUS_LABEL[currentStatus] ?? currentStatus}
-            </option>
-          ) : null}
-          {DRAWER_STATUS_DROPDOWN_OPTIONS.map((option) => {
-            const enabled = drawerStatusOptionEnabled(
-              currentStatus,
-              option,
-              delivery,
-              details.items,
-            );
-            return (
-              <option
-                key={option}
-                value={option}
-                disabled={!enabled}
-                style={{ color: enabled ? "var(--admin-text)" : "var(--admin-text-muted)" }}
-              >
-                {DELIVERY_STATUS_LABEL[option]}
-              </option>
-            );
-          })}
-          <option disabled value="__reject_separator__">
-            ──────────
-          </option>
-          <option
-            value={DRAWER_STATUS_REJECT_ACTION}
-            data-testid="delivery-status-reject-option"
-            style={{ color: "var(--admin-danger-text)", fontWeight: 700 }}
-          >
-            Reject…
-          </option>
-        </select>
-        {rejectUnavailableMessage ? (
-          <p
-            data-testid="delivery-status-reject-unavailable"
+          <button
+            type="button"
+            data-testid="delivery-fulfillment-delivery"
+            data-selected={!isWillCall ? "true" : "false"}
+            aria-pressed={!isWillCall}
+            disabled={loading}
+            onClick={() => {
+              if (!isWillCall || loading) return;
+              void onUpdateFulfillmentMethod("delivery");
+            }}
             style={{
-              margin: "6px 0 0",
-              fontSize: 12,
-              color: "var(--admin-danger-text)",
-              lineHeight: 1.4,
+              ...unselectedCellStyle,
+              ...(!isWillCall
+                ? {
+                    border: "2px solid #60a5fa",
+                    backgroundColor: "#2563eb",
+                    color: "var(--admin-on-navy)",
+                    boxShadow:
+                      "0 0 0 1px rgba(37, 99, 235, 0.45), 0 2px 10px rgba(37, 99, 235, 0.4)",
+                    cursor: "default",
+                  }
+                : {
+                    cursor: loading ? "default" : "pointer",
+                    opacity: loading ? 0.7 : 1,
+                  }),
             }}
           >
-            {rejectUnavailableMessage}
-          </p>
-        ) : null}
-      </div>
+            Vendor Drop-Off
+          </button>
+          <button
+            type="button"
+            data-testid="delivery-fulfillment-will_call_pickup"
+            data-selected={isWillCall ? "true" : "false"}
+            aria-pressed={isWillCall}
+            disabled={loading}
+            onClick={() => {
+              if (isWillCall || loading) return;
+              void onUpdateFulfillmentMethod("will_call_pickup");
+            }}
+            style={{
+              ...unselectedCellStyle,
+              ...(isWillCall
+                ? {
+                    border: "2px solid var(--admin-willcall-border)",
+                    backgroundColor: "var(--admin-willcall-bg)",
+                    color: "var(--admin-willcall-text)",
+                    boxShadow:
+                      "0 0 0 1px rgba(190, 24, 93, 0.35), 0 2px 10px rgba(236, 72, 153, 0.28)",
+                    cursor: "default",
+                  }
+                : {
+                    cursor: loading ? "default" : "pointer",
+                    opacity: loading ? 0.7 : 1,
+                  }),
+            }}
+          >
+            Will-Call / Pickup from Vendor
+          </button>
+          <button
+            type="button"
+            data-testid="delivery-status-placeholder"
+            disabled
+            aria-disabled="true"
+            tabIndex={-1}
+            style={{
+              ...FULFILLMENT_STATUS_CELL_BASE,
+              backgroundColor: "var(--admin-surface-2)",
+              border: "1.5px solid var(--admin-border)",
+              color: "var(--admin-text-muted)",
+              opacity: 0.55,
+              cursor: "default",
+              boxShadow: "none",
+              fontFamily: font,
+            }}
+          >
+            —
+          </button>
+          <button
+            type="button"
+            data-testid="delivery-status-staged-ready"
+            data-selected={stagedSelected ? "true" : "false"}
+            aria-pressed={stagedSelected}
+            disabled={!stagedActionable}
+            aria-disabled={!stagedActionable}
+            onClick={handleStagedReadyClick}
+            style={{
+              ...FULFILLMENT_STATUS_CELL_BASE,
+              fontFamily: font,
+              ...(stagedSelected
+                ? {
+                    border: "2px solid var(--admin-success-border)",
+                    backgroundColor: "var(--admin-success-bg)",
+                    color: "var(--admin-success-text)",
+                    boxShadow:
+                      "0 0 0 1px rgba(102, 187, 106, 0.4), 0 2px 10px rgba(102, 187, 106, 0.28)",
+                    cursor: "default",
+                    opacity: 1,
+                  }
+                : stagedActionable
+                  ? {
+                      ...unselectedCellStyle,
+                      cursor: "pointer",
+                      opacity: 1,
+                    }
+                  : {
+                      backgroundColor: "var(--admin-surface-2)",
+                      border: "1.5px solid var(--admin-border)",
+                      color: "var(--admin-text-muted)",
+                      opacity: 0.55,
+                      cursor: "not-allowed",
+                      boxShadow: "none",
+                    }),
+            }}
+          >
+            Staged — Ready for Pickup
+          </button>
+        </div>
 
-      <div
-        data-testid="delivery-fulfillment-control"
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-        }}
-      >
-        <span
+        <div
           style={{
-            color: "var(--admin-text-label)",
-            fontWeight: 700,
-            fontSize: 12,
-            letterSpacing: "0.04em",
-            textTransform: "uppercase",
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            alignItems: "flex-start",
           }}
         >
-          Fulfillment
-        </span>
-        <div style={{ display: "flex", gap: 8 }}>
-          {(
-            [
-              ["delivery", "Vendor Drop-Off"],
-              ["will_call_pickup", "Will-Call / Pickup from Vendor"],
-            ] as const
-          ).map(([method, label]) => {
-            const active = fulfillmentMethod === method;
-            return (
-              <button
-                key={method}
-                type="button"
-                data-testid={`delivery-fulfillment-${method}`}
-                data-selected={active ? "true" : "false"}
-                aria-pressed={active}
-                disabled={loading}
-                onClick={() => {
-                  if (active || loading) return;
-                  void onUpdateFulfillmentMethod(method);
-                }}
-                style={{
-                  flex: 1,
-                  padding: "9px 12px",
-                  borderRadius: 8,
-                  /* Selected: StageVerify blue ≥4.5:1 with white (avoid muted dark accent). */
-                  border: active
-                    ? "2px solid #60a5fa"
-                    : "1.5px solid var(--admin-border-strong)",
-                  backgroundColor: active ? "#2563eb" : "var(--admin-surface-2)",
-                  color: active
-                    ? "var(--admin-on-navy)"
-                    : "var(--admin-text-data)",
-                  fontSize: 12,
-                  fontWeight: 800,
-                  cursor: loading || active ? "default" : "pointer",
-                  fontFamily: font,
-                  opacity: loading ? 0.7 : 1,
-                  boxShadow: active
-                    ? "0 0 0 1px rgba(37, 99, 235, 0.45), 0 2px 10px rgba(37, 99, 235, 0.4)"
-                    : "inset 0 0 0 1px rgba(255,255,255,0.06)",
-                  letterSpacing: "0.01em",
-                }}
-              >
-                {label}
-              </button>
-            );
-          })}
+          <button
+            type="button"
+            data-testid="delivery-status-reject-action"
+            disabled={loading}
+            onClick={handleRejectImport}
+            style={{
+              margin: 0,
+              padding: "2px 0",
+              border: "none",
+              background: "transparent",
+              color: "var(--admin-danger-text)",
+              fontSize: 12,
+              fontWeight: 700,
+              fontFamily: font,
+              cursor: loading ? "default" : "pointer",
+              textDecoration: "underline",
+              opacity: loading ? 0.7 : 1,
+            }}
+          >
+            Reject…
+          </button>
+          {rejectUnavailableMessage ? (
+            <p
+              data-testid="delivery-status-reject-unavailable"
+              style={{
+                margin: 0,
+                fontSize: 12,
+                color: "var(--admin-danger-text)",
+                lineHeight: 1.4,
+              }}
+            >
+              {rejectUnavailableMessage}
+            </p>
+          ) : null}
         </div>
       </div>
 

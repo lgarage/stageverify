@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   firestoreDataService,
-  markDeliveryShipped,
   resolveMaterialIssue,
   listShopStockMappings,
 } from "../firestoreService";
@@ -244,47 +243,6 @@ export function DeliveryDetailDrawer({
       if (updatedDetails) await refreshAfter(updatedDetails);
     } catch (e) {
       setMutationError("Failed to resolve material issue.");
-      console.error(e);
-    } finally {
-      setMutationLoading(false);
-    }
-  };
-
-  const handleRevertStatus = async () => {
-    if (!deliveryId) return;
-    setMutationLoading(true);
-    setMutationError(null);
-    try {
-      const updatedDetails = await firestoreDataService.revertDeliveryStatus(
-        deliveryId,
-        "dispatcher",
-      );
-      if (updatedDetails) {
-        await refreshAfter(updatedDetails);
-        closeAfterSuccessfulStatusChange();
-      } else setMutationError("Failed to revert status.");
-    } catch (e) {
-      setMutationError("An unexpected error occurred while reverting status.");
-      console.error(e);
-    } finally {
-      setMutationLoading(false);
-    }
-  };
-
-  const handleMarkShipped = async () => {
-    if (!deliveryId) return;
-    setMutationLoading(true);
-    setMutationError(null);
-    try {
-      await markDeliveryShipped(deliveryId);
-      const updatedDetails =
-        await firestoreDataService.getDeliveryDetails(deliveryId);
-      if (updatedDetails) {
-        await refreshAfter(updatedDetails);
-        closeAfterSuccessfulStatusChange();
-      } else setMutationError("Failed to mark delivery as shipped.");
-    } catch (e) {
-      setMutationError("An unexpected error occurred while marking shipped.");
       console.error(e);
     } finally {
       setMutationLoading(false);
@@ -590,8 +548,6 @@ export function DeliveryDetailDrawer({
             mutationError={mutationError}
             onUpdateStatus={handleUpdateStatus}
             onRecordPickup={handleRecordPickup}
-            onRevertStatus={handleRevertStatus}
-            onMarkShipped={handleMarkShipped}
             onUpdateFulfillmentMethod={handleUpdateFulfillmentMethod}
             onStatusAndAssignSpot={handleStatusAndAssignSpot}
             onUpdateIssueSummary={handleUpdateIssueSummary}

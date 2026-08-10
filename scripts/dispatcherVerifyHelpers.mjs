@@ -91,35 +91,42 @@ export async function logDeliveryTableDiagnostics(page, { authOutcome = "unknown
 }
 
 /**
- * Select a delivery row for nav verify: env term, default prod terms, or first View row.
+ * Select a delivery row for nav verify: env term, default prod terms, or first row click.
+ * Row click opens Delivery Details (View button removed).
  * Fails fast when the deliveries table has no openable rows.
  */
 export async function openDeliveryDrawerForNavVerify(page) {
   const search = page.locator('input[placeholder*="Job #, name, PO"]');
   await search.waitFor({ state: "visible", timeout: 15_000 });
 
+  const clickFirstDeliveryRow = async () => {
+    const row = page.locator('[data-testid^="dispatcher-delivery-row-"]').first();
+    if ((await row.count()) === 0) return false;
+    if (!(await row.isVisible().catch(() => false))) return false;
+    await row.click({ force: true });
+    await page.waitForTimeout(1000);
+    return true;
+  };
+
   const terms = getVerifySearchTerms();
   for (const term of terms) {
     await search.fill("");
     await search.fill(term);
     await page.waitForTimeout(1500);
-    const rowCount = await page.locator("table tbody tr").count();
+    const rowCount = await page
+      .locator('[data-testid^="dispatcher-delivery-row-"]')
+      .count();
     console.log(`Diagnostics: searchTerm="${term}", rowCount=${rowCount}`);
-    const viewBtn = page
-      .locator("table tbody tr")
-      .first()
-      .locator("button")
-      .filter({ hasText: /^View$/ });
-    if (await viewBtn.isVisible().catch(() => false)) {
-      await viewBtn.click({ force: true });
-      await page.waitForTimeout(1000);
-      return { searchTerm: term, rowCount, method: "search+view" };
+    if (await clickFirstDeliveryRow()) {
+      return { searchTerm: term, rowCount, method: "search+row-click" };
     }
   }
 
   await search.fill("");
   await page.waitForTimeout(1500);
-  const rowCount = await page.locator("table tbody tr").count();
+  const rowCount = await page
+    .locator('[data-testid^="dispatcher-delivery-row-"]')
+    .count();
   console.log(`Diagnostics: searchTerm=(cleared), rowCount=${rowCount}`);
 
   if (rowCount === 0) {
@@ -131,15 +138,12 @@ export async function openDeliveryDrawerForNavVerify(page) {
     );
   }
 
-  const viewBtn = page.locator("button").filter({ hasText: /^View$/ }).first();
-  if (!(await viewBtn.isVisible().catch(() => false))) {
+  if (!(await clickFirstDeliveryRow())) {
     throw new Error(
-      `no prod delivery available for nav verify — ${rowCount} row(s) but no View button. URL=${page.url()}`,
+      `no prod delivery available for nav verify — ${rowCount} row(s) but row click failed. URL=${page.url()}`,
     );
   }
-  await viewBtn.click({ force: true });
-  await page.waitForTimeout(1000);
-  return { searchTerm: "(first visible row)", rowCount, method: "first-view" };
+  return { searchTerm: "(first visible row)", rowCount, method: "first-row-click" };
 }
 
 /** Assert the delivery detail drawer opened (generic — any prod delivery). */

@@ -106,25 +106,27 @@ async function ensureAuthenticated(page) {
     "ORD-1010",
     "ORD-9102",
   ];
-  let viewReady = false;
+  let rowReady = false;
   for (const orderNumber of ordersWithFixtureEvidence) {
     await search.fill(orderNumber);
     await page.waitForTimeout(1200);
-    const btn = page.locator("button").filter({ hasText: /^View$/ }).first();
-    if (await btn.isVisible().catch(() => false)) {
-      viewReady = true;
+    const row = page.locator('[data-testid^="dispatcher-delivery-row-"]').first();
+    if (await row.isVisible().catch(() => false)) {
+      rowReady = true;
       break;
     }
   }
-  if (!viewReady) {
+  if (!rowReady) {
     await search.fill("");
     await page.waitForTimeout(800);
   }
-  const firstViewBtn = page.locator("button").filter({ hasText: /^View$/ }).first();
-  await firstViewBtn.waitFor({ state: "visible", timeout: 30_000 });
-  if (await firstViewBtn.isVisible().catch(() => false)) {
-    await firstViewBtn.scrollIntoViewIfNeeded();
-    await firstViewBtn.click();
+  const firstDeliveryRow = page
+    .locator('[data-testid^="dispatcher-delivery-row-"]')
+    .first();
+  await firstDeliveryRow.waitFor({ state: "visible", timeout: 30_000 });
+  if (await firstDeliveryRow.isVisible().catch(() => false)) {
+    await firstDeliveryRow.scrollIntoViewIfNeeded();
+    await firstDeliveryRow.click();
     await page.waitForTimeout(800);
     const evidencePanel = page.getByTestId("readiness-evidence-panel");
     await evidencePanel.waitFor({ timeout: 15_000 });
@@ -298,7 +300,7 @@ async function ensureAuthenticated(page) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(400);
   } else {
-    throw new Error("Expected at least one delivery View button for drawer email evidence test");
+    throw new Error("Expected at least one delivery row for drawer email evidence test");
   }
 
   console.log("Expand Needs Review strip…");
