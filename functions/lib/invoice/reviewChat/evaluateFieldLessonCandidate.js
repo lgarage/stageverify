@@ -215,6 +215,7 @@ async function evaluateFieldLessonScope(input) {
             actorUid: input.actorUid,
             reason: "contradictory_evidence",
             detail: `competing fingerprints: ${competing.join(",")}`,
+            allowedStatuses: ["proposed", "active"],
         });
         await (0, fieldLessonAudit_1.writeFieldLessonAuditEvent)(input.db, {
             lessonId: suspendResult.lessonId ?? `scope:${scopeKey}`,
@@ -249,14 +250,14 @@ async function evaluateFieldLessonScope(input) {
             actorUid: input.actorUid,
             reason: "eligible_votes_below_threshold",
             detail: `votes=${winner?.votes.length ?? 0}`,
-            onlyIfProposed: true,
+            allowedStatuses: ["proposed", "active"],
         });
         if (suspendResult.suspended) {
             await (0, fieldLessonAudit_1.writeFieldLessonAuditEvent)(input.db, {
                 lessonId: suspendResult.lessonId,
                 eventType: "threshold_auto_suspended",
                 actorUid: input.actorUid,
-                priorStatus: "proposed",
+                priorStatus: suspendResult.priorStatus,
                 newStatus: "suspended",
                 scopeKey,
                 distinctDocumentCount: winner?.votes.length ?? 0,
@@ -331,6 +332,15 @@ async function evaluateFieldLessonScope(input) {
                 suspendedAt: null,
                 suspendedBy: null,
                 disabledReason: null,
+                activatedAt: null,
+                activatedBy: null,
+                rejectedAt: null,
+                rejectedBy: null,
+                rejectionNote: null,
+                reactivatedAt: null,
+                reactivatedBy: null,
+                lastRevalidation: null,
+                lastMutation: null,
                 fpUndoCount: 0,
                 circuitBreakerTrips: [],
                 source: "c3d1_evaluate",
@@ -344,8 +354,8 @@ async function evaluateFieldLessonScope(input) {
             // Different fingerprint ⇒ different lessonId by construction; treat as noop here
             return "noop";
         }
-        if (cur.status === "suspended") {
-            // D.1 does not auto-reactivate
+        if (cur.status !== "proposed") {
+            // D.2: only proposed gets proposal_refreshed; active/rejected/suspended → noop
             return "noop";
         }
         const nextVersion = (cur.version ?? 1) + 1;
@@ -419,11 +429,14 @@ async function autoSuspendLessonsInScope(input) {
         const data = d.data();
         if (data.status === "suspended")
             continue;
+        if (data.status === "rejected")
+            continue;
         if (input.onlyIfProposed && data.status !== "proposed")
             continue;
-        // D.1: only proposed docs exist; never touch active
-        if (data.status !== "proposed")
+        if (input.allowedStatuses &&
+            !input.allowedStatuses.includes(data.status)) {
             continue;
+        }
         if (input.excludePatternFingerprint &&
             data.patternFingerprint === input.excludePatternFingerprint) {
             continue;

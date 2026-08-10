@@ -5,8 +5,8 @@ exports.hashPatternFingerprint = hashPatternFingerprint;
 exports.hashTextWindow = hashTextWindow;
 exports.buildLessonDocId = buildLessonDocId;
 /**
- * Lane C C3-D.1 — vendorInvoiceFieldLessons collection types (lifecycle control-plane).
- * No parse effect. D.1 may write proposed | suspended only.
+ * Lane C C3-D — vendorInvoiceFieldLessons collection types (lifecycle control-plane).
+ * No parse effect. D.1 evaluator writes proposed | suspended only; D.2 Manager lifecycle adds active | rejected.
  */
 const crypto_1 = require("crypto");
 const indexFieldLessonExample_1 = require("./indexFieldLessonExample");

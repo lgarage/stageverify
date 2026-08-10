@@ -1,5 +1,5 @@
 /**
- * Playwright: Settings → Invoice Learning (C3-D.1 read-only).
+ * Playwright: Settings → Invoice Learning lifecycle review (C3-D.2).
  *
  * Usage:
  *   npm run dev   (another terminal)
@@ -41,7 +41,7 @@ mkdirSync(outDir, { recursive: true });
 
 const appBase = resolveAppBase(baseUrl);
 
-const FORBIDDEN_ACTION_RE =
+const ROW_FORBIDDEN_ACTION_RE =
   /\b(Activate|Reject|Suspend|Reactivate|Edit Pattern|Approve Lesson|Check for New Lessons)\b/i;
 
 const INVOICE_LEARNING_CONTRAST_SPEC = {
@@ -65,6 +65,39 @@ const INVOICE_LEARNING_CONTRAST_SPEC = {
       name: "active count",
       selector: '[data-testid="invoice-learning-active-count"]',
       large: true,
+    },
+    {
+      name: "rejected count",
+      selector: '[data-testid="invoice-learning-rejected-count"]',
+      large: true,
+    },
+  ],
+};
+
+const INVOICE_LEARNING_DETAIL_CONTRAST_SPEC = {
+  rootSelector: '[data-testid="invoice-learning-detail"]',
+  elements: [
+    {
+      name: "lesson detail title",
+      selector: "#invoice-learning-detail-title",
+      large: true,
+    },
+    {
+      name: "lesson status",
+      selector: '[data-testid="invoice-learning-status"]',
+    },
+    {
+      name: "supporting evidence heading",
+      selector: '[data-testid="invoice-learning-evidence"] h4',
+    },
+    {
+      name: "manager decision heading",
+      selector: '[data-testid="invoice-learning-lifecycle"] h4',
+    },
+    {
+      name: "status lifecycle action",
+      selector: '[data-testid="invoice-learning-lifecycle"] button',
+      optional: true,
     },
   ],
 };
@@ -97,10 +130,10 @@ async function ensureAuthenticated(page) {
   }
 }
 
-function assertNoLifecycleActions(rootText) {
-  const match = rootText.match(FORBIDDEN_ACTION_RE);
+function assertNoListRowLifecycleActions(rootText) {
+  const match = rootText.match(ROW_FORBIDDEN_ACTION_RE);
   if (match) {
-    throw new Error(`Forbidden lifecycle action control found: ${match[0]}`);
+    throw new Error(`List-row lifecycle action found: ${match[0]}`);
   }
 }
 
@@ -140,12 +173,6 @@ function assertNoLifecycleActions(rootText) {
   });
 
   await page.getByTestId("invoice-learning-summary").waitFor({ timeout: 15_000 });
-  const activeCount = (
-    await page.getByTestId("invoice-learning-active-count").innerText()
-  ).trim();
-  if (activeCount !== "0") {
-    throw new Error(`Expected Active count 0, got ${activeCount}`);
-  }
 
   // Wait until load settles: empty, lessons, error alert, or manager-denied.
   await page.waitForFunction(
@@ -165,25 +192,13 @@ function assertNoLifecycleActions(rootText) {
   );
 
   const panelText = await panel.innerText();
-  if (!panelText.includes("do not affect invoice parsing yet")) {
+  if (
+    !panelText.includes(
+      "These are deterministic extraction patterns StageVerify has learned from verified invoice evidence.",
+    ) ||
+    !panelText.includes("Parser application is not live yet.")
+  ) {
     throw new Error("Missing safety explanation copy");
-  }
-  assertNoLifecycleActions(panelText);
-
-  // No lifecycle action buttons/links inside the panel
-  const forbiddenControls = panel.locator(
-    "button, a, [role='button']",
-  );
-  const controlCount = await forbiddenControls.count();
-  for (let i = 0; i < controlCount; i++) {
-    const label = (
-      (await forbiddenControls.nth(i).innerText()) ||
-      (await forbiddenControls.nth(i).getAttribute("aria-label")) ||
-      ""
-    ).trim();
-    if (FORBIDDEN_ACTION_RE.test(label)) {
-      throw new Error(`Forbidden control label: ${label}`);
-    }
   }
 
   const empty = page.getByTestId("invoice-learning-empty");
@@ -211,37 +226,118 @@ function assertNoLifecycleActions(rootText) {
   }
 
   if (lessonCount > 0) {
-    const first = lessonCards.first();
-    const firstText = await first.innerText();
-    const hasFriendlyField =
-      firstText.includes("Customer PO / Reference") ||
-      firstText.includes("Sales Order #") ||
-      firstText.includes("Invoice #");
-    if (!hasFriendlyField) {
-      throw new Error("Lesson card missing friendly field name");
-    }
-    const hasFriendlyCapture =
-      firstText.includes("Value appears beside the label") ||
-      firstText.includes("Value appears directly below the label");
-    if (!hasFriendlyCapture) {
-      throw new Error("Lesson card missing friendly capture relationship");
-    }
-    if (!/distinct/i.test(firstText)) {
-      throw new Error("Lesson card missing distinct document count");
+    const expectedCounts = {
+      proposed: 0,
+      active: 0,
+      suspended: 0,
+      rejected: 0,
+    };
+
+    for (let index = 0; index < lessonCount; index++) {
+      const card = lessonCards.nth(index);
+      const status = await card.getAttribute("data-status");
+      if (!status || !(status in expectedCounts)) {
+        throw new Error(`Lesson card ${index + 1} has invalid status: ${status}`);
+      }
+      expectedCounts[status] += 1;
+
+      const cardText = await card.innerText();
+      assertNoListRowLifecycleActions(cardText);
+      const hasFriendlyField =
+        cardText.includes("Customer PO / Reference") ||
+        cardText.includes("Sales Order #") ||
+        cardText.includes("Invoice #");
+      if (!hasFriendlyField) {
+        throw new Error("Lesson card missing friendly field name");
+      }
+      const hasFriendlyCapture =
+        cardText.includes("Value appears beside the label") ||
+        cardText.includes("Value appears directly below the label");
+      if (!hasFriendlyCapture) {
+        throw new Error("Lesson card missing friendly capture relationship");
+      }
+      if (!/distinct/i.test(cardText)) {
+        throw new Error("Lesson card missing distinct document count");
+      }
+
+      await card.click();
+      const detail = page.getByTestId("invoice-learning-detail");
+      await detail.waitFor({ timeout: 10_000 });
+      const evidence = page.getByTestId("invoice-learning-evidence");
+      await evidence.waitFor({ timeout: 10_000 });
+      const detailText = await detail.innerText();
+      if (!detailText.includes("Supporting evidence")) {
+        throw new Error("Detail missing Supporting evidence section");
+      }
+      await assertReadableTextContrast(
+        page,
+        INVOICE_LEARNING_DETAIL_CONTRAST_SPEC,
+      );
+
+      const activate = detail.getByRole("button", {
+        name: "Activate",
+        exact: true,
+      });
+      const reject = detail.getByRole("button", {
+        name: "Reject",
+        exact: true,
+      });
+      const suspend = detail.getByRole("button", {
+        name: "Suspend",
+        exact: true,
+      });
+      const reactivate = detail.getByRole("button", {
+        name: "Reactivate",
+        exact: true,
+      });
+
+      if (status === "proposed") {
+        if ((await reject.count()) !== 1) {
+          throw new Error("Proposed lesson detail must show Reject");
+        }
+        const contradiction = await detail
+          .getByTestId("invoice-learning-conflict")
+          .isVisible()
+          .catch(() => false);
+        if (contradiction) {
+          if ((await activate.count()) !== 0) {
+            throw new Error(
+              "Contradictory proposed lesson must hide Activate",
+            );
+          }
+        } else if ((await activate.count()) !== 1) {
+          throw new Error("Proposed lesson detail must show Activate");
+        }
+      } else if (status === "active") {
+        if ((await suspend.count()) !== 1) {
+          throw new Error("Active lesson detail must show Suspend");
+        }
+      } else if (status === "suspended") {
+        if ((await reactivate.count()) !== 1) {
+          throw new Error("Suspended lesson detail must show Reactivate");
+        }
+      } else if (status === "rejected" && (await activate.count()) !== 0) {
+        throw new Error("Rejected lesson detail must not show Activate");
+      }
+
+      await detail.getByRole("button", { name: "Close", exact: true }).click();
+      await detail.waitFor({ state: "hidden", timeout: 10_000 });
     }
 
-    await first.click();
-    const detail = page.getByTestId("invoice-learning-detail");
-    await detail.waitFor({ timeout: 10_000 });
-    const evidence = page.getByTestId("invoice-learning-evidence");
-    await evidence.waitFor({ timeout: 10_000 });
-    const detailText = await detail.innerText();
-    assertNoLifecycleActions(detailText);
-    if (!detailText.includes("Supporting evidence")) {
-      throw new Error("Detail missing Supporting evidence section");
+    for (const [status, expected] of Object.entries(expectedCounts)) {
+      const displayed = Number(
+        (
+          await page
+            .getByTestId(`invoice-learning-${status}-count`)
+            .innerText()
+        ).trim(),
+      );
+      if (displayed !== expected) {
+        throw new Error(
+          `${status} summary count ${displayed} does not match ${expected} lesson card(s)`,
+        );
+      }
     }
-    await page.getByRole("button", { name: /close/i }).click();
-    await detail.waitFor({ state: "hidden", timeout: 10_000 });
     console.log(`Lesson list + detail OK (${lessonCount} lesson(s))`);
   }
 

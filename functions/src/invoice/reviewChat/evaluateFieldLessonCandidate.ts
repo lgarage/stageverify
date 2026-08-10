@@ -20,6 +20,7 @@ import {
   hashTextWindow,
   type FieldLessonEvidenceSnapshot,
   type FieldLessonEvidenceSnapshotVote,
+  type FieldLessonStatus,
   type VendorInvoiceFieldLessonDoc,
 } from "./vendorInvoiceFieldLessons";
 import { writeFieldLessonAuditEvent } from "./fieldLessonAudit";
@@ -288,6 +289,7 @@ export async function evaluateFieldLessonScope(input: {
       actorUid: input.actorUid,
       reason: "contradictory_evidence",
       detail: `competing fingerprints: ${competing.join(",")}`,
+      allowedStatuses: ["proposed", "active"],
     });
     await writeFieldLessonAuditEvent(input.db, {
       lessonId: suspendResult.lessonId ?? `scope:${scopeKey}`,
@@ -325,14 +327,14 @@ export async function evaluateFieldLessonScope(input: {
       actorUid: input.actorUid,
       reason: "eligible_votes_below_threshold",
       detail: `votes=${winner?.votes.length ?? 0}`,
-      onlyIfProposed: true,
+      allowedStatuses: ["proposed", "active"],
     });
     if (suspendResult.suspended) {
       await writeFieldLessonAuditEvent(input.db, {
         lessonId: suspendResult.lessonId!,
         eventType: "threshold_auto_suspended",
         actorUid: input.actorUid,
-        priorStatus: "proposed",
+        priorStatus: suspendResult.priorStatus,
         newStatus: "suspended",
         scopeKey,
         distinctDocumentCount: winner?.votes.length ?? 0,
@@ -411,6 +413,15 @@ export async function evaluateFieldLessonScope(input: {
         suspendedAt: null,
         suspendedBy: null,
         disabledReason: null,
+        activatedAt: null,
+        activatedBy: null,
+        rejectedAt: null,
+        rejectedBy: null,
+        rejectionNote: null,
+        reactivatedAt: null,
+        reactivatedBy: null,
+        lastRevalidation: null,
+        lastMutation: null,
         fpUndoCount: 0,
         circuitBreakerTrips: [],
         source: "c3d1_evaluate",
@@ -424,8 +435,8 @@ export async function evaluateFieldLessonScope(input: {
       // Different fingerprint ⇒ different lessonId by construction; treat as noop here
       return "noop" as const;
     }
-    if (cur.status === "suspended") {
-      // D.1 does not auto-reactivate
+    if (cur.status !== "proposed") {
+      // D.2: only proposed gets proposal_refreshed; active/rejected/suspended → noop
       return "noop" as const;
     }
     const nextVersion = (cur.version ?? 1) + 1;
@@ -494,7 +505,10 @@ async function autoSuspendLessonsInScope(input: {
     | "eligible_votes_below_threshold"
     | "superseded_by_winning_pattern";
   detail: string;
+  /** Supersede only suspends proposed losers (never unseat active). */
   onlyIfProposed?: boolean;
+  /** When set, suspend only lessons in these statuses (rejected always skipped). */
+  allowedStatuses?: FieldLessonStatus[];
   /** When set, skip lessons already on this fingerprint (keep winner). */
   excludePatternFingerprint?: string;
 }): Promise<{
@@ -517,9 +531,14 @@ async function autoSuspendLessonsInScope(input: {
   for (const d of snap.docs) {
     const data = d.data() as VendorInvoiceFieldLessonDoc;
     if (data.status === "suspended") continue;
+    if (data.status === "rejected") continue;
     if (input.onlyIfProposed && data.status !== "proposed") continue;
-    // D.1: only proposed docs exist; never touch active
-    if (data.status !== "proposed") continue;
+    if (
+      input.allowedStatuses &&
+      !input.allowedStatuses.includes(data.status)
+    ) {
+      continue;
+    }
     if (
       input.excludePatternFingerprint &&
       data.patternFingerprint === input.excludePatternFingerprint

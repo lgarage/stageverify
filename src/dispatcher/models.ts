@@ -1677,6 +1677,19 @@ export type FieldLessonCaptureShapeId =
 
 export type FieldLessonStatusD1 = "proposed" | "suspended";
 
+/** C3-D.2 full lifecycle status union. */
+export type FieldLessonStatus =
+  | "proposed"
+  | "active"
+  | "suspended"
+  | "rejected";
+
+export type FieldLessonLifecycleAction =
+  | "activate"
+  | "reject"
+  | "suspend"
+  | "reactivate";
+
 export type FieldLessonDisabledReason =
   | "contradictory_evidence"
   | "eligible_votes_below_threshold"
@@ -1703,6 +1716,21 @@ export interface FieldLessonEvidenceSnapshotVote {
   textWindowHash: string;
 }
 
+export interface FieldLessonLastRevalidation {
+  at: string;
+  evaluatorVersion: string;
+  confirmedDistinctDocumentCount: number;
+  droppedVoteCount: number;
+}
+
+export interface FieldLessonLastMutation {
+  idempotencyKey: string;
+  action: FieldLessonLifecycleAction;
+  resultStatus: FieldLessonStatus;
+  resultVersion: number;
+  atIso: string;
+}
+
 export interface FieldLessonEvidenceSnapshot {
   distinctDocumentCount: number;
   distinctSourceDocumentKeys: string[];
@@ -1714,7 +1742,7 @@ export interface FieldLessonEvidenceSnapshot {
   votes: FieldLessonEvidenceSnapshotVote[];
 }
 
-/** Sanitized Manager list row from listVendorInvoiceFieldLessons (C3-D.1). */
+/** Sanitized Manager list row from listVendorInvoiceFieldLessons (C3-D). */
 export interface VendorInvoiceFieldLessonListItem {
   id: string;
   category: "header_field_extraction";
@@ -1723,7 +1751,7 @@ export interface VendorInvoiceFieldLessonListItem {
   parserFormatId: string;
   senderDomain: string;
   scopeKey: string;
-  status: FieldLessonStatusD1;
+  status: FieldLessonStatus;
   version: number;
   patternFingerprint: string;
   patternFingerprintHash: string;
@@ -1734,7 +1762,33 @@ export interface VendorInvoiceFieldLessonListItem {
   suspendedAt: string | null;
   suspendedBy: string | null;
   disabledReason: FieldLessonDisabledReason | null;
+  activatedAt: string | null;
+  activatedBy: string | null;
+  rejectedAt: string | null;
+  rejectedBy: string | null;
+  rejectionNote: string | null;
+  reactivatedAt: string | null;
+  reactivatedBy: string | null;
+  lastRevalidation: FieldLessonLastRevalidation | null;
+  lastMutation: FieldLessonLastMutation | null;
   evidenceSnapshot: FieldLessonEvidenceSnapshot;
+}
+
+export interface SetVendorInvoiceFieldLessonStatusRequest {
+  lessonId: string;
+  action: FieldLessonLifecycleAction;
+  expectedVersion: number;
+  idempotencyKey: string;
+  note?: string;
+}
+
+export interface SetVendorInvoiceFieldLessonStatusResult {
+  lessonId: string;
+  action: FieldLessonLifecycleAction;
+  status: FieldLessonStatus;
+  version: number;
+  alreadyApplied: boolean;
+  revalidationPassed?: boolean;
 }
 
 export interface ListVendorInvoiceFieldLessonsResult {

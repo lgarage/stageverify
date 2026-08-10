@@ -465,4 +465,176 @@ function ok(label) {
   ok("fingerprint supersede suspends prior proposed lesson");
 }
 
+// D.2: active lesson → evaluate refresh is noop (not proposal_refreshed)
+{
+  const db = createMemoryDb();
+  const scopeKey = seedExample(db, {
+    importId: "imp-act1",
+    correctedValue: "ACT1",
+  });
+  seedExample(db, { importId: "imp-act2", correctedValue: "ACT2" });
+  seedExample(db, { importId: "imp-act3", correctedValue: "ACT3" });
+  const first = await evalMod.evaluateFieldLessonScope({
+    db,
+    scope: evalMod.parseScopeKey(scopeKey),
+    actorUid: "mgr1",
+  });
+  assert.equal(first.outcome, "proposed");
+  const lessonId = first.lessonId;
+  const lessonRef = `${lessonsMod.FIELD_LESSON_COLLECTION}/${lessonId}`;
+  const cur = db._store.get(lessonRef);
+  cur.status = "active";
+  cur.version = 2;
+  cur.activatedAt = new Date().toISOString();
+  cur.activatedBy = "mgr1";
+  db._store.set(lessonRef, cur);
+  const second = await evalMod.evaluateFieldLessonScope({
+    db,
+    scope: evalMod.parseScopeKey(scopeKey),
+    actorUid: "mgr1",
+  });
+  assert.equal(second.outcome, "noop");
+  assert.equal(db._store.get(lessonRef).status, "active");
+  assert.equal(db._store.get(lessonRef).version, 2);
+  ok("active lesson → evaluate noop (no refresh)");
+}
+
+// D.2: rejected lesson → evaluate noop
+{
+  const db = createMemoryDb();
+  const scopeKey = seedExample(db, {
+    importId: "imp-rej1",
+    correctedValue: "REJ1",
+  });
+  seedExample(db, { importId: "imp-rej2", correctedValue: "REJ2" });
+  seedExample(db, { importId: "imp-rej3", correctedValue: "REJ3" });
+  const first = await evalMod.evaluateFieldLessonScope({
+    db,
+    scope: evalMod.parseScopeKey(scopeKey),
+    actorUid: "mgr1",
+  });
+  const lessonId = first.lessonId;
+  const lessonRef = `${lessonsMod.FIELD_LESSON_COLLECTION}/${lessonId}`;
+  const cur = db._store.get(lessonRef);
+  cur.status = "rejected";
+  cur.version = 2;
+  db._store.set(lessonRef, cur);
+  const second = await evalMod.evaluateFieldLessonScope({
+    db,
+    scope: evalMod.parseScopeKey(scopeKey),
+    actorUid: "mgr1",
+  });
+  assert.equal(second.outcome, "noop");
+  assert.equal(db._store.get(lessonRef).status, "rejected");
+  ok("rejected lesson → evaluate noop (evaluator-inert)");
+}
+
+// D.2: contradiction auto-suspends active lesson
+{
+  const db = createMemoryDb();
+  const scopeKey = seedExample(db, {
+    importId: "imp-cx1",
+    correctedValue: "CX1",
+    extracted: "Customer P/O #\nCX1\nSales Order #\nSO\nInvoice #\nINV\n",
+  });
+  seedExample(db, {
+    importId: "imp-cx2",
+    correctedValue: "CX2",
+    extracted: "Customer P/O #\nCX2\nSales Order #\nSO\nInvoice #\nINV\n",
+  });
+  seedExample(db, {
+    importId: "imp-cx3",
+    correctedValue: "CX3",
+    extracted: "Customer P/O #\nCX3\nSales Order #\nSO\nInvoice #\nINV\n",
+  });
+  const first = await evalMod.evaluateFieldLessonScope({
+    db,
+    scope: evalMod.parseScopeKey(scopeKey),
+    actorUid: "mgr1",
+  });
+  assert.equal(first.outcome, "proposed");
+  const lessonId = first.lessonId;
+  const lessonRef = `${lessonsMod.FIELD_LESSON_COLLECTION}/${lessonId}`;
+  const cur = db._store.get(lessonRef);
+  cur.status = "active";
+  cur.version = 2;
+  db._store.set(lessonRef, cur);
+
+  // Add competing inline pattern on a 4th doc
+  seedExample(db, {
+    importId: "imp-cx4",
+    correctedValue: "INLINE4",
+    extracted: "Customer P/O #: INLINE4 trailing\nSales Order #\nSO\nInvoice #\nINV\n",
+  });
+  const exKey = [...db._store.keys()].find(
+    (k) =>
+      k.startsWith("vendorInvoiceFieldLessonExamples/") &&
+      db._store.get(k).vendorInvoiceImportId === "imp-cx4",
+  );
+  const ex = db._store.get(exKey);
+  const extracted = db._store.get("inboundEmailProcessing/inbound-imp-cx4")
+    .combinedExtractedText;
+  const start = extracted.indexOf("INLINE4");
+  ex.evidenceSpanStart = start;
+  ex.evidenceSpanEnd = start + "INLINE4".length;
+  db._store.set(exKey, ex);
+
+  const second = await evalMod.evaluateFieldLessonScope({
+    db,
+    scope: evalMod.parseScopeKey(scopeKey),
+    actorUid: "mgr1",
+  });
+  assert.equal(second.outcome, "contradiction_auto_suspended");
+  assert.equal(db._store.get(lessonRef).status, "suspended");
+  assert.equal(db._store.get(lessonRef).disabledReason, "contradictory_evidence");
+  ok("contradiction auto-suspends active lesson");
+}
+
+// D.2: threshold decay auto-suspends active when votes drop
+{
+  const db = createMemoryDb();
+  const scopeKey = seedExample(db, {
+    importId: "imp-th1",
+    correctedValue: "TH1",
+  });
+  seedExample(db, { importId: "imp-th2", correctedValue: "TH2" });
+  seedExample(db, { importId: "imp-th3", correctedValue: "TH3" });
+  const first = await evalMod.evaluateFieldLessonScope({
+    db,
+    scope: evalMod.parseScopeKey(scopeKey),
+    actorUid: "mgr1",
+  });
+  const lessonId = first.lessonId;
+  const lessonRef = `${lessonsMod.FIELD_LESSON_COLLECTION}/${lessonId}`;
+  const cur = db._store.get(lessonRef);
+  cur.status = "active";
+  cur.version = 2;
+  db._store.set(lessonRef, cur);
+
+  // Expire two examples so only 1 vote remains
+  for (const imp of ["imp-th2", "imp-th3"]) {
+    const exKey = [...db._store.keys()].find(
+      (k) =>
+        k.startsWith("vendorInvoiceFieldLessonExamples/") &&
+        db._store.get(k).vendorInvoiceImportId === imp,
+    );
+    const ex = db._store.get(exKey);
+    ex.archiveAfterAt = timestampFromMillis(Date.now() - 1000);
+    db._store.set(exKey, ex);
+  }
+
+  const second = await evalMod.evaluateFieldLessonScope({
+    db,
+    scope: evalMod.parseScopeKey(scopeKey),
+    actorUid: "mgr1",
+  });
+  assert.equal(second.outcome, "threshold_auto_suspended");
+  assert.equal(db._store.get(lessonRef).status, "suspended");
+  assert.equal(
+    db._store.get(lessonRef).disabledReason,
+    "eligible_votes_below_threshold",
+  );
+  ok("threshold decay auto-suspends active lesson");
+}
+
 console.log(`\nevaluate-field-lesson-candidate: ${passed} passed`);

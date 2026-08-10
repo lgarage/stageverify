@@ -169,8 +169,8 @@ _These fields are recommendations to evaluate at gate review — not committed s
 Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** (pickup resolution readback + `verify:phase4-integration`). **Active away queue** may prioritize work ahead of phase gates — see `PROJECT_STATUS/CURRENT_STATE.md` + `npm run away:next`.
 
 - **Lane C C1 LIVE:** Invoice Review Chat — `vendorInvoiceImportChats` rules + CF `reviewAgentTurn` (`reviewagentturn-00002-fit`) + gh-pages **v0.0.247**; Training note behind Advanced; live multi-turn/durability PASS (mock OFF). Hotfix PR #69 omit undefined `citation.field`.
-- **Lane C C2 LIVE:** current-import field correction — propose in chat → Apply/`Yes, apply it` → CF `applyInvoiceReviewFieldCorrection` + `vendorInvoiceFieldCorrections` audit (D-68); merge `c0375110` / **v0.0.248**. **C3-A COMPLETE** (D-59 #7/#8 amend; plan `docs/c3-reusable-field-learning-plan.md`); **C3-B NEXT** — Johnstone universal parser-miss harden before lesson store.
-- **Invoice approve fulfillment wizard (WIP branch `cursor/invoice-approve-fulfillment-flow-6f9a`, v0.0.282):** Approve → in-modal fulfillment choice (Vendor Drop-Off / Will-Call) → map `approveFlow=1` authoritative approve or Will-Call confirm; CF `fulfillmentDecision` @ `ae336ea1`; FE not deployed pending Sol review + parent PR.
+- **Lane C C2 LIVE:** current-import field correction — propose in chat → Apply/`Yes, apply it` → CF `applyInvoiceReviewFieldCorrection` + `vendorInvoiceFieldCorrections` audit (D-68); merge `c0375110` / **v0.0.248**. **C3-A COMPLETE** (D-59 #7/#8 amend; plan `docs/c3-reusable-field-learning-plan.md`). **C3-D.1 ACCEPTED** (prod evaluate/list; read-only Invoice Learning UI). **C3-D.2 shipping** (PR #146 — Manager lifecycle). **NEXT:** C3-D.3 Novel Format Trainer / strong-model format discovery (roadmap-only; `invoiceFormatLearningState` investigation — do not implement).
+- **Invoice approve fulfillment LIVE (PR #145 / v0.0.286):** Approve → in-modal fulfillment choice → Confirm sole CF commit; CF `approveVendorInvoiceImport` ACTIVE; await Dan MANUAL.
 
 ### Phase 3 Slice 1 — Report Issue + dispatcher visibility ✅ (shipped 2026-06-08)
 
