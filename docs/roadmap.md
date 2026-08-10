@@ -64,6 +64,8 @@
 
 **Shipped (2026-08-09):** Settings PIN visit-scoped green **PIN # updated** row badge (right of Deactivate; clears on leave Settings; toast `New PIN saved` kept) — **v0.0.271** gh-pages FE-only; no CF/rules.
 
+**Shipped (2026-08-10):** Delivery Details 2×2 yellow Vendor Drop-Off + Staged authoritative staging (v0.0.282) — remove Current line / Delivery Details Reject / inline spot picker; Staged uses `hasActiveShopStagingAssignment` or STAGING LOCATION NEEDED map flow; Invoice Review Reject preserved; FE-only.
+
 **Shipped (2026-08-10):** Delivery Details 2×2 Fulfillment/Status controls + Dispatcher Deliveries table column simplification (v0.0.281) — Status dropdown removed; row-click opens drawer; no desktop H-scroll; FE-only; D-80 / Will-Call derived category unchanged.
 **Shipped (2026-08-09):** Will-Call / Pickup pink Dispatcher category (v0.0.279 / PR #127) on D-80 staging release (v0.0.278) — derived category (not new status enum); reverse Drop-Off never restores prior spot; FE-only this PR.
 **Shipped (2026-08-09):** Delivery Details staging-needed card consistency (v0.0.277) — Vendor Drop-Off + no resolvable active staging always shows STAGING LOCATION NEEDED / Assign Location; FE-only.

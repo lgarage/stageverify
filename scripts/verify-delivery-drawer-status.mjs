@@ -107,11 +107,6 @@ const STATUS_CONTROL_CONTRAST = {
   rootSelector: '[data-testid="delivery-status-controls"]',
   elements: [
     {
-      name: "status current label",
-      selector: '[data-testid="delivery-status-current-label"]',
-      large: false,
-    },
-    {
       name: "fulfillment vendor drop-off button",
       selector: '[data-testid="delivery-fulfillment-delivery"]',
       large: false,
@@ -334,11 +329,15 @@ const ASSIGN_LOCATION_CONTRAST = {
     );
   }
   const hasAssignedStaging = hasAssignedStagingAttribute === "true";
-  const currentStatusForBanner = (
-    await page.getByTestId("delivery-status-current-label").innerText()
-  ).trim();
-  const terminalOrClosed =
-    /Picked Up|Complete|Installed|Cancelled/i.test(currentStatusForBanner);
+  const deliveryStatusAttr = (
+    await statusControls.getAttribute("data-delivery-status")
+  )?.trim();
+  const terminalOrClosed = [
+    "picked_up",
+    "installed",
+    "cancelled",
+    "complete",
+  ].includes(deliveryStatusAttr ?? "");
 
   if (willCallActive || hasAssignedStaging || terminalOrClosed) {
     if (stagingBannerCount > 0) {
@@ -445,40 +444,32 @@ const ASSIGN_LOCATION_CONTRAST = {
   console.log("PASS: D-42 contrast on status + fulfillment controls");
 
   const rejectAction = page.getByTestId("delivery-status-reject-action");
-  if ((await rejectAction.count()) === 0) {
-    throw new Error("FAIL: Reject… secondary control missing under 2×2 grid.");
+  if ((await rejectAction.count()) > 0) {
+    throw new Error("FAIL: Delivery Details Reject… control must be removed.");
   }
-  const rejectLabel = (await rejectAction.innerText()).trim();
-  if (!rejectLabel.includes("Reject")) {
-    throw new Error(
-      `FAIL: Reject control label unexpected — got "${rejectLabel}"`,
+  console.log("PASS: Delivery Details Reject… control removed");
+
+  const spotPicker = page.getByTestId("delivery-status-spot-picker");
+  if ((await spotPicker.count()) > 0) {
+    throw new Error("FAIL: Legacy inline staging spot picker must be removed.");
+  }
+  console.log("PASS: Legacy inline staging spot picker absent");
+
+  if (dropOffActive) {
+    const dropOffBg = await vendorDropOffButton.evaluate((el) =>
+      getComputedStyle(el).backgroundColor,
     );
-  }
-  console.log("PASS: Reject… secondary control present under 2×2 grid");
-
-  await rejectAction.click();
-  await page.waitForTimeout(400);
-
-  const rejectDialog = page.getByTestId("invoice-reject-reason-dialog");
-  const rejectUnavailable = page.getByTestId("delivery-status-reject-unavailable");
-
-  if (await rejectDialog.isVisible().catch(() => false)) {
-    console.log("PASS: Reject opens invoice reject reason dialog");
-    await page.getByTestId("invoice-reject-reason-cancel").click();
-    await page.waitForTimeout(300);
-    await rejectDialog.waitFor({ state: "hidden", timeout: 5000 }).catch(() => {});
-  } else if ((await rejectUnavailable.count()) > 0) {
-    const msg = (await rejectUnavailable.innerText()).trim();
-    if (!msg) {
-      throw new Error("FAIL: Reject unavailable message empty.");
+    // #facc15 => rgb(250, 204, 21)
+    if (!/rgb\(\s*250\s*,\s*204\s*,\s*21\s*\)/i.test(dropOffBg)) {
+      throw new Error(
+        `FAIL: Vendor Drop-Off selected should be yellow (#facc15) — got ${dropOffBg}`,
+      );
     }
-    console.log(`PASS: Reject shows cannot-reject message — "${msg.slice(0, 60)}…"`);
+    console.log("PASS: Vendor Drop-Off selected is yellow (#facc15)");
   } else {
-    throw new Error(
-      "FAIL: Reject should open dialog or show cannot-reject message.",
-    );
+    console.log("SKIP: Vendor Drop-Off yellow check (Will-Call active on initial fixture)");
   }
-  console.log("PASS: Reject action does not alter 2×2 selection state");
+
 
   const creditBanner = page.getByTestId("delivery-credit-return-banner");
   if ((await creditBanner.count()) > 0) {
@@ -512,7 +503,7 @@ const ASSIGN_LOCATION_CONTRAST = {
     const rejectBtn = page.getByTestId("delivery-credit-return-reject-btn");
     if ((await rejectBtn.count()) > 0) {
       throw new Error(
-        "FAIL: Redundant Reject linked import button should be removed — use Reject… under Fulfillment / Status.",
+        "FAIL: Redundant Reject linked import button should remain removed from Delivery Details.",
       );
     }
     console.log("PASS: Credit/return banner has no duplicate reject button");
@@ -570,14 +561,15 @@ const ASSIGN_LOCATION_CONTRAST = {
     await drawer.waitFor({ state: "visible", timeout: 5000 });
     console.log("PASS: Drawer stays open while pickup form is pending");
 
-    const currentLabel = page.getByTestId("delivery-status-current-label");
-    const labelText = (await currentLabel.innerText()).trim();
-    if (!labelText.includes("Picked Up")) {
+    const pickupFormVisible = await page
+      .getByTestId("delivery-status-pickup-input")
+      .isVisible();
+    if (!pickupFormVisible) {
       throw new Error(
-        `FAIL: Opening Complete Pickup should update status label — got "${labelText}"`,
+        "FAIL: Opening Complete Pickup should show Who picked up? form (Current status line removed).",
       );
     }
-    console.log("PASS: Status label shows Picked Up while pickup form pending");
+    console.log("PASS: Pickup form visible while Complete Pickup pending (no Current line)");
 
     const pickupInput = page.getByTestId("delivery-status-pickup-input");
     const cancelBtn = pickupInput.getByRole("button", { name: "Cancel" });
@@ -589,14 +581,10 @@ const ASSIGN_LOCATION_CONTRAST = {
     const allowStatusMutation =
       process.env.STAGEVERIFY_DRAWER_STATUS_CLOSE_VERIFY === "1";
     if (allowStatusMutation) {
-      const currentStatusLabel = (
-        await page.getByTestId("delivery-status-current-label").innerText()
-      ).trim();
       const stagedIsCurrent =
         (await page
           .getByTestId("delivery-status-staged-ready")
-          .getAttribute("data-selected")) === "true" ||
-        currentStatusLabel.includes("Staged — Ready for Pickup");
+          .getAttribute("data-selected")) === "true";
       if (stagedIsCurrent) {
         await completePickupButton.click();
         await page.waitForTimeout(300);
@@ -701,6 +689,37 @@ const ASSIGN_LOCATION_CONTRAST = {
   console.log(
     "PASS CASE A: Vendor Drop-Off + no location — yellow Assign Location below fulfillment",
   );
+
+  if ((await page.getByTestId("delivery-status-current-label").count()) > 0) {
+    throw new Error(
+      "FAIL CASE A: Current status text line must be removed from Fulfillment / Status.",
+    );
+  }
+  console.log("PASS CASE A: Current status text line removed");
+
+  const caseAStaged = page.getByTestId("delivery-status-staged-ready");
+  if ((await caseAStaged.getAttribute("data-has-active-staging")) !== "false") {
+    throw new Error(
+      "FAIL CASE A: Staged button must report data-has-active-staging=false when no location.",
+    );
+  }
+  if (!(await caseAStaged.isDisabled())) {
+    await caseAStaged.click();
+    await page.waitForTimeout(500);
+    if ((await page.getByTestId("delivery-status-spot-picker").count()) > 0) {
+      throw new Error(
+        "FAIL CASE A: Staged click must not open legacy inline spot picker.",
+      );
+    }
+    await caseABanner.waitFor({ state: "visible", timeout: 5_000 });
+    console.log(
+      "PASS CASE A: Staged click focuses map Assign Location path (no inline picker)",
+    );
+  } else {
+    console.log(
+      "SKIP CASE A: Staged button disabled on this fixture status — banner path still asserted",
+    );
+  }
 
   // ── CASE E — stale/unresolvable planned staging ids still show staging-needed card ──
   await patchDelivery2StagingFixture("stale");
@@ -810,18 +829,21 @@ const ASSIGN_LOCATION_CONTRAST = {
         "FAIL CASE D: Will-Call fulfillment button should be selected after switch.",
       );
     }
-    const willCallChip = page.getByTestId("delivery-status-will-call-chip");
-    if ((await willCallChip.count()) === 0) {
+    const willCallBtn = page.getByTestId(
+      "delivery-fulfillment-will_call_pickup",
+    );
+    const willCallBg = await willCallBtn.evaluate(
+      (el) => getComputedStyle(el).backgroundColor,
+    );
+    // Pink selected uses --admin-willcall-bg (light: typically soft pink, not yellow/blue).
+    if (/rgb\(\s*250\s*,\s*204\s*,\s*21\s*\)|rgb\(\s*37\s*,\s*99\s*,\s*235\s*\)/i.test(willCallBg)) {
       throw new Error(
-        "FAIL CASE D: Will-Call / Pickup pink chip should show in current status.",
+        `FAIL CASE D: Will-Call selected should be pink family — got ${willCallBg}`,
       );
     }
-    const chipText = (await willCallChip.innerText()).trim();
-    if (!chipText.includes("Will-Call / Pickup")) {
-      throw new Error(
-        `FAIL CASE D: Will-Call chip unexpected — got "${chipText}".`,
-      );
-    }
+    console.log(
+      `PASS CASE D: Will-Call selected pink presentation (bg=${willCallBg})`,
+    );
     const stagedAfterWillCall = page.getByTestId("delivery-status-staged-ready");
     if ((await stagedAfterWillCall.getAttribute("data-selected")) === "true") {
       throw new Error(
