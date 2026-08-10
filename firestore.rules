@@ -289,6 +289,16 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Lane C C3-D.1 — proposed/suspended field lessons (CF Admin SDK only; no parse effect).
+    match /vendorInvoiceFieldLessons/{lessonId} {
+      allow read, write: if false;
+    }
+
+    // Lane C C3-D.1 — immutable lesson lifecycle audit (CF Admin SDK only).
+    match /vendorInvoiceFieldLessonAuditEvents/{eventId} {
+      allow read, write: if false;
+    }
+
     match /emailOAuthStates/{stateId} {
       allow read, write: if false;
     }
