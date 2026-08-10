@@ -1666,6 +1666,78 @@ export type InvoiceCorrectableFieldKey =
   | "vendorOrderNumber"
   | "vendorInvoiceNumber";
 
+/** C3-D.1 capture relationship ids (list API). Friendly UI maps these. */
+export type FieldLessonCaptureShapeId =
+  | "anchor_left_inline"
+  | "anchor_above_line";
+
+export type FieldLessonStatusD1 = "proposed" | "suspended";
+
+export type FieldLessonDisabledReason =
+  | "contradictory_evidence"
+  | "eligible_votes_below_threshold"
+  | "superseded_by_winning_pattern"
+  | "manual_suspend"
+  | "auto_false_positive";
+
+export interface FieldLessonExtractionPattern {
+  category: "header_field_extraction";
+  field: InvoiceCorrectableFieldKey;
+  canonicalAnchorKeys: string[];
+  matchedLiteralAnchors: string[];
+  captureShapeId: FieldLessonCaptureShapeId;
+  captureShapeNote: "bounded_token_near_anchor";
+}
+
+export interface FieldLessonEvidenceSnapshotVote {
+  sourceDocumentKey: string;
+  exampleId: string;
+  correctedValue: string;
+  verifiedAt: string;
+  captureShapeId: FieldLessonCaptureShapeId;
+  matchedLiteral: string;
+  textWindowHash: string;
+}
+
+export interface FieldLessonEvidenceSnapshot {
+  distinctDocumentCount: number;
+  distinctSourceDocumentKeys: string[];
+  exampleIds: string[];
+  patternFingerprint: string;
+  patternFingerprintHash: string;
+  evaluatedAt: string;
+  evaluatorVersion: string;
+  votes: FieldLessonEvidenceSnapshotVote[];
+}
+
+/** Sanitized Manager list row from listVendorInvoiceFieldLessons (C3-D.1). */
+export interface VendorInvoiceFieldLessonListItem {
+  id: string;
+  category: "header_field_extraction";
+  field: InvoiceCorrectableFieldKey;
+  vendorKey: string;
+  parserFormatId: string;
+  senderDomain: string;
+  scopeKey: string;
+  status: FieldLessonStatusD1;
+  version: number;
+  patternFingerprint: string;
+  patternFingerprintHash: string;
+  extractionPattern: FieldLessonExtractionPattern;
+  distinctDocumentCount: number;
+  proposedAt: string;
+  proposedBy: string;
+  suspendedAt: string | null;
+  suspendedBy: string | null;
+  disabledReason: FieldLessonDisabledReason | null;
+  evidenceSnapshot: FieldLessonEvidenceSnapshot;
+}
+
+export interface ListVendorInvoiceFieldLessonsResult {
+  lessons: VendorInvoiceFieldLessonListItem[];
+  count: number;
+}
+
 export type InvoiceReviewCorrectionSourceType =
   | "document_evidence"
   | "dispatcher_assertion"
