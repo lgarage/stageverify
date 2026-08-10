@@ -700,4 +700,44 @@ function ok(label) {
   ok("TOCTOU newer example before commit → activate fails, audit written");
 }
 
+// TOCTOU — inbound text mutated after pre-tx pass → commit span check fails
+{
+  const db = createMemoryDb();
+  const { lessonId } = await proposeLesson(db);
+  const lesson = db._store.get(
+    `${lessonsMod.FIELD_LESSON_COLLECTION}/${lessonId}`,
+  );
+  const origRunTransaction = db.runTransaction.bind(db);
+  db.runTransaction = async (fn) => {
+    db._store.set("inboundEmailProcessing/inbound-lc-a", {
+      combinedExtractedText: "Customer P/O #\nCORRUPTED-AT-COMMIT\n",
+      senderEmail: "orders@johnstone.com",
+    });
+    return origRunTransaction(fn);
+  };
+  const auditsBefore = countAuditEvents(db);
+  const r = await lifecycleMod.applyFieldLessonStatusTransition({
+    db,
+    request: {
+      lessonId,
+      action: "activate",
+      expectedVersion: lesson.version,
+      idempotencyKey: "toctou-span",
+      actorUid: "mgr1",
+    },
+  });
+  assert.equal(r.ok, false);
+  assert.equal(r.code, "revalidation_failed");
+  assert.match(
+    r.revalidation?.failureReason ?? "",
+    /distinct_documents_below_threshold/,
+  );
+  const unchanged = db._store.get(
+    `${lessonsMod.FIELD_LESSON_COLLECTION}/${lessonId}`,
+  );
+  assert.equal(unchanged.status, "proposed");
+  assert.equal(countAuditEvents(db), auditsBefore + 1);
+  ok("TOCTOU inbound text mutation at commit → activate fails");
+}
+
 console.log(`\nset-field-lesson-status: ${passed} passed`);

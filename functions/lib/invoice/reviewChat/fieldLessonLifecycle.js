@@ -119,19 +119,11 @@ async function collectLiveScopeFingerprints(db, scopeKey, nowMs) {
     return fingerprints;
 }
 /**
- * Revalidation for activate + reactivate (identical logic).
- * Never mutates lesson doc — caller writes on pass only.
+ * Shared vote retention + threshold + live-contradiction semantics for
+ * runFieldLessonRevalidation and verifyRevalidationAtCommit.
  */
-async function runFieldLessonRevalidation(input) {
-    const nowMs = input.nowMs ?? Date.now();
+async function evaluateSnapshotVotesAgainstLatest(input) {
     const lesson = input.lesson;
-    const scopeSnap = await input.db
-        .collection(indexFieldLessonExample_1.FIELD_LESSON_EXAMPLE_COLLECTION)
-        .where("scopeKey", "==", lesson.scopeKey)
-        .orderBy("verifiedAt", "desc")
-        .limit(MAX_SCOPE_EXAMPLES)
-        .get();
-    const latestByDocument = pickLatestPerDocument(scopeSnap.docs);
     const votes = (lesson.evidenceSnapshot?.votes ?? []).slice(0, MAX_REVALIDATION_VOTES);
     const retainedDocKeys = new Set();
     let droppedVoteCount = 0;
@@ -141,17 +133,23 @@ async function runFieldLessonRevalidation(input) {
             droppedVoteCount += 1;
             continue;
         }
-        const latest = latestByDocument.get(docKey);
+        const latest = input.latestByDocument.get(docKey);
         if (!latest || latest.exampleId !== vote.exampleId) {
             droppedVoteCount += 1;
             continue;
         }
-        const example = latest;
+        const example = input.resolveExample
+            ? await input.resolveExample(docKey, latest)
+            : latest;
+        if (!example) {
+            droppedVoteCount += 1;
+            continue;
+        }
         if (example.evidenceType !== "document_evidence") {
             droppedVoteCount += 1;
             continue;
         }
-        if (!isTimeEligible(example, nowMs)) {
+        if (!isTimeEligible(example, input.nowMs)) {
             droppedVoteCount += 1;
             continue;
         }
@@ -191,7 +189,7 @@ async function runFieldLessonRevalidation(input) {
             failureReason: "distinct_documents_below_threshold",
         };
     }
-    const liveFingerprints = await collectLiveScopeFingerprints(input.db, lesson.scopeKey, nowMs);
+    const liveFingerprints = await collectLiveScopeFingerprints(input.db, lesson.scopeKey, input.nowMs);
     const competing = [...liveFingerprints].filter((fp) => fp !== lesson.patternFingerprint);
     if (competing.length >= 1) {
         return {
@@ -206,6 +204,27 @@ async function runFieldLessonRevalidation(input) {
         confirmedDistinctDocumentCount,
         droppedVoteCount,
     };
+}
+/**
+ * Revalidation for activate + reactivate (identical logic).
+ * Never mutates lesson doc — caller writes on pass only.
+ */
+async function runFieldLessonRevalidation(input) {
+    const nowMs = input.nowMs ?? Date.now();
+    const lesson = input.lesson;
+    const scopeSnap = await input.db
+        .collection(indexFieldLessonExample_1.FIELD_LESSON_EXAMPLE_COLLECTION)
+        .where("scopeKey", "==", lesson.scopeKey)
+        .orderBy("verifiedAt", "desc")
+        .limit(MAX_SCOPE_EXAMPLES)
+        .get();
+    const latestByDocument = pickLatestPerDocument(scopeSnap.docs);
+    return evaluateSnapshotVotesAgainstLatest({
+        db: input.db,
+        lesson,
+        latestByDocument,
+        nowMs,
+    });
 }
 async function loadScopeLatestExampleGuard(db, scopeKey) {
     const snap = await db
@@ -226,8 +245,8 @@ async function loadScopeLatestExampleGuard(db, scopeKey) {
 }
 /**
  * Commit-time revalidation inside a Firestore transaction.
- * Re-reads latest-per-document via tx.get(query), then verifies each snapshot vote
- * still references that latest example (closes TOCTOU vs pre-tx revalidation).
+ * Re-reads latest-per-document via tx.get(query), tx-binds example identity,
+ * then runs the same span/fingerprint/contradiction checks as pre-tx revalidation.
  */
 async function verifyRevalidationAtCommit(input) {
     const scopeQuery = input.db
@@ -237,64 +256,32 @@ async function verifyRevalidationAtCommit(input) {
         .limit(MAX_SCOPE_EXAMPLES);
     const scopeSnap = await input.tx.get(scopeQuery);
     const latestByDocument = pickLatestPerDocument(scopeSnap.docs);
-    const votes = (input.lesson.evidenceSnapshot?.votes ?? []).slice(0, MAX_REVALIDATION_VOTES);
-    const retainedDocKeys = new Set();
-    let droppedVoteCount = 0;
     const exampleCol = input.db.collection(indexFieldLessonExample_1.FIELD_LESSON_EXAMPLE_COLLECTION);
-    for (const vote of votes) {
-        const docKey = vote.sourceDocumentKey?.trim();
-        if (!docKey) {
-            droppedVoteCount += 1;
-            continue;
-        }
-        const latest = latestByDocument.get(docKey);
-        if (!latest || vote.exampleId !== latest.exampleId) {
-            droppedVoteCount += 1;
-            continue;
-        }
-        const expected = input.expectedLatestByDocKey[docKey];
-        if (!expected || expected.exampleId !== latest.exampleId) {
-            droppedVoteCount += 1;
-            continue;
-        }
-        const exSnap = await input.tx.get(exampleCol.doc(latest.exampleId));
-        if (!exSnap.exists) {
-            droppedVoteCount += 1;
-            continue;
-        }
-        const example = exSnap.data();
-        if ((example.verifiedAt || "") !== expected.verifiedAt) {
-            droppedVoteCount += 1;
-            continue;
-        }
-        if (example.sourceDocumentKey?.trim() !== docKey) {
-            droppedVoteCount += 1;
-            continue;
-        }
-        if (example.evidenceType !== "document_evidence") {
-            droppedVoteCount += 1;
-            continue;
-        }
-        if (!isTimeEligible(example, input.nowMs)) {
-            droppedVoteCount += 1;
-            continue;
-        }
-        retainedDocKeys.add(docKey);
-    }
-    const confirmedDistinctDocumentCount = retainedDocKeys.size;
-    if (confirmedDistinctDocumentCount < vendorInvoiceFieldLessons_1.MIN_DISTINCT_DOCUMENT_VOTES) {
-        return {
-            pass: false,
-            confirmedDistinctDocumentCount,
-            droppedVoteCount,
-            failureReason: "distinct_documents_below_threshold",
-        };
-    }
-    return {
-        pass: true,
-        confirmedDistinctDocumentCount,
-        droppedVoteCount,
-    };
+    const guard = input.expectedLatestByDocKey;
+    return evaluateSnapshotVotesAgainstLatest({
+        db: input.db,
+        lesson: input.lesson,
+        latestByDocument,
+        nowMs: input.nowMs,
+        resolveExample: async (docKey, latest) => {
+            const expected = guard[docKey];
+            if (!expected || expected.exampleId !== latest.exampleId) {
+                return null;
+            }
+            const exSnap = await input.tx.get(exampleCol.doc(latest.exampleId));
+            if (!exSnap.exists) {
+                return null;
+            }
+            const example = exSnap.data();
+            if ((example.verifiedAt || "") !== expected.verifiedAt) {
+                return null;
+            }
+            if (example.sourceDocumentKey?.trim() !== docKey) {
+                return null;
+            }
+            return example;
+        },
+    });
 }
 async function writeRevalidationFailureAudit(db, input) {
     const failEvent = input.action === "activate"
