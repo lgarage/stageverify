@@ -56,6 +56,7 @@ import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
 import { PinAccessManagementPanel } from "./PinAccessManagementPanel";
 import { OfficeReceiversSettingsPanel } from "./OfficeReceiversSettingsPanel";
 import { ManagementSettingsPanel } from "./ManagementSettingsPanel";
+import { InvoiceFieldLessonsSettingsPanel } from "./InvoiceFieldLessonsSettingsPanel";
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -2753,6 +2754,28 @@ export function SettingsPage() {
               )}
             </div>
           </div>
+
+          <section style={{ ...cardStyle, overflow: "hidden" }}>
+            <div
+              style={{
+                padding: "15px 20px",
+                borderBottom: "1px solid var(--admin-border)",
+              }}
+            >
+              <span
+                style={{
+                  fontWeight: 700,
+                  fontSize: 15,
+                  color: "var(--admin-accent-soft)",
+                }}
+              >
+                Invoice Learning
+              </span>
+            </div>
+            <InvoiceFieldLessonsSettingsPanel
+              canView={isIgnoreRulesManager}
+            />
+          </section>
 
           <PinAccessManagementPanel
             canManageDispatchers={isIgnoreRulesManager}

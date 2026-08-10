@@ -102,6 +102,8 @@ import type {
   MigrateLegacyVendorIgnoreRulesResult,
   BulkReopenImportsSkippedByRuleResult,
   DispatcherRoleDoc,
+  ListVendorInvoiceFieldLessonsResult,
+  VendorInvoiceFieldLessonListItem,
 } from "./models";
 import {
   getAllStagingLocationIds,
@@ -2756,6 +2758,15 @@ const listVendorIgnoreRulesCallable = httpsCallable<
   { rules: VendorIgnoreRule[] }
 >(functions, "listVendorIgnoreRulesCallable");
 
+const listVendorInvoiceFieldLessonsCallable = httpsCallable<
+  {
+    status?: "proposed" | "suspended";
+    limit?: number;
+    scopeKey?: string;
+  },
+  ListVendorInvoiceFieldLessonsResult
+>(functions, "listVendorInvoiceFieldLessons");
+
 const updateVendorIgnoreRuleCallable = httpsCallable<
   {
     password?: string;
@@ -3256,6 +3267,16 @@ export async function listVendorIgnoreRules(input: {
 }): Promise<VendorIgnoreRule[]> {
   const response = await listVendorIgnoreRulesCallable(input);
   return response.data.rules ?? [];
+}
+
+/** C3-D.1 — Manager/Admin read-only list. No Firestore client reads of lesson docs. */
+export async function listVendorInvoiceFieldLessons(input?: {
+  status?: "proposed" | "suspended";
+  limit?: number;
+  scopeKey?: string;
+}): Promise<VendorInvoiceFieldLessonListItem[]> {
+  const response = await listVendorInvoiceFieldLessonsCallable(input ?? {});
+  return response.data.lessons ?? [];
 }
 
 export async function updateVendorIgnoreRule(input: {
