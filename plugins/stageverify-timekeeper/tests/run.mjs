@@ -11,6 +11,8 @@ import { join } from "node:path";
 import {
   emptyState,
   THRESHOLDS_MS,
+  STICKY_FORCE_COOLDOWN_MS,
+  STICKY_FORCE_KIND,
   saveState,
   loadState,
   getDeliveryStatus,
@@ -24,6 +26,9 @@ import {
   queuePending,
   selectPendingForDelivery,
   ELAPSED_CHECKPOINT_COPY,
+  STICKY_FORCE_COPY,
+  FORCE35_STOP_FOLLOWUP,
+  detectTerminalOutcome,
 } from "../scripts/lib/decisions.mjs";
 import { normalizeCommandSignature, classifyOutputOutcome } from "../scripts/lib/signatures.mjs";
 
@@ -383,7 +388,7 @@ test("lazy-init: startedAt set on first load when missing sessionStart", () => {
   }
 });
 
-test("stop at force_choice can emit one followup_message", () => {
+test("stop at force_choice emits followup_message (loop_limit gated)", () => {
   const state = fresh();
   state.mode = "force_choice";
   state.delivery.force35 = { status: "delivered", queuedAt: 1, deliveredAt: 1, family: "elapsed", payload: null };
@@ -391,6 +396,7 @@ test("stop at force_choice can emit one followup_message", () => {
   assert.ok(resp.followup_message);
   assert.match(resp.followup_message, /TIMEKEEPER/);
   assert.match(resp.followup_message, /D-66/);
+  assert.equal(resp.followup_message, FORCE35_STOP_FOLLOWUP);
 });
 
 // --- Cadence A–G ---
@@ -763,6 +769,227 @@ test("selectPendingForDelivery empty on unreliable even if pending", () => {
   const selected = selectPendingForDelivery(state, "afterShellExecution", 1_000_000);
   assert.equal(selected.length, 0);
   assert.equal(getDeliveryStatus(state, "status10"), "pending");
+});
+
+// --- Sticky post-35m campaign (Q–Z) ---
+function deliverForce35(state, t0 = 1_000_000) {
+  progressEdit(state, t0 + 5 * 60 * 1000);
+  const at35 = t0 + THRESHOLDS_MS.force35 + 1000;
+  const r = deliver(state, at35);
+  assert.ok(hasKind(r.interventions, "force35"), decisionText(r.interventions));
+  assert.equal(state.mode, "force_choice");
+  assert.equal(getDeliveryStatus(state, "force35"), "delivered");
+  assert.equal(state.forceCampaign.active, true);
+  assert.equal(typeof state.forceCampaign.lastStickyAt, "number");
+  return at35;
+}
+
+test("Q. force35 fires at threshold and arms sticky campaign", () => {
+  const state = fresh(1_000_000);
+  const at35 = deliverForce35(state);
+  assert.equal(state.forceCampaign.stickyCount, 0);
+  assert.ok(state.forceCampaign.lastStickyAt >= at35 - 1);
+  // Immediate next reliable hook — within cooldown, no sticky
+  const r2 = deliver(state, at35 + 30_000);
+  assert.equal(hasKind(r2.interventions, STICKY_FORCE_KIND), false);
+});
+
+test("R. within sticky cooldown — no duplicate sticky nudge", () => {
+  const state = fresh(1_000_000);
+  const at35 = deliverForce35(state);
+  const r = deliver(state, at35 + STICKY_FORCE_COOLDOWN_MS - 1000);
+  assert.equal(hasKind(r.interventions, STICKY_FORCE_KIND), false);
+  assert.equal(state.forceCampaign.stickyCount, 0);
+});
+
+test("S. after sticky cooldown — sticky terminal nudge re-emitted", () => {
+  const state = fresh(1_000_000);
+  const at35 = deliverForce35(state);
+  const r = deliver(state, at35 + STICKY_FORCE_COOLDOWN_MS + 1000);
+  assert.ok(hasKind(r.interventions, STICKY_FORCE_KIND), decisionText(r.interventions));
+  assert.equal(state.forceCampaign.stickyCount, 1);
+  assert.match(r.interventions.find((i) => i.kind === STICKY_FORCE_KIND).decision, /stop expanding scope/i);
+  assert.match(STICKY_FORCE_COPY.decision, /DONE \/ BLOCKED \/ FAILED \/ PARTIAL/);
+});
+
+test("T. second cooldown later — sticky can re-emit if still non-terminal", () => {
+  const state = fresh(1_000_000);
+  const at35 = deliverForce35(state);
+  const t1 = at35 + STICKY_FORCE_COOLDOWN_MS + 1000;
+  const r1 = deliver(state, t1);
+  assert.ok(hasKind(r1.interventions, STICKY_FORCE_KIND));
+  assert.equal(state.forceCampaign.stickyCount, 1);
+  // Mid-cooldown — no fire
+  const rMid = deliver(state, t1 + 60_000);
+  assert.equal(hasKind(rMid.interventions, STICKY_FORCE_KIND), false);
+  const t2 = t1 + STICKY_FORCE_COOLDOWN_MS + 1000;
+  const r2 = deliver(state, t2);
+  assert.ok(hasKind(r2.interventions, STICKY_FORCE_KIND));
+  assert.equal(state.forceCampaign.stickyCount, 2);
+});
+
+test("U. stop under force_choice re-issues terminal followup (not once-only)", () => {
+  const state = fresh();
+  state.mode = "force_choice";
+  state.delivery.force35 = {
+    status: "delivered",
+    queuedAt: 1,
+    deliveredAt: 1,
+    family: "elapsed",
+    payload: null,
+  };
+  const resp1 = buildHookResponse("stop", [], state, { loop_count: 0, loop_limit: 2 });
+  assert.ok(resp1.followup_message);
+  const resp2 = buildHookResponse("stop", [], state, { loop_count: 1, loop_limit: 2 });
+  assert.ok(resp2.followup_message, "second stop within loop_limit still followups");
+  const resp3 = buildHookResponse("stop", [], state, { loop_count: 2, loop_limit: 2 });
+  assert.equal(resp3.followup_message, undefined, "loop_limit caps infinite stop loops");
+  assert.equal(resp1.permission, undefined); // stop is not a permission hook
+});
+
+test("V. terminal outcome suppresses further sticky nudges", () => {
+  const state = fresh(1_000_000);
+  const at35 = deliverForce35(state);
+  const rTerm = evaluate(
+    state,
+    {
+      hook_event_name: "preToolUse",
+      tool_name: "Read",
+      terminal_outcome: "BLOCKED",
+    },
+    at35 + STICKY_FORCE_COOLDOWN_MS + 5000
+  );
+  assert.equal(hasKind(rTerm.interventions, STICKY_FORCE_KIND), false);
+  assert.equal(state.forceCampaign.terminalOutcome, "BLOCKED");
+  assert.equal(state.forceCampaign.active, false);
+  const rLater = deliver(state, at35 + 2 * STICKY_FORCE_COOLDOWN_MS + 10_000);
+  assert.equal(hasKind(rLater.interventions, STICKY_FORCE_KIND), false);
+  // stop also quiet after terminal
+  const stopResp = buildHookResponse("stop", [], state, { loop_count: 0 });
+  assert.equal(stopResp.followup_message, undefined);
+});
+
+test("W. sticky/force paths remain advice-only — permission allow", () => {
+  const state = fresh(1_000_000);
+  const at35 = deliverForce35(state);
+  const r = evaluate(
+    state,
+    { hook_event_name: "preToolUse", tool_name: "Shell", tool_input: { command: "npm run build" } },
+    at35 + STICKY_FORCE_COOLDOWN_MS + 1000
+  );
+  const resp = buildHookResponse("preToolUse", r.interventions, state, {});
+  assert.equal(resp.permission, "allow");
+  assert.ok(resp.agent_message);
+  assert.equal(Object.prototype.hasOwnProperty.call(resp, "deny"), false);
+});
+
+test("X. Policy B still emits highest pending only with sticky campaign present", () => {
+  const state = fresh(1_000_000);
+  // Jump to 21m on unreliable → queue three elapsed
+  evaluate(
+    state,
+    { hook_event_name: "afterShellExecution", command: "echo ok", output: "ok" },
+    1_000_000 + 21 * 60 * 1000
+  );
+  assert.equal(getDeliveryStatus(state, "status10"), "pending");
+  assert.equal(getDeliveryStatus(state, "focus15"), "pending");
+  assert.equal(getDeliveryStatus(state, "focus20"), "pending");
+  const r = deliver(state, 1_000_000 + 21 * 60 * 1000 + 1);
+  assert.ok(hasKind(r.interventions, "focus20"));
+  assert.equal(hasKind(r.interventions, "status10"), false);
+  assert.equal(hasKind(r.interventions, "focus15"), false);
+  assert.equal(getDeliveryStatus(state, "status10"), "superseded");
+  assert.equal(getDeliveryStatus(state, "focus15"), "superseded");
+  assert.equal(getDeliveryStatus(state, "focus20"), "delivered");
+});
+
+test("Y. stall10 remains separate from elapsed cadence (and from sticky)", () => {
+  const state = fresh(1_000_000);
+  // No progress for 10m → stall10 + status10 both pending, both deliverable
+  const r = deliver(state, 1_000_000 + 10 * 60 * 1000 + 1000);
+  assert.ok(hasKind(r.interventions, "stall10"));
+  assert.ok(hasKind(r.interventions, "status10"));
+  assert.equal(hasKind(r.interventions, STICKY_FORCE_KIND), false);
+});
+
+test("Z. long Task/shell gap — next reliable hook uses wall-clock for sticky", () => {
+  const state = fresh(1_000_000);
+  const at35 = deliverForce35(state);
+  // Simulate long blocking Task: no hooks for >5m, then one reliable hook
+  const afterLongTask = at35 + STICKY_FORCE_COOLDOWN_MS + 90_000;
+  const r = deliver(state, afterLongTask);
+  assert.ok(hasKind(r.interventions, STICKY_FORCE_KIND), "wall-clock sticky after long gap");
+  assert.equal(state.forceCampaign.stickyCount, 1);
+  assert.equal(state.forceCampaign.lastDeliveryHook, "preToolUse");
+});
+
+test("AA. same conversation resume — startedAt sticky; campaign persists", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tk-sticky-"));
+  try {
+    const state = fresh(1_000_000);
+    deliverForce35(state);
+    state.conversationId = "conv-sticky-1";
+    saveState(state, [dir]);
+    const again = loadState("conv-sticky-1", [dir], 1_000_000 + 50 * 60 * 1000);
+    assert.equal(again.startedAt, 1_000_000);
+    assert.equal(again.mode, "force_choice");
+    assert.equal(getDeliveryStatus(again, "force35"), "delivered");
+    assert.equal(again.forceCampaign.active, true);
+    const r = deliver(again, 1_000_000 + 50 * 60 * 1000);
+    assert.ok(hasKind(r.interventions, STICKY_FORCE_KIND));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("AB. new conversation id — new timer state (no sticky inheritance)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tk-new-"));
+  try {
+    const a = fresh(1_000_000);
+    deliverForce35(a);
+    a.conversationId = "conv-a";
+    saveState(a, [dir]);
+    const b = loadState("conv-b", [dir], 2_000_000);
+    assert.equal(b.startedAt, 2_000_000);
+    assert.equal(b.mode, "normal");
+    assert.equal(getDeliveryStatus(b, "force35"), "not_due");
+    assert.equal(b.forceCampaign.active, false);
+    assert.equal(b.forceCampaign.stickyCount, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("AC. detectTerminalOutcome recognizes D-66 first lines", () => {
+  assert.equal(
+    detectTerminalOutcome({ last_assistant_message: "DONE — finished\nWhat I did: x" }, fresh()),
+    "DONE"
+  );
+  assert.equal(
+    detectTerminalOutcome({ text: "BLOCKED — needs input\nBlocked by: wait" }, fresh()),
+    "BLOCKED"
+  );
+  assert.equal(detectTerminalOutcome({ terminal_outcome: "partial" }, fresh()), "PARTIAL");
+});
+
+test("AD. stop followup suppressed after terminal; sticky copy forbids skipping gates", () => {
+  const state = fresh(1_000_000);
+  deliverForce35(state);
+  evaluate(
+    state,
+    { hook_event_name: "stop", terminal_outcome: "DONE" },
+    1_000_000 + THRESHOLDS_MS.force35 + STICKY_FORCE_COOLDOWN_MS + 2000
+  );
+  assert.equal(state.forceCampaign.terminalOutcome, "DONE");
+  const resp = buildHookResponse("stop", [], state, { loop_count: 0 });
+  assert.equal(resp.followup_message, undefined);
+  assert.match(STICKY_FORCE_COPY.decision, /Required D-60\/D-38/);
+  const msg = formatTimekeeperBlock(state, Date.now(), {
+    kind: STICKY_FORCE_KIND,
+    family: "sticky",
+    ...STICKY_FORCE_COPY,
+  });
+  assert.match(msg, /Never skip required D-38\/D-60/);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

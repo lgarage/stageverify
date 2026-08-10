@@ -43,6 +43,15 @@ Lightweight focus nudges (once each per conversation):
 
 If several elapsed checkpoints are pending, emit the **highest** only (lower superseded).
 
+### Sticky post-35m (advise-only)
+
+After `force35` is delivered, while still `force_choice` and no D-66 terminal yet:
+
+- Re-emit a short sticky D-66 nudge on **reliable** hooks every **~5m** (`force35_sticky`)
+- Every `stop` under `force_choice` re-issues a D-66 followup (respect `loop_limit` — no infinite stop loop)
+- Stop sticky campaign when DONE / BLOCKED / FAILED / PARTIAL is detected
+- Never deny tools; never skip required D-38/D-60/verify gates for time pressure
+
 ## Stall (separate — suppressed by healthy progress)
 
 - ~10m **no material progress** → `stall10`

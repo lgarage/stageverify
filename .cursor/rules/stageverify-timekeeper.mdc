@@ -15,6 +15,6 @@ Hooks auto-run via `.cursor/hooks.json`. When a `TIMEKEEPER` block appears, foll
 
 **Failure classes:** product | implementation | verification | measurement-tool | CI wait | deploy propagation | main drift — different recoveries.
 
-**Elapsed cadence (progress does not suppress):** ~10m status · ~15m focus · ~20m focus · ~25m completion-focus · ~30m completion-push · ~35m D-66 terminal. Stall ~10m only when no material progress.
+**Elapsed cadence (progress does not suppress):** ~10m status · ~15m focus · ~20m focus · ~25m completion-focus · ~30m completion-push · ~35m D-66 terminal. After force35: sticky D-66 re-nudge ~every 5m on reliable hooks + stop followup while non-terminal (advise-only). Stall ~10m only when no material progress.
 
 **HARD CONTRACT:** Never weaken or skip required D-38 / D-60 / D-42 / D-51 / named `verify:*` / D-50 because of Timekeeper advice. Green stamps only justify skipping *unchanged redundant* reruns under existing D-37/D-65 rules.
