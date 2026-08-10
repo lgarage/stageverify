@@ -103,7 +103,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
-- **C3-D.2 Manager lifecycle SHIPPING** — PR #146 rebase onto main (after v0.0.287 / PR #147). Decision **D-91** (D-84 taken by readiness). D-60 + D-38 PASS; Dan deploy approved. Merge → CF (3 callables only) → gh-pages. KEEP open for prod verify + Dan MANUAL.
+- **C3-D.2 Manager lifecycle SHIPPING** — PR #146 rebase onto main tip `8edb97b0` (v0.0.287 / PR #147). Decision **D-91**. FE ship **v0.0.288**. D-60 + D-38 PASS; Dan deploy approved. Merge → CF (3 callables only) → gh-pages. KEEP open for prod verify + Dan MANUAL.
 - **PR #145 Approve fulfillment LIVE (v0.0.286)** — hard-refresh → Invoice Review → safe pending → Approve (choice, no write) → Cancel; Drop-Off → map → Cancel; Drop-Off → Confirm; separate Will-Call → Confirm; no footer Assign Location; hard-refresh persistence. KEEP open until Dan accepts.
 - **Delivery Details 2×2 yellow + Staged authoritative (v0.0.283)** — hard-refresh → Vendor Drop-Off yellow; no Current/Reject/inline picker; Staged with G10 transitions without dropdown; no staging → STAGING LOCATION NEEDED; Invoice Review Reject intact; D-82 Complete Pickup warning preserved. KEEP Cursor job open until Dan accepts.
 - **D-82 manual Complete Pickup LIVE (v0.0.282)** — hard-refresh → Assigned/Planned Vendor Drop-Off → **Complete Pickup** → not-ready warning + outstanding/blocker summary → Cancel (no write) → Confirm with technician → Picked Up + staging released + items evidence intact + hard refresh. Keep Cursor job open until Dan accepts.
