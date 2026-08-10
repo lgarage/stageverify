@@ -1274,6 +1274,12 @@ export class FirestoreDataService implements DispatcherDataService {
   async markVendorDelivered(
     deliveryId: string,
     actorName = "Vendor Driver",
+    lineExceptions?: Array<{
+      itemId: string;
+      qtyReceived: number;
+      qtyBackordered: number;
+      qtyDamaged: number;
+    }>,
   ): Promise<DeliveryDetails | null> {
     const sessionToken = getVendorSessionToken(deliveryId);
     if (!sessionToken) {
@@ -1286,6 +1292,9 @@ export class FirestoreDataService implements DispatcherDataService {
         deliveryId,
         sessionToken,
         actorName,
+        ...(lineExceptions && lineExceptions.length > 0
+          ? { lineExceptions }
+          : {}),
       });
     } catch (err) {
       throw new VendorSessionError(vendorSessionErrorMessage(err));

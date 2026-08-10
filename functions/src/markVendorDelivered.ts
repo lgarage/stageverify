@@ -1,39 +1,22 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { applyDeliveryReadinessTransaction } from "./applyDeliveryReadiness";
+import { applyVendorDeliveredReceiving } from "./applyVendorDeliveredReceiving";
 import {
   asDeliveryId,
   asSessionToken,
-  assertVendorSessionForDelivery,
 } from "./vendorSessionValidation";
-import { hasAssignableSpot } from "./vendorDeliverySpotUtils";
+import { parseLineExceptions } from "./vendorDeliveredItemTruth";
 
 function getDb() {
   return admin.firestore();
 }
 
-type DeliveryStatus =
-  | "pending"
-  | "shipped"
-  | "arrived"
-  | "partial"
-  | "ready_for_pickup"
-  | "complete"
-  | "issue"
-  | "picked_up"
-  | "installed";
-
 interface MarkVendorDeliveredRequest {
   deliveryId?: string;
   sessionToken?: string;
   actorName?: string;
-}
-
-interface DeliveryDoc {
-  status: DeliveryStatus;
-  vendorPhysicalDropoffConfirmed?: boolean;
-  vendorPhysicalDropoffConfirmedAt?: string;
-  deliveredAt?: string;
+  /** Optional exception lines; omitted/empty = complete-all (D-90). */
+  lineExceptions?: unknown;
 }
 
 function asActorName(value: unknown): string {
@@ -42,7 +25,7 @@ function asActorName(value: unknown): string {
   return trimmed.length > 0 && trimmed.length <= 128 ? trimmed : "Vendor Driver";
 }
 
-/** Server-owned vendor DELIVERED — validates session, writes evidence, recalculates readiness. */
+/** Server-owned vendor DELIVERED — session, item qty truth, readiness. */
 export const markVendorDelivered = onCall(
   {
     region: "us-central1",
@@ -57,79 +40,30 @@ export const markVendorDelivered = onCall(
     const deliveryId = asDeliveryId(data.deliveryId);
     const sessionToken = asSessionToken(data.sessionToken);
     const actorName = asActorName(data.actorName);
+    const lineExceptions = parseLineExceptions(data.lineExceptions);
 
     if (!deliveryId || !sessionToken) {
       throw new HttpsError("invalid-argument", "Invalid session.");
     }
-
-    await assertVendorSessionForDelivery(sessionToken, deliveryId);
-
-    const deliveryRef = getDb().collection("deliveries").doc(deliveryId);
-    const deliverySnap = await deliveryRef.get();
-    if (!deliverySnap.exists) {
-      throw new HttpsError("not-found", "Delivery not found.");
+    if (lineExceptions === null) {
+      throw new HttpsError("invalid-argument", "Invalid line exceptions.");
     }
 
-    const delivery = deliverySnap.data() as DeliveryDoc;
-    if (!hasAssignableSpot(deliverySnap.data() as admin.firestore.DocumentData)) {
-      throw new HttpsError(
-        "failed-precondition",
-        "No assigned spot — ask dispatch.",
-      );
-    }
-    const alreadyConfirmed = delivery.vendorPhysicalDropoffConfirmed === true;
-    const fromStatus = delivery.status;
-    const toStatus: DeliveryStatus =
-      fromStatus === "pending" || fromStatus === "shipped" ? "arrived" : fromStatus;
-
-    const now = new Date().toISOString();
-    const confirmedAt =
-      alreadyConfirmed && delivery.vendorPhysicalDropoffConfirmedAt
-        ? delivery.vendorPhysicalDropoffConfirmedAt
-        : now;
-
-    const batch = getDb().batch();
-    batch.update(deliveryRef, {
-      status: toStatus,
-      submittedAt: now,
-      vendorPhysicalDropoffConfirmed: true,
-      vendorPhysicalDropoffConfirmedAt: confirmedAt,
-      deliveredAt:
-        alreadyConfirmed && delivery.deliveredAt ? delivery.deliveredAt : now,
-      physicalDropoffSource: "physical_checkin",
-      updatedAt: now,
+    const result = await applyVendorDeliveredReceiving(getDb(), {
+      deliveryId,
+      sessionToken,
+      actorName,
+      lineExceptions,
     });
 
-    if (fromStatus !== toStatus) {
-      const eventId = `event-${crypto.randomUUID()}`;
-      batch.set(getDb().collection("statusHistory").doc(eventId), {
-        id: eventId,
-        entityType: "delivery_order",
-        entityId: deliveryId,
-        fromStatus,
-        toStatus,
-        reason: "Vendor confirmed delivery",
-        actorType: "vendor",
-        actorName,
-        createdAt: now,
-      });
-    }
-
-    await batch.commit();
-
-    const readiness = await applyDeliveryReadinessTransaction(
-      getDb(),
-      deliveryId,
-      { historyReason: "Vendor DELIVERED readiness recalculation" },
-    );
-
     return {
-      deliveryId,
-      status: toStatus,
-      vendorPhysicalDropoffConfirmed: true,
-      vendorPhysicalDropoffConfirmedAt: confirmedAt,
-      idempotent: alreadyConfirmed && fromStatus === toStatus,
-      readiness,
+      deliveryId: result.deliveryId,
+      status: result.status,
+      vendorPhysicalDropoffConfirmed: result.vendorPhysicalDropoffConfirmed,
+      vendorPhysicalDropoffConfirmedAt: result.vendorPhysicalDropoffConfirmedAt,
+      idempotent: result.idempotent,
+      itemsUpdated: result.itemsUpdated,
+      readiness: result.readiness,
     };
   },
 );

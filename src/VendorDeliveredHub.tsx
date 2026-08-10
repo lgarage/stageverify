@@ -9,6 +9,13 @@ import { VendorIssueModal } from "./VendorIssueModal";
 
 type DeliverCtaPhase = "idle" | "checkmark" | "delivered";
 
+export interface VendorDeliveredLineException {
+  itemId: string;
+  qtyReceived: number;
+  qtyBackordered: number;
+  qtyDamaged: number;
+}
+
 interface VendorDeliveredHubProps {
   deliveryDetails: DeliveryDetails;
   loading: boolean;
@@ -21,10 +28,18 @@ interface VendorDeliveredHubProps {
   geofenceEnforce?: boolean;
   reverting?: boolean;
   onDeliveryUpdated: (delivery: DeliveryOrder) => void;
-  onDelivered: () => Promise<boolean>;
+  onDelivered: (
+    lineExceptions?: VendorDeliveredLineException[],
+  ) => Promise<boolean>;
   onUndoDelivered?: () => Promise<boolean>;
   onBack: () => void;
 }
+
+type ExceptionDraft = {
+  qtyReceived: string;
+  qtyBackordered: string;
+  qtyDamaged: string;
+};
 
 function DeliverCheckmark({ size = 22 }: { size?: number }) {
   return (
@@ -69,6 +84,11 @@ export function VendorDeliveredHub({
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [issueToast, setIssueToast] = useState<string | null>(null);
   const [itemsExpanded, setItemsExpanded] = useState(false);
+  const [exceptionMode, setExceptionMode] = useState(false);
+  const [exceptionDrafts, setExceptionDrafts] = useState<
+    Record<string, ExceptionDraft>
+  >({});
+  const [exceptionError, setExceptionError] = useState<string | null>(null);
   const [cardExpandedOverride, setCardExpandedOverride] = useState<
     boolean | null
   >(null);
@@ -98,13 +118,88 @@ export function VendorDeliveredHub({
     window.setTimeout(() => setIssueToast(null), 3500);
   };
 
+  const openExceptionMode = () => {
+    const drafts: Record<string, ExceptionDraft> = {};
+    for (const item of items) {
+      // Seed from current item truth — preserve invoice-seeded BO (D-86/G).
+      const priorBO = Math.max(0, Math.floor(Number(item.qtyBackordered ?? 0)));
+      const seededReceived =
+        item.qtyReceived > 0
+          ? item.qtyReceived
+          : Math.max(0, item.qtyOrdered - priorBO);
+      drafts[item.id] = {
+        qtyReceived: String(seededReceived),
+        qtyBackordered: String(priorBO),
+        qtyDamaged: String(Math.max(0, Math.floor(Number(item.qtyDamaged ?? 0)))),
+      };
+    }
+    setExceptionDrafts(drafts);
+    setExceptionError(null);
+    setExceptionMode(true);
+    setItemsExpanded(true);
+  };
+
+  const buildLineExceptions = ():
+    | VendorDeliveredLineException[]
+    | "invalid"
+    | undefined => {
+    if (!exceptionMode) return undefined;
+    const out: VendorDeliveredLineException[] = [];
+    for (const item of items) {
+      const draft = exceptionDrafts[item.id];
+      if (!draft) continue;
+      const qtyReceived = Number(draft.qtyReceived);
+      const qtyBackordered = Number(draft.qtyBackordered);
+      const qtyDamaged = Number(draft.qtyDamaged);
+      if (
+        !Number.isInteger(qtyReceived) ||
+        !Number.isInteger(qtyBackordered) ||
+        !Number.isInteger(qtyDamaged) ||
+        qtyReceived < 0 ||
+        qtyBackordered < 0 ||
+        qtyDamaged < 0
+      ) {
+        return "invalid";
+      }
+      if (qtyReceived + qtyBackordered + qtyDamaged > item.qtyOrdered) {
+        return "invalid";
+      }
+      // Skip lines that match complete-all truth (preserves prior BO).
+      const priorBO = Math.max(0, Math.floor(Number(item.qtyBackordered ?? 0)));
+      const completeReceived = Math.max(0, item.qtyOrdered - priorBO);
+      const matchesCompleteAll =
+        qtyReceived === completeReceived &&
+        qtyBackordered === priorBO &&
+        qtyDamaged === 0;
+      if (matchesCompleteAll) continue;
+      out.push({
+        itemId: item.id,
+        qtyReceived,
+        qtyBackordered,
+        qtyDamaged,
+      });
+    }
+    return out;
+  };
+
   const handleDeliverClick = async () => {
     if (deliverDisabled) return;
+    setExceptionError(null);
+    const exceptions = buildLineExceptions();
+    if (exceptions === "invalid") {
+      setExceptionError(
+        "Check received / backordered / damaged quantities (must not exceed ordered).",
+      );
+      return;
+    }
     setCtaPhase("checkmark");
-    const ok = await onDelivered();
+    const ok = await onDelivered(
+      exceptions && exceptions.length > 0 ? exceptions : undefined,
+    );
     if (ok) {
       setCtaPhase("delivered");
       setCardExpandedOverride(false);
+      setExceptionMode(false);
     } else {
       setCtaPhase("idle");
     }
@@ -351,8 +446,8 @@ export function VendorDeliveredHub({
         </div>
 
         <p className="mt-3 text-center text-xs text-text-secondary leading-snug">
-          Confirm this is the correct delivery. Inventory is verified by shop
-          staff later.
+          Mark Delivered records expected quantities as received. Report
+          missing, backordered, or damaged items before confirming.
         </p>
       </main>
 
@@ -387,6 +482,109 @@ export function VendorDeliveredHub({
             {error}
           </p>
         )}
+        {!isDelivered && exceptionMode && items.length > 0 && (
+          <div
+            className="rounded-xl border border-border bg-bg-secondary/50 px-3 py-2.5 space-y-3"
+            data-testid="vendor-exception-panel"
+          >
+            <p className="text-xs text-text-secondary leading-snug">
+              Enter what arrived. Remaining quantity is missing unless you mark
+              it backordered or damaged.
+            </p>
+            {items.map((item) => {
+              const priorBO = Math.max(
+                0,
+                Math.floor(Number(item.qtyBackordered ?? 0)),
+              );
+              const draft = exceptionDrafts[item.id] ?? {
+                qtyReceived: String(Math.max(0, item.qtyOrdered - priorBO)),
+                qtyBackordered: String(priorBO),
+                qtyDamaged: String(
+                  Math.max(0, Math.floor(Number(item.qtyDamaged ?? 0))),
+                ),
+              };
+              return (
+                <div
+                  key={item.id}
+                  className="space-y-1.5 border-t border-border pt-2 first:border-t-0 first:pt-0"
+                  data-testid="vendor-exception-item"
+                >
+                  <p className="text-sm font-medium text-text-primary leading-snug">
+                    {item.description}
+                    <span className="ml-2 text-xs text-text-secondary">
+                      Ordered {item.qtyOrdered}
+                    </span>
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(
+                      [
+                        ["qtyReceived", "Received"],
+                        ["qtyBackordered", "Backordered"],
+                        ["qtyDamaged", "Damaged"],
+                      ] as const
+                    ).map(([field, label]) => (
+                      <label
+                        key={field}
+                        className="block text-[11px] text-text-secondary"
+                      >
+                        {label}
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={item.qtyOrdered}
+                          value={draft[field]}
+                          data-testid={`vendor-exception-${field}-${item.id}`}
+                          onChange={(e) =>
+                            setExceptionDrafts((prev) => ({
+                              ...prev,
+                              [item.id]: {
+                                ...draft,
+                                [field]: e.target.value,
+                              },
+                            }))
+                          }
+                          className="mt-0.5 w-full rounded-lg border border-border bg-white px-2 py-1.5 text-sm text-[#333]"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => {
+                setExceptionMode(false);
+                setExceptionError(null);
+              }}
+              className="text-xs text-accent underline"
+              data-testid="vendor-exception-cancel"
+            >
+              Cancel exceptions — everything arrived
+            </button>
+          </div>
+        )}
+        {(exceptionError || (error && exceptionMode)) && (
+          <p
+            className="text-xs text-accent-red text-center"
+            role="alert"
+            data-testid="vendor-exception-error"
+          >
+            {exceptionError ?? error}
+          </p>
+        )}
+        {!isDelivered && !exceptionMode && items.length > 0 && (
+          <button
+            type="button"
+            onClick={openExceptionMode}
+            disabled={deliverDisabled}
+            data-testid="vendor-report-exceptions"
+            className="action-btn action-btn-secondary w-full text-sm"
+          >
+            Something missing or backordered?
+          </button>
+        )}
         {!isDelivered && (
           <button
             type="button"
@@ -401,7 +599,7 @@ export function VendorDeliveredHub({
                 <DeliverCheckmark />
               </span>
             ) : hasAssignableSpot ? (
-              "Mark Delivered"
+              exceptionMode ? "Confirm with exceptions" : "Mark Delivered"
             ) : (
               "Ask dispatch for a staging spot."
             )}

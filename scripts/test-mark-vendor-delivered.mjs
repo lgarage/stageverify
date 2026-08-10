@@ -106,6 +106,15 @@ async function readDelivery(id) {
   return data;
 }
 
+async function readItem(id) {
+  let data = null;
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const snap = await getDoc(doc(ctx.firestore(), "items", id));
+    data = snap.exists() ? snap.data() : null;
+  });
+  return data;
+}
+
 try {
   console.log("\n=== markVendorDelivered CF ===\n");
 
@@ -127,13 +136,20 @@ try {
       actorName: "Test Driver",
     });
     const after = await readDelivery(deliveryId);
+    const item = await readItem(`${deliveryId}-item`);
     if (
       after?.vendorPhysicalDropoffConfirmed === true &&
-      after?.physicalDropoffSource === "physical_checkin"
+      after?.physicalDropoffSource === "physical_checkin" &&
+      item?.qtyReceived === 1 &&
+      item?.qtyMissing === 0 &&
+      item?.qtyBackordered === 0
     ) {
-      pass("valid session → DELIVERED writes evidence via CF");
+      pass("valid session → DELIVERED writes evidence + complete-all qty");
     } else {
-      fail("valid session DELIVERED", new Error(JSON.stringify(after)));
+      fail(
+        "valid session DELIVERED",
+        new Error(JSON.stringify({ after, item })),
+      );
     }
   } catch (err) {
     fail("valid session DELIVERED should succeed", err);
@@ -256,6 +272,152 @@ try {
     pass("blocking issue prevents Ready");
   } else {
     fail("blocking issue should prevent Ready");
+  }
+
+  console.log("\n=== D-90 receiving truth (exceptions / BO preserve) ===\n");
+
+  const delPartial = "del-mvd-partial";
+  const delBO = "del-mvd-bo-seed";
+  await seed(async (db) => {
+    await seedDelivery(db, delPartial, { status: "pending" });
+    await seedSession(db, VALID_SESSION, delPartial, future);
+    await setDoc(doc(db, "items", `${delPartial}-item`), {
+      id: `${delPartial}-item`,
+      deliveryOrderId: delPartial,
+      description: "Partial item",
+      qtyOrdered: 10,
+      qtyReceived: 0,
+      qtyMissing: 0,
+      qtyDamaged: 0,
+      qtyBackordered: 0,
+      status: "pending",
+    });
+
+    await seedDelivery(db, delBO, { status: "pending" });
+    await setDoc(doc(db, "items", `${delBO}-item`), {
+      id: `${delBO}-item`,
+      deliveryOrderId: delBO,
+      description: "BO seeded",
+      qtyOrdered: 10,
+      qtyReceived: 0,
+      qtyMissing: 0,
+      qtyDamaged: 0,
+      qtyBackordered: 2,
+      status: "pending",
+    });
+  });
+
+  // Re-bind session to partial delivery for exception mark
+  await seed(async (db) => {
+    await seedSession(db, VALID_SESSION, delPartial, future);
+  });
+
+  try {
+    await markDelivered({
+      deliveryId: delPartial,
+      sessionToken: VALID_SESSION,
+      actorName: "Test Driver",
+      lineExceptions: [
+        {
+          itemId: `${delPartial}-item`,
+          qtyReceived: 8,
+          qtyBackordered: 2,
+          qtyDamaged: 0,
+        },
+      ],
+    });
+    const item = await readItem(`${delPartial}-item`);
+    if (
+      item?.qtyReceived === 8 &&
+      item?.qtyBackordered === 2 &&
+      item?.qtyMissing === 0
+    ) {
+      pass("exception: 8 received + 2 BO, missing not double-counted");
+    } else {
+      fail("exception BO write", new Error(JSON.stringify(item)));
+    }
+  } catch (err) {
+    fail("exception BO mark should succeed", err);
+  }
+
+  await seed(async (db) => {
+    await seedSession(db, VALID_SESSION, delPartial, future);
+  });
+
+  try {
+    await markDelivered({
+      deliveryId: delPartial,
+      sessionToken: VALID_SESSION,
+      actorName: "Test Driver",
+      lineExceptions: [
+        {
+          itemId: `${delPartial}-item`,
+          qtyReceived: 8,
+          qtyBackordered: 0,
+          qtyDamaged: 0,
+        },
+      ],
+    });
+    const item = await readItem(`${delPartial}-item`);
+    if (
+      item?.qtyReceived === 8 &&
+      item?.qtyBackordered === 0 &&
+      item?.qtyMissing === 2
+    ) {
+      pass("exception: 8 received + 2 missing (no invented BO)");
+    } else {
+      fail("exception missing write", new Error(JSON.stringify(item)));
+    }
+  } catch (err) {
+    fail("exception missing mark should succeed", err);
+  }
+
+  await seed(async (db) => {
+    await seedSession(db, VALID_SESSION, delBO, future);
+  });
+
+  try {
+    await markDelivered({
+      deliveryId: delBO,
+      sessionToken: VALID_SESSION,
+      actorName: "Test Driver",
+    });
+    const item = await readItem(`${delBO}-item`);
+    if (
+      item?.qtyReceived === 8 &&
+      item?.qtyBackordered === 2 &&
+      item?.qtyMissing === 0
+    ) {
+      pass("complete-all preserves invoice-seeded qtyBackordered");
+    } else {
+      fail("BO preserve", new Error(JSON.stringify(item)));
+    }
+  } catch (err) {
+    fail("BO preserve mark should succeed", err);
+  }
+
+  // Idempotent retry must not clobber exception qty with empty complete-all.
+  await seed(async (db) => {
+    await seedSession(db, VALID_SESSION, delPartial, future);
+  });
+  try {
+    await markDelivered({
+      deliveryId: delPartial,
+      sessionToken: VALID_SESSION,
+      actorName: "Test Driver",
+    });
+    const item = await readItem(`${delPartial}-item`);
+    if (
+      item?.qtyReceived === 8 &&
+      item?.qtyBackordered === 0 &&
+      item?.qtyMissing === 2
+    ) {
+      pass("idempotent retry does not clobber prior exception qty");
+    } else {
+      fail("idempotent no-clobber", new Error(JSON.stringify(item)));
+    }
+  } catch (err) {
+    fail("idempotent no-clobber should succeed", err);
   }
 
   console.log(`\n=== Summary: ${passed} passed, ${failed} failed ===\n`);
