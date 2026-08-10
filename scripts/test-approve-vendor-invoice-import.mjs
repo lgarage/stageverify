@@ -1500,32 +1500,55 @@ const dropOffHeader = {
   vendorOrderNumber: "DROP-STG-1",
 };
 
+const willCallHeader = {
+  ...header,
+  fulfillmentMethod: "will_call_pickup",
+  customerPoOrReference: "WILL CALL STAGING",
+  vendorInvoiceNumber: "WILL-STG-1",
+  vendorOrderNumber: "WILL-STG-1",
+};
+
+/** Seed staging locations scoped to a scenario prefix to avoid cross-scenario occupancy. */
+async function seedScenarioStagingLocations(adminDb, prefix, codes) {
+  for (const code of codes) {
+    const id = `staging-${prefix}-${code}`;
+    await setDoc(doc(adminDb, "stagingLocations", id), {
+      id,
+      code: code.toUpperCase(),
+      label: `Ground ${code.toUpperCase()}`,
+      type: "Ground",
+      status: "Active",
+      createdAt: "2026-06-02T00:00:00Z",
+      updatedAt: "2026-06-02T00:00:00Z",
+    });
+  }
+}
+
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  await setDoc(doc(adminDb, "stagingLocations", "staging-g1"), {
-    id: "staging-g1",
-    code: "G1",
-    label: "Ground 1",
-    type: "Ground",
-    status: "Active",
-    createdAt: "2026-06-02T00:00:00Z",
-    updatedAt: "2026-06-02T00:00:00Z",
-  });
-  await setDoc(doc(adminDb, "stagingLocations", "staging-g2"), {
-    id: "staging-g2",
-    code: "G2",
-    label: "Ground 2",
-    type: "Ground",
-    status: "Active",
-    createdAt: "2026-06-02T00:00:00Z",
-    updatedAt: "2026-06-02T00:00:00Z",
-  });
+  await seedScenarioStagingLocations(adminDb, "dropoff-one", ["g1"]);
+  await seedScenarioStagingLocations(adminDb, "dropoff-multi", ["g1", "g2"]);
+  await seedScenarioStagingLocations(adminDb, "dropoff-bad", ["g1"]);
+  await seedScenarioStagingLocations(adminDb, "dropoff-reapprove", ["g1", "g2"]);
+  await seedScenarioStagingLocations(adminDb, "willcall-stale", ["g1", "g2"]);
+  await seedScenarioStagingLocations(adminDb, "dropoff-occupied", ["occ"]);
+  await seedScenarioStagingLocations(adminDb, "fulfill-dropoff", ["fd1"]);
+  await seedScenarioStagingLocations(adminDb, "fulfill-willcall", ["fw1"]);
+  await seedScenarioStagingLocations(adminDb, "idempotent-retry", ["ir1"]);
+  await seedScenarioStagingLocations(adminDb, "idempotent-contradict", ["ic1"]);
+  await seedScenarioStagingLocations(adminDb, "override-d79", ["od1"]);
   for (const id of [
     "vii-dropoff-no-staging",
     "vii-dropoff-one",
     "vii-dropoff-multi",
     "vii-dropoff-bad-loc",
     "vii-dropoff-reapprove",
+    "vii-dropoff-occupied",
+    "vii-fulfill-dropoff",
+    "vii-fulfill-willcall",
+    "vii-idempotent-retry",
+    "vii-idempotent-contradict",
+    "vii-override-d79",
   ]) {
     await setDoc(doc(adminDb, "vendorInvoiceImports", id), {
       id,
@@ -1576,6 +1599,17 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     createdAt: "2026-06-24T10:00:00Z",
     updatedAt: "2026-06-24T10:00:00Z",
   });
+  // Occupied location held by another active delivery
+  await setDoc(doc(adminDb, "deliveries", "delivery-occupies-dropoff-occ"), {
+    id: "delivery-occupies-dropoff-occ",
+    jobId: "job-1",
+    vendorId: "vendor-1",
+    orderNumber: "OCCUPIER-1",
+    status: "pending",
+    plannedStagingLocationIds: ["staging-dropoff-occupied-occ"],
+    createdAt: "2026-06-01T00:00:00Z",
+    updatedAt: "2026-06-01T00:00:00Z",
+  });
 });
 
 try {
@@ -1606,6 +1640,7 @@ try {
 } catch (err) {
   const msg = String(err?.message ?? "");
   if (
+    msg.includes("not found") ||
     msg.includes("no longer exist") ||
     msg.includes("invalid-argument")
   ) {
@@ -1615,12 +1650,39 @@ try {
   }
 }
 
+try {
+  await approveImport({
+    vendorInvoiceImportId: "vii-dropoff-occupied",
+    action: "approve",
+    plannedStagingLocationIds: ["staging-dropoff-occupied-occ"],
+  });
+  fail("drop-off approve into occupied location should fail");
+} catch (err) {
+  const msg = String(err?.message ?? "");
+  if (
+    msg.includes("no longer available") ||
+    msg.includes("failed-precondition")
+  ) {
+    pass("drop-off approve blocked when staging location occupied");
+  } else {
+    fail("expected occupied staging error", err?.message);
+  }
+}
+const occupiedImportSnap = await getDoc(
+  doc(db, "vendorInvoiceImports", "vii-dropoff-occupied"),
+);
+if (occupiedImportSnap.data()?.reviewStatus === "pending_review") {
+  pass("occupied conflict leaves import pending_review");
+} else {
+  fail("occupied conflict should not approve import", occupiedImportSnap.data());
+}
+
 let dropOne;
 try {
   dropOne = await approveImport({
     vendorInvoiceImportId: "vii-dropoff-one",
     action: "approve",
-    plannedStagingLocationIds: ["staging-g1"],
+    plannedStagingLocationIds: ["staging-dropoff-one-g1"],
   });
 } catch (err) {
   fail("drop-off approve with one location failed", err?.message);
@@ -1632,9 +1694,9 @@ if (
   dropOne?.data?.reviewStatus === "approved" &&
   Array.isArray(dropOnePlanned) &&
   dropOnePlanned.length === 1 &&
-  dropOnePlanned[0] === "staging-g1" &&
+  dropOnePlanned[0] === "staging-dropoff-one-g1" &&
   Array.isArray(dropOne?.data?.plannedStagingLocationIds) &&
-  dropOne.data.plannedStagingLocationIds[0] === "staging-g1"
+  dropOne.data.plannedStagingLocationIds[0] === "staging-dropoff-one-g1"
 ) {
   pass("drop-off approve writes plannedStagingLocationIds (one)");
 } else {
@@ -1649,7 +1711,11 @@ try {
   dropMulti = await approveImport({
     vendorInvoiceImportId: "vii-dropoff-multi",
     action: "approve",
-    plannedStagingLocationIds: ["staging-g1", "staging-g2", "staging-g1"],
+    plannedStagingLocationIds: [
+      "staging-dropoff-multi-g1",
+      "staging-dropoff-multi-g2",
+      "staging-dropoff-multi-g1",
+    ],
   });
 } catch (err) {
   fail("drop-off approve with multiple locations failed", err?.message);
@@ -1660,8 +1726,8 @@ const dropMultiPlanned = dropMultiSnap.data()?.plannedStagingLocationIds ?? [];
 if (
   dropMulti?.data?.reviewStatus === "approved" &&
   dropMultiPlanned.length === 2 &&
-  dropMultiPlanned.includes("staging-g1") &&
-  dropMultiPlanned.includes("staging-g2")
+  dropMultiPlanned.includes("staging-dropoff-multi-g1") &&
+  dropMultiPlanned.includes("staging-dropoff-multi-g2")
 ) {
   pass("drop-off approve writes deduped multi plannedStagingLocationIds");
 } else {
@@ -1673,7 +1739,10 @@ try {
   willStale = await approveImport({
     vendorInvoiceImportId: "vii-willcall-stale-staging",
     action: "approve",
-    plannedStagingLocationIds: ["staging-g1", "staging-g2"],
+    plannedStagingLocationIds: [
+      "staging-willcall-stale-g1",
+      "staging-willcall-stale-g2",
+    ],
   });
 } catch (err) {
   fail("will-call approve with stale staging ids failed", err?.message);
@@ -1709,7 +1778,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     status: "pending",
     createdFromInvoiceImport: true,
     vendorInvoiceImportId: "vii-dropoff-reapprove",
-    plannedStagingLocationIds: ["staging-g1"],
+    plannedStagingLocationIds: ["staging-dropoff-reapprove-g1"],
     createdAt: "2026-06-24T10:00:00Z",
     updatedAt: "2026-06-24T10:00:00Z",
   });
@@ -1719,7 +1788,7 @@ try {
   reapprove = await approveImport({
     vendorInvoiceImportId: "vii-dropoff-reapprove",
     action: "approve",
-    plannedStagingLocationIds: ["staging-g2"],
+    plannedStagingLocationIds: ["staging-dropoff-reapprove-g2"],
   });
 } catch (err) {
   fail("re-approve with replace staging failed", err?.message);
@@ -1729,11 +1798,176 @@ const reapprovePlanned = reapproveSnap.data()?.plannedStagingLocationIds ?? [];
 if (
   reapprove?.data?.reviewStatus === "approved" &&
   reapprovePlanned.length === 1 &&
-  reapprovePlanned[0] === "staging-g2"
+  reapprovePlanned[0] === "staging-dropoff-reapprove-g2"
 ) {
   pass("re-approve replaces plannedStagingLocationIds (no duplicates)");
 } else {
   fail("re-approve replace semantics", reapprovePlanned);
+}
+
+console.log("\n=== CF: fulfillmentDecision on approve ===\n");
+
+let fulfillDropOff;
+try {
+  fulfillDropOff = await approveImport({
+    vendorInvoiceImportId: "vii-fulfill-dropoff",
+    action: "approve",
+    fulfillmentDecision: "delivery",
+    plannedStagingLocationIds: ["staging-fulfill-dropoff-fd1"],
+  });
+} catch (err) {
+  fail("fulfillmentDecision delivery approve failed", err?.message);
+}
+const fulfillDropOffShell = shellDeliveryIdForImport("vii-fulfill-dropoff");
+const fulfillDropOffSnap = await getDoc(doc(db, "deliveries", fulfillDropOffShell));
+if (
+  fulfillDropOff?.data?.reviewStatus === "approved" &&
+  fulfillDropOffSnap.data()?.invoiceFulfillmentMethod === "delivery" &&
+  fulfillDropOffSnap.data()?.plannedStagingLocationIds?.[0] ===
+    "staging-fulfill-dropoff-fd1"
+) {
+  pass("fulfillmentDecision delivery happy path writes staging");
+} else {
+  fail("fulfillmentDecision delivery", {
+    response: fulfillDropOff?.data,
+    delivery: fulfillDropOffSnap.data(),
+  });
+}
+
+let fulfillWillCall;
+try {
+  fulfillWillCall = await approveImport({
+    vendorInvoiceImportId: "vii-fulfill-willcall",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+    plannedStagingLocationIds: ["staging-fulfill-willcall-fw1"],
+  });
+} catch (err) {
+  fail("fulfillmentDecision will-call approve failed", err?.message);
+}
+const fulfillWillCallShell = shellDeliveryIdForImport("vii-fulfill-willcall");
+const fulfillWillCallSnap = await getDoc(doc(db, "deliveries", fulfillWillCallShell));
+if (
+  fulfillWillCall?.data?.reviewStatus === "approved" &&
+  fulfillWillCallSnap.data()?.invoiceFulfillmentMethod === "will_call_pickup" &&
+  (fulfillWillCallSnap.data()?.plannedStagingLocationIds ?? []).length === 0
+) {
+  pass("fulfillmentDecision will-call happy path ignores client staging ids");
+} else {
+  fail("fulfillmentDecision will-call", fulfillWillCallSnap.data());
+}
+
+console.log("\n=== CF: idempotent approve replay ===\n");
+
+let idempotentFirst;
+try {
+  idempotentFirst = await approveImport({
+    vendorInvoiceImportId: "vii-idempotent-retry",
+    action: "approve",
+    fulfillmentDecision: "delivery",
+    plannedStagingLocationIds: ["staging-idempotent-retry-ir1"],
+  });
+} catch (err) {
+  fail("idempotent first approve failed", err?.message);
+}
+const idempotentLogLen =
+  (await getDoc(doc(db, "vendorInvoiceImports", "vii-idempotent-retry"))).data()
+    ?.importDecisionLog?.length ?? 0;
+let idempotentSecond;
+try {
+  idempotentSecond = await approveImport({
+    vendorInvoiceImportId: "vii-idempotent-retry",
+    action: "approve",
+    fulfillmentDecision: "delivery",
+    plannedStagingLocationIds: ["staging-idempotent-retry-ir1"],
+  });
+} catch (err) {
+  fail("idempotent second approve failed", err?.message);
+}
+const idempotentLogLenAfter =
+  (await getDoc(doc(db, "vendorInvoiceImports", "vii-idempotent-retry"))).data()
+    ?.importDecisionLog?.length ?? 0;
+if (
+  idempotentSecond?.data?.idempotentReplay === true &&
+  idempotentSecond?.data?.itemsApplied === 0 &&
+  idempotentLogLenAfter === idempotentLogLen
+) {
+  pass("idempotent retry success — no duplicate log entries");
+} else {
+  fail("idempotent retry", {
+    second: idempotentSecond?.data,
+    logBefore: idempotentLogLen,
+    logAfter: idempotentLogLenAfter,
+  });
+}
+
+try {
+  await approveImport({
+    vendorInvoiceImportId: "vii-idempotent-contradict",
+    action: "approve",
+    fulfillmentDecision: "delivery",
+    plannedStagingLocationIds: ["staging-idempotent-contradict-ic1"],
+  });
+} catch (err) {
+  fail("contradict setup first approve failed", err?.message);
+}
+try {
+  await approveImport({
+    vendorInvoiceImportId: "vii-idempotent-contradict",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+    plannedStagingLocationIds: [],
+  });
+  fail("contradicting idempotent retry should fail");
+} catch (err) {
+  const msg = String(err?.message ?? "");
+  if (msg.includes("different fulfillment decision")) {
+    pass("contradicting idempotent retry fails on fulfillment mismatch");
+  } else {
+    fail("expected contradicting fulfillment error", err?.message);
+  }
+}
+
+console.log("\n=== CF: D-79 explicit approval override ===\n");
+
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  const overrideShell = shellDeliveryIdForImport("vii-override-d79");
+  await setDoc(doc(adminDb, "deliveries", overrideShell), {
+    id: overrideShell,
+    jobId: "job-1",
+    vendorId: "vendor-1",
+    orderNumber: "ORD-OVERRIDE",
+    status: "ready_for_pickup",
+    createdFromInvoiceImport: true,
+    vendorInvoiceImportId: "vii-override-d79",
+    invoiceFulfillmentMethod: "will_call_pickup",
+    invoiceImportStatus: "pickup_at_vendor",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+});
+let overrideApprove;
+try {
+  overrideApprove = await approveImport({
+    vendorInvoiceImportId: "vii-override-d79",
+    action: "approve",
+    fulfillmentDecision: "delivery",
+    plannedStagingLocationIds: ["staging-override-d79-od1"],
+  });
+} catch (err) {
+  fail("D-79 explicit override approve failed", err?.message);
+}
+const overrideShellId = shellDeliveryIdForImport("vii-override-d79");
+const overrideSnap = await getDoc(doc(db, "deliveries", overrideShellId));
+if (
+  overrideApprove?.data?.reviewStatus === "approved" &&
+  overrideSnap.data()?.invoiceFulfillmentMethod === "delivery" &&
+  overrideSnap.data()?.plannedStagingLocationIds?.[0] === "staging-override-d79-od1"
+) {
+  pass("explicit fulfillmentDecision override flips prior will-call (D-79 bypass)");
+} else {
+  fail("D-79 override result", overrideSnap.data());
 }
 
 console.log("\n=== CF: matched existing delivery on approve (D-67) ===\n");
@@ -1806,6 +2040,12 @@ async function seedHighConfidenceMatchCase(adminDb, {
 
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
+  await seedScenarioStagingLocations(adminDb, "matched-a1", ["target", "reap"]);
+  await seedScenarioStagingLocations(adminDb, "matched-a2", ["keep"]);
+  await seedScenarioStagingLocations(adminDb, "matched-a3", ["old", "new"]);
+  await seedScenarioStagingLocations(adminDb, "matched-a4", ["wc"]);
+  await seedScenarioStagingLocations(adminDb, "matched-a5", ["x"]);
+  await seedScenarioStagingLocations(adminDb, "matched-foreign", ["x"]);
   await seedHighConfidenceMatchCase(adminDb, {
     importId: "vii-matched-no-staging",
     orderNumber: "MATCH-ORD-A1",
@@ -1817,7 +2057,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     orderNumber: "MATCH-ORD-A2",
     poNumber: "PO-80002",
     deliveryExtras: {
-      plannedStagingLocationIds: ["staging-g1"],
+      plannedStagingLocationIds: ["staging-matched-a2-keep"],
       status: "arrived",
       notes: "Preserve me",
     },
@@ -1827,7 +2067,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     orderNumber: "MATCH-ORD-A3",
     poNumber: "PO-80003",
     deliveryExtras: {
-      plannedStagingLocationIds: ["staging-g1"],
+      plannedStagingLocationIds: ["staging-matched-a3-old"],
       status: "arrived",
       notes: "Change staging",
     },
@@ -1839,10 +2079,10 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     fulfillmentMethod: "will_call_pickup",
     importStatus: "pickup_at_vendor",
     deliveryExtras: {
-      plannedStagingLocationIds: ["staging-g1"],
-      stagingLocationId: "staging-g1",
+      plannedStagingLocationIds: ["staging-matched-a4-wc"],
+      stagingLocationId: "staging-matched-a4-wc",
       combinationStagingGroupId: "combo-wc",
-      combinationMemberLocationIds: ["staging-g1"],
+      combinationMemberLocationIds: ["staging-matched-a4-wc"],
     },
   });
   await seedHighConfidenceMatchCase(adminDb, {
@@ -1909,7 +2149,7 @@ try {
   matchedNoStg = await approveImport({
     vendorInvoiceImportId: "vii-matched-no-staging",
     action: "approve",
-    plannedStagingLocationIds: ["staging-g2"],
+    plannedStagingLocationIds: ["staging-matched-a1-target"],
   });
 } catch (err) {
   fail("matched drop-off approve failed", err?.message);
@@ -1924,7 +2164,7 @@ if (
   matchedNoStg?.data?.shellCreated === false &&
   matchedNoStg?.data?.deliveryOrderId === matchedTarget &&
   matchedSnap.exists() &&
-  matchedSnap.data()?.plannedStagingLocationIds?.[0] === "staging-g2" &&
+  matchedSnap.data()?.plannedStagingLocationIds?.[0] === "staging-matched-a1-target" &&
   matchedSnap.data()?.notes === "Operational history A1" &&
   matchedSnap.data()?.status === "pending" &&
   !matchedShellSnap.exists()
@@ -1954,7 +2194,7 @@ const preservePlanned = preserveSnap.data()?.plannedStagingLocationIds ?? [];
 if (
   matchedPreserve?.data?.deliveryMatched === true &&
   preservePlanned.length === 1 &&
-  preservePlanned[0] === "staging-g1" &&
+  preservePlanned[0] === "staging-matched-a2-keep" &&
   preserveSnap.data()?.notes === "Preserve me"
 ) {
   pass("matched drop-off preserves existing staging when omitted");
@@ -1971,7 +2211,7 @@ try {
   matchedChange = await approveImport({
     vendorInvoiceImportId: "vii-matched-change-staging",
     action: "approve",
-    plannedStagingLocationIds: ["staging-g2"],
+    plannedStagingLocationIds: ["staging-matched-a3-new"],
   });
 } catch (err) {
   fail("matched change staging approve failed", err?.message);
@@ -1982,7 +2222,7 @@ const changePlanned = changeSnap.data()?.plannedStagingLocationIds ?? [];
 if (
   matchedChange?.data?.deliveryMatched === true &&
   changePlanned.length === 1 &&
-  changePlanned[0] === "staging-g2" &&
+  changePlanned[0] === "staging-matched-a3-new" &&
   changeSnap.data()?.status === "arrived"
 ) {
   pass("matched drop-off replaces staging on existing delivery");
@@ -1995,7 +2235,7 @@ try {
   matchedWill = await approveImport({
     vendorInvoiceImportId: "vii-matched-willcall",
     action: "approve",
-    plannedStagingLocationIds: ["staging-g1"],
+    plannedStagingLocationIds: ["staging-matched-a4-wc"],
   });
 } catch (err) {
   fail("matched will-call approve failed", err?.message);
@@ -2014,7 +2254,7 @@ if (
   Array.isArray(willSnap.data()?.plannedLocationReleases) &&
   willSnap.data().plannedLocationReleases.some(
     (r) =>
-      r?.locationId === "staging-g1" &&
+      r?.locationId === "staging-matched-a4-wc" &&
       r?.reason === "fulfillment_switched_to_will_call",
   )
 ) {
@@ -2029,12 +2269,67 @@ if (
   });
 }
 
+// Matched non-shell Will-Call: first approve ignores client staging; retry with
+// same staging ids must still idempotentReplay (not staging-mismatch fail).
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await seedScenarioStagingLocations(adminDb, "idempotent-matched-wc", ["mw1"]);
+  await seedHighConfidenceMatchCase(adminDb, {
+    importId: "vii-idempotent-matched-wc",
+    orderNumber: "MATCH-WC-IDEM",
+    poNumber: "PO-IDEM-WC",
+    fulfillmentMethod: "will_call_pickup",
+    importStatus: "pickup_at_vendor",
+    deliveryExtras: {
+      plannedStagingLocationIds: ["staging-idempotent-matched-wc-mw1"],
+      stagingLocationId: "staging-idempotent-matched-wc-mw1",
+      status: "arrived",
+      notes: "Matched Will-Call idempotent",
+    },
+  });
+});
+let matchedWcFirst;
+try {
+  matchedWcFirst = await approveImport({
+    vendorInvoiceImportId: "vii-idempotent-matched-wc",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+    plannedStagingLocationIds: ["staging-idempotent-matched-wc-mw1"],
+  });
+} catch (err) {
+  fail("matched will-call first approve failed", err?.message);
+}
+let matchedWcSecond;
+try {
+  matchedWcSecond = await approveImport({
+    vendorInvoiceImportId: "vii-idempotent-matched-wc",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+    plannedStagingLocationIds: ["staging-idempotent-matched-wc-mw1"],
+  });
+} catch (err) {
+  fail("matched will-call idempotent retry failed", err?.message);
+}
+const matchedWcDeliveryId = "delivery-for-vii-idempotent-matched-wc";
+if (
+  matchedWcFirst?.data?.deliveryMatched === true &&
+  matchedWcSecond?.data?.idempotentReplay === true &&
+  matchedWcSecond?.data?.deliveryOrderId === matchedWcDeliveryId
+) {
+  pass("matched will-call + staging ids idempotent retry succeeds");
+} else {
+  fail("matched will-call idempotent", {
+    first: matchedWcFirst?.data,
+    second: matchedWcSecond?.data,
+  });
+}
+
 try {
   await approveImport({
     vendorInvoiceImportId: "vii-matched-malicious-id",
     action: "approve",
     deliveryOrderId: "delivery-unrelated-malicious",
-    plannedStagingLocationIds: ["staging-g1"],
+    plannedStagingLocationIds: ["staging-matched-a5-x"],
   });
   fail("malicious deliveryOrderId should be rejected");
 } catch (err) {
@@ -2051,7 +2346,7 @@ try {
   foreignFallthrough = await approveImport({
     vendorInvoiceImportId: "vii-match-foreign-shell",
     action: "approve",
-    plannedStagingLocationIds: ["staging-g1"],
+    plannedStagingLocationIds: ["staging-matched-foreign-x"],
   });
 } catch (err) {
   fail("foreign-shell candidate should fall back to own shell", err?.message);
@@ -2106,7 +2401,7 @@ try {
   matchedReapprove = await approveImport({
     vendorInvoiceImportId: "vii-matched-no-staging",
     action: "approve",
-    plannedStagingLocationIds: ["staging-g1"],
+    plannedStagingLocationIds: ["staging-matched-a1-reap"],
   });
 } catch (err) {
   fail("matched re-approve failed", err?.message);
@@ -2115,7 +2410,7 @@ const reMatchedSnap = await getDoc(doc(db, "deliveries", matchedTarget));
 const reMatchedShell = await getDoc(doc(db, "deliveries", matchedShell));
 if (
   matchedReapprove?.data?.deliveryOrderId === matchedTarget &&
-  reMatchedSnap.data()?.plannedStagingLocationIds?.[0] === "staging-g1" &&
+  reMatchedSnap.data()?.plannedStagingLocationIds?.[0] === "staging-matched-a1-reap" &&
   reMatchedSnap.data()?.notes === "Operational history A1" &&
   !reMatchedShell.exists()
 ) {
@@ -2131,6 +2426,7 @@ if (
 // D-79 + D-80: Will-Call-parsed import must not wipe dispatcher Drop-Off staging.
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
+  await seedScenarioStagingLocations(adminDb, "matched-a14", ["drop"]);
   await seedHighConfidenceMatchCase(adminDb, {
     importId: "vii-matched-preserve-dropoff-vs-willcall-import",
     orderNumber: "MATCH-ORD-A14",
@@ -2140,8 +2436,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     deliveryExtras: {
       invoiceFulfillmentMethod: "delivery",
       invoiceImportStatus: "pending",
-      plannedStagingLocationIds: ["staging-g2"],
-      stagingLocationId: "staging-g2",
+      plannedStagingLocationIds: ["staging-matched-a14-drop"],
+      stagingLocationId: "staging-matched-a14-drop",
       status: "arrived",
       notes: "Keep Drop-Off staging",
     },
@@ -2152,7 +2448,7 @@ try {
   matchedPreserveDropOff = await approveImport({
     vendorInvoiceImportId: "vii-matched-preserve-dropoff-vs-willcall-import",
     action: "approve",
-    plannedStagingLocationIds: ["staging-g1"],
+    plannedStagingLocationIds: ["staging-matched-a14-drop"],
   });
 } catch (err) {
   fail("preserve Drop-Off vs Will-Call import approve failed", err?.message);
@@ -2169,8 +2465,8 @@ if (
   matchedPreserveDropOff?.data?.deliveryMatched === true &&
   preserveDropOffVsWill.invoiceFulfillmentMethod === "delivery" &&
   Array.isArray(preserveDropOffVsWillPlanned) &&
-  preserveDropOffVsWillPlanned[0] === "staging-g2" &&
-  preserveDropOffVsWill.stagingLocationId === "staging-g2"
+  preserveDropOffVsWillPlanned[0] === "staging-matched-a14-drop" &&
+  preserveDropOffVsWill.stagingLocationId === "staging-matched-a14-drop"
 ) {
   pass(
     "Will-Call import approve does not clear dispatcher Drop-Off staging (D-79)",
@@ -2233,7 +2529,7 @@ try {
   await approveImport({
     vendorInvoiceImportId: "vii-prior-linked-foreign",
     action: "approve",
-    plannedStagingLocationIds: ["staging-g1"],
+    plannedStagingLocationIds: ["staging-matched-a4-wc"],
   });
   fail("priorLinked foreign-owned delivery should be rejected");
 } catch (err) {

@@ -2677,6 +2677,7 @@ const approveVendorInvoiceImportCallable = httpsCallable<
     deliveryOrderId?: string;
     correctionNote?: string;
     plannedStagingLocationIds?: string[];
+    fulfillmentDecision?: "delivery" | "will_call_pickup";
   },
   ApproveVendorInvoiceImportResult
 >(functions, "approveVendorInvoiceImport");
@@ -3021,6 +3022,8 @@ export async function approveVendorInvoiceImport(input: {
   correctionNote?: string;
   /** Staging location doc ids — Vendor Drop-Off approve only (server enforces). */
   plannedStagingLocationIds?: string[];
+  /** Authoritative fulfillment choice on approve (CF enforces). */
+  fulfillmentDecision?: "delivery" | "will_call_pickup";
 }): Promise<ApproveVendorInvoiceImportResult> {
   const response = await approveVendorInvoiceImportCallable(input);
   return response.data;

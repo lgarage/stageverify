@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { useAdminAppearance } from "../../adminAppearance";
 import type {
@@ -50,10 +56,7 @@ import {
   type InvoiceRejectReasonId,
 } from "./invoiceRejectReasons";
 import { InvoiceRejectReasonDialog } from "./InvoiceRejectReasonDialog";
-import { InvoiceFulfillmentOverrideConfirmDialog } from "./InvoiceFulfillmentOverrideConfirmDialog";
 import { StagingLocationBanner } from "../drawer/StagingLocationBanner";
-import { setInvoiceReviewFulfillmentOverride } from "../firestoreService";
-import type { SetInvoiceReviewFulfillmentOverrideResult } from "../models";
 import { formatStagingCodeCanonical } from "../stagingCode";
 import { useLiveZoneOccupancy } from "../useLiveZoneOccupancy";
 import {
@@ -61,6 +64,16 @@ import {
   fulfillmentDisplayLabel,
   isInvoiceShellNoShopStaging,
 } from "./invoiceShellDisplayHelpers";
+import {
+  INVOICE_APPROVE_FLOW_STORAGE_KEY,
+} from "./invoiceApproveToast";
+import type { InvoiceApproveOptions } from "./invoiceApproveToast";
+
+type ApproveWizardPhase =
+  | "idle"
+  | "fulfillment_choice"
+  | "dropoff_staging"
+  | "willcall_confirm";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -123,7 +136,7 @@ export function InvoiceParsedInspectModal({
   deliverToSiteConfirmed = false,
   onImportDismissed,
   onCorrectionApplied,
-  onImportRowMerged,
+  onImportRowMerged: _onImportRowMerged,
 }: {
   importRow: VendorInvoiceImportReview;
   onClose: () => void;
@@ -133,7 +146,7 @@ export function InvoiceParsedInspectModal({
   /** Optional generalized correction note for vendor training MD. */
   onApprove?: (
     correctionNote?: string,
-    plannedStagingLocationIds?: string[],
+    options?: InvoiceApproveOptions,
   ) => void;
   /** Reject with optional training lesson note (from reject-reason dialog). */
   onReject?: (rejectLessonNote?: string) => void;
@@ -166,8 +179,9 @@ export function InvoiceParsedInspectModal({
   const navigate = useNavigate();
   const [correctionNote, setCorrectionNote] = useState("");
   const [selectedStagingIds, setSelectedStagingIds] = useState<string[]>([]);
-  const [fulfillmentConfirmOpen, setFulfillmentConfirmOpen] = useState(false);
-  const [assignLocationLoading, setAssignLocationLoading] = useState(false);
+  const [approveWizardPhase, setApproveWizardPhase] =
+    useState<ApproveWizardPhase>("idle");
+  const approveWizardHeadingRef = useRef<HTMLParagraphElement | null>(null);
   const liveZones = useLiveZoneOccupancy(true);
   const [toast, setToast] = useState<string | null>(null);
   const [saveLessonLoading, setSaveLessonLoading] = useState(false);
@@ -491,10 +505,37 @@ export function InvoiceParsedInspectModal({
   }, [importRow.id, importRow.draftPlannedStagingLocationIds]);
 
   useEffect(() => {
+    setApproveWizardPhase("idle");
+    try {
+      const raw = sessionStorage.getItem(INVOICE_APPROVE_FLOW_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        importId?: string;
+        phase?: string;
+        correctionNote?: string;
+      };
+      if (parsed.importId !== importRow.id) return;
+      if (parsed.phase === "dropoff_staging") {
+        setApproveWizardPhase("dropoff_staging");
+        if (parsed.correctionNote) {
+          setCorrectionNote(parsed.correctionNote);
+        }
+      }
+    } catch {
+      sessionStorage.removeItem(INVOICE_APPROVE_FLOW_STORAGE_KEY);
+    }
+  }, [importRow.id]);
+
+  useEffect(() => {
     if (stagingSkipped) {
       setSelectedStagingIds([]);
     }
   }, [stagingSkipped, importRow.id]);
+
+  useEffect(() => {
+    if (approveWizardPhase === "idle") return;
+    approveWizardHeadingRef.current?.focus();
+  }, [approveWizardPhase]);
 
   const selectedStagingCodes = useMemo(() => {
     const byId = new Map(liveZones.zones.map((z) => [z.id, z]));
@@ -528,20 +569,20 @@ export function InvoiceParsedInspectModal({
     onReject?.(lessonNote);
   };
 
-  const mergeOverrideResult = (result: SetInvoiceReviewFulfillmentOverrideResult) => {
-    onImportRowMerged?.({
-      parsedHeader: result.parsedHeader,
-      importStatus: result.importStatus,
-      fulfillmentOverride: result.fulfillmentOverride,
-      draftPlannedStagingLocationIds: importRow.draftPlannedStagingLocationIds ?? [],
-      parseWarnings: result.parseWarnings,
-      autoImportEligible: result.autoImportEligible,
-      autoImportConfidence: result.autoImportConfidence,
-      autoImportReasons: result.autoImportReasons,
-      reviewRequiredReasons: result.reviewRequiredReasons,
-      importDecisionMode: result.importDecisionMode,
-      suggestedAction: result.suggestedAction,
-    });
+  const resetApproveWizard = () => {
+    setApproveWizardPhase("idle");
+    sessionStorage.removeItem(INVOICE_APPROVE_FLOW_STORAGE_KEY);
+  };
+
+  const persistApproveFlowContext = (phase: ApproveWizardPhase) => {
+    sessionStorage.setItem(
+      INVOICE_APPROVE_FLOW_STORAGE_KEY,
+      JSON.stringify({
+        importId: importRow.id,
+        correctionNote: correctionNote.trim() || undefined,
+        phase,
+      }),
+    );
   };
 
   const handleNavigateToMapAssign = () => {
@@ -549,34 +590,20 @@ export function InvoiceParsedInspectModal({
     navigate(`/zones?assignInvoiceImport=${encodeURIComponent(importRow.id)}`);
   };
 
-  const handleAssignLocationClick = () => {
-    if (isNativeWillCall) {
-      setFulfillmentConfirmOpen(true);
-    }
+  const handleNavigateToMapApproveFlow = () => {
+    persistApproveFlowContext("dropoff_staging");
+    onClose();
+    navigate(
+      `/zones?assignInvoiceImport=${encodeURIComponent(importRow.id)}&approveFlow=1`,
+    );
   };
 
-  const handleFulfillmentOverrideConfirm = async () => {
-    setAssignLocationLoading(true);
-    try {
-      const result = await setInvoiceReviewFulfillmentOverride({
-        vendorInvoiceImportId: importRow.id,
-        toFulfillmentMethod: "delivery",
-        idempotencyKey: `assign-loc-${importRow.id}-${Date.now()}`,
-      });
-      mergeOverrideResult(result);
-      setFulfillmentConfirmOpen(false);
-    } catch (err) {
-      showToast(
-        err instanceof Error ? err.message : "Could not apply fulfillment override.",
-      );
-    } finally {
-      setAssignLocationLoading(false);
-    }
+  const handleWillCallConfirm = () => {
+    resetApproveWizard();
+    onApprove?.(correctionNote.trim() || undefined, {
+      fulfillmentDecision: "will_call_pickup",
+    });
   };
-
-  const showFooterAssignLocation =
-    isPending && Boolean(onApprove) && !readOnly && isNativeWillCall;
-  const assignLocationBusy = actionLoading || assignLocationLoading;
 
   const showDeliveryInfo = !readOnly && (isPending || isRejected);
   const showActions =
@@ -589,11 +616,8 @@ export function InvoiceParsedInspectModal({
     (isPending ||
       (isRejected && importRow.skipReason === "credit_return")) &&
     !readOnly;
-  const stagingRequired = !stagingSkipped;
-  const approveDisabled =
-    actionLoading ||
-    approveBlocked ||
-    (stagingRequired && selectedStagingIds.length === 0);
+  const approveDisabled = actionLoading || approveBlocked;
+  const approveWizardActive = approveWizardPhase !== "idle";
   const invoiceDateLabel = formatInvoiceHeaderField(
     readInvoiceHeaderField(importRow.parsedHeader, "invoiceDate"),
   );
@@ -1190,24 +1214,11 @@ export function InvoiceParsedInspectModal({
                 )}
                 {selectedStagingIds.length === 0 ? (
                   <>
-                    <p
-                      data-testid="invoice-parsed-inspect-staging-required-note"
-                      style={{
-                        margin: "0 0 10px",
-                        fontSize: 12,
-                        lineHeight: 1.45,
-                        color: "var(--admin-text-secondary)",
-                        fontWeight: 500,
-                        fontFamily: FONT,
-                      }}
-                    >
-                      Staging location required — assign where this delivery will be
-                      staged before approving.
-                    </p>
                     {!isNativeWillCall && (
                       <StagingLocationBanner
                         font={FONT}
                         testIdPrefix="invoice-parsed-inspect-staging"
+                        body="Assign a draft location via Staging Map (legacy path) or use Approve to choose fulfillment."
                         onAssignLocation={handleNavigateToMapAssign}
                       />
                     )}
@@ -1232,12 +1243,12 @@ export function InvoiceParsedInspectModal({
                       <button
                         type="button"
                         data-testid="invoice-parsed-inspect-change-location"
-                        disabled={assignLocationBusy}
+                        disabled={actionLoading}
                         onClick={handleNavigateToMapAssign}
                         style={{
                           ...HEADER_BTN,
-                          cursor: assignLocationBusy ? "not-allowed" : "pointer",
-                          opacity: assignLocationBusy ? 0.55 : 1,
+                          cursor: actionLoading ? "not-allowed" : "pointer",
+                          opacity: actionLoading ? 0.55 : 1,
                         }}
                       >
                         Change Location
@@ -1478,38 +1489,240 @@ export function InvoiceParsedInspectModal({
             <div
               style={{
                 display: "flex",
-                justifyContent: "space-between",
+                justifyContent: "flex-end",
                 alignItems: "center",
                 gap: 10,
                 flexWrap: "wrap",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {showFooterAssignLocation && (
-                  <button
-                    type="button"
-                    data-testid="invoice-parsed-inspect-assign-location"
-                    disabled={assignLocationBusy}
-                    onClick={handleAssignLocationClick}
+              {approveWizardPhase === "fulfillment_choice" && (
+                <div
+                  data-testid="invoice-approve-fulfillment-choice"
+                  role="group"
+                  aria-labelledby="invoice-approve-fulfillment-heading"
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 14,
+                  }}
+                >
+                  <p
+                    ref={approveWizardHeadingRef}
+                    id="invoice-approve-fulfillment-heading"
+                    tabIndex={-1}
                     style={{
-                      ...HEADER_BTN,
-                      cursor: assignLocationBusy ? "not-allowed" : "pointer",
-                      opacity: assignLocationBusy ? 0.55 : 1,
+                      margin: 0,
+                      fontSize: 14,
+                      fontWeight: 800,
+                      letterSpacing: "0.04em",
+                      textTransform: "uppercase",
+                      color: "var(--admin-text-label)",
+                      fontFamily: FONT,
+                      outline: "none",
                     }}
                   >
-                    Assign Location
+                    How will this order be fulfilled?
+                  </p>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                      gap: 12,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      data-testid="invoice-approve-choice-dropoff"
+                      disabled={actionLoading}
+                      onClick={() => setApproveWizardPhase("dropoff_staging")}
+                      style={{
+                        flex: "1 1 200px",
+                        minHeight: 72,
+                        padding: "16px 20px",
+                        borderRadius: 8,
+                        border: "2px solid #ca8a04",
+                        backgroundColor: "#eab308",
+                        color: "#1c1917",
+                        fontSize: 16,
+                        fontWeight: 800,
+                        cursor: actionLoading ? "not-allowed" : "pointer",
+                        fontFamily: FONT,
+                        opacity: actionLoading ? 0.55 : 1,
+                      }}
+                    >
+                      Vendor Drop-Off
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="invoice-approve-choice-willcall"
+                      disabled={actionLoading}
+                      onClick={() => setApproveWizardPhase("willcall_confirm")}
+                      style={{
+                        flex: "1 1 200px",
+                        minHeight: 72,
+                        padding: "16px 20px",
+                        borderRadius: 8,
+                        border: "2px solid var(--admin-willcall-border)",
+                        backgroundColor: "var(--admin-willcall-bg)",
+                        color: "var(--admin-willcall-text)",
+                        fontSize: 16,
+                        fontWeight: 800,
+                        cursor: actionLoading ? "not-allowed" : "pointer",
+                        fontFamily: FONT,
+                        opacity: actionLoading ? 0.55 : 1,
+                      }}
+                    >
+                      Will-Call / Pickup from Vendor
+                    </button>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      data-testid="invoice-approve-fulfillment-cancel"
+                      disabled={actionLoading}
+                      onClick={resetApproveWizard}
+                      style={{ ...HEADER_BTN }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {approveWizardPhase === "dropoff_staging" && (
+                <div
+                  role="group"
+                  aria-labelledby="invoice-approve-dropoff-heading"
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                  }}
+                >
+                  <p
+                    ref={approveWizardHeadingRef}
+                    id="invoice-approve-dropoff-heading"
+                    tabIndex={-1}
+                    style={{
+                      margin: 0,
+                      fontSize: 13,
+                      fontWeight: 800,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      color: "var(--admin-text-label)",
+                      fontFamily: FONT,
+                      outline: "none",
+                    }}
+                  >
+                    Vendor Drop-Off — assign staging
+                  </p>
+                  <StagingLocationBanner
+                    font={FONT}
+                    testIdPrefix="invoice-parsed-inspect-staging"
+                    body="Assign a staging spot on the map — approval happens when you confirm the location."
+                    onAssignLocation={handleNavigateToMapApproveFlow}
+                  />
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      data-testid="invoice-approve-fulfillment-cancel"
+                      disabled={actionLoading}
+                      onClick={() => setApproveWizardPhase("fulfillment_choice")}
+                      style={{ ...HEADER_BTN }}
+                    >
+                      Back
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {approveWizardPhase === "willcall_confirm" && (
+                <div
+                  role="group"
+                  aria-labelledby="invoice-approve-willcall-heading"
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                    alignItems: "stretch",
+                    borderRadius: 8,
+                    border: "2px solid var(--admin-willcall-border)",
+                    backgroundColor: "var(--admin-willcall-bg)",
+                    padding: "14px 16px",
+                  }}
+                >
+                  <p
+                    ref={approveWizardHeadingRef}
+                    id="invoice-approve-willcall-heading"
+                    tabIndex={-1}
+                    style={{
+                      margin: 0,
+                      fontSize: 13,
+                      fontWeight: 800,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      color: "var(--admin-willcall-text)",
+                      fontFamily: FONT,
+                      outline: "none",
+                    }}
+                  >
+                    Will-Call / Pickup
+                  </p>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 14,
+                      fontWeight: 500,
+                      color: "var(--admin-willcall-text)",
+                      fontFamily: FONT,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    Material will remain at the vendor for technician pickup. No
+                    shop staging required. Confirm to approve this invoice.
+                  </p>
+                  <button
+                    type="button"
+                    data-testid="invoice-approve-willcall-confirm"
+                    disabled={actionLoading}
+                    onClick={() => void handleWillCallConfirm()}
+                    style={{
+                      width: "100%",
+                      minHeight: 56,
+                      padding: "14px 18px",
+                      borderRadius: 8,
+                      border: "2px solid var(--admin-willcall-border)",
+                      backgroundColor: "var(--admin-willcall-text)",
+                      color: "var(--admin-willcall-bg)",
+                      fontSize: 15,
+                      fontWeight: 800,
+                      cursor: actionLoading ? "not-allowed" : "pointer",
+                      fontFamily: FONT,
+                      opacity: actionLoading ? 0.55 : 1,
+                    }}
+                  >
+                    Confirm Will-Call &amp; Approve
                   </button>
-                )}
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  alignItems: "center",
-                  gap: 10,
-                  flexWrap: "wrap",
-                }}
-              >
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      data-testid="invoice-approve-fulfillment-cancel"
+                      disabled={actionLoading}
+                      onClick={() => setApproveWizardPhase("fulfillment_choice")}
+                      style={{ ...HEADER_BTN }}
+                    >
+                      Back
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {!approveWizardActive && (
+                <>
               {onReject && isPending && (
                 <button
                   type="button"
@@ -1584,20 +1797,11 @@ export function InvoiceParsedInspectModal({
                   title={
                     approveBlocked
                       ? "Approve blocked for issue imports"
-                      : stagingRequired && selectedStagingIds.length === 0
-                        ? "Choose a staging location before approving this Vendor Drop-Off."
-                        : correctionNote.trim()
-                          ? "Approving also saves your note as a lesson."
-                          : undefined
+                      : correctionNote.trim()
+                        ? "Approving also saves your note as a lesson."
+                        : undefined
                   }
-                  onClick={() =>
-                    onApprove(
-                      correctionNote.trim() || undefined,
-                      selectedStagingIds.length > 0
-                        ? selectedStagingIds
-                        : undefined,
-                    )
-                  }
+                  onClick={() => setApproveWizardPhase("fulfillment_choice")}
                   style={{
                     backgroundColor: NAVY,
                     color: "var(--admin-on-navy)",
@@ -1614,20 +1818,12 @@ export function InvoiceParsedInspectModal({
                   Approve
                 </button>
               )}
-              </div>
+                </>
+              )}
             </div>
           </div>
         )}
       </div>
-
-      <InvoiceFulfillmentOverrideConfirmDialog
-        open={fulfillmentConfirmOpen}
-        loading={assignLocationLoading}
-        onCancel={() => {
-          if (!assignLocationLoading) setFulfillmentConfirmOpen(false);
-        }}
-        onConfirm={() => void handleFulfillmentOverrideConfirm()}
-      />
 
       <InvoiceRejectReasonDialog
         open={rejectDialogOpen}

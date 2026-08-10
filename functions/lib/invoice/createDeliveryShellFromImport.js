@@ -275,7 +275,9 @@ function isExplicitOperationalFulfillment(value) {
  * Will-Call→Drop-Off and the reverse Drop-Off→Will-Call toggle equally.
  * Import parsedHeader stays audit-only; it must never silently override this.
  */
-function shouldPreserveExistingOperationalFulfillment(existingDelivery, importFulfillmentMethod) {
+function shouldPreserveExistingOperationalFulfillment(existingDelivery, importFulfillmentMethod, explicitApprovalOverride = false) {
+    if (explicitApprovalOverride)
+        return false;
     const existingMethod = existingDelivery?.invoiceFulfillmentMethod;
     if (!isExplicitOperationalFulfillment(existingMethod))
         return false;
@@ -313,8 +315,8 @@ function resolveInvoiceApproveDeliveryTarget(input) {
  * Narrow patch for a pre-existing non-shell matched delivery — preserve operational history.
  * Does not write status/notes/orderNumber/vendorId/jobId/deliveryDate/createdAt.
  */
-function buildInvoiceMatchedDeliveryPatchDocument(shell, importId, importDoc, now, existingDelivery) {
-    const preserveOps = shouldPreserveExistingOperationalFulfillment(existingDelivery, shell.invoiceFulfillmentMethod);
+function buildInvoiceMatchedDeliveryPatchDocument(shell, importId, importDoc, now, existingDelivery, explicitApprovalOverride = false) {
+    const preserveOps = shouldPreserveExistingOperationalFulfillment(existingDelivery, shell.invoiceFulfillmentMethod, explicitApprovalOverride);
     const patch = {
         vendorInvoiceImportId: importId,
         updatedAt: now,
@@ -334,8 +336,8 @@ function buildInvoiceMatchedDeliveryPatchDocument(shell, importId, importDoc, no
     return patch;
 }
 /** Patch fields for an existing invoice shell — idempotent refresh of display metadata. */
-function buildInvoiceShellPatchDocument(shell, importId, importDoc, now, existingDelivery) {
-    const preserveOps = shouldPreserveExistingOperationalFulfillment(existingDelivery, shell.invoiceFulfillmentMethod);
+function buildInvoiceShellPatchDocument(shell, importId, importDoc, now, existingDelivery, explicitApprovalOverride = false) {
+    const preserveOps = shouldPreserveExistingOperationalFulfillment(existingDelivery, shell.invoiceFulfillmentMethod, explicitApprovalOverride);
     const patch = {
         vendorInvoiceImportId: importId,
         updatedAt: now,

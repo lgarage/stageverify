@@ -23,6 +23,8 @@ const adminConfig_1 = require("./invoice/aiShadow/adminConfig");
 const creditReturnSkip_1 = require("./invoice/creditReturnSkip");
 const sharedStagingIdSanitize_1 = require("./invoice/fulfillmentOverride/sharedStagingIdSanitize");
 const clearActiveStagingOnWillCall_1 = require("./invoice/clearActiveStagingOnWillCall");
+const approveIdempotentReplay_1 = require("./invoice/approveIdempotentReplay");
+const stagingOccupancyGuard_1 = require("./stagingOccupancyGuard");
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const MAX_DECISION_LOG = 20;
 function getDb() {
@@ -103,6 +105,19 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     const deliveryOrderId = typeof data.deliveryOrderId === "string" ? data.deliveryOrderId.trim() : "";
     const correctionNoteRaw = typeof data.correctionNote === "string" ? data.correctionNote : "";
     const plannedStagingLocationIds = (0, sharedStagingIdSanitize_1.sanitizePlannedStagingLocationIds)(data.plannedStagingLocationIds);
+    let fulfillmentDecision;
+    if (data.fulfillmentDecision !== undefined && data.fulfillmentDecision !== null) {
+        if (action !== "approve") {
+            // ignore for non-approve actions
+        }
+        else if (data.fulfillmentDecision !== "delivery" &&
+            data.fulfillmentDecision !== "will_call_pickup") {
+            throw new https_1.HttpsError("invalid-argument", "fulfillmentDecision must be delivery or will_call_pickup.");
+        }
+        else {
+            fulfillmentDecision = data.fulfillmentDecision;
+        }
+    }
     if (!importId || importId.length > 256) {
         throw new https_1.HttpsError("invalid-argument", "vendorInvoiceImportId is required.");
     }
@@ -163,6 +178,23 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     }
     if (action === "reject" && !canRejectReviewStatus(importDoc)) {
         throw new https_1.HttpsError("failed-precondition", `Import already ${importDoc.reviewStatus}.`);
+    }
+    if (action === "approve" && importDoc.reviewStatus === "approved") {
+        const linkedId = importDoc.linkedDeliveryOrderId?.trim() ?? "";
+        const deliverySnap = linkedId
+            ? await getDb().collection("deliveries").doc(linkedId).get()
+            : null;
+        return (0, approveIdempotentReplay_1.resolveApproveIdempotentReplay)({
+            importId,
+            importDoc,
+            clientDeliveryOrderId: deliveryOrderId,
+            fulfillmentDecision,
+            requestedPlannedIds: plannedStagingLocationIds,
+            liveDelivery: deliverySnap?.exists
+                ? deliverySnap.data()
+                : null,
+            deliveryExists: deliverySnap?.exists ?? false,
+        });
     }
     if (action === "approve" && !canApproveReviewStatus(importDoc.reviewStatus)) {
         throw new https_1.HttpsError("failed-precondition", `Import already ${importDoc.reviewStatus}.`);
@@ -531,6 +563,16 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         throw new https_1.HttpsError("failed-precondition", creditReturnSkip_1.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
     }
     const shell = await (0, createDeliveryShellFromImport_1.buildInvoiceDeliveryShellContext)(getDb(), importId, importDoc);
+    const explicitApprovalOverride = fulfillmentDecision !== undefined;
+    const effectiveFulfillment = fulfillmentDecision ?? shell.invoiceFulfillmentMethod;
+    const effectiveDeliveryStatus = (fulfillmentDecision
+        ? (0, invoiceShellDisplayHelpers_1.resolveShellDeliveryStatus)(importDoc.importStatus, fulfillmentDecision, shell.invoiceDeliverToSite)
+        : shell.deliveryStatus);
+    const effectiveShell = {
+        ...shell,
+        invoiceFulfillmentMethod: effectiveFulfillment,
+        deliveryStatus: effectiveDeliveryStatus,
+    };
     const header = (0, parsedHeaderValidation_1.asParsedHeaderForImport)(importDoc.parsedHeader);
     const matchCtx = await (0, loadMatchContext_1.loadEmailMatchContext)();
     const resolved = (0, createDeliveryShellFromImport_1.resolveInvoiceApproveDeliveryTarget)({
@@ -563,7 +605,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     const stagingSkipped = (0, invoiceShellDisplayHelpers_1.isInvoiceShellNoShopStaging)({
         createdFromInvoiceImport: true,
         invoiceImportStatus: importDoc.importStatus,
-        invoiceFulfillmentMethod: shell.invoiceFulfillmentMethod,
+        invoiceFulfillmentMethod: effectiveShell.invoiceFulfillmentMethod,
         invoiceDeliverToSite: shell.invoiceDeliverToSite,
     });
     const existingPlanned = Array.isArray(matchedDeliveryData?.plannedStagingLocationIds)
@@ -576,18 +618,14 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         !(matchedExisting && existingPlanned.length > 0)) {
         throw new https_1.HttpsError("failed-precondition", "Choose a staging location before approving this Vendor Drop-Off.");
     }
-    if (!stagingSkipped && plannedStagingLocationIds.length > 0) {
-        const locSnaps = await Promise.all(plannedStagingLocationIds.map((id) => getDb().collection("stagingLocations").doc(id).get()));
-        if (locSnaps.some((snap) => !snap.exists)) {
-            throw new https_1.HttpsError("invalid-argument", "One or more selected staging locations no longer exist. Refresh and reselect.");
-        }
-    }
     const stagingPatch = approvePlannedStagingPatch(stagingSkipped, plannedStagingLocationIds);
     const deliveryRef = getDb().collection("deliveries").doc(targetId);
     const willCallClearMeta = {
         releasedBy: uid,
         releasedAt: now,
     };
+    let idempotentReplayResult = null;
+    let plannedStagingLocationCodes;
     await getDb().runTransaction(async (tx) => {
         const freshImport = await tx.get(importRef);
         if (!freshImport.exists) {
@@ -595,6 +633,25 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         }
         const fresh = freshImport.data();
         assertDeliveryAllowedForImport(fresh);
+        if (fresh.reviewStatus === "approved") {
+            const linkedId = fresh.linkedDeliveryOrderId?.trim() ?? "";
+            const linkedRef = linkedId
+                ? getDb().collection("deliveries").doc(linkedId)
+                : deliveryRef;
+            const replayDelivery = await tx.get(linkedRef);
+            idempotentReplayResult = (0, approveIdempotentReplay_1.resolveApproveIdempotentReplay)({
+                importId,
+                importDoc: fresh,
+                clientDeliveryOrderId: deliveryOrderId,
+                fulfillmentDecision,
+                requestedPlannedIds: plannedStagingLocationIds,
+                liveDelivery: replayDelivery.exists
+                    ? replayDelivery.data()
+                    : null,
+                deliveryExists: replayDelivery.exists,
+            });
+            return;
+        }
         if (!canApproveReviewStatus(fresh.reviewStatus)) {
             throw new https_1.HttpsError("failed-precondition", `Import already ${fresh.reviewStatus}.`);
         }
@@ -606,6 +663,14 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             throw new https_1.HttpsError("failed-precondition", "Import was concurrently approved to a different delivery — reload and retry.");
         }
         const existingDelivery = await tx.get(deliveryRef);
+        if (!stagingSkipped && plannedStagingLocationIds.length > 0) {
+            const codes = [];
+            for (const locId of plannedStagingLocationIds) {
+                const { code } = await (0, stagingOccupancyGuard_1.assertStagingLocationAvailableInTransaction)(tx, getDb(), locId, targetId);
+                codes.push(code);
+            }
+            plannedStagingLocationCodes = codes;
+        }
         if (matchedExisting) {
             if (!existingDelivery.exists) {
                 throw new https_1.HttpsError("failed-precondition", "Matched delivery no longer exists. Refresh and try again.");
@@ -615,7 +680,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             if (!(0, matchInvoiceToRecords_1.isDeliveryOwnedByImportOrUnclaimed)(liveDelivery, importId)) {
                 throw new https_1.HttpsError("failed-precondition", "Matched delivery is already linked to another invoice import. Reload and try again.");
             }
-            const matchedFulfillmentPatch = (0, createDeliveryShellFromImport_1.buildInvoiceMatchedDeliveryPatchDocument)(shell, importId, fresh, now, liveDelivery);
+            const matchedFulfillmentPatch = (0, createDeliveryShellFromImport_1.buildInvoiceMatchedDeliveryPatchDocument)(effectiveShell, importId, fresh, now, liveDelivery, explicitApprovalOverride);
             const activeStagingPatch = activeStagingPatchForCurrentFulfillment(liveDelivery, matchedFulfillmentPatch, stagingPatch, willCallClearMeta);
             tx.update(deliveryRef, {
                 ...matchedFulfillmentPatch,
@@ -624,7 +689,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         }
         else if (!existingDelivery.exists) {
             // Shell path: create delivery-vii-{importId}.
-            const shellForWrite = { ...shell, deliveryOrderId: shellId };
+            const shellForWrite = { ...effectiveShell, deliveryOrderId: shellId };
             const shellDoc = (0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shellForWrite, importId, fresh, now);
             const activeStagingPatch = activeStagingPatchForCurrentFulfillment({}, shellDoc, stagingPatch, willCallClearMeta);
             tx.set(deliveryRef, {
@@ -635,7 +700,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         else {
             const liveShellData = existingDelivery.data() ??
                 {};
-            const shellFulfillmentPatch = (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)({ ...shell, deliveryOrderId: shellId }, importId, fresh, now, existingDelivery.data());
+            const shellFulfillmentPatch = (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)({ ...effectiveShell, deliveryOrderId: shellId }, importId, fresh, now, existingDelivery.data(), explicitApprovalOverride);
             const activeStagingPatch = activeStagingPatchForCurrentFulfillment(liveShellData, shellFulfillmentPatch, stagingPatch, willCallClearMeta);
             tx.update(deliveryRef, {
                 ...shellFulfillmentPatch,
@@ -653,9 +718,19 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             rejectedAt: firestore_1.FieldValue.delete(),
             rejectedBy: firestore_1.FieldValue.delete(),
             updatedAt: now,
-            importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("approve", uid, now, eligibilityFromDoc(fresh), targetId)),
+            importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("approve", uid, now, eligibilityFromDoc(fresh), targetId, fulfillmentDecision
+                ? {
+                    fulfillmentDecision,
+                    plannedStagingLocationIds: stagingSkipped
+                        ? []
+                        : (stagingPatch.plannedStagingLocationIds ?? plannedStagingLocationIds),
+                }
+                : undefined)),
         });
     });
+    if (idempotentReplayResult) {
+        return idempotentReplayResult;
+    }
     let trainingLessonWrote = false;
     let trainingLessonPendingAdminReview = false;
     let trainingLessonAlertEmailed = false;
@@ -691,6 +766,9 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         deliveryMatched: matchedExisting,
         jobCreated: matchedExisting ? false : shell.jobCreated,
         plannedStagingLocationIds: appliedPlanned,
+        ...(plannedStagingLocationCodes
+            ? { plannedStagingLocationCodes }
+            : {}),
         trainingLessonWrote,
         trainingLessonPendingAdminReview,
         trainingLessonAlertEmailed,

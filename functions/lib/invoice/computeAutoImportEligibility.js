@@ -254,7 +254,7 @@ function finalize(autoImportEligible, autoImportConfidence, autoImportReasons, r
 function eligibilityFieldsFromInput(input) {
     return computeAutoImportEligibility(input);
 }
-function buildImportDecisionLogEntry(action, uid, at, eligibility, deliveryOrderId) {
+function buildImportDecisionLogEntry(action, uid, at, eligibility, deliveryOrderId, approvalAudit) {
     return {
         action,
         at,
@@ -264,6 +264,13 @@ function buildImportDecisionLogEntry(action, uid, at, eligibility, deliveryOrder
         autoImportReasons: eligibility.autoImportReasons.slice(0, 12),
         reviewRequiredReasons: eligibility.reviewRequiredReasons.slice(0, 12),
         ...(deliveryOrderId ? { deliveryOrderId } : {}),
+        ...(approvalAudit
+            ? {
+                fulfillmentDecision: approvalAudit.fulfillmentDecision,
+                plannedStagingLocationIds: approvalAudit.plannedStagingLocationIds,
+                source: "approval_workflow",
+            }
+            : {}),
     };
 }
 /** True when persisted “Missing …” reasons contradict the current corrected header. */

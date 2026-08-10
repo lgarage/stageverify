@@ -624,7 +624,7 @@ async function main() {
       await assertTrainingPanelContrast(page);
       await assertTrainingPanelNoOverlap(page);
 
-      // Staging-on-Approve UI — run before teach-chat CF (env may fail closed on propose).
+      // Approve fulfillment wizard — run before teach-chat CF (env may fail closed on propose).
       await page.getByTestId("invoice-parsed-inspect-staging-panel").waitFor({
         timeout: 5000,
       });
@@ -634,37 +634,72 @@ async function main() {
       console.log(`PASS: staging panel fulfillment shown (${fulfillmentLabel})`);
 
       const stagingNa = page.getByTestId("invoice-parsed-inspect-staging-na");
-      const stagingChoose = page.getByTestId("invoice-staging-choose");
       const isWillCall = /Will-Call/i.test(fulfillmentLabel);
       if (isWillCall) {
         if (!(await stagingNa.isVisible().catch(() => false))) {
           throw new Error("Will-Call should show staging N/A copy");
         }
-        if (await stagingChoose.isVisible().catch(() => false)) {
-          throw new Error("Will-Call must not show active staging picker");
+        console.log("PASS: Will-Call staging N/A");
+      }
+
+      const footerAssign = page.getByTestId("invoice-parsed-inspect-assign-location");
+      if (await footerAssign.isVisible().catch(() => false)) {
+        throw new Error("Footer Assign Location button should be removed");
+      }
+      console.log("PASS: no footer Assign Location button");
+
+      const modalApproveBtn = page.getByTestId("invoice-parsed-inspect-approve");
+      if (await modalApproveBtn.isVisible().catch(() => false)) {
+        const approvalEligibleText = (
+          await page.getByTestId("invoice-parsed-inspect-approval").innerText()
+        ).trim();
+        const modalApproveDisabled = await modalApproveBtn.isDisabled();
+        if (/^no$/i.test(approvalEligibleText) && modalApproveDisabled) {
+          console.log("PASS: modal Approve disabled when approval eligibility is No");
+        } else if (/^yes$/i.test(approvalEligibleText) && !modalApproveDisabled) {
+          await modalApproveBtn.click();
+          const choicePanel = page.getByTestId("invoice-approve-fulfillment-choice");
+          await choicePanel.waitFor({ timeout: 5000 });
+          await page.getByTestId("invoice-approve-choice-dropoff").waitFor({ timeout: 5000 });
+          await page.getByTestId("invoice-approve-choice-willcall").waitFor({ timeout: 5000 });
+          console.log("PASS: Approve opens fulfillment choice (Drop-Off + Will-Call)");
+
+          await page.getByTestId("invoice-approve-fulfillment-cancel").click();
+          await choicePanel.waitFor({ state: "hidden", timeout: 5000 });
+          await modalApproveBtn.waitFor({ timeout: 5000 });
+          console.log("PASS: fulfillment Cancel returns to inspect");
+
+          if (isWillCall) {
+            await modalApproveBtn.click();
+            await choicePanel.waitFor({ timeout: 5000 });
+            await page.getByTestId("invoice-approve-choice-willcall").click();
+            await page.getByTestId("invoice-approve-willcall-confirm").waitFor({ timeout: 5000 });
+            console.log("PASS: Will-Call confirm step visible");
+            await page.getByTestId("invoice-approve-fulfillment-cancel").click();
+            await page.getByTestId("invoice-approve-willcall-confirm").waitFor({
+              state: "hidden",
+              timeout: 5000,
+            });
+            console.log("PASS: Will-Call confirm Cancel returns to choice");
+          } else {
+            await modalApproveBtn.click();
+            await choicePanel.waitFor({ timeout: 5000 });
+            await page.getByTestId("invoice-approve-choice-dropoff").click();
+            await page
+              .getByTestId("invoice-parsed-inspect-staging-needed")
+              .waitFor({ timeout: 5000 });
+            console.log("PASS: Drop-Off choice shows staging-needed banner");
+            await page.getByTestId("invoice-approve-fulfillment-cancel").click();
+            await page
+              .getByTestId("invoice-parsed-inspect-staging-needed")
+              .waitFor({ state: "hidden", timeout: 5000 });
+            console.log("PASS: Drop-Off staging Cancel returns to choice");
+          }
+        } else {
+          console.log(
+            `SKIP: modal Approve wizard (${approvalEligibleText}, disabled=${modalApproveDisabled})`,
+          );
         }
-        console.log("PASS: Will-Call staging N/A (no picker)");
-        const assignBtn = page.getByTestId("invoice-parsed-inspect-assign-location");
-        if (!(await assignBtn.isVisible().catch(() => false))) {
-          throw new Error("Will-Call inspect modal should show Assign Location button");
-        }
-        await assignBtn.click();
-        const overrideDialog = page.getByTestId(
-          "invoice-fulfillment-override-confirm-dialog",
-        );
-        await overrideDialog.waitFor({ timeout: 5000 });
-        console.log("PASS: Will-Call Assign Location opens confirm dialog");
-        await page.getByTestId("invoice-fulfillment-override-cancel").click();
-        await overrideDialog.waitFor({ state: "hidden", timeout: 5000 });
-        if (!(await stagingNa.isVisible().catch(() => false))) {
-          throw new Error("Cancel should keep Will-Call staging N/A");
-        }
-        console.log("PASS: confirm cancel keeps Will-Call + staging N/A");
-      } else {
-        if (!(await stagingChoose.isVisible().catch(() => false))) {
-          throw new Error("Vendor Drop-Off should show Choose Staging Location");
-        }
-        console.log("PASS: Vendor Drop-Off shows Choose Staging Location");
       }
 
       {
@@ -686,32 +721,13 @@ async function main() {
         console.log("PASS: staging panel readable contrast");
       }
 
-      const modalApproveBtn = page.getByTestId("invoice-parsed-inspect-approve");
       if (await modalApproveBtn.isVisible().catch(() => false)) {
         const approvalEligibleText = (
           await page.getByTestId("invoice-parsed-inspect-approval").innerText()
         ).trim();
         const modalApproveDisabled = await modalApproveBtn.isDisabled();
-        if (/^no$/i.test(approvalEligibleText) && modalApproveDisabled) {
-          console.log("PASS: modal Approve disabled when approval eligibility is No");
-        } else if (isWillCall && /^yes$/i.test(approvalEligibleText) && !modalApproveDisabled) {
-          console.log("PASS: Will-Call modal Approve enabled without staging");
-        } else if (!isWillCall && /^yes$/i.test(approvalEligibleText) && modalApproveDisabled) {
-          const title = (await modalApproveBtn.getAttribute("title")) ?? "";
-          if (!/Choose a staging location/i.test(title)) {
-            throw new Error(
-              `Drop-Off Approve should be blocked for missing staging; title="${title}"`,
-            );
-          }
-          console.log("PASS: Vendor Drop-Off Approve blocked until staging chosen");
-        } else if (!isWillCall && /^yes$/i.test(approvalEligibleText) && !modalApproveDisabled) {
-          throw new Error(
-            "Vendor Drop-Off Approve should stay disabled until a staging location is chosen",
-          );
-        } else {
-          console.log(
-            `SKIP: modal Approve state (${approvalEligibleText}, disabled=${modalApproveDisabled}, fulfillment=${fulfillmentLabel})`,
-          );
+        if (/^yes$/i.test(approvalEligibleText) && !modalApproveDisabled) {
+          console.log("PASS: Approve enabled without preselected staging");
         }
       }
 

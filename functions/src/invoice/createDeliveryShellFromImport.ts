@@ -393,7 +393,9 @@ function isExplicitOperationalFulfillment(
 export function shouldPreserveExistingOperationalFulfillment(
   existingDelivery: InvoiceShellPatchExistingDelivery | null | undefined,
   importFulfillmentMethod: string,
+  explicitApprovalOverride = false,
 ): boolean {
+  if (explicitApprovalOverride) return false;
   const existingMethod = existingDelivery?.invoiceFulfillmentMethod;
   if (!isExplicitOperationalFulfillment(existingMethod)) return false;
   return existingMethod !== importFulfillmentMethod;
@@ -456,10 +458,12 @@ export function buildInvoiceMatchedDeliveryPatchDocument(
   importDoc: VendorInvoiceImportDoc,
   now: string,
   existingDelivery?: InvoiceShellPatchExistingDelivery | null,
+  explicitApprovalOverride = false,
 ): Record<string, unknown> {
   const preserveOps = shouldPreserveExistingOperationalFulfillment(
     existingDelivery,
     shell.invoiceFulfillmentMethod,
+    explicitApprovalOverride,
   );
   const patch: Record<string, unknown> = {
     vendorInvoiceImportId: importId,
@@ -487,10 +491,12 @@ export function buildInvoiceShellPatchDocument(
   importDoc: VendorInvoiceImportDoc,
   now: string,
   existingDelivery?: InvoiceShellPatchExistingDelivery | null,
+  explicitApprovalOverride = false,
 ): Record<string, unknown> {
   const preserveOps = shouldPreserveExistingOperationalFulfillment(
     existingDelivery,
     shell.invoiceFulfillmentMethod,
+    explicitApprovalOverride,
   );
   const patch: Record<string, unknown> = {
     vendorInvoiceImportId: importId,
