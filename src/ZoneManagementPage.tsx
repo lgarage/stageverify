@@ -353,6 +353,17 @@ export function ZoneManagementPage() {
   const [catchAllPendingCount, setCatchAllPendingCount] = useState(0);
   const [catchAllStatusOpen, setCatchAllStatusOpen] = useState(false);
   const liveOccupancy = useLiveZoneOccupancy(true);
+  /** Once live occupancy has connected, never fall back to a stale one-shot paint. */
+  const [preferLiveOccupancy, setPreferLiveOccupancy] = useState(false);
+  useEffect(() => {
+    if (liveOccupancy.ready) setPreferLiveOccupancy(true);
+  }, [liveOccupancy.ready]);
+  const mapOccupancyByZoneCode = preferLiveOccupancy
+    ? liveOccupancy.occupancyByZoneCode
+    : occupancyByZoneCode;
+  const mapShopStockByCode = preferLiveOccupancy
+    ? liveOccupancy.shopStockByCode
+    : shopStockByCode;
   const [assignDetails, setAssignDetails] = useState<DeliveryDetails | null>(
     null,
   );
@@ -1598,16 +1609,8 @@ export function ZoneManagementPage() {
           <div className="shop-floor-map-host admin-card" style={{ ...cardStyle, padding: 16 }}>
             <ShopFloorMap
               ref={mapRef}
-              occupancyByZoneCode={
-                liveOccupancy.ready
-                  ? liveOccupancy.occupancyByZoneCode
-                  : occupancyByZoneCode
-              }
-              shopStockByCode={
-                liveOccupancy.ready
-                  ? liveOccupancy.shopStockByCode
-                  : shopStockByCode
-              }
+              occupancyByZoneCode={mapOccupancyByZoneCode}
+              shopStockByCode={mapShopStockByCode}
               onOpenDelivery={handleMapOpenDelivery}
               editMode={mapEditMode}
               vendorView={vendorView}
@@ -2152,11 +2155,11 @@ export function ZoneManagementPage() {
                     {typeZones.map((zone) => {
                       const occupancy = zoneOccupancy(
                         zone.code,
-                        occupancyByZoneCode,
+                        mapOccupancyByZoneCode,
                       );
                       const shopStock = zoneShopStockReservation(
                         zone.code,
-                        shopStockByCode,
+                        mapShopStockByCode,
                       );
                       const qrUrl = buildZoneEslQrUrl(zone.code, occupancy);
                       const permanentSignUrl = buildPermanentLocationUrl(
