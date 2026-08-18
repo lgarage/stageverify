@@ -212,3 +212,4 @@
 {"date":"2026-08-10","role":"ship","verdict":"PASS","taskId":"bc-2e46eebc-0de0-50ab-92ed-eb49bb8c6a82","model":"cursor-grok-4.5-high-fast","real":"na","note":"C3-D.1 PR137 no deploy"}
 {"date":"2026-08-10","role":"ship","verdict":"PASS","taskId":"bc-84b36a92","model":"cursor-grok-4.5-high-fast","real":"na","note":"v0.0.283 FE staged authoritative LIVE"}
 {"date":"2026-08-18","role":"ship","verdict":"PASS","taskId":"bc-5a58c9df-9695-50d5-b087-be2dee279fb8","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-08-18","role":"ship","verdict":"PASS","taskId":"bc-e58ecefa-3791-5129-808d-fb4fe216947b","model":"cursor-grok-4.5-high-fast","real":"na","note":"v0.0.292 vendor heading + company vs job PIN copy"}
