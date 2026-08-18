@@ -663,6 +663,65 @@ button:active {
   margin-top: 12px;
 }
 
+/**
+ * Vendor job delivery picker — scoped spacing restore.
+ * Global unlayered `* { margin:0; padding:0 }` wins over Tailwind v4 layers;
+ * keep these rules local to the post-PIN job list.
+ */
+[data-testid="vendor-job-deliveries"] .vendor-job-deliveries-header {
+  padding: max(env(safe-area-inset-top, 0px), 12px) 16px 16px;
+}
+
+[data-testid="vendor-job-deliveries"] .vendor-job-deliveries-title {
+  margin-top: 8px;
+}
+
+[data-testid="vendor-job-deliveries"] .vendor-job-deliveries-helper {
+  margin-top: 4px;
+}
+
+[data-testid="vendor-job-deliveries"] .vendor-job-deliveries-scroll {
+  padding: 16px;
+}
+
+[data-testid="vendor-job-deliveries"] .vendor-job-deliveries-card-list {
+  gap: 16px;
+}
+
+[data-testid="vendor-job-deliveries"] [data-testid^="vendor-job-delivery-"] {
+  min-height: 44px;
+  padding: 16px;
+}
+
+[data-testid="vendor-job-deliveries"] .vendor-job-delivery-order-row {
+  gap: 12px;
+}
+
+[data-testid="vendor-job-deliveries"] .vendor-job-delivery-po {
+  margin-top: 6px;
+}
+
+[data-testid="vendor-job-deliveries"] .vendor-job-delivery-staging {
+  margin-top: 16px;
+}
+
+[data-testid="vendor-job-deliveries"] .vendor-job-delivery-staging-values {
+  margin-top: 6px;
+  gap: 6px;
+}
+
+[data-testid="vendor-job-deliveries"] .vendor-job-delivery-staging-values > span {
+  padding: 4px 10px;
+}
+
+[data-testid="vendor-job-deliveries"] .vendor-job-deliveries-empty {
+  padding: 28px 20px;
+}
+
+[data-testid="vendor-job-deliveries"] .vendor-job-deliveries-footer {
+  padding: 12px 16px max(env(safe-area-inset-bottom, 0px), 12px);
+}
+
 /* html5-qrcode injects <video> into the reader div — fill viewport on phones */
 .qr-scanner-reader video {
   width: 100% !important;
