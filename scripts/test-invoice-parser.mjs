@@ -1163,6 +1163,81 @@ please call 605-338-2652
   if (multiProducts.length < 1) {
     failures.push("mixed invoice: remaining purchased line must stay a product");
   }
+  const returnPickupPurchasedText = `
+Johnstone Supply
+Customer #: 0018114
+Sales Order #: 6169100
+Invoice #: 6169100
+Customer P/O #: RETURN PICKUP
+Order Date: 06/23/2026
+Invoice Date: 06/23/2026
+Buyer: CONNOR SMITH
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 1 1 0 L46-668 TH8320R1003/U THERMOSTAT PROGRAMMABLE
+
+please call 605-338-2652
+`.trim();
+  const returnPickupPurchased = processInvoicePage(
+    {
+      pageId: "inv-return-pickup-purchased",
+      importBatchId: "batch-mixed-credit-line",
+      pageIndexInBatch: 2,
+      extractedText: returnPickupPurchasedText,
+    },
+    existing,
+  );
+  if (
+    isCreditReturnInvoice(returnPickupPurchased.parsed, returnPickupPurchasedText) ||
+    isCreditReturnImportDoc({
+      parsedHeader: returnPickupPurchased.parsed.header,
+      parsedLines: returnPickupPurchased.parsed.lines,
+      orderNotes: returnPickupPurchased.parsed.orderNotes,
+    }) ||
+    returnPickupPurchased.parsed.orderNotes.some((n) => /CREDIT\/return memo/i.test(n))
+  ) {
+    failures.push(
+      "RETURN PICKUP + purchased product: must not classify as document credit or stamp CREDIT/return memo",
+    );
+  }
+
+  const returnPickupAllReturnText = `
+Johnstone Supply
+Customer #: 0018114
+Sales Order #: 3317000
+Invoice #: 3317000A
+Customer P/O #: RETURN PICKUP
+Order Date: 06/23/2026
+Invoice Date: 06/23/2026
+Buyer: CONNOR SMITH
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 1 -1 0 B50-968 ZP31LXEPFV800 COMPRESSOR
+Return from Invoice # 3314154A
+
+please call 605-338-2652
+`.trim();
+  const returnPickupAllReturn = processInvoicePage(
+    {
+      pageId: "inv-return-pickup-all-return",
+      importBatchId: "batch-mixed-credit-line",
+      pageIndexInBatch: 3,
+      extractedText: returnPickupAllReturnText,
+    },
+    existing,
+  );
+  if (
+    !isCreditReturnInvoice(returnPickupAllReturn.parsed, returnPickupAllReturnText) ||
+    !isCreditReturnImportDoc({
+      parsedHeader: returnPickupAllReturn.parsed.header,
+      parsedLines: returnPickupAllReturn.parsed.lines,
+      orderNotes: returnPickupAllReturn.parsed.orderNotes,
+    })
+  ) {
+    failures.push(
+      "RETURN PICKUP + all-return lines: must still classify as document credit",
+    );
+  }
   console.log("  PASS mixed invoice keeps document classification; credits stay line-level");
 }
 

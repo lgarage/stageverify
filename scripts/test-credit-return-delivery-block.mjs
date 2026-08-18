@@ -229,5 +229,53 @@ if (!isCreditReturnImportDoc(multiCreditMixedDoc)) {
   fail("multi-credit mixed invoice incorrectly classified as credit document");
 }
 
+const returnPickupPurchasedDoc = {
+  parsedHeader: {
+    vendorBranchName: "Johnstone Supply",
+    vendorInvoiceNumber: "6169100",
+    customerPoOrReference: "RETURN PICKUP",
+  },
+  parsedLines: [
+    {
+      lineNumber: 1,
+      quantityOrdered: 1,
+      quantityShipped: 1,
+      lineType: "product",
+      vendorProductNumber: "L46-668",
+    },
+  ],
+  orderNotes: [],
+};
+if (!isCreditReturnImportDoc(returnPickupPurchasedDoc)) {
+  pass("RETURN PICKUP PO + purchased product is not a document-level credit");
+} else {
+  fail("RETURN PICKUP purchased invoice incorrectly classified as credit");
+}
+if (!creditReturnBlocksDeliveryCreation(returnPickupPurchasedDoc)) {
+  pass("RETURN PICKUP + purchased product does not block delivery");
+} else {
+  fail("RETURN PICKUP purchased invoice incorrectly blocked");
+}
+
+const returnPickupAllReturnDoc = {
+  parsedHeader: {
+    vendorBranchName: "Johnstone Supply",
+    vendorInvoiceNumber: "3317000A",
+    customerPoOrReference: "RETURN PICKUP",
+  },
+  parsedLines: creditLines,
+  orderNotes: [],
+};
+if (isCreditReturnImportDoc(returnPickupAllReturnDoc)) {
+  pass("RETURN PICKUP PO + all-return lines is a document-level credit");
+} else {
+  fail("RETURN PICKUP all-return invoice should still be document credit");
+}
+if (creditReturnBlocksDeliveryCreation(returnPickupAllReturnDoc)) {
+  pass("RETURN PICKUP + all-return lines still blocks delivery");
+} else {
+  fail("RETURN PICKUP all-return invoice should still block delivery");
+}
+
 console.log(`\ntest-credit-return-delivery-block: ${failed === 0 ? "PASS" : "FAIL"} (${passed} passed, ${failed} failed)\n`);
 process.exit(failed === 0 ? 0 : 1);

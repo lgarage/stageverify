@@ -133,11 +133,12 @@ function isCreditReturnInvoice(parsed, pageText) {
     if (parsedBranchIsCredit(parsed.header.vendorBranchName))
         return true;
     const po = (parsed.header.customerPoOrReference ?? "").trim();
-    if (/\bRETURN\b/i.test(po) && /\b(PICKUP|CREDIT)\b/i.test(po))
-        return true;
+    const returnPo = /\bRETURN\b/i.test(po) && /\b(PICKUP|CREDIT)\b/i.test(po);
     if (parsed.lines.length === 0) {
-        return parsedBranchIsCredit(parsed.header.vendorBranchName);
+        return returnPo || parsedBranchIsCredit(parsed.header.vendorBranchName);
     }
+    if (returnPo && !parsed.lines.some(isPurchasedProductLine))
+        return true;
     return linesIndicateDocumentLevelCredit(parsed.lines, parsed.orderNotes);
 }
 /** Detect ignore-CREDIT/returns intent in a generalized training note. */
