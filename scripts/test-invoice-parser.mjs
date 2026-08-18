@@ -164,6 +164,20 @@ function evaluateFixture(pageId, result, expected) {
       detail: `${excluded} excluded`,
     });
   }
+  if (expected.notDocumentCredit) {
+    const importDoc = {
+      parsedHeader: result.parsed.header,
+      parsedLines: result.parsed.lines,
+      orderNotes: result.parsed.orderNotes ?? [],
+    };
+    checks.push({
+      label: "notDocumentCredit",
+      pass:
+        !isCreditReturnImportDoc(importDoc) &&
+        !isCreditReturnInvoice(result.parsed, result.page.extractedText),
+      detail: isCreditReturnImportDoc(importDoc) ? "importDoc credit" : "ok",
+    });
+  }
   if (expected.quoteNumber) {
     checks.push({
       label: "quoteNumber",
@@ -502,6 +516,16 @@ const FIXTURE_EXPECTATIONS = {
     displayLabel: "Will-Call / Pickup.",
     expectedLineCount: 1,
     autoProcessed: true,
+  },
+  "inv-core-return-mixed": {
+    vendorInvoiceNumber: "6169999",
+    customerPoOrReference: "SHOP STOCK PICKUP",
+    fulfillmentMethod: "will_call_pickup",
+    importStatus: "pickup_at_vendor",
+    displayLabel: "Will-Call / Pickup.",
+    expectedLineCount: 2,
+    excludedCoreOrReturn: 1,
+    notDocumentCredit: true,
   },
 };
 
@@ -1239,6 +1263,62 @@ please call 605-338-2652
     );
   }
   console.log("  PASS mixed invoice keeps document classification; credits stay line-level");
+}
+
+console.log("\n--- Mixed CORE-16 return line evidence preserved (doc not credit) ---");
+{
+  const coreMixedPage = INVOICE_FIXTURES.find((f) => f.pageId === "inv-core-return-mixed");
+  if (!coreMixedPage) {
+    failures.push("inv-core-return-mixed fixture missing");
+  } else {
+    const coreMixed = processInvoicePage(coreMixedPage, existing);
+    const coreLine = coreMixed.parsed.lines.find((l) =>
+      /^CORE-/i.test(l.vendorProductNumber ?? ""),
+    );
+    if (!coreLine) {
+      failures.push("inv-core-return-mixed: expected CORE-* line");
+    } else {
+      if (coreLine.quantityShipped !== -1) {
+        failures.push(
+          `inv-core-return-mixed: CORE qty expected -1, got ${coreLine.quantityShipped}`,
+        );
+      }
+      if (coreLine.lineType !== "core_charge") {
+        failures.push(
+          `inv-core-return-mixed: CORE lineType expected core_charge, got ${coreLine.lineType}`,
+        );
+      }
+      if (!coreLine.excludeFromExpectedItems) {
+        failures.push("inv-core-return-mixed: CORE line should excludeFromExpectedItems");
+      }
+      if (!/return from invoice\s*#\s*6163055/i.test(coreLine.description ?? "")) {
+        failures.push(
+          `inv-core-return-mixed: CORE description missing Return from Invoice # ref, got "${coreLine.description}"`,
+        );
+      }
+    }
+    const productLines = coreMixed.parsed.lines.filter((l) => l.lineType === "product");
+    if (productLines.length < 2) {
+      failures.push(
+        `inv-core-return-mixed: expected >=2 purchased product lines, got ${productLines.length}`,
+      );
+    }
+    const coreImportDoc = {
+      parsedHeader: coreMixed.parsed.header,
+      parsedLines: coreMixed.parsed.lines,
+      orderNotes: coreMixed.parsed.orderNotes ?? [],
+    };
+    if (isCreditReturnImportDoc(coreImportDoc)) {
+      failures.push("inv-core-return-mixed: isCreditReturnImportDoc should be false");
+    }
+    if (isCreditReturnInvoice(coreMixed.parsed, coreMixedPage.extractedText)) {
+      failures.push("inv-core-return-mixed: isCreditReturnInvoice should be false");
+    }
+    if (inferDocumentType({ ...coreImportDoc, pageId: coreMixedPage.pageId }) === "credit_memo") {
+      failures.push("inv-core-return-mixed: inferDocumentType must not be credit_memo");
+    }
+    console.log("  PASS inv-core-return-mixed — line evidence kept; document not credit/return");
+  }
 }
 
 const attachmentSplitDocs = splitExtractedTextIntoInvoiceDocuments(
