@@ -134,6 +134,7 @@ async function enterPin(page, digits) {
         if (/Invalid code/i.test(body)) return true;
         return (
           /Mark Delivered/i.test(body) ||
+          /DELIVERIES/i.test(body) ||
           /This job/i.test(body) ||
           document.querySelector('[data-testid="vendor-run-session-active"]') !=
             null
@@ -855,7 +856,7 @@ async function assertPermanentSignUrl(browser) {
   await page.waitForTimeout(1500);
   await shot(page, "01b-after-pin");
 
-  const listHeading = page.getByRole("heading", { name: /This job/i });
+  const listHeading = page.getByRole("heading", { name: /DELIVERIES|This job/i });
   if (await listHeading.isVisible().catch(() => false)) {
     record("Job-scoped delivery list shown (multi-delivery)", true);
     const bodyBeforeSelect = await page.locator("body").innerText();

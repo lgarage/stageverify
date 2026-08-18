@@ -1915,6 +1915,14 @@ export function PinAccessManagementPanel({
           />{" "}
           Multi-site run (company PIN)
         </label>
+        <p
+          data-testid="vendor-access-company-pin-help"
+          style={{ color: MUTED, fontSize: 12, margin: 0, lineHeight: 1.45 }}
+        >
+          This PIN is the company PIN for Multi-site run. Job PINs are stored on
+          each job and stay separate — updating this PIN does not change job
+          PINs.
+        </p>
         <label style={{ color: TEXT }}>
           <input
             data-testid={`vendor-access-active-${vendor.id}`}
@@ -2103,7 +2111,7 @@ export function PinAccessManagementPanel({
             <>
               <div style={{ display: "grid", gap: 4 }}>
                 <span style={{ color: MUTED, fontSize: 12, fontWeight: 700 }}>
-                  Current PIN
+                  {row.type === "vendor" ? "Current company PIN" : "Current PIN"}
                 </span>
                 <strong
                   data-testid="pin-access-current-pin"

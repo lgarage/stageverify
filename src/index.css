@@ -674,6 +674,8 @@ button:active {
 
 [data-testid="vendor-job-deliveries"] .vendor-job-deliveries-title {
   margin-top: 8px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 [data-testid="vendor-job-deliveries"] .vendor-job-deliveries-helper {
