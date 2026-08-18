@@ -408,11 +408,11 @@ export function InvoiceReviewPanel({
     setLoading(true);
     setError(null);
     try {
-      let items = await listVendorInvoiceImports({ limit: 50 });
+      let items = await listVendorInvoiceImports({ limit: 50, bypassCache: true });
       items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       const { linkedCount, errors } = await ensureApprovedUnlinkedInvoiceShells(items);
       if (linkedCount > 0) {
-        items = await listVendorInvoiceImports({ limit: 50 });
+        items = await listVendorInvoiceImports({ limit: 50, bypassCache: true });
         items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       }
       applyImports(items);
@@ -427,10 +427,7 @@ export function InvoiceReviewPanel({
   }, [applyImports]);
 
   useEffect(() => {
-    if (
-      syncedImports &&
-      refreshGeneration > lastAppliedGeneration.current
-    ) {
+    if (syncedImports) {
       lastAppliedGeneration.current = refreshGeneration;
       applyImports(syncedImports);
       setLoading(false);
@@ -439,9 +436,12 @@ export function InvoiceReviewPanel({
       );
       return;
     }
-    if (syncedImports == null) {
-      void loadQueue();
+    // Parent owns the queue (dashboard always passes invoiceImports).
+    // null = portal still loading — do not fire a duplicate CF list.
+    if (syncedImports === null) {
+      return;
     }
+    void loadQueue();
   }, [syncedImports, refreshGeneration, backfillErrors, applyImports, loadQueue]);
 
   const filteredImports = useMemo(() => {

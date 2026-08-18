@@ -38,6 +38,7 @@ import {
   APP_SETTINGS_CACHE_TTL_MS,
   isAppSettingsCacheFresh,
 } from "./appSettingsCache";
+import { dispatcherReadCache } from "./collectionReadCache";
 import {
   invoiceShellBackfillCandidate,
   scheduleInvoiceShellBackfill as scheduleInvoiceShellBackfillCore,
@@ -176,6 +177,7 @@ export {
   ShopStockLocationReservedError,
   isShopStockLocationReservedError,
 } from "./shopStockMapping";
+export { invalidateDispatcherReadCache } from "./collectionReadCache";
 
 const COLLECTION_SAFETY_LIMIT = 500;
 
@@ -210,12 +212,14 @@ async function fetchScanLookupData(): Promise<{
 }
 
 async function fetchAllStagingLocations(): Promise<StagingLocation[]> {
-  const snap = await getDocs(
-    query(collection(db, "stagingLocations"), limit(COLLECTION_SAFETY_LIMIT)),
-  );
-  return snap.docs.map((d) => {
-    const loc = parseStagingLocation(d.id, d.data() as Record<string, unknown>);
-    return { ...loc, id: d.id };
+  return dispatcherReadCache.read("col:stagingLocations", async () => {
+    const snap = await getDocs(
+      query(collection(db, "stagingLocations"), limit(COLLECTION_SAFETY_LIMIT)),
+    );
+    return snap.docs.map((d) => {
+      const loc = parseStagingLocation(d.id, d.data() as Record<string, unknown>);
+      return { ...loc, id: d.id };
+    });
   });
 }
 
@@ -228,8 +232,12 @@ function stagingLocationFromSnap(
 }
 
 async function fetchAll<T>(colName: string): Promise<T[]> {
-  const snap = await getDocs(query(collection(db, colName), limit(COLLECTION_SAFETY_LIMIT)));
-  return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as T);
+  return dispatcherReadCache.read(`col:${colName}`, async () => {
+    const snap = await getDocs(
+      query(collection(db, colName), limit(COLLECTION_SAFETY_LIMIT)),
+    );
+    return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as T);
+  });
 }
 
 async function fetchWhere<T>(
@@ -437,17 +445,73 @@ async function requireActiveVendorSession(deliveryId: string): Promise<void> {
   }
 }
 
+function pageDeliveryListRows(
+  rows: DeliveryListRow[],
+  q: DeliveryQuery,
+): PagedResult<DeliveryListRow> {
+  const sortBy = q.sortBy ?? "deliveryDate";
+  const sortDirection = q.sortDirection ?? "desc";
+  const page = q.page ?? DEFAULT_PAGE;
+  const pageSize = q.pageSize ?? DEFAULT_PAGE_SIZE;
+
+  const filtered = rows.filter((row) => {
+    const defaultBoard =
+      !q.statuses?.length && !(q.search && q.search.trim());
+    if (defaultBoard && isCompleteOverviewRow(row)) return false;
+    if (defaultBoard && row.creditReturnLinked) return false;
+    if (q.statuses?.length) {
+      const matches = q.statuses.some((status) =>
+        rowMatchesOverviewStatusFilter(row, status),
+      );
+      if (!matches) return false;
+    }
+    if (q.search && !includesSearch(row, q.search)) return false;
+    if (q.unplannedOnly && !row.unplanned && !row.unplannedReviewFlag) {
+      return false;
+    }
+    if (q.willCallOnly && !row.stagingLocationListNotApplicable) {
+      return false;
+    }
+    return true;
+  });
+
+  const sorted = sortRows(filtered, sortBy, sortDirection);
+  return asPagedResult(sorted, page, pageSize);
+}
+
 export class FirestoreDataService implements DispatcherDataService {
   async listDeliveries(
     q: DeliveryQuery = {},
   ): Promise<PagedResult<DeliveryListRow>> {
-    const sortBy = q.sortBy ?? "deliveryDate";
-    const sortDirection = q.sortDirection ?? "desc";
-    const page = q.page ?? DEFAULT_PAGE;
-    const pageSize = q.pageSize ?? DEFAULT_PAGE_SIZE;
+    const rows = await this.hydrateAllDeliveryListRows(q.jobId);
+    return pageDeliveryListRows(rows, q);
+  }
 
-    const deliveriesPromise = q.jobId
-      ? fetchWhere<DeliveryOrder>("deliveries", "jobId", q.jobId)
+  /**
+   * One catalog hydrate for the Delivery Overview board + badge counts.
+   * Avoids three full listDeliveries() calls that each re-walk every collection.
+   */
+  async listDeliveriesOverview(q: DeliveryQuery = {}): Promise<{
+    paged: PagedResult<DeliveryListRow>;
+    completeCount: number;
+    willCallCount: number;
+  }> {
+    const rows = await this.hydrateAllDeliveryListRows(q.jobId);
+    return {
+      paged: pageDeliveryListRows(rows, q),
+      completeCount: rows.filter((row) =>
+        rowMatchesOverviewStatusFilter(row, "complete"),
+      ).length,
+      willCallCount: rows.filter((row) => row.stagingLocationListNotApplicable)
+        .length,
+    };
+  }
+
+  private async hydrateAllDeliveryListRows(
+    jobId?: string,
+  ): Promise<DeliveryListRow[]> {
+    const deliveriesPromise = jobId
+      ? fetchWhere<DeliveryOrder>("deliveries", "jobId", jobId)
       : fetchAll<DeliveryOrder>("deliveries");
 
     const [deliveries, allJobs, allVendors, allLocations, allPOs, allItems, allMaterialIssues] =
@@ -474,8 +538,9 @@ export class FirestoreDataService implements DispatcherDataService {
     const importsById = await fetchVendorInvoiceImportsByIds(importIds);
 
     const hideSeedDemoRows = import.meta.env.PROD;
-
+    const locById = new Map(allLocations.map((loc) => [loc.id, loc]));
     const rows: DeliveryListRow[] = [];
+
     for (const delivery of deliveries) {
       if (hideSeedDemoRows && isSeedDemoDelivery(delivery)) continue;
       if (
@@ -496,7 +561,6 @@ export class FirestoreDataService implements DispatcherDataService {
       const po = delivery.purchaseOrderId
         ? allPOs.find((p) => p.id === delivery.purchaseOrderId)
         : undefined;
-      const locById = new Map(allLocations.map((loc) => [loc.id, loc]));
       const stagingLocationCode = formatActualStagingCodes(delivery, locById);
       const stagingLocationCodes = collectDeliveryStagingCodes(
         delivery,
@@ -534,13 +598,11 @@ export class FirestoreDataService implements DispatcherDataService {
             delivery.unplannedSubmittedReference?.trim() ||
             "Unplanned delivery — needs job/PO match"
           : "";
-      const issueSummary =
-        unplannedIssue || display.issueSummary;
+      const issueSummary = unplannedIssue || display.issueSummary;
 
       rows.push({
         deliveryId: delivery.id,
         jobId: delivery.jobId ?? "",
-        // Authoritative for list filter chips / counts — matches statusDisplayLabel.
         status: display.readiness.deliveryStatus,
         statusDisplayLabel: display.statusDisplayLabel,
         jobNumber: job?.jobNumber ?? "—",
@@ -571,34 +633,7 @@ export class FirestoreDataService implements DispatcherDataService {
         unplannedReviewFlag,
       });
     }
-
-    const filtered = rows.filter((row) => {
-      const defaultBoard =
-        !q.statuses?.length && !(q.search && q.search.trim());
-      if (defaultBoard && isCompleteOverviewRow(row)) return false;
-      if (defaultBoard && row.creditReturnLinked) return false;
-      if (q.statuses?.length) {
-        const matches = q.statuses.some((status) =>
-          rowMatchesOverviewStatusFilter(row, status),
-        );
-        if (!matches) return false;
-      }
-      if (q.search && !includesSearch(row, q.search)) return false;
-      if (
-        q.unplannedOnly &&
-        !row.unplanned &&
-        !row.unplannedReviewFlag
-      ) {
-        return false;
-      }
-      if (q.willCallOnly && !row.stagingLocationListNotApplicable) {
-        return false;
-      }
-      return true;
-    });
-
-    const sorted = sortRows(filtered, sortBy, sortDirection);
-    return asPagedResult(sorted, page, pageSize);
+    return rows;
   }
 
   async getJobReadinessBreakdown(
@@ -655,51 +690,52 @@ export class FirestoreDataService implements DispatcherDataService {
 
     const vendorId = delivery.vendorId?.trim();
     if (!vendorId) return null;
-    const vendorSnap = await getDoc(doc(db, "vendors", vendorId));
-    if (!vendorSnap.exists()) return null;
-    const vendor = { ...(vendorSnap.data() as Vendor), id: vendorSnap.id };
 
     // D-73 unplanned shells omit jobId until dispatcher match. Never call
     // doc(jobs, undefined/""): Firebase throws → drawer "Unable to load…".
     const jobId = delivery.jobId?.trim();
+    const poId = delivery.purchaseOrderId?.trim();
+    const locId = delivery.stagingLocationId?.trim();
+
+    const [
+      vendorSnap,
+      jobSnap,
+      poSnap,
+      locSnap,
+      items,
+      statusHistoryEvents,
+      pickupEvents,
+      materialIssues,
+    ] = await Promise.all([
+      getDoc(doc(db, "vendors", vendorId)),
+      jobId ? getDoc(doc(db, "jobs", jobId)) : Promise.resolve(null),
+      poId ? getDoc(doc(db, "purchaseOrders", poId)) : Promise.resolve(null),
+      locId ? getDoc(doc(db, "stagingLocations", locId)) : Promise.resolve(null),
+      fetchWhere<Item>("items", "deliveryOrderId", deliveryId),
+      fetchWhere<StatusHistoryEvent>("statusHistory", "entityId", deliveryId),
+      fetchWhere<PickupEvent>("pickupEvents", "deliveryOrderId", deliveryId),
+      listMaterialIssuesForDelivery(deliveryId),
+    ]);
+
+    if (!vendorSnap.exists()) return null;
+    const vendor = { ...(vendorSnap.data() as Vendor), id: vendorSnap.id };
+
     let job: Job | undefined;
-    if (jobId) {
-      const jobSnap = await getDoc(doc(db, "jobs", jobId));
-      if (jobSnap.exists()) {
-        job = { ...(jobSnap.data() as Job), id: jobSnap.id };
-      }
+    if (jobSnap?.exists()) {
+      job = { ...(jobSnap.data() as Job), id: jobSnap.id };
     }
     // Planned deliveries still require a resolvable job; unplanned shells do not.
     if (!job && delivery.unplanned !== true) return null;
 
     let purchaseOrder: PurchaseOrder | undefined;
-    if (delivery.purchaseOrderId?.trim()) {
-      const poSnap = await getDoc(
-        doc(db, "purchaseOrders", delivery.purchaseOrderId.trim()),
-      );
-      if (poSnap.exists()) purchaseOrder = poSnap.data() as PurchaseOrder;
+    if (poSnap?.exists()) {
+      purchaseOrder = poSnap.data() as PurchaseOrder;
     }
 
     let stagingLocation: StagingLocation | undefined;
-    if (delivery.stagingLocationId?.trim()) {
-      const locSnap = await getDoc(
-        doc(db, "stagingLocations", delivery.stagingLocationId.trim()),
-      );
+    if (locSnap) {
       stagingLocation = stagingLocationFromSnap(locSnap);
     }
-
-    const items = await fetchWhere<Item>("items", "deliveryOrderId", deliveryId);
-    const statusHistoryEvents = await fetchWhere<StatusHistoryEvent>(
-      "statusHistory",
-      "entityId",
-      deliveryId,
-    );
-    const pickupEvents = await fetchWhere<PickupEvent>(
-      "pickupEvents",
-      "deliveryOrderId",
-      deliveryId,
-    );
-    const materialIssues = await listMaterialIssuesForDelivery(deliveryId);
 
     return {
       delivery,
@@ -2922,12 +2958,20 @@ const getVendorInvoicePdfCallable = httpsCallable<
 export async function listVendorInvoiceImports(options?: {
   limit?: number;
   inboundEmailProcessingId?: string;
+  bypassCache?: boolean;
 }): Promise<VendorInvoiceImportReview[]> {
-  const response = await listVendorInvoiceImportsCallable({
-    limit: options?.limit,
-    inboundEmailProcessingId: options?.inboundEmailProcessingId,
-  });
-  return response.data.items ?? [];
+  const cacheKey = `cf:listVendorInvoiceImports:${options?.limit ?? ""}:${options?.inboundEmailProcessingId ?? ""}`;
+  return dispatcherReadCache.read(
+    cacheKey,
+    async () => {
+      const response = await listVendorInvoiceImportsCallable({
+        limit: options?.limit,
+        inboundEmailProcessingId: options?.inboundEmailProcessingId,
+      });
+      return response.data.items ?? [];
+    },
+    { bypass: options?.bypassCache === true },
+  );
 }
 
 export async function getVendorInvoiceImport(

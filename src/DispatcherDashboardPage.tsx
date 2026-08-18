@@ -270,32 +270,19 @@ export function DispatcherDashboardPage() {
   const fetchAllData = useCallback(async () => {
     setListLoading(true);
     try {
-      const [pagedResult, completeCountResult, willCallCountResult] =
-        await Promise.all([
-          firestoreDataService.listDeliveries({
-            search: query.search,
-            statuses: query.statuses.length ? query.statuses : undefined,
-            unplannedOnly: query.unplannedOnly || undefined,
-            willCallOnly: query.willCallOnly || undefined,
-            sortBy: query.sortBy,
-            sortDirection: query.sortDirection,
-            page: query.page,
-            pageSize: query.pageSize,
-          }),
-          firestoreDataService.listDeliveries({
-            statuses: ["complete"],
-            page: 1,
-            pageSize: 1,
-          }),
-          firestoreDataService.listDeliveries({
-            willCallOnly: true,
-            page: 1,
-            pageSize: 1,
-          }),
-        ]);
-      setPaged(pagedResult);
-      setCompleteOverviewCount(completeCountResult.totalItems);
-      setWillCallOverviewCount(willCallCountResult.totalItems);
+      const overview = await firestoreDataService.listDeliveriesOverview({
+        search: query.search,
+        statuses: query.statuses.length ? query.statuses : undefined,
+        unplannedOnly: query.unplannedOnly || undefined,
+        willCallOnly: query.willCallOnly || undefined,
+        sortBy: query.sortBy,
+        sortDirection: query.sortDirection,
+        page: query.page,
+        pageSize: query.pageSize,
+      });
+      setPaged(overview.paged);
+      setCompleteOverviewCount(overview.completeCount);
+      setWillCallOverviewCount(overview.willCallCount);
       setLastUpdated(new Date().toLocaleString());
       setListError(null);
       await fetchReleaseMap();
