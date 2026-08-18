@@ -82,14 +82,10 @@ import {
 } from "./vendorPinSession";
 import {
   locationScanHistoryPath,
-  locationScanHistoryViewsEqual,
   readLocationScanHistoryView,
   type LocationScanHistoryView,
 } from "./locationScanHistory";
-import {
-  collapseLeftoverReceiveUnderLocationScan,
-  isCollapsingLeftoverReceive,
-} from "./locationScanHistoryCollapse";
+import { requestLeftoverReceiveCollapse } from "./locationScanHistoryCollapse";
 import { isVendorSessionError } from "./vendorSessionErrors";
 import { PublicNetworkErrorPanel } from "./PublicNetworkErrorPanel";
 import { isOutsideShopGeofence } from "./geofence";
@@ -126,7 +122,17 @@ export function LocationScanPage() {
   normalizeLocationScanHash();
 
   const { loc: locationCode } = readLocationScanParams(searchParams);
-  const historyView = readLocationScanHistoryView(searchParams);
+  const [hashSearch, setHashSearch] = useState(() =>
+    typeof window === "undefined" ? "" : window.location.hash,
+  );
+  const historyView = useMemo(() => {
+    const raw = hashSearch.includes("?")
+      ? hashSearch.slice(hashSearch.indexOf("?") + 1)
+      : location.search.startsWith("?")
+        ? location.search.slice(1)
+        : location.search;
+    return readLocationScanHistoryView(new URLSearchParams(raw));
+  }, [hashSearch, location.search]);
   const initialPinResumeRef = useRef(false);
   const appliedDeliveryIdRef = useRef<string | null>(null);
   const [historyReady, setHistoryReady] = useState(false);
@@ -171,16 +177,37 @@ export function LocationScanPage() {
     return vendorRunDeliveries.filter((d) => !d.vendorPhysicalDropoffConfirmed);
   }, [vendorRunDeliveries]);
 
+  const historyViewKey =
+    historyView.kind === "delivery"
+      ? `delivery:${historyView.deliveryId}`
+      : historyView.kind;
+
+  useEffect(() => {
+    const syncHash = () => setHashSearch(window.location.hash);
+    window.addEventListener("hashchange", syncHash);
+    window.addEventListener("popstate", syncHash);
+    return () => {
+      window.removeEventListener("hashchange", syncHash);
+      window.removeEventListener("popstate", syncHash);
+    };
+  }, []);
+
   const goToHistoryView = useCallback(
     (view: LocationScanHistoryView, options?: { replace?: boolean }) => {
       if (!locationCode) return;
       const path = locationScanHistoryPath(locationCode, view);
       const current = `${location.pathname}${location.search}`;
-      if (current === path) return;
-      if (locationScanHistoryViewsEqual(historyView, view)) return;
+      if (current === path && historyViewKey === (
+        view.kind === "delivery" ? `delivery:${view.deliveryId}` : view.kind
+      )) {
+        return;
+      }
       navigate(path, { replace: options?.replace === true });
+      setHashSearch(
+        path.startsWith("#") ? path : `#${path.startsWith("/") ? path : `/${path}`}`,
+      );
     },
-    [historyView, location.pathname, location.search, locationCode, navigate],
+    [historyViewKey, location.pathname, location.search, locationCode, navigate],
   );
 
   const loadBranding = useCallback(async () => {
@@ -222,14 +249,7 @@ export function LocationScanPage() {
   }, [loadBranding]);
 
   useLayoutEffect(() => {
-    const started = collapseLeftoverReceiveUnderLocationScan(() => {
-      setHistoryReady(true);
-    });
-    if (started) return;
-    if (isCollapsingLeftoverReceive()) {
-      const id = window.setTimeout(() => setHistoryReady(true), 160);
-      return () => window.clearTimeout(id);
-    }
+    if (requestLeftoverReceiveCollapse()) return;
     setHistoryReady(true);
   }, [locationCode]);
 
@@ -780,7 +800,7 @@ export function LocationScanPage() {
     }
   }, [
     goToHistoryView,
-    historyView,
+    historyViewKey,
     jobId,
     loadJobDeliveries,
     loadTechnicianReleasedJobs,
@@ -1397,7 +1417,7 @@ export function LocationScanPage() {
     );
   }
 
-  if (step === "vendor-list" && branding) {
+  if (step === "vendor-list" && branding && historyView.kind === "deliveries") {
     const runSession = vendorId ? getVendorRunPinSession(vendorId) : null;
     return (
       <div className="app-container vendor-mobile-shell bg-bg-primary">
@@ -1779,7 +1799,21 @@ export function LocationScanPage() {
     );
   }
 
-  if (step === "list" && branding) {
+  if (
+    historyView.kind === "delivery" &&
+    branding &&
+    step !== "hub" &&
+    step !== "done" &&
+    step !== "pin"
+  ) {
+    return (
+      <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary items-center justify-center px-6">
+        <p className="text-sm text-text-secondary">Opening delivery…</p>
+      </div>
+    );
+  }
+
+  if (step === "list" && branding && historyView.kind === "deliveries") {
     const jobSession = jobId ? getJobPinSession(jobId) : null;
     return (
       <div
