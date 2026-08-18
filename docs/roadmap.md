@@ -92,8 +92,9 @@
 
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
-**Shipped (2026-08-18):** Line-item credit/return classification — mixed invoices stay normal invoices; only credited lines are returns; full CREDIT memos still document-level — **v0.0.290** (PR #152; scoped CF + gh-pages).
+**Shipped (2026-08-18):** Line-item credit/return classification — mixed invoices stay normal invoices; only credited lines are returns; full CREDIT memos still document-level — **v0.0.291** (PR #152; scoped CF + gh-pages; supersedes PR #150 CORE-16).
 
+**Shipped (2026-08-18):** Vendor post-PIN **This job's deliveries** polish — distinct order cards, secondary scanned context, safe-area footer Back — **v0.0.290** gh-pages (FE-only; Sol visual PASS).
 **Shipped (2026-08-10):** Technician post-PIN **Pick up today** landing polish — vendor-shell safe-area, header Back, elevated pickup cards + destination chips — **v0.0.289** gh-pages (FE-only; Sol visual PASS).
 **Shipped (2026-08-09):** Location/Technician PIN mobile polish (PR #79) — role-track white-alpha; VendorPinGate embedded top-flow; short-viewport Verify — **v0.0.253** gh-pages.
 
