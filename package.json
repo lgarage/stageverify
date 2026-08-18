@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.292",
+  "version": "0.0.293",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -46,6 +46,8 @@
     "verify:vendor-delivered:prod": "node scripts/run-verify-with-learning.mjs --script verify:vendor-delivered:prod scripts/verify-vendor-delivered.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:vendor-unplanned-delivery": "node scripts/verify-vendor-unplanned-delivery.mjs",
     "verify:vendor-unplanned-delivery:prod": "node scripts/run-verify-with-learning.mjs --script verify:vendor-unplanned-delivery:prod scripts/verify-vendor-unplanned-delivery.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:vendor-all-pins": "node scripts/verify-vendor-all-pins.mjs",
+    "verify:vendor-all-pins:prod": "node scripts/run-verify-with-learning.mjs --script verify:vendor-all-pins:prod scripts/verify-vendor-all-pins.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:settings-staging": "node scripts/verify-settings-staging.mjs",
     "verify:settings-technicians": "node scripts/run-verify-with-learning.mjs --script verify:settings-technicians scripts/verify-settings-technicians.mjs",
     "verify:settings-technicians:prod": "node scripts/run-verify-with-learning.mjs --script verify:settings-technicians:prod scripts/verify-settings-technicians.mjs --base-url=https://lgarage.github.io/stageverify",
