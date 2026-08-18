@@ -94,7 +94,7 @@
 
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
-**Shipped (2026-08-18):** Shared vendor landing `{VENDOR} DELIVERIES` for all active company PINs + job-scoped list (`VendorDeliveriesLanding`) — **v0.0.294** FE-only.
+**Shipped (2026-08-18):** Shared vendor landing `{VENDOR} DELIVERIES` for all active company PINs + job-scoped list (`VendorDeliveriesLanding`) — **v0.0.294** gh-pages LIVE (`index-DLY8TYF2.js` / Pages tip `e994f74`; FE-only).
 **Shipped (2026-08-18):** Vendor job-list heading `{VENDOR} DELIVERIES` + Settings company-PIN vs job-PIN copy — **v0.0.292** gh-pages LIVE (`7d06fb67` / `index-Cx2-p0F5.js` / Pages tip `f3c92d21`; FE-only).
 **Shipped (2026-08-18):** Line-item credit/return classification — mixed invoices stay normal invoices; only credited lines are returns; full CREDIT memos still document-level — **v0.0.291** (PR #152; scoped CF + gh-pages; supersedes PR #150 CORE-16).
 
