@@ -89,6 +89,7 @@ import { requestLeftoverReceiveCollapse } from "./locationScanHistoryCollapse";
 import { isVendorSessionError } from "./vendorSessionErrors";
 import { PublicNetworkErrorPanel } from "./PublicNetworkErrorPanel";
 import { isOutsideShopGeofence } from "./geofence";
+import { VendorDeliveriesLanding } from "./VendorDeliveriesLanding";
 
 type Step =
   | "loading"
@@ -113,12 +114,6 @@ interface LocationBranding {
 interface VendorRunExpansionUpdate {
   preserveExpandedIds: Set<string>;
   collapseDeliveryIds: Set<string>;
-}
-
-function vendorDeliveriesHeading(vendorName: string | undefined): string {
-  const cleaned = (vendorName ?? "").trim().replace(/\s+/g, " ");
-  if (!cleaned) return "DELIVERIES";
-  return `${cleaned.toUpperCase()} DELIVERIES`;
 }
 
 export function LocationScanPage() {
@@ -1426,28 +1421,88 @@ export function LocationScanPage() {
   if (step === "vendor-list" && branding && historyView.kind === "deliveries") {
     const runSession = vendorId ? getVendorRunPinSession(vendorId) : null;
     return (
-      <div className="app-container vendor-mobile-shell bg-bg-primary">
-        <div
-          className="vendor-hub-layout h-full min-h-0"
-          data-testid="vendor-run-layout"
-        >
-        <header className="vendor-hub-header px-4 py-3 border-b border-border bg-bg-surface">
-          <p className="text-xs uppercase tracking-widest text-text-secondary">
+      <VendorDeliveriesLanding
+        rootTestId="vendor-run-layout"
+        vendorName={runSession?.vendorName}
+        scannedContext={
+          <>
             Scanned {branding.code}
             {runSession?.vendorName ? ` · ${runSession.vendorName}` : ""}
-          </p>
-          <h1 className="text-lg font-bold text-text-primary mt-1">
-            Your deliveries
-          </h1>
-          <p
-            className="text-sm text-[#cbd5e1] mt-1"
-            data-testid="vendor-run-helper"
-          >
-            Check each order you delivered, then tap Delivered.
-          </p>
-        </header>
+          </>
+        }
+        helper="Check each order you delivered, then tap Delivered."
+        helperTestId="vendor-run-helper"
+        footer={
+          <div className="space-y-2" data-testid="vendor-run-footer">
+            <button
+              type="button"
+              onClick={resetFlow}
+              className="action-btn action-btn-secondary w-full"
+              data-testid="vendor-run-back"
+            >
+              ← Back
+            </button>
+            <button
+              type="button"
+              disabled={loading || checkedDeliveryIds.size === 0}
+              onClick={() => setConfirmBulkOpen(true)}
+              className="action-btn action-btn-delivered w-full disabled:opacity-40"
+              style={{ backgroundColor: "#047857" }}
+              data-testid="vendor-run-bulk-deliver"
+            >
+              Delivered
+              {checkedDeliveryIds.size > 0
+                ? ` (${checkedDeliveryIds.size})`
+                : ""}
+            </button>
+          </div>
+        }
+        overlay={
+          <>
+            {confirmBulkOpen && (
+              <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4 pb-6">
+                <div className="w-full max-w-sm rounded-2xl bg-bg-surface p-6 shadow-xl">
+                  <h2 className="text-lg font-bold text-text-primary mb-2">
+                    Confirm delivered
+                  </h2>
+                  <p className="text-sm text-text-secondary mb-3">
+                    Jobs in this batch:
+                  </p>
+                  <ul className="text-sm text-text-primary mb-6 list-disc pl-5 space-y-1">
+                    {distinctJobsForChecked.map((name) => (
+                      <li key={name}>{name}</li>
+                    ))}
+                  </ul>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      className="action-btn action-btn-secondary flex-1"
+                      onClick={() => setConfirmBulkOpen(false)}
+                      disabled={loading}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="action-btn action-btn-delivered flex-1"
+                      onClick={() => void handleBulkDeliver()}
+                      disabled={loading}
+                    >
+                      Confirm
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
-        <main className="vendor-hub-scroll px-4 py-4">
+            {runSession && (
+              <p className="sr-only" data-testid="vendor-run-session-active">
+                vendor-run-session
+              </p>
+            )}
+          </>
+        }
+      >
           {error && (
             <p className="mb-3 text-sm text-accent-red" role="alert">
               {error}
@@ -1472,17 +1527,17 @@ export function LocationScanPage() {
             return (
               <div
                 key={row.deliveryId}
-                className={`overflow-hidden rounded-2xl border shadow-md shadow-black/10 ${
+                className={`overflow-hidden rounded-2xl border shadow-lg shadow-black/20 ${
                   delivered
                     ? "border-[#059669] bg-[#047857]"
-                    : "border-border bg-bg-surface"
+                    : "border-white/10 bg-bg-secondary"
                 }`}
                 data-testid={`vendor-run-row-${row.deliveryId}`}
                 data-delivered={delivered ? "true" : "false"}
               >
                 <div
                   className={`flex min-h-16 items-center gap-3 px-3 py-2.5 ${
-                    delivered ? "bg-[#047857]" : "bg-bg-surface"
+                    delivered ? "bg-[#047857]" : "bg-bg-secondary"
                   }`}
                   data-testid={
                     delivered
@@ -1673,7 +1728,7 @@ export function LocationScanPage() {
             })}
           {vendorRunDeliveries.length === 0 ? (
             <div
-              className="rounded-2xl border border-white/10 bg-bg-secondary px-5 py-6 text-center shadow-lg shadow-black/15"
+              className="vendor-deliveries-empty-card rounded-2xl border border-white/10 bg-bg-secondary px-5 py-6 text-center shadow-lg shadow-black/15"
               data-testid="vendor-unplanned-empty-state"
             >
               <div className="mx-auto flex size-12 items-center justify-center rounded-xl border border-[#6ee7b7]/30 bg-[#34d399]/10 text-[#6ee7b7]">
@@ -1710,7 +1765,7 @@ export function LocationScanPage() {
             </div>
           ) : (
             <div
-              className="rounded-2xl border border-white/10 bg-bg-secondary px-5 py-5 text-center shadow-lg shadow-black/15"
+              className="vendor-deliveries-empty-card rounded-2xl border border-white/10 bg-bg-secondary px-5 py-5 text-center shadow-lg shadow-black/15"
               data-testid="vendor-unplanned-fallback"
             >
               <h2 className="text-lg font-bold tracking-tight text-text-primary">
@@ -1730,78 +1785,7 @@ export function LocationScanPage() {
             </div>
           )}
           </div>
-        </main>
-
-        <footer
-          className="vendor-hub-footer border-t border-border bg-bg-primary px-4 pt-3 space-y-2"
-          data-testid="vendor-run-footer"
-        >
-          <button
-            type="button"
-            onClick={resetFlow}
-            className="action-btn action-btn-secondary w-full"
-            data-testid="vendor-run-back"
-          >
-            ← Back
-          </button>
-          <button
-            type="button"
-            disabled={loading || checkedDeliveryIds.size === 0}
-            onClick={() => setConfirmBulkOpen(true)}
-            className="action-btn action-btn-delivered w-full disabled:opacity-40"
-            style={{ backgroundColor: "#047857" }}
-            data-testid="vendor-run-bulk-deliver"
-          >
-            Delivered
-            {checkedDeliveryIds.size > 0
-              ? ` (${checkedDeliveryIds.size})`
-              : ""}
-          </button>
-        </footer>
-
-        {confirmBulkOpen && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4 pb-6">
-            <div className="w-full max-w-sm rounded-2xl bg-bg-surface p-6 shadow-xl">
-              <h2 className="text-lg font-bold text-text-primary mb-2">
-                Confirm delivered
-              </h2>
-              <p className="text-sm text-text-secondary mb-3">
-                Jobs in this batch:
-              </p>
-              <ul className="text-sm text-text-primary mb-6 list-disc pl-5 space-y-1">
-                {distinctJobsForChecked.map((name) => (
-                  <li key={name}>{name}</li>
-                ))}
-              </ul>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  className="action-btn action-btn-secondary flex-1"
-                  onClick={() => setConfirmBulkOpen(false)}
-                  disabled={loading}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="action-btn action-btn-delivered flex-1"
-                  onClick={() => void handleBulkDeliver()}
-                  disabled={loading}
-                >
-                  Confirm
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {runSession && (
-          <p className="sr-only" data-testid="vendor-run-session-active">
-            vendor-run-session
-          </p>
-        )}
-        </div>
-      </div>
+      </VendorDeliveriesLanding>
     );
   }
 
@@ -1824,28 +1808,36 @@ export function LocationScanPage() {
     const headingVendorName =
       jobSession?.vendorName ?? deliveries[0]?.vendorName;
     return (
-      <div
-        className="app-container vendor-mobile-shell bg-bg-primary"
-        data-testid="vendor-job-deliveries"
+      <VendorDeliveriesLanding
+        rootTestId="vendor-job-deliveries"
+        vendorName={headingVendorName}
+        scannedContext={
+          <>
+            Scanned {branding.code}
+            {scannedCode && scannedCode !== branding.code
+              ? ` · PIN job spots below`
+              : ""}
+          </>
+        }
+        helper="Select an order to confirm delivery"
+        footer={
+          <button
+            type="button"
+            onClick={resetFlow}
+            className="action-btn action-btn-secondary w-full"
+          >
+            ← Back
+          </button>
+        }
+        overlay={
+          jobSession ? (
+            <p className="sr-only" data-testid="job-session-active">
+              job-session
+            </p>
+          ) : null
+        }
       >
-        <div className="vendor-hub-layout h-full min-h-0">
-          <header className="vendor-hub-header vendor-job-deliveries-header border-b border-border bg-bg-surface px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-secondary">
-              Scanned {branding.code}
-              {scannedCode && scannedCode !== branding.code
-                ? ` · PIN job spots below`
-                : ""}
-            </p>
-            <h1 className="vendor-job-deliveries-title mt-2 break-words text-2xl font-bold leading-7 tracking-tight text-text-primary [overflow-wrap:anywhere]">
-              {vendorDeliveriesHeading(headingVendorName)}
-            </h1>
-            <p className="vendor-job-deliveries-helper mt-1 text-sm leading-5 text-[#cbd5e1]">
-              Select an order to confirm delivery
-            </p>
-          </header>
-
-          <main className="vendor-hub-scroll vendor-job-deliveries-scroll px-4 py-4">
-            <div className="vendor-job-deliveries-card-list flex flex-col gap-4">
+            <div className="vendor-deliveries-card-list-inner flex flex-col gap-4">
               {deliveries.map((row) => {
                 const displayPo = row.poNumber
                   ? /^po/i.test(row.poNumber)
@@ -1923,32 +1915,14 @@ export function LocationScanPage() {
               })}
 
               {deliveries.length === 0 && (
-                <div className="vendor-job-deliveries-empty rounded-2xl border border-white/10 bg-bg-secondary px-5 py-7 text-center shadow-lg shadow-black/15">
+                <div className="vendor-deliveries-empty-card rounded-2xl border border-white/10 bg-bg-secondary px-5 py-7 text-center shadow-lg shadow-black/15">
                   <p className="text-sm leading-5 text-[#cbd5e1]">
                     No active deliveries for this job.
                   </p>
                 </div>
               )}
             </div>
-          </main>
-
-          <footer className="vendor-hub-footer vendor-job-deliveries-footer border-t border-border bg-bg-primary px-4 pt-3">
-            <button
-              type="button"
-              onClick={resetFlow}
-              className="action-btn action-btn-secondary w-full"
-            >
-              ← Back
-            </button>
-          </footer>
-
-          {jobSession && (
-            <p className="sr-only" data-testid="job-session-active">
-              job-session
-            </p>
-          )}
-        </div>
-      </div>
+      </VendorDeliveriesLanding>
     );
   }
 

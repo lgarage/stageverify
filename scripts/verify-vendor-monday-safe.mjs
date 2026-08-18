@@ -815,7 +815,9 @@ try {
   });
   await enterPin(page, "1234");
   await page.getByTestId("location-scan-pin-verify").click();
-  await page.getByText("Your deliveries").waitFor({ timeout: 30_000 });
+  await page
+    .getByTestId("vendor-deliveries-heading")
+    .waitFor({ timeout: 30_000 });
 
   const rowOrder = async () =>
     page.locator('[data-testid^="vendor-run-row-"]').evaluateAll((rows) =>

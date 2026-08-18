@@ -116,7 +116,9 @@ async function enterPin(page, digits) {
   });
   record("Company PIN unlocks vendor-run session", true);
 
-  await page.waitForSelector("text=Your deliveries", { timeout: 30_000 });
+  await page
+    .getByTestId("vendor-deliveries-heading")
+    .waitFor({ timeout: 30_000 });
   const body = await page.locator("body").innerText();
   record("Multi-job checklist shows ORD-005", body.includes(job1Order));
   record("Multi-job checklist shows ORD-006", body.includes(otherJobOrder));

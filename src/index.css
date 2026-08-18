@@ -664,64 +664,72 @@ button:active {
 }
 
 /**
- * Vendor job delivery picker — scoped spacing restore.
- * Global unlayered `* { margin:0; padding:0 }` wins over Tailwind v4 layers;
- * keep these rules local to the post-PIN job list.
+ * Shared vendor deliveries landing — company-wide and job-scoped lists use
+ * identical mobile chrome. Global unlayered `* { margin:0; padding:0 }` wins
+ * over Tailwind v4 layers, so spacing is restored on the shared surface.
  */
-[data-testid="vendor-job-deliveries"] .vendor-job-deliveries-header {
+.vendor-deliveries-landing .vendor-deliveries-header {
   padding: max(env(safe-area-inset-top, 0px), 12px) 16px 16px;
 }
 
-[data-testid="vendor-job-deliveries"] .vendor-job-deliveries-title {
+.vendor-deliveries-landing .vendor-deliveries-title {
   margin-top: 8px;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
-[data-testid="vendor-job-deliveries"] .vendor-job-deliveries-helper {
+.vendor-deliveries-landing .vendor-deliveries-helper {
   margin-top: 4px;
 }
 
-[data-testid="vendor-job-deliveries"] .vendor-job-deliveries-scroll {
+.vendor-deliveries-landing .vendor-deliveries-scroll {
   padding: 16px;
 }
 
-[data-testid="vendor-job-deliveries"] .vendor-job-deliveries-card-list {
+.vendor-deliveries-landing .vendor-deliveries-card-list,
+.vendor-deliveries-landing .vendor-deliveries-card-list-inner,
+.vendor-deliveries-landing [data-testid="vendor-run-card-list"] {
   gap: 16px;
 }
 
-[data-testid="vendor-job-deliveries"] [data-testid^="vendor-job-delivery-"] {
+.vendor-deliveries-landing [data-testid^="vendor-job-delivery-"] {
   min-height: 44px;
   padding: 16px;
 }
 
-[data-testid="vendor-job-deliveries"] .vendor-job-delivery-order-row {
+.vendor-deliveries-landing .vendor-job-delivery-order-row {
   gap: 12px;
 }
 
-[data-testid="vendor-job-deliveries"] .vendor-job-delivery-po {
+.vendor-deliveries-landing .vendor-job-delivery-po {
   margin-top: 6px;
 }
 
-[data-testid="vendor-job-deliveries"] .vendor-job-delivery-staging {
+.vendor-deliveries-landing .vendor-job-delivery-staging {
   margin-top: 16px;
 }
 
-[data-testid="vendor-job-deliveries"] .vendor-job-delivery-staging-values {
+.vendor-deliveries-landing .vendor-job-delivery-staging-values {
   margin-top: 6px;
   gap: 6px;
 }
 
-[data-testid="vendor-job-deliveries"] .vendor-job-delivery-staging-values > span {
+.vendor-deliveries-landing .vendor-job-delivery-staging-values > span {
   padding: 4px 10px;
 }
 
-[data-testid="vendor-job-deliveries"] .vendor-job-deliveries-empty {
+.vendor-deliveries-landing .vendor-deliveries-empty-card {
   padding: 28px 20px;
 }
 
-[data-testid="vendor-job-deliveries"] .vendor-job-deliveries-footer {
+.vendor-deliveries-landing .vendor-deliveries-footer {
   padding: 12px 16px max(env(safe-area-inset-bottom, 0px), 12px);
+}
+
+.vendor-deliveries-landing [data-testid="vendor-run-footer"] {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* html5-qrcode injects <video> into the reader div — fill viewport on phones */
