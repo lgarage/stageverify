@@ -9,6 +9,7 @@ import {
   shouldRouteScanToPickup,
   type DeliveryStatus,
 } from "./dispatcher/models";
+import { canonicalLocationScanHash } from "./locationScanHistory";
 
 const PROD_APP_BASE = "https://lgarage.github.io/stageverify";
 
@@ -196,6 +197,24 @@ export function buildDeliveryLabelQrUrl(deliveryId: string): string {
 }
 
 /**
+ * Replace the current history entry's hash (no extra Back stop).
+ * HashRouter listens for `hashchange`; replaceState alone would leave it stale.
+ */
+export function replaceAppHash(nextHash: string): boolean {
+  const normalized = nextHash.startsWith("#") ? nextHash : `#${nextHash}`;
+  if (typeof window === "undefined") return false;
+  if (window.location.hash === normalized) return false;
+  const nextUrl = `${window.location.pathname}${window.location.search}${normalized}`;
+  window.history.replaceState(window.history.state, "", nextUrl);
+  const hashEvent =
+    typeof HashChangeEvent === "function"
+      ? new HashChangeEvent("hashchange")
+      : new Event("hashchange");
+  window.dispatchEvent(hashEvent);
+  return true;
+}
+
+/**
  * Legacy zone-only receive URLs → permanent location scan (`#/s?loc=`).
  * Delivery-id deep links stay on `/#/receive?id=` (D-74).
  */
@@ -207,7 +226,7 @@ function redirectLegacyReceiveZoneToLocationScan(hash: string): boolean {
   const id = (params.get("id") ?? params.get("i") ?? "").trim();
   const zone = (params.get("zone") ?? params.get("z") ?? "").trim();
   if (id || !zone) return false;
-  window.location.hash = `#/s?loc=${encodeURIComponent(zone)}`;
+  replaceAppHash(`#/s?loc=${encodeURIComponent(zone)}`);
   return true;
 }
 
@@ -226,19 +245,21 @@ export function normalizeReceiveHash(): void {
     const zone = params.get("z") ?? params.get("zone");
     // Compact zone-only → location scan directly (skip obsolete receive zone path).
     if (!id && zone?.trim()) {
-      window.location.hash = `#/s?loc=${encodeURIComponent(zone.trim())}`;
+      replaceAppHash(`#/s?loc=${encodeURIComponent(zone.trim())}`);
       return;
     }
     if (id) canonical.set("id", id);
     if (zone) canonical.set("zone", zone);
-    window.location.hash = canonical.toString()
-      ? `#/receive?${canonical.toString()}`
-      : "#/receive";
+    replaceAppHash(
+      canonical.toString()
+        ? `#/receive?${canonical.toString()}`
+        : "#/receive",
+    );
     return;
   }
 
   if (hash.startsWith("#receive") && !hash.startsWith("#/receive")) {
-    window.location.hash = hash.replace("#receive", "#/receive");
+    replaceAppHash(hash.replace("#receive", "#/receive"));
   }
 
   redirectLegacyReceiveZoneToLocationScan(window.location.hash);
@@ -251,9 +272,9 @@ export function normalizeLegacyAppHash(): void {
 
   const checkinMatch = hash.match(/^#\/checkin\/([^/?]+)/);
   if (checkinMatch) {
-    window.location.hash = `#/receive?id=${encodeURIComponent(
-      decodeURIComponent(checkinMatch[1]),
-    )}`;
+    replaceAppHash(
+      `#/receive?id=${encodeURIComponent(decodeURIComponent(checkinMatch[1]))}`,
+    );
     return;
   }
 
@@ -266,7 +287,7 @@ export function normalizeLegacyAppHash(): void {
   }
 
   if (hash !== window.location.hash) {
-    window.location.hash = hash;
+    replaceAppHash(hash);
   }
 }
 
@@ -493,16 +514,9 @@ export function buildPermanentLocationUrl(
 
 /** Fix compact / legacy location scan hashes for HashRouter. */
 export function normalizeLocationScanHash(): void {
-  const hash = window.location.hash;
-  if (!/^#\/?s(\?|$)/i.test(hash)) return;
-  const qsStart = hash.indexOf("?");
-  const params =
-    qsStart !== -1
-      ? new URLSearchParams(hash.slice(qsStart + 1))
-      : new URLSearchParams();
-  const loc = params.get("loc") ?? params.get("l");
-  if (!loc) return;
-  window.location.hash = `#/s?loc=${encodeURIComponent(loc)}`;
+  const canonical = canonicalLocationScanHash(window.location.hash);
+  if (!canonical) return;
+  replaceAppHash(canonical);
 }
 
 export function readLocationScanParams(

@@ -344,7 +344,6 @@ export function ReceivingPage() {
         }
         const loaded = await loadDeliveryForReceive(details);
         if (loaded) {
-          window.history.replaceState(null, "", "#/receive");
           unlocked = true;
         } else {
           setPinUnlocking(false);
@@ -389,7 +388,6 @@ export function ReceivingPage() {
           setDetailsHydrating(false);
           return;
         }
-        window.history.replaceState(null, "", "#/receive");
         setPinUnlocking(false);
         setPendingDeliveryId(null);
         setDeepLinkPending(false);
@@ -476,9 +474,7 @@ export function ReceivingPage() {
     if (!id) return;
     urlDeepLinkHandledRef.current = true;
 
-    void processDeliveryLookup(id).then(() => {
-      window.history.replaceState(null, "", "#/receive");
-    });
+    void processDeliveryLookup(id);
   }, [searchParams, processDeliveryLookup]);
 
   useEffect(() => {
