@@ -165,5 +165,183 @@ if (isCreditReturnImportDoc(creditDoc)) {
   fail("credit detection regression");
 }
 
+const mixedDoc = {
+  parsedHeader: {
+    vendorBranchName: "Johnstone Supply",
+    vendorInvoiceNumber: "6169001",
+    customerPoOrReference: "PLANET FITNESS PICKUP",
+  },
+  parsedLines: [
+    {
+      lineNumber: 1,
+      quantityOrdered: 1,
+      quantityShipped: 1,
+      lineType: "product",
+      vendorProductNumber: "L46-668",
+    },
+    {
+      lineNumber: 2,
+      quantityOrdered: 1,
+      quantityShipped: -1,
+      lineType: "return",
+      description: "return from invoice 3314154A",
+      vendorProductNumber: "B50-968",
+    },
+    {
+      lineNumber: 3,
+      quantityOrdered: 2,
+      quantityShipped: 2,
+      lineType: "product",
+      vendorProductNumber: "B86-380",
+    },
+  ],
+  orderNotes: [],
+};
+if (!isCreditReturnImportDoc(mixedDoc)) {
+  pass("mixed invoice with one return line is not a document-level credit");
+} else {
+  fail("mixed invoice incorrectly classified as credit/return document");
+}
+if (!creditReturnBlocksDeliveryCreation(mixedDoc)) {
+  pass("mixed invoice does not block delivery creation");
+} else {
+  fail("mixed invoice incorrectly blocked from becoming a delivery");
+}
+
+const multiCreditMixedDoc = {
+  ...mixedDoc,
+  parsedLines: [
+    mixedDoc.parsedLines[0],
+    mixedDoc.parsedLines[1],
+    {
+      lineNumber: 3,
+      quantityOrdered: 1,
+      quantityShipped: -1,
+      lineType: "return",
+      description: "return from invoice 3314000A",
+      vendorProductNumber: "B86-380",
+    },
+  ],
+};
+if (!isCreditReturnImportDoc(multiCreditMixedDoc)) {
+  pass("mixed invoice with multiple return lines is not a document-level credit");
+} else {
+  fail("multi-credit mixed invoice incorrectly classified as credit document");
+}
+
+const returnPickupPurchasedDoc = {
+  parsedHeader: {
+    vendorBranchName: "Johnstone Supply",
+    vendorInvoiceNumber: "6169100",
+    customerPoOrReference: "RETURN PICKUP",
+  },
+  parsedLines: [
+    {
+      lineNumber: 1,
+      quantityOrdered: 1,
+      quantityShipped: 1,
+      lineType: "product",
+      vendorProductNumber: "L46-668",
+    },
+  ],
+  orderNotes: [],
+};
+if (!isCreditReturnImportDoc(returnPickupPurchasedDoc)) {
+  pass("RETURN PICKUP PO + purchased product is not a document-level credit");
+} else {
+  fail("RETURN PICKUP purchased invoice incorrectly classified as credit");
+}
+if (!creditReturnBlocksDeliveryCreation(returnPickupPurchasedDoc)) {
+  pass("RETURN PICKUP + purchased product does not block delivery");
+} else {
+  fail("RETURN PICKUP purchased invoice incorrectly blocked");
+}
+
+const returnPickupAllReturnDoc = {
+  parsedHeader: {
+    vendorBranchName: "Johnstone Supply",
+    vendorInvoiceNumber: "3317000A",
+    customerPoOrReference: "RETURN PICKUP",
+  },
+  parsedLines: creditLines,
+  orderNotes: [],
+};
+if (isCreditReturnImportDoc(returnPickupAllReturnDoc)) {
+  pass("RETURN PICKUP PO + all-return lines is a document-level credit");
+} else {
+  fail("RETURN PICKUP all-return invoice should still be document credit");
+}
+if (creditReturnBlocksDeliveryCreation(returnPickupAllReturnDoc)) {
+  pass("RETURN PICKUP + all-return lines still blocks delivery");
+} else {
+  fail("RETURN PICKUP all-return invoice should still block delivery");
+}
+
+/** PR #150 regression: CORE-16 return line inside a normal invoice. */
+const mixedCoreReturnDoc = {
+  parsedHeader: {
+    vendorBranchName: "Johnstone Supply",
+    vendorInvoiceNumber: "6169999",
+    customerPoOrReference: "SHOP STOCK PICKUP",
+  },
+  parsedLines: [
+    {
+      lineNumber: 1,
+      quantityOrdered: 1,
+      quantityShipped: 1,
+      quantityBackordered: 0,
+      vendorProductNumber: "AOX-016",
+      description: "R410A CYLINDER",
+      lineType: "product",
+      excludeFromExpectedItems: false,
+      extensionAmount: 120.5,
+    },
+    {
+      lineNumber: 2,
+      quantityOrdered: 1,
+      quantityShipped: 1,
+      quantityBackordered: 0,
+      vendorProductNumber: "S81-288",
+      description: "MOTOR COND",
+      lineType: "product",
+      excludeFromExpectedItems: false,
+      extensionAmount: 166.14,
+    },
+    {
+      lineNumber: 3,
+      quantityOrdered: 1,
+      quantityShipped: -1,
+      quantityBackordered: 0,
+      vendorProductNumber: "CORE-16",
+      description: "CORE CHARGE MC ACETYLENE 10C Return from Invoice # 6163055",
+      lineType: "core_charge",
+      excludeFromExpectedItems: true,
+      extensionAmount: -95.25,
+    },
+  ],
+  orderNotes: [],
+};
+if (!isCreditReturnImportDoc(mixedCoreReturnDoc)) {
+  pass("mixed invoice + negative CORE-16 return line is NOT document credit");
+} else {
+  fail("mixed CORE-16 return incorrectly classified as document credit");
+}
+if (!creditReturnBlocksDeliveryCreation(mixedCoreReturnDoc)) {
+  pass("mixed CORE-16 invoice does not block delivery creation");
+} else {
+  fail("mixed CORE-16 invoice incorrectly blocked for delivery");
+}
+const coreLine = mixedCoreReturnDoc.parsedLines[2];
+if (
+  coreLine.quantityShipped === -1 &&
+  coreLine.extensionAmount === -95.25 &&
+  /Return from Invoice # 6163055/i.test(coreLine.description) &&
+  coreLine.lineType === "core_charge"
+) {
+  pass("CORE-16 line preserves negative qty, extension, return ref, lineType");
+} else {
+  fail("CORE-16 line evidence was altered", coreLine);
+}
+
 console.log(`\ntest-credit-return-delivery-block: ${failed === 0 ? "PASS" : "FAIL"} (${passed} passed, ${failed} failed)\n`);
 process.exit(failed === 0 ? 0 : 1);
