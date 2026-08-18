@@ -37,6 +37,53 @@ function pageTextSignalsBranchCredit(text: string): boolean {
   );
 }
 
+function coerceLineQty(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
+type CreditScanLine = {
+  quantityShipped?: number | string;
+  lineType?: string;
+  description?: string;
+};
+
+/** Line-item credit/return — not enough to classify the whole document. */
+function lineIsCreditOrReturn(line: CreditScanLine): boolean {
+  const qty = coerceLineQty(line.quantityShipped);
+  return (
+    line.lineType === "return" ||
+    qty < 0 ||
+    /return from invoice/i.test(line.description ?? "")
+  );
+}
+
+/** Purchased product still on the invoice — document stays a normal invoice. */
+function isPurchasedProductLine(line: CreditScanLine): boolean {
+  if (lineIsCreditOrReturn(line)) return false;
+  if (line.lineType && line.lineType !== "product") return false;
+  return coerceLineQty(line.quantityShipped) >= 0;
+}
+
+/**
+ * Document-level only when every remaining line is a credit/return
+ * (or notes say return-from-invoice and no purchased products remain).
+ */
+function linesIndicateDocumentLevelCredit(
+  lines: CreditScanLine[],
+  notes: readonly string[] = [],
+): boolean {
+  if (lines.some(isPurchasedProductLine)) return false;
+  return (
+    lines.some(lineIsCreditOrReturn) ||
+    notes.some((n) => /return from invoice/i.test(n))
+  );
+}
+
 /** User-visible label when skipReason is credit_return or document_ignore. */
 export function creditReturnSkipLabel(
   skipReason?: string,
@@ -121,23 +168,11 @@ export function isCreditReturnInvoice(
   const po = (parsed.header.customerPoOrReference ?? "").trim();
   if (/\bRETURN\b/i.test(po) && /\b(PICKUP|CREDIT)\b/i.test(po)) return true;
 
-  const lines = parsed.lines.filter((l) => !l.excludeFromExpectedItems);
-  const scanLines = lines.length > 0 ? lines : parsed.lines;
-  if (scanLines.length === 0) {
+  if (parsed.lines.length === 0) {
     return parsedBranchIsCredit(parsed.header.vendorBranchName);
   }
 
-  const anyNegShip = scanLines.some((l) => l.quantityShipped < 0);
-  const anyReturnLine = parsed.lines.some((l) => l.lineType === "return");
-  const returnFromInvoice =
-    parsed.lines.some((l) => /return from invoice/i.test(l.description ?? "")) ||
-    parsed.orderNotes.some((n) => /return from invoice/i.test(n));
-
-  if (anyReturnLine && anyNegShip) return true;
-  if (returnFromInvoice && anyNegShip) return true;
-  if (scanLines.every((l) => l.quantityShipped < 0)) return true;
-
-  return false;
+  return linesIndicateDocumentLevelCredit(parsed.lines, parsed.orderNotes);
 }
 
 /** Detect ignore-CREDIT/returns intent in a generalized training note. */
@@ -150,15 +185,6 @@ export function correctionNoteTeachesIgnoreCreditReturns(note: string): boolean 
   if (/\b(credit|returns?)\b[\s\S]{0,40}\b(ignore|skip|dismiss)\b/i.test(n)) return true;
   if (/\bCREDIT\b/.test(n) && /\b(ignore|skip|negative\s+qty)\b/i.test(n)) return true;
   return false;
-}
-
-function coerceLineQty(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const parsed = Number(value.trim());
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  return 0;
 }
 
 export function isCreditReturnImportDoc(
@@ -184,22 +210,10 @@ export function isCreditReturnImportDoc(
     return /\bRETURN\b/i.test(po) || parsedBranchIsCredit(branch);
   }
 
-  const anyNegShip = lines.some((l) => l.quantityShipped < 0);
-  const anyReturnLine = lines.some((l) => l.lineType === "return");
-  const returnDesc = lines.some((l) =>
-    /return from invoice/i.test(l.description ?? ""),
-  );
-  const returnPo = /\bRETURN\b/i.test(po);
-  const noteReturn = notes.some((n) => /return from invoice/i.test(n));
+  const returnPo = /\bRETURN\b/i.test(po) && /\b(PICKUP|CREDIT)\b/i.test(po);
+  if (returnPo && !lines.some(isPurchasedProductLine)) return true;
 
-  if (anyReturnLine && anyNegShip) return true;
-  if (returnDesc && anyNegShip) return true;
-  if (noteReturn && anyNegShip) return true;
-  if (lines.every((l) => l.quantityShipped < 0)) return true;
-  if (returnPo && anyNegShip) return true;
-  if (returnPo && anyReturnLine) return true;
-
-  return false;
+  return linesIndicateDocumentLevelCredit(lines, notes);
 }
 
 /** Apply-now: dismiss current import when note teaches ignore and import is CREDIT/return. */

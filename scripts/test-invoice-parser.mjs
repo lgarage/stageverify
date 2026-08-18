@@ -36,6 +36,7 @@ import {
   isCreditReturnImportDoc,
   isCreditReturnInvoice,
 } from "../src/dispatcher/invoice/creditReturnSkip.ts";
+import { inferDocumentType } from "../src/dispatcher/invoice/inferDocumentType.ts";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -1053,6 +1054,116 @@ LN QNTY ORD QNTY SHIP`;
     failures.push("label poison CREDIT doc: isCreditReturnInvoice should still be true");
   }
   console.log("  PASS label-row poison rejected; CREDIT advisory signals preserved");
+}
+
+console.log("\n--- Mixed invoice: line-item credit must not classify the document ---");
+{
+  const mixedInvoiceText = `
+Johnstone Supply
+Remit To: Johnstone Supply
+335 N Weber Ave
+Sioux Falls SD 57103
+
+Customer #: 0018114
+Sales Order #: 6169001
+Invoice #: 6169001
+Customer P/O #: PLANET FITNESS PICKUP
+Order Date: 06/23/2026
+Invoice Date: 06/23/2026
+Ship Date: 06/23/2026
+Buyer: CONNOR SMITH
+
+Sold To: TWIN PILLAR HEATING & COOLING
+Ship To: TWIN PILLAR HEATING & COOLING
+2944 HOLMGREN WAY, GREEN BAY WI 54304
+
+LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
+1 1 1 0 L46-668 TH8320R1003/U THERMOSTAT PROGRAMMABLE
+2 1 -1 0 B50-968 ZP31LXEPFV800 COMPRESSOR
+Return from Invoice # 3314154A
+3 2 2 0 B86-380 4050-08 SEALANT REFRIGERATIO
+
+please call 605-338-2652
+`.trim();
+  const mixedPage = {
+    pageId: "inv-mixed-one-credit-line",
+    importBatchId: "batch-mixed-credit-line",
+    pageIndexInBatch: 0,
+    extractedText: mixedInvoiceText,
+  };
+  const mixedResult = processInvoicePage(mixedPage, existing);
+  const mixedImport = {
+    parsedHeader: mixedResult.parsed.header,
+    parsedLines: mixedResult.parsed.lines,
+    orderNotes: mixedResult.parsed.orderNotes,
+    skipReason: undefined,
+    importStatus: mixedResult.importStatus,
+    pageId: mixedPage.pageId,
+  };
+  const returnLines = mixedResult.parsed.lines.filter((l) => l.lineType === "return");
+  const productLines = mixedResult.parsed.lines.filter((l) => l.lineType === "product");
+  const expectedLines = expectedInvoiceLines(mixedResult);
+  if (isCreditReturnInvoice(mixedResult.parsed, mixedInvoiceText)) {
+    failures.push("mixed invoice: isCreditReturnInvoice should be false for one credited line");
+  }
+  if (isCreditReturnImportDoc(mixedImport)) {
+    failures.push("mixed invoice: isCreditReturnImportDoc should be false for one credited line");
+  }
+  if (inferDocumentType(mixedImport) === "credit_memo") {
+    failures.push("mixed invoice: inferDocumentType must not be credit_memo");
+  }
+  if (mixedResult.parsed.orderNotes.some((n) => /CREDIT\/return memo/i.test(n))) {
+    failures.push("mixed invoice: must not stamp CREDIT/return memo on a normal invoice");
+  }
+  if (returnLines.length !== 1 || !/^B50-968$/i.test(returnLines[0]?.vendorProductNumber ?? "")) {
+    failures.push(
+      `mixed invoice: expected exactly one return line B50-968, got ${returnLines.map((l) => l.vendorProductNumber).join(",") || "(none)"}`,
+    );
+  }
+  if (productLines.length < 2) {
+    failures.push(
+      `mixed invoice: expected >=2 product lines to remain, got ${productLines.length}`,
+    );
+  }
+  if (expectedLines.some((l) => l.lineType === "return" || l.quantityShipped < 0)) {
+    failures.push("mixed invoice: expected items must exclude the credited line");
+  }
+  if (!expectedLines.some((l) => /^L46-668$/i.test(l.vendorProductNumber ?? ""))) {
+    failures.push("mixed invoice: thermostat product line must remain expected");
+  }
+
+  const multiCreditText = mixedInvoiceText.replace(
+    "3 2 2 0 B86-380 4050-08 SEALANT REFRIGERATIO",
+    "3 1 -1 0 B86-380 4050-08 SEALANT REFRIGERATIO\nReturn from Invoice # 3314000A",
+  );
+  const multiResult = processInvoicePage(
+    {
+      pageId: "inv-mixed-two-credit-lines",
+      importBatchId: "batch-mixed-credit-line",
+      pageIndexInBatch: 1,
+      extractedText: multiCreditText,
+    },
+    existing,
+  );
+  const multiReturns = multiResult.parsed.lines.filter((l) => l.lineType === "return");
+  const multiProducts = multiResult.parsed.lines.filter((l) => l.lineType === "product");
+  if (
+    isCreditReturnInvoice(multiResult.parsed, multiCreditText) ||
+    isCreditReturnImportDoc({
+      parsedHeader: multiResult.parsed.header,
+      parsedLines: multiResult.parsed.lines,
+      orderNotes: multiResult.parsed.orderNotes,
+    })
+  ) {
+    failures.push("mixed invoice: two credited lines must not classify the document as a return");
+  }
+  if (multiReturns.length !== 2) {
+    failures.push(`mixed invoice: expected 2 return lines, got ${multiReturns.length}`);
+  }
+  if (multiProducts.length < 1) {
+    failures.push("mixed invoice: remaining purchased line must stay a product");
+  }
+  console.log("  PASS mixed invoice keeps document classification; credits stay line-level");
 }
 
 const attachmentSplitDocs = splitExtractedTextIntoInvoiceDocuments(

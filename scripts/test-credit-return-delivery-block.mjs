@@ -165,5 +165,69 @@ if (isCreditReturnImportDoc(creditDoc)) {
   fail("credit detection regression");
 }
 
+const mixedDoc = {
+  parsedHeader: {
+    vendorBranchName: "Johnstone Supply",
+    vendorInvoiceNumber: "6169001",
+    customerPoOrReference: "PLANET FITNESS PICKUP",
+  },
+  parsedLines: [
+    {
+      lineNumber: 1,
+      quantityOrdered: 1,
+      quantityShipped: 1,
+      lineType: "product",
+      vendorProductNumber: "L46-668",
+    },
+    {
+      lineNumber: 2,
+      quantityOrdered: 1,
+      quantityShipped: -1,
+      lineType: "return",
+      description: "return from invoice 3314154A",
+      vendorProductNumber: "B50-968",
+    },
+    {
+      lineNumber: 3,
+      quantityOrdered: 2,
+      quantityShipped: 2,
+      lineType: "product",
+      vendorProductNumber: "B86-380",
+    },
+  ],
+  orderNotes: [],
+};
+if (!isCreditReturnImportDoc(mixedDoc)) {
+  pass("mixed invoice with one return line is not a document-level credit");
+} else {
+  fail("mixed invoice incorrectly classified as credit/return document");
+}
+if (!creditReturnBlocksDeliveryCreation(mixedDoc)) {
+  pass("mixed invoice does not block delivery creation");
+} else {
+  fail("mixed invoice incorrectly blocked from becoming a delivery");
+}
+
+const multiCreditMixedDoc = {
+  ...mixedDoc,
+  parsedLines: [
+    mixedDoc.parsedLines[0],
+    mixedDoc.parsedLines[1],
+    {
+      lineNumber: 3,
+      quantityOrdered: 1,
+      quantityShipped: -1,
+      lineType: "return",
+      description: "return from invoice 3314000A",
+      vendorProductNumber: "B86-380",
+    },
+  ],
+};
+if (!isCreditReturnImportDoc(multiCreditMixedDoc)) {
+  pass("mixed invoice with multiple return lines is not a document-level credit");
+} else {
+  fail("multi-credit mixed invoice incorrectly classified as credit document");
+}
+
 console.log(`\ntest-credit-return-delivery-block: ${failed === 0 ? "PASS" : "FAIL"} (${passed} passed, ${failed} failed)\n`);
 process.exit(failed === 0 ? 0 : 1);
