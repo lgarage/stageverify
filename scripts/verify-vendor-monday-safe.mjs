@@ -424,7 +424,9 @@ try {
   if (await neutralPinVerify.isVisible().catch(() => false)) {
     await neutralPinVerify.click();
   }
-  await page.getByText("This job's deliveries").waitFor({ timeout: 20_000 });
+  await page
+    .getByRole("heading", { name: /DELIVERIES|This job/i })
+    .waitFor({ timeout: 20_000 });
   const noSpotCard = page.locator("button").filter({ hasText: noSpotOrder }).first();
   await noSpotCard.scrollIntoViewIfNeeded();
   await noSpotCard.click();

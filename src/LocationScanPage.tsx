@@ -104,6 +104,12 @@ interface VendorRunExpansionUpdate {
   collapseDeliveryIds: Set<string>;
 }
 
+function vendorDeliveriesHeading(vendorName: string | undefined): string {
+  const cleaned = (vendorName ?? "").trim().replace(/\s+/g, " ");
+  if (!cleaned) return "DELIVERIES";
+  return `${cleaned.toUpperCase()} DELIVERIES`;
+}
+
 export function LocationScanPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -1573,6 +1579,8 @@ export function LocationScanPage() {
 
   if (step === "list" && branding) {
     const jobSession = jobId ? getJobPinSession(jobId) : null;
+    const headingVendorName =
+      jobSession?.vendorName ?? deliveries[0]?.vendorName;
     return (
       <div
         className="app-container vendor-mobile-shell bg-bg-primary"
@@ -1586,8 +1594,8 @@ export function LocationScanPage() {
                 ? ` · PIN job spots below`
                 : ""}
             </p>
-            <h1 className="vendor-job-deliveries-title mt-2 text-2xl font-bold leading-7 tracking-tight text-text-primary">
-              This job&apos;s deliveries
+            <h1 className="vendor-job-deliveries-title mt-2 break-words text-2xl font-bold leading-7 tracking-tight text-text-primary [overflow-wrap:anywhere]">
+              {vendorDeliveriesHeading(headingVendorName)}
             </h1>
             <p className="vendor-job-deliveries-helper mt-1 text-sm leading-5 text-[#cbd5e1]">
               Select an order to confirm delivery

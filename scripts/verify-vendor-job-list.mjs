@@ -66,9 +66,28 @@ async function main() {
     record("job list lands after PIN", true);
 
     const heading = await page
-      .getByRole("heading", { name: /This job's deliveries/i })
+      .getByRole("heading", { name: /DELIVERIES$/i })
       .isVisible();
     record("primary heading visible", heading);
+    const headingText = (
+      (await page.getByRole("heading", { name: /DELIVERIES$/i }).textContent()) ??
+      ""
+    ).trim();
+    record(
+      "heading uses vendor name + DELIVERIES",
+      /^.+\sDELIVERIES$/.test(headingText) &&
+        !/this job/i.test(headingText) &&
+        headingText.length > "DELIVERIES".length,
+      headingText,
+    );
+    const headingOverflow = await page.evaluate(() => {
+      const h1 = document.querySelector(
+        '[data-testid="vendor-job-deliveries"] h1',
+      );
+      if (!h1) return true;
+      return h1.scrollWidth > h1.clientWidth + 1;
+    });
+    record("heading wraps without overflow", !headingOverflow);
 
     const helper = await page
       .getByText("Select an order to confirm delivery")
