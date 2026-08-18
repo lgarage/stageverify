@@ -1,10 +1,12 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   firestoreDataService,
   getAppSettings,
@@ -65,6 +67,9 @@ import {
   clearVendorUnplannedPinSession,
   getJobPinSession,
   getJobSessionToken,
+  getActiveJobPinSession,
+  getActiveVendorRunSession,
+  getActiveVendorUnplannedSession,
   getVendorRunPinSession,
   getVendorRunSessionToken,
   getVendorUnplannedPinSession,
@@ -75,6 +80,12 @@ import {
   setVendorRunPinSession,
   setVendorUnplannedPinSession,
 } from "./vendorPinSession";
+import {
+  locationScanHistoryPath,
+  readLocationScanHistoryView,
+  type LocationScanHistoryView,
+} from "./locationScanHistory";
+import { requestLeftoverReceiveCollapse } from "./locationScanHistoryCollapse";
 import { isVendorSessionError } from "./vendorSessionErrors";
 import { PublicNetworkErrorPanel } from "./PublicNetworkErrorPanel";
 import { isOutsideShopGeofence } from "./geofence";
@@ -112,10 +123,25 @@ function vendorDeliveriesHeading(vendorName: string | undefined): string {
 
 export function LocationScanPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   normalizeLocationScanHash();
 
   const { loc: locationCode } = readLocationScanParams(searchParams);
+  const [hashSearch, setHashSearch] = useState(() =>
+    typeof window === "undefined" ? "" : window.location.hash,
+  );
+  const historyView = useMemo(() => {
+    const raw = hashSearch.includes("?")
+      ? hashSearch.slice(hashSearch.indexOf("?") + 1)
+      : location.search.startsWith("?")
+        ? location.search.slice(1)
+        : location.search;
+    return readLocationScanHistoryView(new URLSearchParams(raw));
+  }, [hashSearch, location.search]);
+  const initialPinResumeRef = useRef(false);
+  const appliedDeliveryIdRef = useRef<string | null>(null);
+  const [historyReady, setHistoryReady] = useState(false);
 
   const [step, setStep] = useState<Step>("loading");
   const [branding, setBranding] = useState<LocationBranding | null>(null);
@@ -157,6 +183,39 @@ export function LocationScanPage() {
     return vendorRunDeliveries.filter((d) => !d.vendorPhysicalDropoffConfirmed);
   }, [vendorRunDeliveries]);
 
+  const historyViewKey =
+    historyView.kind === "delivery"
+      ? `delivery:${historyView.deliveryId}`
+      : historyView.kind;
+
+  useEffect(() => {
+    const syncHash = () => setHashSearch(window.location.hash);
+    window.addEventListener("hashchange", syncHash);
+    window.addEventListener("popstate", syncHash);
+    return () => {
+      window.removeEventListener("hashchange", syncHash);
+      window.removeEventListener("popstate", syncHash);
+    };
+  }, []);
+
+  const goToHistoryView = useCallback(
+    (view: LocationScanHistoryView, options?: { replace?: boolean }) => {
+      if (!locationCode) return;
+      const path = locationScanHistoryPath(locationCode, view);
+      const current = `${location.pathname}${location.search}`;
+      if (current === path && historyViewKey === (
+        view.kind === "delivery" ? `delivery:${view.deliveryId}` : view.kind
+      )) {
+        return;
+      }
+      navigate(path, { replace: options?.replace === true });
+      setHashSearch(
+        path.startsWith("#") ? path : `#${path.startsWith("/") ? path : `/${path}`}`,
+      );
+    },
+    [historyViewKey, location.pathname, location.search, locationCode, navigate],
+  );
+
   const loadBranding = useCallback(async () => {
     if (!locationCode) {
       setStep("missing");
@@ -194,6 +253,11 @@ export function LocationScanPage() {
   useEffect(() => {
     void loadBranding();
   }, [loadBranding]);
+
+  useLayoutEffect(() => {
+    if (requestLeftoverReceiveCollapse()) return;
+    setHistoryReady(true);
+  }, [locationCode]);
 
   useEffect(() => {
     void getAppSettings().then((settings) => {
@@ -246,7 +310,7 @@ export function LocationScanPage() {
         const details = await getDeliveryDetailsPublicForVendorReceive(deliveryId);
         if (!details) {
           setError("Could not open delivery.");
-          setStep("list");
+          goToHistoryView({ kind: "deliveries" }, { replace: true });
           return;
         }
         setDeliveryDetails(details);
@@ -264,14 +328,14 @@ export function LocationScanPage() {
         setLoading(false);
       }
     },
-    [],
+    [goToHistoryView],
   );
 
   const loadJobDeliveries = useCallback(
     async (resolvedJobId: string) => {
       const token = getJobSessionToken(resolvedJobId);
       if (!token) {
-        setStep("pin");
+        goToHistoryView({ kind: "pin" }, { replace: true });
         return;
       }
       setLoading(true);
@@ -286,7 +350,13 @@ export function LocationScanPage() {
         setDeliveries(result.deliveries);
         setScannedCode(result.scannedStagingLocationCode);
         if (result.deliveries.length === 1) {
-          await openDelivery(resolvedJobId, result.deliveries[0].deliveryId);
+          goToHistoryView(
+            {
+              kind: "delivery",
+              deliveryId: result.deliveries[0].deliveryId,
+            },
+            { replace: true },
+          );
           return;
         }
         setStep("list");
@@ -295,12 +365,47 @@ export function LocationScanPage() {
           err instanceof Error ? err.message : "Could not load job deliveries.",
         );
         clearJobPinSession(resolvedJobId);
-        setStep("pin");
+        goToHistoryView({ kind: "pin" }, { replace: true });
       } finally {
         setLoading(false);
       }
     },
-    [openDelivery],
+    [goToHistoryView],
+  );
+
+  const openVendorRunDelivery = useCallback(
+    async (resolvedVendorId: string, deliveryId: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        if (!bridgeVendorRunSessionToDelivery(resolvedVendorId, deliveryId)) {
+          goToHistoryView({ kind: "pin" }, { replace: true });
+          return;
+        }
+        const details =
+          await getDeliveryDetailsPublicForVendorReceive(deliveryId);
+        if (!details) {
+          setError("Could not open delivery.");
+          goToHistoryView({ kind: "deliveries" }, { replace: true });
+          return;
+        }
+        setDeliveryDetails(details);
+        setVendorId(resolvedVendorId);
+        setSessionScope("vendor");
+        if (details.delivery.submittedAt) {
+          setStep("done");
+        } else {
+          setStep("hub");
+        }
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Could not open delivery.",
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [goToHistoryView],
   );
 
   const loadVendorRunDeliveries = useCallback(async (
@@ -309,7 +414,7 @@ export function LocationScanPage() {
   ) => {
     const token = getVendorRunSessionToken(resolvedVendorId);
     if (!token) {
-      setStep("pin");
+      goToHistoryView({ kind: "pin" }, { replace: true });
       return;
     }
     setLoading(true);
@@ -341,23 +446,42 @@ export function LocationScanPage() {
         err instanceof Error ? err.message : "Could not load vendor deliveries.",
       );
       clearVendorRunPinSession(resolvedVendorId);
-      setStep("pin");
+      goToHistoryView({ kind: "pin" }, { replace: true });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [goToHistoryView]);
 
   useEffect(() => {
-    if (step !== "pin" || !jobId || !isJobPinSessionValid(jobId)) return;
-    void loadJobDeliveries(jobId);
-  }, [step, jobId, loadJobDeliveries]);
+    initialPinResumeRef.current = false;
+  }, [locationCode]);
 
   useEffect(() => {
-    if (step !== "pin" || !vendorId || !isVendorRunPinSessionValid(vendorId)) {
+    if (!historyReady) return;
+    if (historyView.kind !== "pin") return;
+    if (initialPinResumeRef.current) return;
+    initialPinResumeRef.current = true;
+    const tech = getActiveTechnicianSession();
+    if (tech) {
+      goToHistoryView({ kind: "tech" }, { replace: true });
       return;
     }
-    void loadVendorRunDeliveries(vendorId);
-  }, [step, vendorId, loadVendorRunDeliveries]);
+    if (isManagementPinSessionValid()) {
+      goToHistoryView({ kind: "mgmt" }, { replace: true });
+      return;
+    }
+    const run = getActiveVendorRunSession();
+    if (run) {
+      setVendorId(run.vendorId);
+      goToHistoryView({ kind: "deliveries" }, { replace: true });
+      return;
+    }
+    const job = getActiveJobPinSession();
+    if (job) {
+      setJobId(job.jobId);
+      goToHistoryView({ kind: "deliveries" }, { replace: true });
+    }
+  }, [goToHistoryView, historyReady, historyView.kind, locationCode]);
 
   const handlePinVerified = useCallback(
     (payload: {
@@ -388,13 +512,13 @@ export function LocationScanPage() {
             scannedStagingLocationCode: payload.scannedStagingLocationCode,
           });
         }
-        setStep("unplanned");
+        goToHistoryView({ kind: "unplanned" });
         return;
       }
       if (payload.sessionScope === "vendor" && payload.vendorId) {
         setVendorId(payload.vendorId);
         setJobId(null);
-        void loadVendorRunDeliveries(payload.vendorId);
+        goToHistoryView({ kind: "deliveries" });
         return;
       }
       if (!payload.jobId) {
@@ -403,9 +527,9 @@ export function LocationScanPage() {
       }
       setJobId(payload.jobId);
       setVendorId(null);
-      void loadJobDeliveries(payload.jobId);
+      goToHistoryView({ kind: "deliveries" });
     },
-    [loadJobDeliveries, loadVendorRunDeliveries],
+    [goToHistoryView],
   );
 
   const resolveUnplannedSessionToken = useCallback(
@@ -423,14 +547,14 @@ export function LocationScanPage() {
     const runSession = getVendorRunPinSession(vendorId);
     const unplannedSession = getVendorUnplannedPinSession(vendorId);
     if (!runSession && !unplannedSession) {
-      setStep("pin");
+      goToHistoryView({ kind: "pin" }, { replace: true });
       return;
     }
     setSessionScope(
       unplannedSession ? "vendor_unplanned" : "vendor",
     );
-    setStep("unplanned");
-  }, [vendorId]);
+    goToHistoryView({ kind: "unplanned" });
+  }, [goToHistoryView, vendorId]);
 
   const handleUnplannedComplete = useCallback(
     async (payload: VendorUnplannedCompletePayload) => {
@@ -455,7 +579,10 @@ export function LocationScanPage() {
           setDeliveryDetails(
             deliveryDetailsFromVendorPinBootstrap(payload.bootstrap),
           );
-          setStep("hub");
+          goToHistoryView({
+            kind: "delivery",
+            deliveryId: payload.deliveryId,
+          });
           void getDeliveryDetailsPublicForVendorReceive(payload.deliveryId).then(
             (full) => {
               if (full) setDeliveryDetails(full);
@@ -468,11 +595,14 @@ export function LocationScanPage() {
         );
         if (!details) {
           setError("Could not open delivery.");
-          await loadVendorRunDeliveries(payload.vendorId);
+          goToHistoryView({ kind: "deliveries" }, { replace: true });
           return;
         }
         setDeliveryDetails(details);
-        setStep("hub");
+        goToHistoryView({
+          kind: "delivery",
+          deliveryId: payload.deliveryId,
+        });
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Could not open delivery.",
@@ -482,14 +612,14 @@ export function LocationScanPage() {
         setLoading(false);
       }
     },
-    [loadVendorRunDeliveries, scannedCode],
+    [goToHistoryView, loadVendorRunDeliveries, scannedCode],
   );
 
   const loadTechnicianReleasedJobs = useCallback(
     async (resolvedTechnicianId: string) => {
       const token = getTechnicianSessionToken(resolvedTechnicianId);
       if (!token) {
-        setStep("pin");
+        goToHistoryView({ kind: "pin" }, { replace: true });
         return;
       }
       setTechnicianId(resolvedTechnicianId);
@@ -525,7 +655,7 @@ export function LocationScanPage() {
             err instanceof Error ? err.message : "Could not load released jobs.",
           );
           clearTechnicianPinSession(resolvedTechnicianId);
-          setStep("pin");
+          goToHistoryView({ kind: "pin" }, { replace: true });
         } else {
           setError(
             err instanceof Error
@@ -538,16 +668,16 @@ export function LocationScanPage() {
         setJobsRevalidating(false);
       }
     },
-    [],
+    [goToHistoryView],
   );
 
   const handleTechnicianPinVerified = useCallback(
     (payload: { technicianId: string; technicianName: string }) => {
       setTechnicianId(payload.technicianId);
       setTechnicianName(payload.technicianName);
-      void loadTechnicianReleasedJobs(payload.technicianId);
+      goToHistoryView({ kind: "tech" });
     },
-    [loadTechnicianReleasedJobs],
+    [goToHistoryView],
   );
 
   const openTechnicianJobPickup = useCallback(
@@ -584,11 +714,109 @@ export function LocationScanPage() {
   );
 
   useEffect(() => {
-    if (step !== "pin") return;
-    const active = getActiveTechnicianSession();
-    if (!active) return;
-    void loadTechnicianReleasedJobs(active.technicianId);
-  }, [step, loadTechnicianReleasedJobs]);
+    if (!locationCode) return;
+
+    if (historyView.kind === "pin") {
+      appliedDeliveryIdRef.current = null;
+      setStep("pin");
+      return;
+    }
+
+    if (historyView.kind === "deliveries") {
+      appliedDeliveryIdRef.current = null;
+      const runId = vendorId ?? getActiveVendorRunSession()?.vendorId ?? null;
+      const job = jobId ?? getActiveJobPinSession()?.jobId ?? null;
+      if (runId && isVendorRunPinSessionValid(runId)) {
+        if (vendorId !== runId) setVendorId(runId);
+        void loadVendorRunDeliveries(runId);
+        return;
+      }
+      if (job && isJobPinSessionValid(job)) {
+        if (jobId !== job) setJobId(job);
+        void loadJobDeliveries(job);
+        return;
+      }
+      goToHistoryView({ kind: "pin" }, { replace: true });
+      return;
+    }
+
+    if (historyView.kind === "delivery") {
+      if (appliedDeliveryIdRef.current === historyView.deliveryId) {
+        return;
+      }
+      appliedDeliveryIdRef.current = historyView.deliveryId;
+      const runId = vendorId ?? getActiveVendorRunSession()?.vendorId ?? null;
+      const job = jobId ?? getActiveJobPinSession()?.jobId ?? null;
+      if (job && isJobPinSessionValid(job)) {
+        if (jobId !== job) setJobId(job);
+        void openDelivery(job, historyView.deliveryId);
+        return;
+      }
+      if (runId && isVendorRunPinSessionValid(runId)) {
+        if (vendorId !== runId) setVendorId(runId);
+        void openVendorRunDelivery(runId, historyView.deliveryId);
+        return;
+      }
+      goToHistoryView({ kind: "pin" }, { replace: true });
+      return;
+    }
+
+    if (historyView.kind === "unplanned") {
+      const runId =
+        vendorId ??
+        getActiveVendorUnplannedSession()?.vendorId ??
+        getActiveVendorRunSession()?.vendorId ??
+        null;
+      if (!runId) {
+        goToHistoryView({ kind: "pin" }, { replace: true });
+        return;
+      }
+      if (vendorId !== runId) setVendorId(runId);
+      setStep("unplanned");
+      return;
+    }
+
+    if (historyView.kind === "tech") {
+      const active = technicianId
+        ? { technicianId }
+        : getActiveTechnicianSession();
+      if (!active || !isTechnicianPinSessionValid(active.technicianId)) {
+        goToHistoryView({ kind: "pin" }, { replace: true });
+        return;
+      }
+      void loadTechnicianReleasedJobs(active.technicianId);
+      return;
+    }
+
+    if (historyView.kind === "mgmt") {
+      if (!isManagementPinSessionValid()) {
+        goToHistoryView({ kind: "pin" }, { replace: true });
+        return;
+      }
+      setStep("mgmt-landing");
+      return;
+    }
+
+    if (historyView.kind === "mgmt-hub") {
+      if (!isManagementPinSessionValid()) {
+        goToHistoryView({ kind: "pin" }, { replace: true });
+        return;
+      }
+      setStep("mgmt-hub");
+    }
+  }, [
+    goToHistoryView,
+    historyViewKey,
+    jobId,
+    loadJobDeliveries,
+    loadTechnicianReleasedJobs,
+    loadVendorRunDeliveries,
+    locationCode,
+    openDelivery,
+    openVendorRunDelivery,
+    technicianId,
+    vendorId,
+  ]);
 
   const handleLocationScanPinVerified = useCallback(
     (payload: LocationScanPinVerifiedPayload) => {
@@ -600,7 +828,7 @@ export function LocationScanPage() {
         return;
       }
       if (payload.accessType === "management") {
-        setStep("mgmt-landing");
+        goToHistoryView({ kind: "mgmt" });
         return;
       }
       handlePinVerified({
@@ -614,7 +842,7 @@ export function LocationScanPage() {
         scannedStagingLocationCode: payload.scannedStagingLocationCode,
       });
     },
-    [handlePinVerified, handleTechnicianPinVerified],
+    [goToHistoryView, handlePinVerified, handleTechnicianPinVerified],
   );
 
   const handlePinSessionExpired = useCallback(() => {
@@ -633,13 +861,13 @@ export function LocationScanPage() {
     setTechnicianName(null);
     setReleasedJobs([]);
     setSessionScope(null);
-    setStep("pin");
-  }, [jobId, vendorId, technicianId]);
+    goToHistoryView({ kind: "pin" }, { replace: true });
+  }, [goToHistoryView, jobId, technicianId, vendorId]);
 
   const handleManagementSessionExpired = useCallback(() => {
     clearManagementPinSession();
-    setStep("pin");
-  }, []);
+    goToHistoryView({ kind: "pin" }, { replace: true });
+  }, [goToHistoryView]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -857,7 +1085,7 @@ export function LocationScanPage() {
     setExpandedDeliveryIds(new Set());
     setDeliveryDetails(null);
     setError(null);
-    setStep("pin");
+    goToHistoryView({ kind: "pin" }, { replace: true });
   };
 
   if (step === "loading") {
@@ -906,7 +1134,7 @@ export function LocationScanPage() {
               <button
                 type="button"
                 data-testid="mgmt-catch-all-checkin-cta"
-                onClick={() => setStep("mgmt-hub")}
+                onClick={() => goToHistoryView({ kind: "mgmt-hub" })}
                 className="action-btn action-btn-delivered w-full text-lg py-5 mb-4"
               >
                 Catch-all check-in
@@ -929,7 +1157,7 @@ export function LocationScanPage() {
             type="button"
             onClick={() => {
               clearManagementPinSession();
-              setStep("pin");
+              goToHistoryView({ kind: "pin" }, { replace: true });
             }}
             className="action-btn action-btn-secondary w-full mt-auto"
           >
@@ -946,7 +1174,7 @@ export function LocationScanPage() {
         locationCode={branding.code}
         locationLabel={branding.label}
         onSessionExpired={handleManagementSessionExpired}
-        onBack={() => setStep("mgmt-landing")}
+        onBack={() => goToHistoryView({ kind: "mgmt" }, { replace: true })}
       />
     );
   }
@@ -1171,7 +1399,7 @@ export function LocationScanPage() {
       unplannedSession?.vendorName ?? runSession?.vendorName ?? "Vendor";
     const sessionToken = resolveUnplannedSessionToken(vendorId);
     if (!sessionToken) {
-      setStep("pin");
+      goToHistoryView({ kind: "pin" }, { replace: true });
       return null;
     }
     return (
@@ -1188,14 +1416,14 @@ export function LocationScanPage() {
               resetFlow();
               return;
             }
-            setStep("vendor-list");
+            goToHistoryView({ kind: "deliveries" }, { replace: true });
           }}
         />
       </div>
     );
   }
 
-  if (step === "vendor-list" && branding) {
+  if (step === "vendor-list" && branding && historyView.kind === "deliveries") {
     const runSession = vendorId ? getVendorRunPinSession(vendorId) : null;
     return (
       <div className="app-container vendor-mobile-shell bg-bg-primary">
@@ -1577,7 +1805,21 @@ export function LocationScanPage() {
     );
   }
 
-  if (step === "list" && branding) {
+  if (
+    historyView.kind === "delivery" &&
+    branding &&
+    step !== "hub" &&
+    step !== "done" &&
+    step !== "pin"
+  ) {
+    return (
+      <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary items-center justify-center px-6">
+        <p className="text-sm text-text-secondary">Opening delivery…</p>
+      </div>
+    );
+  }
+
+  if (step === "list" && branding && historyView.kind === "deliveries") {
     const jobSession = jobId ? getJobPinSession(jobId) : null;
     const headingVendorName =
       jobSession?.vendorName ?? deliveries[0]?.vendorName;
@@ -1616,10 +1858,12 @@ export function LocationScanPage() {
                     key={row.deliveryId}
                     type="button"
                     disabled={loading}
-                    onClick={() => {
-                      if (!jobId) return;
-                      void openDelivery(jobId, row.deliveryId);
-                    }}
+              onClick={() => {
+                goToHistoryView({
+                  kind: "delivery",
+                  deliveryId: row.deliveryId,
+                });
+              }}
                     className="min-h-11 w-full rounded-2xl border border-white/10 bg-bg-secondary p-4 text-left shadow-lg shadow-black/20 touch-manipulation transition active:scale-[0.99] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     data-testid={`vendor-job-delivery-${row.deliveryId}`}
                   >
@@ -1737,11 +1981,14 @@ export function LocationScanPage() {
             onUndoDelivered={() => handleRevertDelivered()}
             onBack={() => {
               if (sessionScope === "vendor" && vendorId) {
-                void loadVendorRunDeliveries(vendorId);
+                goToHistoryView({ kind: "deliveries" }, { replace: true });
                 return;
               }
-              if (deliveries.length > 1) setStep("list");
-              else resetFlow();
+              if (deliveries.length > 1) {
+                goToHistoryView({ kind: "deliveries" }, { replace: true });
+                return;
+              }
+              resetFlow();
             }}
           />
         </div>

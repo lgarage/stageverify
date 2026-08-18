@@ -11,6 +11,8 @@ import {
   pickupPath,
   readReceiveParams,
 } from "./receiveQrUrls";
+import { canonicalLocationScanHash } from "./locationScanHistory";
+import { clearLeftoverReceiveHistoryFlag } from "./locationScanHistoryCollapse";
 import {
   firestoreDataService,
   getAppSettings,
@@ -344,7 +346,6 @@ export function ReceivingPage() {
         }
         const loaded = await loadDeliveryForReceive(details);
         if (loaded) {
-          window.history.replaceState(null, "", "#/receive");
           unlocked = true;
         } else {
           setPinUnlocking(false);
@@ -389,7 +390,6 @@ export function ReceivingPage() {
           setDetailsHydrating(false);
           return;
         }
-        window.history.replaceState(null, "", "#/receive");
         setPinUnlocking(false);
         setPendingDeliveryId(null);
         setDeepLinkPending(false);
@@ -476,9 +476,7 @@ export function ReceivingPage() {
     if (!id) return;
     urlDeepLinkHandledRef.current = true;
 
-    void processDeliveryLookup(id).then(() => {
-      window.history.replaceState(null, "", "#/receive");
-    });
+    void processDeliveryLookup(id);
   }, [searchParams, processDeliveryLookup]);
 
   useEffect(() => {
@@ -492,6 +490,14 @@ export function ReceivingPage() {
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, [handleReceiveDeepLink]);
+
+  useEffect(() => {
+    return () => {
+      if (!canonicalLocationScanHash(window.location.hash)) {
+        clearLeftoverReceiveHistoryFlag();
+      }
+    };
+  }, []);
 
   const applyItemQty = useCallback(
     (itemId: string, qtyReceived: number, qtyDamaged: number) => {

@@ -292,6 +292,49 @@ export function clearVendorRunPinSession(vendorId: string): void {
   sessionStorage.removeItem(vendorRunStorageKey(vendorId));
 }
 
+function sessionStorageKeysWithPrefix(prefix: string): string[] {
+  const keys: string[] = [];
+  for (let i = 0; i < sessionStorage.length; i += 1) {
+    const key = sessionStorage.key(i);
+    if (key?.startsWith(prefix)) keys.push(key);
+  }
+  return keys;
+}
+
+/** Active company-wide vendor-run session (longest remaining TTL). Read-only. */
+export function getActiveVendorRunSession(): VendorRunPinSession | null {
+  let best: VendorRunPinSession | null = null;
+  for (const key of sessionStorageKeysWithPrefix(VENDOR_RUN_STORAGE_PREFIX)) {
+    const vendorId = key.slice(VENDOR_RUN_STORAGE_PREFIX.length);
+    const session = getVendorRunPinSession(vendorId);
+    if (!session?.expiresAt) continue;
+    if (
+      !best?.expiresAt ||
+      Date.parse(session.expiresAt) > Date.parse(best.expiresAt)
+    ) {
+      best = session;
+    }
+  }
+  return best;
+}
+
+/** Active job-scoped vendor PIN session (longest remaining TTL). Read-only. */
+export function getActiveJobPinSession(): JobPinSession | null {
+  let best: JobPinSession | null = null;
+  for (const key of sessionStorageKeysWithPrefix(JOB_STORAGE_PREFIX)) {
+    const jobId = key.slice(JOB_STORAGE_PREFIX.length);
+    const session = getJobPinSession(jobId);
+    if (!session?.expiresAt) continue;
+    if (
+      !best?.expiresAt ||
+      Date.parse(session.expiresAt) > Date.parse(best.expiresAt)
+    ) {
+      best = session;
+    }
+  }
+  return best;
+}
+
 const VENDOR_UNPLANNED_STORAGE_PREFIX = "sv-vendor-unplanned-pin:";
 
 export interface VendorUnplannedPinSession {
@@ -375,6 +418,25 @@ export function setVendorUnplannedPinSession(
 
 export function clearVendorUnplannedPinSession(vendorId: string): void {
   sessionStorage.removeItem(vendorUnplannedStorageKey(vendorId));
+}
+
+/** Active unplanned vendor session (longest remaining TTL). Read-only. */
+export function getActiveVendorUnplannedSession(): VendorUnplannedPinSession | null {
+  let best: VendorUnplannedPinSession | null = null;
+  for (const key of sessionStorageKeysWithPrefix(
+    VENDOR_UNPLANNED_STORAGE_PREFIX,
+  )) {
+    const vendorId = key.slice(VENDOR_UNPLANNED_STORAGE_PREFIX.length);
+    const session = getVendorUnplannedPinSession(vendorId);
+    if (!session?.expiresAt) continue;
+    if (
+      !best?.expiresAt ||
+      Date.parse(session.expiresAt) > Date.parse(best.expiresAt)
+    ) {
+      best = session;
+    }
+  }
+  return best;
 }
 
 /** Bridge vendor-run session token onto a delivery for legacy vendor CF clients. */

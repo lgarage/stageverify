@@ -8,6 +8,7 @@ import { DispatcherPortalRouteLayout } from "./DispatcherPortalRouteLayout";
 import { LoginPage } from "./LoginPage";
 import { NoAccessPage } from "./NoAccessPage";
 import { normalizeLegacyAppHash, normalizeLocationScanHash, normalizePickupHash, normalizeReceiveHash } from "./receiveQrUrls";
+import { applyPendingLeftoverReceiveCollapse } from "./locationScanHistoryCollapse";
 import { seedFirestore } from "./dispatcher/seedFirestore";
 
 const ReceivingPage = lazy(() => import("./ReceivingPage").then(m => ({ default: m.ReceivingPage })));
@@ -128,6 +129,10 @@ normalizeLegacyAppHash();
 normalizeReceiveHash();
 normalizePickupHash();
 normalizeLocationScanHash();
+applyPendingLeftoverReceiveCollapse();
+window.addEventListener("popstate", () => {
+  applyPendingLeftoverReceiveCollapse();
+});
 renderApp();
 if (import.meta.env.DEV) {
   seedFirestore().catch((err) => {

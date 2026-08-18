@@ -16,6 +16,10 @@ function mockSessionStorage() {
     getItem: (k) => store.get(k) ?? null,
     setItem: (k, v) => store.set(k, v),
     removeItem: (k) => store.delete(k),
+    get length() {
+      return store.size;
+    },
+    key: (i) => [...store.keys()][i] ?? null,
   };
 }
 
@@ -102,5 +106,16 @@ sessionStorage.setItem(
   }),
 );
 assert.equal(mgmt.isManagementPinSessionValid(), false);
+
+vendor.setVendorRunPinSession("v-run", "Vendor Run", "d-anchor", {
+  sessionToken: "rtok",
+  expiresAt: future,
+});
+assert.equal(vendor.getActiveVendorRunSession()?.vendorId, "v-run");
+vendor.setJobPinSession("job-hist", "v-run", "Vendor Run", {
+  sessionToken: "jtok",
+  expiresAt: future,
+});
+assert.equal(vendor.getActiveJobPinSession()?.jobId, "job-hist");
 
 console.log("test-pin-session-validity: PASS");
