@@ -463,9 +463,7 @@ async function main() {
     );
   }
   const failed = rows.filter((row) => row.verdict !== "PASS");
-  if (failed.length) {
-    process.exit(1);
-  }
+  process.exit(failed.length ? 1 : 0);
 }
 
 main().catch((err) => {
