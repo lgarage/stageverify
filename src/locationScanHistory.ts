@@ -82,6 +82,32 @@ export function locationScanHistoryViewsEqual(
   return true;
 }
 
+/** Bare `#/receive` recovery — not a meaningful vendor history step. */
+export function isLeftoverReceiveHash(hash: string): boolean {
+  const raw = (hash.startsWith("#") ? hash.slice(1) : hash).trim();
+  const [pathPart, query = ""] = raw.split("?");
+  const path = `/${pathPart.replace(/^\/+/, "").replace(/\/+$/, "")}`.replace(
+    /\/+/g,
+    "/",
+  );
+  if (path !== "/receive") return false;
+  const params = new URLSearchParams(query);
+  const id = (params.get("id") ?? params.get("i") ?? "").trim();
+  const token = (params.get("t") ?? params.get("code") ?? "").trim();
+  const zone = (params.get("zone") ?? params.get("z") ?? "").trim();
+  return !id && !token && !zone;
+}
+
+/** QR entry should replace leftover recovery instead of stacking it. */
+export function shouldCollapseLeftoverReceiveToLocationScan(
+  oldHash: string,
+  newHash: string,
+): boolean {
+  return (
+    isLeftoverReceiveHash(oldHash) && canonicalLocationScanHash(newHash) !== null
+  );
+}
+
 /** Canonical `#/s?loc=` hash that preserves history `view` / delivery params. */
 export function canonicalLocationScanHash(hash: string): string | null {
   if (!/^#\/?s(\?|$)/i.test(hash)) return null;

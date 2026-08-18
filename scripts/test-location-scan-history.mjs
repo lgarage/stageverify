@@ -5,10 +5,12 @@
 import assert from "node:assert/strict";
 import {
   canonicalLocationScanHash,
+  isLeftoverReceiveHash,
   locationScanHistoryHash,
   locationScanHistoryPath,
   locationScanHistoryViewsEqual,
   readLocationScanHistoryView,
+  shouldCollapseLeftoverReceiveToLocationScan,
 } from "../src/locationScanHistory.ts";
 
 const pin = readLocationScanHistoryView(new URLSearchParams("loc=G2"));
@@ -59,6 +61,26 @@ assert.equal(
 );
 assert.equal(canonicalLocationScanHash("#/receive?zone=G2"), null);
 
+assert.equal(isLeftoverReceiveHash("#/receive"), true);
+assert.equal(isLeftoverReceiveHash("#/receive?"), true);
+assert.equal(isLeftoverReceiveHash("#/receive?id=delivery-1"), false);
+assert.equal(isLeftoverReceiveHash("#/receive?zone=G2"), false);
+assert.equal(
+  shouldCollapseLeftoverReceiveToLocationScan("#/receive", "#/s?loc=G2"),
+  true,
+);
+assert.equal(
+  shouldCollapseLeftoverReceiveToLocationScan(
+    "#/receive",
+    "#/s?loc=G2&view=deliveries",
+  ),
+  true,
+);
+assert.equal(
+  shouldCollapseLeftoverReceiveToLocationScan("#/receive?id=d1", "#/s?loc=G2"),
+  false,
+);
+
 let assignedHash = 0;
 let replaceCount = 0;
 let currentHash = "#/receive?zone=G2";
@@ -84,6 +106,18 @@ globalThis.window = {
   },
   dispatchEvent() {
     return true;
+  },
+};
+const sessionMem = new Map();
+globalThis.sessionStorage = {
+  getItem(key) {
+    return sessionMem.has(key) ? sessionMem.get(key) : null;
+  },
+  setItem(key, value) {
+    sessionMem.set(key, String(value));
+  },
+  removeItem(key) {
+    sessionMem.delete(key);
   },
 };
 

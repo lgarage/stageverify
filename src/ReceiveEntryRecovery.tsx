@@ -2,7 +2,14 @@
  * Bare `/#/receive` (no delivery deep link) — recovery path to location-first entry.
  * Replaces obsolete VendorNativeQrEntry ("Receive Delivery" + manual Delivery ID).
  */
+import { useEffect } from "react";
+import { markLeftoverReceiveHistoryEntry } from "./locationScanHistoryCollapse";
+
 export function ReceiveEntryRecovery() {
+  useEffect(() => {
+    markLeftoverReceiveHistoryEntry();
+  }, []);
+
   return (
     <div
       className="flex flex-1 flex-col px-6 py-8"

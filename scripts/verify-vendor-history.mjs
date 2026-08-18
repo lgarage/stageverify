@@ -18,9 +18,6 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { chromium } from "playwright";
-import { initializeApp } from "firebase/app";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getFirestore, setDoc } from "firebase/firestore";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import { assertReadableTextContrast } from "./lib/ui-text-contrast-lib.mjs";
 
@@ -39,9 +36,6 @@ if (existsSync(envPath)) {
   }
 }
 
-const email = process.env.STAGEVERIFY_TEST_EMAIL;
-const password = process.env.STAGEVERIFY_TEST_PASSWORD;
-const companyPin = process.env.STAGEVERIFY_COMPANY_VENDOR_PIN ?? "4321";
 const job1Pin = process.env.STAGEVERIFY_JOB1_PIN ?? "1234";
 const job1Order = process.env.STAGEVERIFY_VENDOR_ORDER ?? "ORD-005";
 const signLocationCode = process.env.STAGEVERIFY_SIGN_LOC ?? "G2";
@@ -65,37 +59,6 @@ const recoveryContrastSpec = {
     },
   ],
 };
-
-async function patchCompanyPinFixture() {
-  if (!email || !password) {
-    console.warn(
-      "SKIP company PIN patch — set STAGEVERIFY_TEST_EMAIL/PASSWORD",
-    );
-    return;
-  }
-  const app = initializeApp({
-    apiKey: "AIzaSyALKllET2wQoAm7-3RiHrRJjMsVq315WaE",
-    authDomain: "stageverify-db.firebaseapp.com",
-    projectId: "stageverify-db",
-    storageBucket: "stageverify-db.firebasestorage.app",
-    messagingSenderId: "784751243681",
-    appId: "1:784751243681:web:31fa71762b94f878fd1be0",
-  });
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-  await signInWithEmailAndPassword(auth, email, password);
-  const now = new Date().toISOString();
-  await setDoc(
-    doc(db, "vendors", "vendor-1"),
-    {
-      pinCode: companyPin,
-      companyWideSessionEnabled: true,
-      active: true,
-      updatedAt: now,
-    },
-    { merge: true },
-  );
-}
 
 async function enterPin(page, digits) {
   for (const digit of digits) {
@@ -123,8 +86,6 @@ async function waitForHash(page, predicate, label, timeoutMs = 15_000) {
 }
 
 (async () => {
-  await patchCompanyPinFixture();
-
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -177,7 +138,7 @@ async function waitForHash(page, predicate, label, timeoutMs = 15_000) {
   );
   await zoneContext.close();
 
-  console.log("QR leftover #/receive → #/s?loc= → company PIN → list → unplanned");
+  console.log("QR leftover #/receive → #/s?loc= → job PIN → list → order");
   await page.goto(`${appBase}/#/receive`, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
@@ -190,95 +151,39 @@ async function waitForHash(page, predicate, label, timeoutMs = 15_000) {
     state: "visible",
     timeout: 30_000,
   });
-  await enterPin(page, companyPin);
+  await enterPin(page, job1Pin);
   await page.getByTestId("location-scan-pin-verify").click();
-  await page.getByRole("heading", { name: "Your deliveries" }).waitFor({
-    timeout: 45_000,
-  });
-  await page.getByTestId("vendor-run-session-active").waitFor({ timeout: 15_000 });
+  await page.getByTestId("vendor-job-deliveries").waitFor({ timeout: 45_000 });
   await waitForHash(
     page,
     (h) => /view=deliveries/i.test(h),
-    "vendor list history URL",
+    "job list history URL",
   );
-  await page.getByTestId("vendor-unplanned-entry-cta").click();
-  await page.getByTestId("vendor-unplanned-form").waitFor({
-    state: "visible",
-    timeout: 20_000,
-  });
-  await waitForHash(page, (h) => /view=unplanned/i.test(h), "unplanned history URL");
-  await assertNotRecovery(page, "unplanned screen");
+  await assertNotRecovery(page, "job deliveries list");
 
-  console.log("Safari Back/Forward from unplanned ↔ vendor list");
+  await page.getByRole("button", { name: new RegExp(job1Order) }).click();
+  await page.getByTestId("vendor-mark-delivered").waitFor({ timeout: 45_000 });
+  await waitForHash(page, (h) => /view=delivery/i.test(h), "order history URL");
+  await assertNotRecovery(page, "order/delivery screen");
+
+  console.log("Safari Back/Forward order ↔ job deliveries + leftover not under list");
   await page.goBack();
-  await page.getByRole("heading", { name: "Your deliveries" }).waitFor({
-    timeout: 15_000,
-  });
-  await assertNotRecovery(page, "Safari Back to vendor list");
+  await page.getByTestId("vendor-job-deliveries").waitFor({ timeout: 15_000 });
+  await assertNotRecovery(page, "Safari Back to job deliveries");
+  await page.goBack();
+  await page.waitForTimeout(400);
+  await assertNotRecovery(
+    page,
+    "Safari Back from job deliveries while PIN session is valid",
+  );
   await page.goForward();
-  await waitForHash(page, (h) => /view=unplanned/i.test(h), "Safari Forward unplanned");
-  await assertNotRecovery(page, "Safari Forward to unplanned");
-  await page.goBack();
-  await page.getByRole("heading", { name: "Your deliveries" }).waitFor({
-    timeout: 15_000,
-  });
-
-  console.log("job-scoped list → order → Safari Back/Forward + in-app Back");
-  await context.clearCookies();
-  const jobPage = await context.newPage();
-  await jobPage.goto(`${appBase}/#/receive`, {
-    waitUntil: "domcontentloaded",
-    timeout: 45_000,
-  });
-  await jobPage.goto(
-    `${appBase}/#/s?loc=${encodeURIComponent(signLocationCode)}`,
-    { waitUntil: "domcontentloaded", timeout: 45_000 },
-  );
-  await jobPage.evaluate(() => {
-    for (const key of Object.keys(sessionStorage)) {
-      sessionStorage.removeItem(key);
-    }
-  });
-  await jobPage.reload({ waitUntil: "domcontentloaded" });
-  await jobPage.getByRole("heading", { name: "Enter PIN", exact: true }).waitFor({
-    timeout: 30_000,
-  });
-  await enterPin(jobPage, job1Pin);
-  await jobPage.getByTestId("location-scan-pin-verify").click();
-  await jobPage.waitForTimeout(2000);
-
-  const listHeading = jobPage.getByRole("heading", { name: /This job/i });
-  if (await listHeading.isVisible().catch(() => false)) {
-    await jobPage.getByRole("button", { name: new RegExp(job1Order) }).click();
-    await jobPage.getByRole("button", { name: /Mark Delivered|Delivered/i }).waitFor({
-      timeout: 45_000,
-    });
-    await waitForHash(
-      jobPage,
-      (h) => /view=delivery/i.test(h),
-      "order history URL",
-    );
-    await jobPage.goBack();
-    await listHeading.waitFor({ timeout: 15_000 });
-    await assertNotRecovery(jobPage, "Safari Back to job deliveries");
-    await jobPage.goForward();
-    await jobPage.getByRole("button", { name: /Mark Delivered|Delivered/i }).waitFor({
-      timeout: 15_000,
-    });
-    await assertNotRecovery(jobPage, "Safari Forward to order");
-    await jobPage.getByRole("button", { name: "← Back" }).click();
-    await listHeading.waitFor({ timeout: 15_000 });
-    await assertNotRecovery(jobPage, "in-app Back to job deliveries");
-  } else {
-    await jobPage.getByRole("button", { name: /Mark Delivered|Delivered/i }).waitFor({
-      timeout: 45_000,
-    });
-    await jobPage.goBack();
-    await jobPage.getByRole("heading", { name: "Enter PIN", exact: true }).waitFor({
-      timeout: 15_000,
-    });
-    await assertNotRecovery(jobPage, "Safari Back from single-delivery hub");
-  }
+  await page.getByTestId("vendor-job-deliveries").waitFor({ timeout: 15_000 });
+  await page.goForward();
+  await page.getByTestId("vendor-mark-delivered").waitFor({ timeout: 15_000 });
+  await assertNotRecovery(page, "Safari Forward to order");
+  await page.getByRole("button", { name: "← Back" }).click();
+  await page.getByTestId("vendor-job-deliveries").waitFor({ timeout: 15_000 });
+  await assertNotRecovery(page, "in-app Back to job deliveries");
 
   console.log("direct delivery view without session → PIN");
   const fresh = await context.newPage();

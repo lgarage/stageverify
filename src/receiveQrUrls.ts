@@ -9,7 +9,11 @@ import {
   shouldRouteScanToPickup,
   type DeliveryStatus,
 } from "./dispatcher/models";
-import { canonicalLocationScanHash } from "./locationScanHistory";
+import {
+  canonicalLocationScanHash,
+  isLeftoverReceiveHash,
+} from "./locationScanHistory";
+import { clearLeftoverReceiveHistoryFlag } from "./locationScanHistoryCollapse";
 
 const PROD_APP_BASE = "https://lgarage.github.io/stageverify";
 
@@ -205,7 +209,13 @@ export function replaceAppHash(nextHash: string): boolean {
   if (typeof window === "undefined") return false;
   if (window.location.hash === normalized) return false;
   const nextUrl = `${window.location.pathname}${window.location.search}${normalized}`;
+  const replacingLeftover =
+    isLeftoverReceiveHash(window.location.hash) &&
+    canonicalLocationScanHash(normalized) !== null;
   window.history.replaceState(window.history.state, "", nextUrl);
+  if (replacingLeftover) {
+    clearLeftoverReceiveHistoryFlag();
+  }
   const hashEvent =
     typeof HashChangeEvent === "function"
       ? new HashChangeEvent("hashchange")
@@ -488,9 +498,14 @@ export function hashFromScannedQrUrl(raw: string): string | null {
 export function applyHashFromScannedQr(raw: string): boolean {
   const hash = hashFromScannedQrUrl(raw);
   if (!hash) return false;
-  if (window.location.hash !== hash) {
-    window.location.hash = hash;
+  if (window.location.hash === hash) return true;
+  if (
+    isLeftoverReceiveHash(window.location.hash) &&
+    canonicalLocationScanHash(hash)
+  ) {
+    return replaceAppHash(hash);
   }
+  window.location.hash = hash;
   return true;
 }
 

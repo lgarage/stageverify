@@ -11,6 +11,8 @@ import {
   pickupPath,
   readReceiveParams,
 } from "./receiveQrUrls";
+import { canonicalLocationScanHash } from "./locationScanHistory";
+import { clearLeftoverReceiveHistoryFlag } from "./locationScanHistoryCollapse";
 import {
   firestoreDataService,
   getAppSettings,
@@ -488,6 +490,14 @@ export function ReceivingPage() {
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, [handleReceiveDeepLink]);
+
+  useEffect(() => {
+    return () => {
+      if (!canonicalLocationScanHash(window.location.hash)) {
+        clearLeftoverReceiveHistoryFlag();
+      }
+    };
+  }, []);
 
   const applyItemQty = useCallback(
     (itemId: string, qtyReceived: number, qtyDamaged: number) => {

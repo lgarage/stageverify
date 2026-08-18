@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -85,6 +86,10 @@ import {
   readLocationScanHistoryView,
   type LocationScanHistoryView,
 } from "./locationScanHistory";
+import {
+  collapseLeftoverReceiveUnderLocationScan,
+  isCollapsingLeftoverReceive,
+} from "./locationScanHistoryCollapse";
 import { isVendorSessionError } from "./vendorSessionErrors";
 import { PublicNetworkErrorPanel } from "./PublicNetworkErrorPanel";
 import { isOutsideShopGeofence } from "./geofence";
@@ -124,6 +129,7 @@ export function LocationScanPage() {
   const historyView = readLocationScanHistoryView(searchParams);
   const initialPinResumeRef = useRef(false);
   const appliedDeliveryIdRef = useRef<string | null>(null);
+  const [historyReady, setHistoryReady] = useState(false);
 
   const [step, setStep] = useState<Step>("loading");
   const [branding, setBranding] = useState<LocationBranding | null>(null);
@@ -214,6 +220,18 @@ export function LocationScanPage() {
   useEffect(() => {
     void loadBranding();
   }, [loadBranding]);
+
+  useLayoutEffect(() => {
+    const started = collapseLeftoverReceiveUnderLocationScan(() => {
+      setHistoryReady(true);
+    });
+    if (started) return;
+    if (isCollapsingLeftoverReceive()) {
+      const id = window.setTimeout(() => setHistoryReady(true), 160);
+      return () => window.clearTimeout(id);
+    }
+    setHistoryReady(true);
+  }, [locationCode]);
 
   useEffect(() => {
     void getAppSettings().then((settings) => {
@@ -413,6 +431,7 @@ export function LocationScanPage() {
   }, [locationCode]);
 
   useEffect(() => {
+    if (!historyReady) return;
     if (historyView.kind !== "pin") return;
     if (initialPinResumeRef.current) return;
     initialPinResumeRef.current = true;
@@ -436,7 +455,7 @@ export function LocationScanPage() {
       setJobId(job.jobId);
       goToHistoryView({ kind: "deliveries" }, { replace: true });
     }
-  }, [goToHistoryView, historyView.kind, locationCode]);
+  }, [goToHistoryView, historyReady, historyView.kind, locationCode]);
 
   const handlePinVerified = useCallback(
     (payload: {
