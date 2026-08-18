@@ -21,6 +21,7 @@ import {
   listAllZones,
   mapActiveZoneOccupancyByCode,
   listShopStockMappings,
+  invalidateDispatcherReadCache,
 } from "./firestoreService";
 import { formatGmailSyncMessage } from "./formatGmailSyncMessage";
 import { mapActiveShopStockReservationsByCode } from "./shopStockMapping";
@@ -101,7 +102,6 @@ export function DispatcherPortalProvider({ children }: { children: ReactNode }) 
     setInvoiceImports(items);
     setVendors(vendorList);
     setZonesSnapshot(zones);
-    setRefreshGeneration((g) => g + 1);
 
     // Do not block portal paint on serial create_shell CF calls.
     scheduleInvoiceShellBackfill(items, ({ items: refreshed, errors }) => {
@@ -140,7 +140,9 @@ export function DispatcherPortalProvider({ children }: { children: ReactNode }) 
       setGmailSyncMessage(message);
     }
     try {
+      invalidateDispatcherReadCache();
       await refreshSharedData();
+      setRefreshGeneration((g) => g + 1);
       setLastUpdated(new Date().toLocaleString());
     } finally {
       setRefreshBusy(false);
