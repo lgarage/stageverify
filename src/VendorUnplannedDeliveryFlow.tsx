@@ -112,38 +112,41 @@ export function VendorUnplannedDeliveryFlow({
       clearVendorUnplannedPinSession(payload.vendorId);
       bridgeVendorRunSessionToDelivery(payload.vendorId, payload.deliveryId);
 
-      let confirmed = false;
-      if (payload.needMoreSpace !== true) {
-        try {
-          const updated = await firestoreDataService.markVendorDelivered(
-            payload.deliveryId,
-            "Vendor Driver",
-          );
-          confirmed =
-            updated?.delivery.vendorPhysicalDropoffConfirmed === true;
-          if (updated && !deliveryHasAssignableSpot(updated.delivery)) {
-            payload = { ...payload, needMoreSpace: true };
-          }
-          if (confirmed && payload.bootstrap) {
-            payload = {
-              ...payload,
-              bootstrap: {
-                ...payload.bootstrap,
-                vendorPhysicalDropoffConfirmed: true,
-                vendorPhysicalDropoffConfirmedAt:
-                  updated?.delivery.vendorPhysicalDropoffConfirmedAt,
-              },
-            };
-          }
-        } catch (err) {
-          if (handleSessionError(err)) return;
-          // Existing hub/exception path remains available after Continue.
-        }
-      }
-
-      setReceivingConfirmed(confirmed);
       setSuccessPayload(payload);
       setStep("success");
+
+      if (payload.needMoreSpace === true) return;
+
+      void firestoreDataService
+        .markVendorDelivered(payload.deliveryId, "Vendor Driver")
+        .then((updated) => {
+          if (updated?.delivery.vendorPhysicalDropoffConfirmed === true) {
+            setReceivingConfirmed(true);
+            setSuccessPayload((current) =>
+              current
+                ? {
+                    ...current,
+                    bootstrap: current.bootstrap
+                      ? {
+                          ...current.bootstrap,
+                          vendorPhysicalDropoffConfirmed: true,
+                          vendorPhysicalDropoffConfirmedAt:
+                            updated.delivery.vendorPhysicalDropoffConfirmedAt,
+                        }
+                      : current.bootstrap,
+                  }
+                : current,
+            );
+          }
+          if (updated && !deliveryHasAssignableSpot(updated.delivery)) {
+            setSuccessPayload((current) =>
+              current ? { ...current, needMoreSpace: true } : current,
+            );
+          }
+        })
+        .catch((err: unknown) => {
+          if (handleSessionError(err)) return;
+        });
     },
     [handleSessionError, locationCode],
   );
@@ -697,10 +700,10 @@ export function VendorUnplannedDeliveryFlow({
           disabled={
             !successPayload && (busy || !spaceTier || !reference.trim())
           }
-          className={`tap-target action-btn mx-auto min-h-12 w-full max-w-sm text-base font-bold shadow-lg shadow-black/20 transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary ${
+          className={`tap-target mx-auto min-h-12 w-full max-w-sm rounded-xl px-4 py-3 text-base font-bold text-white shadow-lg shadow-black/20 transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary ${
             receivingConfirmed
-              ? "action-btn-delivered focus-visible:ring-[#6ee7b7]"
-              : "action-btn-primary focus-visible:ring-[#60a5fa] disabled:cursor-not-allowed disabled:bg-[#1e293b] disabled:text-[#94a3b8] disabled:shadow-none"
+              ? "bg-[#047857] focus-visible:ring-[#6ee7b7]"
+              : "bg-[#1d4ed8] focus-visible:ring-[#60a5fa] disabled:cursor-not-allowed disabled:bg-[#1e293b] disabled:text-[#94a3b8] disabled:shadow-none"
           }`}
           data-testid="vendor-unplanned-submit"
           data-completed={receivingConfirmed ? "true" : "false"}
@@ -759,7 +762,7 @@ export function VendorUnplannedDeliveryFlow({
               </button>
               <button
                 type="button"
-                className="tap-target action-btn action-btn-primary min-h-12 px-3 py-3 font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60a5fa]"
+                className="tap-target min-h-12 rounded-xl bg-[#1d4ed8] px-3 py-3 font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60a5fa]"
                 data-testid="vendor-unplanned-confirm-complete"
                 onClick={() => {
                   setShowCompleteConfirmation(false);
