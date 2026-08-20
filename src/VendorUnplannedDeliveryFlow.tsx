@@ -1,16 +1,23 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   confirmUnplannedVendorDeliveryMatchClient,
   createUnplannedVendorDeliveryClient,
   matchUnplannedVendorDeliveryClient,
 } from "./phase2CallableClients";
-import type {
-  MatchUnplannedVendorDeliveryResult,
-  UnplannedMatchCandidateSummary,
-  UnplannedSpaceTier,
-  UnplannedVendorDeliverySuccessResult,
-  VendorPinBootstrap,
+import {
+  deliveryHasAssignableSpot,
+  type MatchUnplannedVendorDeliveryResult,
+  type UnplannedMatchCandidateSummary,
+  type UnplannedSpaceTier,
+  type UnplannedVendorDeliverySuccessResult,
+  type VendorPinBootstrap,
 } from "./dispatcher/models";
+import { firestoreDataService } from "./dispatcher/firestoreService";
+import {
+  bridgeVendorRunSessionToDelivery,
+  clearVendorUnplannedPinSession,
+  setVendorRunPinSession,
+} from "./vendorPinSession";
 import { isVendorSessionError } from "./vendorSessionErrors";
 
 type FlowStep =
@@ -67,12 +74,22 @@ export function VendorUnplannedDeliveryFlow({
 }: VendorUnplannedDeliveryFlowProps) {
   const [step, setStep] = useState<FlowStep>("form");
   const [reference, setReference] = useState("");
-  const [spaceTier, setSpaceTier] = useState<UnplannedSpaceTier>("ground");
+  const [spaceTier, setSpaceTier] = useState<UnplannedSpaceTier | null>(null);
+  const [showCompleteConfirmation, setShowCompleteConfirmation] =
+    useState(false);
   const [matchResult, setMatchResult] =
     useState<MatchUnplannedVendorDeliveryResult | null>(null);
   const [successPayload, setSuccessPayload] =
     useState<UnplannedVendorDeliverySuccessResult | null>(null);
+  const [receivingConfirmed, setReceivingConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const tierCardRefs = useRef<
+    Record<UnplannedSpaceTier, HTMLDivElement | null>
+  >({
+    shelf: null,
+    ground: null,
+    large: null,
+  });
 
   const handleSessionError = useCallback(
     (err: unknown) => {
@@ -86,15 +103,61 @@ export function VendorUnplannedDeliveryFlow({
   );
 
   const finishSuccess = useCallback(
-    (payload: UnplannedVendorDeliverySuccessResult) => {
+    async (payload: UnplannedVendorDeliverySuccessResult) => {
+      setVendorRunPinSession(payload.vendorId, payload.vendorName, payload.deliveryId, {
+        sessionToken: payload.sessionToken,
+        expiresAt: payload.expiresAt,
+        scannedStagingLocationCode: locationCode,
+      });
+      clearVendorUnplannedPinSession(payload.vendorId);
+      bridgeVendorRunSessionToDelivery(payload.vendorId, payload.deliveryId);
+
       setSuccessPayload(payload);
       setStep("success");
+
+      if (payload.needMoreSpace === true) return;
+
+      void firestoreDataService
+        .markVendorDelivered(payload.deliveryId, "Vendor Driver")
+        .then((updated) => {
+          if (updated?.delivery.vendorPhysicalDropoffConfirmed === true) {
+            setReceivingConfirmed(true);
+            setSuccessPayload((current) =>
+              current
+                ? {
+                    ...current,
+                    bootstrap: current.bootstrap
+                      ? {
+                          ...current.bootstrap,
+                          vendorPhysicalDropoffConfirmed: true,
+                          vendorPhysicalDropoffConfirmedAt:
+                            updated.delivery.vendorPhysicalDropoffConfirmedAt,
+                        }
+                      : current.bootstrap,
+                  }
+                : current,
+            );
+          }
+          if (updated && !deliveryHasAssignableSpot(updated.delivery)) {
+            setSuccessPayload((current) =>
+              current ? { ...current, needMoreSpace: true } : current,
+            );
+          }
+        })
+        .catch((err: unknown) => {
+          if (handleSessionError(err)) return;
+        });
     },
-    [],
+    [handleSessionError, locationCode],
   );
 
   const runCreate = useCallback(
-    async (ref: string, tier: UnplannedSpaceTier) => {
+    async (ref: string, tier: UnplannedSpaceTier | null) => {
+      if (!tier) {
+        setError("Choose the space this delivery needs.");
+        setStep("form");
+        return;
+      }
       setStep("creating");
       setError(null);
       try {
@@ -113,7 +176,7 @@ export function VendorUnplannedDeliveryFlow({
           return;
         }
         if (result.success && result.sessionToken && result.deliveryId) {
-          finishSuccess(result as UnplannedVendorDeliverySuccessResult);
+          await finishSuccess(result as UnplannedVendorDeliverySuccessResult);
           return;
         }
         setError("Could not register this delivery. Try again.");
@@ -131,6 +194,10 @@ export function VendorUnplannedDeliveryFlow({
 
   const runMatch = useCallback(async () => {
     const ref = reference.trim();
+    if (!spaceTier) {
+      setError("Choose the space this delivery needs.");
+      return;
+    }
     if (!ref) {
       setError("Enter an invoice #, PO #, or order reference.");
       return;
@@ -155,12 +222,18 @@ export function VendorUnplannedDeliveryFlow({
     }
   }, [
     reference,
+    spaceTier,
     sessionToken,
     handleSessionError,
   ]);
 
   const runConfirm = useCallback(
     async (candidate: UnplannedMatchCandidateSummary) => {
+      if (!spaceTier) {
+        setError("Choose the space this delivery needs.");
+        setStep("form");
+        return;
+      }
       setStep("creating");
       setError(null);
       try {
@@ -170,7 +243,7 @@ export function VendorUnplannedDeliveryFlow({
           deliveryId: candidate.deliveryId,
           spaceTier,
         });
-        finishSuccess(result);
+        await finishSuccess(result);
       } catch (err) {
         if (handleSessionError(err)) return;
         setError(
@@ -191,117 +264,6 @@ export function VendorUnplannedDeliveryFlow({
   );
 
   const busy = step === "matching" || step === "creating";
-
-  if (step === "success" && successPayload) {
-    const waitingForSpace = successPayload.needMoreSpace === true;
-    return (
-      <div
-        className="app-container flex h-full min-h-0 flex-col bg-bg-primary px-5 pb-[max(env(safe-area-inset-bottom),1.25rem)] pt-6"
-        data-testid="vendor-unplanned-success"
-        data-vendor-id={vendorId}
-      >
-        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center text-center">
-          <div
-            className={`mb-5 flex size-16 items-center justify-center rounded-2xl border ${
-              waitingForSpace
-                ? "border-[#fbbf24]/40 bg-[#fbbf24]/10 text-[#fbbf24]"
-                : "border-[#34d399]/40 bg-[#34d399]/10 text-[#6ee7b7]"
-            }`}
-            aria-hidden="true"
-          >
-            {waitingForSpace ? (
-              <svg
-                className="size-8"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.8}
-                  d="M12 8v4m0 4h.01M4.9 19h14.2a2 2 0 001.73-3L13.73 4a2 2 0 00-3.46 0L3.17 16a2 2 0 001.73 3z"
-                />
-              </svg>
-            ) : (
-              <svg
-                className="size-8"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.2}
-                  d="m5 12 4 4L19 6"
-                />
-              </svg>
-            )}
-          </div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary">
-            {vendorName}
-          </p>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">
-            {waitingForSpace ? "Need More Space" : "Delivery ready"}
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-text-secondary">
-            {successPayload.bootstrap?.orderNumber ?? successPayload.deliveryId}
-          </p>
-
-          {waitingForSpace ? (
-            <div
-              className="mt-6 w-full rounded-2xl border border-[#fbbf24]/35 bg-[#fbbf24]/10 px-4 py-4 text-left"
-              data-testid="vendor-unplanned-need-space"
-              role="status"
-            >
-              <p className="font-semibold text-[#fde68a]">
-                Dispatch has been notified.
-              </p>
-              <p className="mt-1 text-sm leading-5 text-text-primary">
-                Please wait for a staging location.
-              </p>
-            </div>
-          ) : successPayload.stagingLocationCode ? (
-            <div
-              className="mt-6 w-full rounded-2xl border border-[#34d399]/35 bg-[#34d399]/10 px-4 py-4"
-              data-testid="vendor-unplanned-spot"
-            >
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#a7f3d0]">
-                Take delivery to
-              </p>
-              <p className="mt-1 font-mono text-3xl font-bold text-text-primary">
-                {successPayload.stagingLocationCode}
-              </p>
-            </div>
-          ) : (
-            <p className="mt-5 text-sm leading-6 text-text-secondary">
-              Dispatch will review the delivery details.
-            </p>
-          )}
-        </div>
-        <button
-          type="button"
-          className="tap-target mt-6 min-h-12 w-full rounded-xl bg-[#047857] px-4 py-3 text-base font-bold text-white shadow-lg shadow-black/20 transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6ee7b7] focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary"
-          data-testid="vendor-unplanned-continue"
-          onClick={() =>
-            onComplete({
-              vendorId: successPayload.vendorId,
-              vendorName: successPayload.vendorName,
-              deliveryId: successPayload.deliveryId,
-              sessionToken: successPayload.sessionToken,
-              expiresAt: successPayload.expiresAt,
-              bootstrap: successPayload.bootstrap,
-              needMoreSpace: successPayload.needMoreSpace,
-              stagingLocationCode: successPayload.stagingLocationCode,
-            })
-          }
-        >
-          {waitingForSpace ? "Done" : "Continue to delivery"}
-        </button>
-      </div>
-    );
-  }
 
   if (step === "matching" || step === "creating") {
     const creating = step === "creating";
@@ -404,7 +366,7 @@ export function VendorUnplannedDeliveryFlow({
                 <dt className="text-sm text-text-secondary">Space</dt>
                 <dd className="text-right text-sm font-semibold text-text-primary">
                   {SPACE_TIER_OPTIONS.find((option) => option.value === spaceTier)
-                    ?.label ?? "Ground"}
+                    ?.label ?? "Not selected"}
                 </dd>
               </div>
             </dl>
@@ -524,6 +486,7 @@ export function VendorUnplannedDeliveryFlow({
       className="app-container flex h-full min-h-0 flex-col overflow-hidden bg-bg-primary"
       data-testid="vendor-unplanned-form"
       data-vendor-id={vendorId}
+      data-completed={receivingConfirmed ? "true" : "false"}
     >
       <header className="shrink-0 border-b border-white/10 bg-bg-secondary/70 px-5 pb-5 pt-4">
         <div className="mx-auto flex w-full max-w-sm items-center justify-between gap-4">
@@ -548,99 +511,177 @@ export function VendorUnplannedDeliveryFlow({
             Don&apos;t see this delivery?
           </h2>
           <p className="mt-2 text-sm leading-6 text-text-secondary">
-            {vendorName}, enter the number from your paperwork and choose the
-            space you need.
+            {vendorName}, choose Shelf, Ground, or Large / Oversize first, then
+            enter any identifying number from your paperwork.
           </p>
         </div>
       </header>
 
       <div className="flex-1 overflow-y-auto px-5 py-5">
         <div className="mx-auto w-full max-w-sm">
-          <label className="block">
-            <span className="text-sm font-semibold text-text-primary">
-              Invoice, PO, or order #
-            </span>
-            <input
-              type="text"
-              value={reference}
-              disabled={busy}
-              autoComplete="off"
-              autoCapitalize="characters"
-              inputMode="text"
-              data-testid="vendor-unplanned-reference"
-              placeholder="Enter number"
-              className="mt-2 min-h-12 w-full rounded-xl border border-white/15 bg-bg-secondary px-4 py-3 font-mono text-base text-text-primary outline-none placeholder:font-sans placeholder:text-[#64748b] focus:border-[#6ee7b7] focus:ring-2 focus:ring-[#6ee7b7]/25 disabled:opacity-50"
-              onChange={(e) => {
-                setReference(e.target.value);
-                setError(null);
-              }}
-            />
-          </label>
-
-          <fieldset className="mt-6" disabled={busy}>
+          <fieldset disabled={busy || Boolean(successPayload)}>
             <legend className="text-sm font-semibold text-text-primary">
-              Space
+              Choose the space you need
             </legend>
             <div className="mt-2 grid gap-2.5">
               {SPACE_TIER_OPTIONS.map((opt) => {
                 const selected = spaceTier === opt.value;
+                const expanded = selected && !successPayload;
+                const completedCard = selected && receivingConfirmed;
                 return (
-                  <label
+                  <div
                     key={opt.value}
-                    className={`flex min-h-[4.5rem] cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-3 transition active:scale-[0.99] ${
-                      selected
-                        ? "border-[#6ee7b7] bg-[#34d399]/10 shadow-[0_0_0_1px_rgba(110,231,183,0.2)]"
-                        : "border-white/10 bg-bg-secondary hover:border-white/20"
+                    ref={(element) => {
+                      tierCardRefs.current[opt.value] = element;
+                    }}
+                    className={`min-w-0 overflow-hidden rounded-xl border transition ${
+                      completedCard
+                        ? "border-[#34d399] bg-[#047857]/25 shadow-[0_0_0_1px_rgba(52,211,153,0.25)]"
+                        : selected
+                          ? "border-[#60a5fa] bg-[#3b82f6]/10 shadow-[0_0_0_1px_rgba(96,165,250,0.25)]"
+                          : "border-white/10 bg-bg-secondary hover:border-white/20"
                     }`}
                     data-testid={`vendor-unplanned-tier-${opt.value}`}
+                    data-expanded={expanded ? "true" : "false"}
+                    data-completed={completedCard ? "true" : "false"}
                   >
-                    <input
-                      type="radio"
-                      name="unplanned-space-tier"
-                      value={opt.value}
-                      checked={selected}
-                      className="sr-only"
-                      onChange={() => setSpaceTier(opt.value)}
-                    />
-                    <span
-                      className={`flex size-10 shrink-0 items-center justify-center rounded-lg border text-sm font-bold ${
-                        selected
-                          ? "border-[#6ee7b7]/50 bg-[#047857] text-white"
-                          : "border-white/10 bg-bg-primary text-text-secondary"
-                      }`}
-                      aria-hidden="true"
+                    <button
+                      type="button"
+                      className="flex min-h-16 w-full min-w-0 items-center gap-3 px-3.5 py-3 text-left active:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#60a5fa]"
+                      aria-expanded={expanded}
+                      onClick={() => {
+                        setSpaceTier(opt.value);
+                        setError(null);
+                        requestAnimationFrame(() => {
+                          tierCardRefs.current[opt.value]?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
+                          });
+                        });
+                      }}
                     >
-                      {opt.value === "shelf"
-                        ? "S"
-                        : opt.value === "ground"
-                          ? "G"
-                          : "XL"}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold text-text-primary">
-                        {opt.label}
+                      <span
+                        className={`flex size-10 shrink-0 items-center justify-center rounded-lg border text-sm font-bold ${
+                          selected
+                            ? "border-[#60a5fa]/60 bg-[#2563eb] text-white"
+                            : "border-white/10 bg-bg-primary text-text-secondary"
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {opt.value === "shelf"
+                          ? "S"
+                          : opt.value === "ground"
+                            ? "G"
+                            : "XL"}
                       </span>
-                      <span className="mt-0.5 block text-sm leading-5 text-text-secondary">
-                        {opt.hint}
+                      <span className="min-w-0 flex-1">
+                        <span className="block break-words font-semibold text-text-primary">
+                          {opt.label}
+                        </span>
+                        <span className="mt-0.5 block break-words text-sm leading-5 text-text-secondary">
+                          {opt.hint}
+                        </span>
                       </span>
-                    </span>
-                    <span
-                      className={`flex size-5 shrink-0 items-center justify-center rounded-full border ${
-                        selected
-                          ? "border-[#6ee7b7] bg-[#6ee7b7]"
-                          : "border-[#64748b]"
-                      }`}
-                      aria-hidden="true"
-                    >
-                      {selected ? (
-                        <span className="size-2 rounded-full bg-[#064e3b]" />
-                      ) : null}
-                    </span>
-                  </label>
+                      <span
+                        className={`flex size-6 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${
+                          selected
+                            ? "border-[#60a5fa] bg-[#2563eb] text-white"
+                            : "border-[#64748b] text-text-secondary"
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {expanded ? "−" : selected ? "✓" : "+"}
+                      </span>
+                    </button>
+
+                    {expanded ? (
+                      <div className="border-t border-[#60a5fa]/30 px-3.5 pb-4 pt-3">
+                        <label className="block min-w-0">
+                          <span className="block text-sm font-semibold text-[#fde68a]">
+                            Identifying number from your paperwork
+                          </span>
+                          <span className="mt-1 block text-xs leading-5 text-text-secondary">
+                            Enter whichever number you have: Job #, PO #, invoice
+                            #, or order #.
+                          </span>
+                          <input
+                            type="text"
+                            value={reference}
+                            disabled={busy}
+                            autoComplete="off"
+                            autoCapitalize="characters"
+                            inputMode="text"
+                            data-testid="vendor-unplanned-reference"
+                            placeholder="Job #, PO #, invoice #, or order #"
+                            className="mt-2 min-h-12 w-full min-w-0 rounded-xl border-2 border-[#fbbf24] bg-bg-primary px-3 py-3 font-mono text-base text-text-primary outline-none placeholder:font-sans placeholder:text-[#94a3b8] focus:border-[#fcd34d] focus:ring-2 focus:ring-[#fbbf24]/30 disabled:opacity-50"
+                            onFocus={() => {
+                              requestAnimationFrame(() => {
+                                tierCardRefs.current[
+                                  opt.value
+                                ]?.scrollIntoView({
+                                  behavior: "smooth",
+                                  block: "center",
+                                });
+                              });
+                            }}
+                            onChange={(e) => {
+                              setReference(e.target.value);
+                              setError(null);
+                            }}
+                          />
+                        </label>
+                      </div>
+                    ) : null}
+                  </div>
                 );
               })}
             </div>
           </fieldset>
+
+          {successPayload ? (
+            <div
+              className={`mt-4 rounded-2xl border px-4 py-4 ${
+                successPayload.needMoreSpace
+                  ? "border-[#fbbf24]/35 bg-[#fbbf24]/10"
+                  : "border-[#34d399]/35 bg-[#34d399]/10"
+              }`}
+              data-testid="vendor-unplanned-success"
+              role="status"
+            >
+              <p
+                className={`font-semibold ${
+                  successPayload.needMoreSpace
+                    ? "text-[#fde68a]"
+                    : "text-[#a7f3d0]"
+                }`}
+              >
+                {successPayload.needMoreSpace
+                  ? "Need More Space"
+                  : "Delivery complete"}
+              </p>
+              {successPayload.needMoreSpace ? (
+                <div data-testid="vendor-unplanned-need-space">
+                  <p className="mt-1 text-sm leading-5 text-text-primary">
+                    Dispatch has been notified. Please wait for a staging
+                    location.
+                  </p>
+                </div>
+              ) : successPayload.stagingLocationCode ? (
+                <div className="mt-2" data-testid="vendor-unplanned-spot">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#a7f3d0]">
+                    Take delivery to
+                  </p>
+                  <p className="mt-1 break-words font-mono text-2xl font-bold text-text-primary">
+                    {successPayload.stagingLocationCode}
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-1 text-sm leading-5 text-text-primary">
+                  Dispatch will review the delivery details.
+                </p>
+              )}
+            </div>
+          ) : null}
 
           {error ? (
             <p
@@ -656,14 +697,84 @@ export function VendorUnplannedDeliveryFlow({
       <footer className="shrink-0 border-t border-white/10 bg-bg-primary px-5 pb-[max(env(safe-area-inset-bottom),1rem)] pt-3">
         <button
           type="button"
-          disabled={busy || !reference.trim()}
-          className="tap-target mx-auto min-h-12 w-full max-w-sm rounded-xl bg-[#065f46] px-4 py-3 text-base font-bold text-[#f8fafc] shadow-lg shadow-black/20 transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6ee7b7] focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary disabled:cursor-not-allowed disabled:bg-[#1e3a36] disabled:text-[#d1fae5] disabled:shadow-none"
+          disabled={
+            !successPayload && (busy || !spaceTier || !reference.trim())
+          }
+          className={`tap-target mx-auto min-h-12 w-full max-w-sm rounded-xl px-4 py-3 text-base font-bold text-white shadow-lg shadow-black/20 transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary ${
+            receivingConfirmed
+              ? "bg-[#047857] focus-visible:ring-[#6ee7b7]"
+              : "bg-[#1d4ed8] focus-visible:ring-[#60a5fa] disabled:cursor-not-allowed disabled:bg-[#1e293b] disabled:text-[#94a3b8] disabled:shadow-none"
+          }`}
           data-testid="vendor-unplanned-submit"
-          onClick={() => void runMatch()}
+          data-completed={receivingConfirmed ? "true" : "false"}
+          onClick={() => {
+            if (successPayload) {
+              onComplete({
+                vendorId: successPayload.vendorId,
+                vendorName: successPayload.vendorName,
+                deliveryId: successPayload.deliveryId,
+                sessionToken: successPayload.sessionToken,
+                expiresAt: successPayload.expiresAt,
+                bootstrap: successPayload.bootstrap,
+                needMoreSpace: successPayload.needMoreSpace,
+                stagingLocationCode: successPayload.stagingLocationCode,
+              });
+              return;
+            }
+            setShowCompleteConfirmation(true);
+          }}
         >
-          Check for delivery
+          {receivingConfirmed
+            ? "✓ Delivery Complete"
+            : successPayload
+              ? "Continue to delivery"
+              : "Complete Delivery"}
         </button>
       </footer>
+
+      {showCompleteConfirmation ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="vendor-unplanned-confirm-title"
+          data-testid="vendor-unplanned-confirm-dialog"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-white/15 bg-bg-secondary p-5 shadow-2xl shadow-black/40">
+            <h3
+              id="vendor-unplanned-confirm-title"
+              className="text-xl font-bold text-text-primary"
+            >
+              Complete this delivery?
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-text-secondary">
+              We’ll check the identifying number against expected deliveries
+              before completing it.
+            </p>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                className="tap-target min-h-12 rounded-xl border border-white/15 bg-bg-surface px-3 py-3 font-bold text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60a5fa]"
+                data-testid="vendor-unplanned-confirm-cancel"
+                onClick={() => setShowCompleteConfirmation(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="tap-target min-h-12 rounded-xl bg-[#1d4ed8] px-3 py-3 font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60a5fa]"
+                data-testid="vendor-unplanned-confirm-complete"
+                onClick={() => {
+                  setShowCompleteConfirmation(false);
+                  void runMatch();
+                }}
+              >
+                Complete Delivery
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

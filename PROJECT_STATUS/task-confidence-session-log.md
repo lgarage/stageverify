@@ -4,6 +4,7 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 
 | Date | Task type (archetype) | Tier | Recommended model | confStart | confAfter | Outcome | Note |
 |------|----------------------|------|-------------------|-----------|-----------|---------|------|
+| 2026-08-20 | ui-component / css-restyle (visual-judgment mobile) | T1 | Grok 4.6 implement + Sol High visual validator (experiment; rules unchanged) | 97 | 98 | ok | Unplanned space-card accordion v0.0.298; Sol FAIL chrome rebutted (pre-existing review) |
 | 2026-08-10 | ui-component / css-restyle (visual-judgment mobile) | T1 | Sol Medium design (Task→High fallback) + Composer implement | 97 | 99 | ok | Tech PIN landing polish v0.0.289; Sol PASS bc-b803f25f |
 | 2026-08-05 | backend-write-critical (CF redeploy only — no code edits) | T3 | Composer 2.5 Fast (shell/deploy; Sonnet gate already on prior ship) | 98 | 99 | ok | `applyVendorReplyClearBackorder` redeployed to stageverify-db |
 | 2026-08-05 | product-requirements / UX Q&A (drawer status dropdown) | T0 Q&A | GPT-5.4 Mini (facilitate Q&A); later build → Composer 2.5 T2 multi-file-feature | 95 | 95 | ok | No implement; scenario questions only; delivery-status + delivery-display-wiring |
