@@ -334,6 +334,7 @@ export function ZoneManagementPage() {
     lastUpdated,
     setLastUpdated,
     handleRefreshNow,
+    refreshPortalData,
     zonesSnapshot,
     refreshGeneration,
   } = useDispatcherPortal();
@@ -1181,6 +1182,7 @@ export function ZoneManagementPage() {
             buildInvoiceApproveToastMessage(result, "delivery"),
           );
           setPendingAssignSpot(null);
+          await refreshPortalData();
           navigate("/dispatcher?focus=needs-review", { replace: true });
           return;
         }
@@ -1302,6 +1304,7 @@ export function ZoneManagementPage() {
     loadZones,
     navigate,
     pendingAssignSpot,
+    refreshPortalData,
     reassignMode,
     showAssignToast,
   ]);

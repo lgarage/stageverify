@@ -111,7 +111,8 @@ export function resolveShellDeliveryStatus(
     case "closed_picked_up":
       return "picked_up";
     case "pickup_at_vendor":
-      return "ready_for_pickup";
+      // delivery.status reflects Vendor Drop-Off workflow, not raw parser importStatus
+      return fulfillmentMethod === "delivery" ? "pending" : "ready_for_pickup";
     case "ready_for_pickup":
       return "complete";
     case "partial":
