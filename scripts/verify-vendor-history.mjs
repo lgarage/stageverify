@@ -2,13 +2,16 @@
  * Vendor QR/PIN browser-history semantics (iPhone-sized).
  *
  * Asserts:
- * 1. Leftover `#/receive` + location QR → PIN → vendor list → order → Safari Back/Forward
+ * 1. Direct PIN URL → valid vendor PIN → job list → Safari Back → PIN
+ *    (not leftover role-select / QR recovery / intermediate shell)
+ * 2. Safari Forward from that PIN returns to the job list while the session is valid
+ * 3. Leftover `#/receive` + location QR → PIN → vendor list → order → Safari Back/Forward
  *    stay on meaningful vendor screens (not “Scan a location QR”) while session is valid
- * 2. In-app Back from the order screen still returns to the deliveries list
- * 3. Direct `#/s?loc=&view=delivery` without a session shows PIN (no bypass)
- * 4. Expired session on a history URL shows PIN
- * 5. Bare `#/receive` recovery is unchanged
- * 6. Legacy `#/receive?zone=` replace-redirect does not leave recovery in history
+ * 4. In-app Back from the order screen still returns to the deliveries list
+ * 5. Direct `#/s?loc=&view=delivery` without a session shows PIN (no bypass)
+ * 6. Expired session on a history URL shows PIN
+ * 7. Bare `#/receive` recovery is unchanged
+ * 8. Legacy `#/receive?zone=` replace-redirect does not leave recovery in history
  *
  * Usage:
  *   npm run verify:vendor-history
@@ -37,7 +40,6 @@ if (existsSync(envPath)) {
 }
 
 const job1Pin = process.env.STAGEVERIFY_JOB1_PIN ?? "1234";
-const job1Order = process.env.STAGEVERIFY_VENDOR_ORDER ?? "ORD-005";
 const signLocationCode = process.env.STAGEVERIFY_SIGN_LOC ?? "G2";
 
 const appBase = resolveAppBase(baseUrl);
@@ -66,12 +68,46 @@ async function enterPin(page, digits) {
   }
 }
 
+const pinContrastSpec = {
+  rootSelector: "body",
+  elements: [
+    {
+      name: "location header code",
+      selector: '[data-testid="location-scan-pin-header"] .font-mono',
+      large: true,
+    },
+    {
+      name: "Enter PIN heading",
+      selector: '[data-testid="location-scan-pin-card"] h1',
+      large: true,
+    },
+  ],
+};
+
 async function assertNotRecovery(page, label) {
   const visible = await page
     .getByTestId("receive-entry-recovery")
     .isVisible()
     .catch(() => false);
   assert.equal(visible, false, `${label}: must not show Scan a location QR`);
+}
+
+async function assertNotGenericRoleSelect(page, label) {
+  const text = await page.locator("body").innerText();
+  assert.equal(
+    /Select vendor or technician to continue/i.test(text),
+    false,
+    `${label}: must not show leftover role-select shell`,
+  );
+}
+
+async function assertPinPage(page, label) {
+  await page.getByRole("heading", { name: "Enter PIN", exact: true }).waitFor({
+    timeout: 15_000,
+  });
+  await assertNotRecovery(page, label);
+  await assertNotGenericRoleSelect(page, label);
+  await assertReadableTextContrast(page, pinContrastSpec);
 }
 
 async function waitForHash(page, predicate, label, timeoutMs = 15_000) {
@@ -138,6 +174,54 @@ async function waitForHash(page, predicate, label, timeoutMs = 15_000) {
   );
   await zoneContext.close();
 
+  console.log("direct PIN → list → Safari Back/Forward (no leftover receive)");
+  const pinContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const pinPage = await pinContext.newPage();
+  await pinPage.goto(`${appBase}/#/s?loc=${encodeURIComponent(signLocationCode)}`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await assertPinPage(pinPage, "direct PIN entry");
+  await enterPin(pinPage, job1Pin);
+  await pinPage.getByTestId("location-scan-pin-verify").click();
+  await pinPage.getByTestId("vendor-job-deliveries").waitFor({ timeout: 45_000 });
+  await waitForHash(
+    pinPage,
+    (h) => /view=deliveries/i.test(h),
+    "direct job list history URL",
+  );
+  await assertNotGenericRoleSelect(pinPage, "direct job list");
+  await pinPage.goBack();
+  await assertPinPage(pinPage, "Safari Back from job list to PIN");
+  const backHash = await pinPage.evaluate(() => window.location.hash);
+  assert.match(
+    backHash,
+    new RegExp(`#/s\\?loc=${signLocationCode}(&|$)`, "i"),
+    "Safari Back must land on the PIN location-scan URL",
+  );
+  assert.equal(
+    /view=/i.test(backHash),
+    false,
+    "Safari Back PIN URL must not keep a post-PIN view=",
+  );
+  await pinPage.goForward();
+  await pinPage.getByTestId("vendor-job-deliveries").waitFor({ timeout: 15_000 });
+  await waitForHash(
+    pinPage,
+    (h) => /view=deliveries/i.test(h),
+    "Safari Forward back to job list",
+  );
+  await assertNotGenericRoleSelect(pinPage, "Safari Forward job list");
+  await pinPage.getByRole("button", { name: "← Back" }).click();
+  await assertPinPage(pinPage, "in-app Back from job list");
+  await pinPage.reload({ waitUntil: "domcontentloaded" });
+  await assertPinPage(pinPage, "refresh on PIN URL");
+  await pinContext.close();
+
   console.log("QR leftover #/receive → #/s?loc= → job PIN → list → order");
   await page.goto(`${appBase}/#/receive`, {
     waitUntil: "domcontentloaded",
@@ -161,8 +245,15 @@ async function waitForHash(page, predicate, label, timeoutMs = 15_000) {
   );
   await assertNotRecovery(page, "job deliveries list");
 
-  await page.getByRole("button", { name: new RegExp(job1Order) }).click();
-  await page.getByTestId("vendor-mark-delivered").waitFor({ timeout: 45_000 });
+  const orderCard = page
+    .getByTestId("vendor-job-deliveries")
+    .locator("button")
+    .filter({ hasText: /ORDER #/i })
+    .filter({ hasNotText: /DELIVERED/i })
+    .first();
+  await orderCard.waitFor({ timeout: 15_000 });
+  await orderCard.click();
+  await page.getByTestId("vendor-hub-delivery-card").waitFor({ timeout: 45_000 });
   await waitForHash(page, (h) => /view=delivery/i.test(h), "order history URL");
   await assertNotRecovery(page, "order/delivery screen");
 
@@ -171,15 +262,14 @@ async function waitForHash(page, predicate, label, timeoutMs = 15_000) {
   await page.getByTestId("vendor-job-deliveries").waitFor({ timeout: 15_000 });
   await assertNotRecovery(page, "Safari Back to job deliveries");
   await page.goBack();
-  await page.waitForTimeout(400);
-  await assertNotRecovery(
+  await assertPinPage(
     page,
-    "Safari Back from job deliveries while PIN session is valid",
+    "Safari Back from leftover-QR job deliveries to PIN",
   );
   await page.goForward();
   await page.getByTestId("vendor-job-deliveries").waitFor({ timeout: 15_000 });
   await page.goForward();
-  await page.getByTestId("vendor-mark-delivered").waitFor({ timeout: 15_000 });
+  await page.getByTestId("vendor-hub-delivery-card").waitFor({ timeout: 15_000 });
   await assertNotRecovery(page, "Safari Forward to order");
   await page.getByRole("button", { name: "← Back" }).click();
   await page.getByTestId("vendor-job-deliveries").waitFor({ timeout: 15_000 });
