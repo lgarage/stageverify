@@ -186,14 +186,16 @@ export function buildDeliverToSiteIssueSummary(
 
 export function resolveShellDeliveryStatus(
   importStatus: string,
-  _fulfillmentMethod: InvoiceFulfillmentMethod,
+  fulfillmentMethod: InvoiceFulfillmentMethod,
   deliverToSite: boolean,
 ): ShellDeliveryStatus {
   if (deliverToSite && importStatus === "pending") {
     return "complete";
   }
   if (importStatus === "closed_picked_up") return "picked_up";
-  if (importStatus === "pickup_at_vendor") return "ready_for_pickup";
+  if (importStatus === "pickup_at_vendor") {
+    return fulfillmentMethod === "delivery" ? "pending" : "ready_for_pickup";
+  }
   if (importStatus === "partial") return "partial";
   if (importStatus === "issue") return "issue";
   if (importStatus === "ready_for_pickup") return "complete";

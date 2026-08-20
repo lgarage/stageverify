@@ -1537,6 +1537,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await seedScenarioStagingLocations(adminDb, "idempotent-retry", ["ir1"]);
   await seedScenarioStagingLocations(adminDb, "idempotent-contradict", ["ic1"]);
   await seedScenarioStagingLocations(adminDb, "override-d79", ["od1"]);
+  await seedScenarioStagingLocations(adminDb, "pav-dropoff-pending", ["pd1"]);
+  await seedScenarioStagingLocations(adminDb, "pav-willcall-guard", ["wg1"]);
   for (const id of [
     "vii-dropoff-no-staging",
     "vii-dropoff-one",
@@ -1599,6 +1601,34 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     createdAt: "2026-06-24T10:00:00Z",
     updatedAt: "2026-06-24T10:00:00Z",
   });
+  for (const id of ["vii-pav-dropoff-pending", "vii-pav-willcall-guard"]) {
+    await setDoc(doc(adminDb, "vendorInvoiceImports", id), {
+      id,
+      inboundEmailProcessingId: `inbound-${id}`,
+      gmailMessageId: `msg-${id}`,
+      importBatchId: "batch-staging",
+      pageId: `inv-${id}`,
+      pageIndexInBatch: 0,
+      reviewStatus: "pending_review",
+      importStatus: "pickup_at_vendor",
+      confidenceTier: "medium",
+      confidenceScore: 70,
+      humanReviewRequired: true,
+      duplicate: false,
+      parsedHeader: {
+        ...willCallHeader,
+        vendorInvoiceNumber: id,
+        vendorOrderNumber: id,
+      },
+      parsedLines: sampleLines,
+      parsedLineCount: 2,
+      parseWarnings: [],
+      orderNotes: [],
+      outcome: "needs_review",
+      createdAt: "2026-06-24T10:00:00Z",
+      updatedAt: "2026-06-24T10:00:00Z",
+    });
+  }
   // Occupied location held by another active delivery
   await setDoc(doc(adminDb, "deliveries", "delivery-occupies-dropoff-occ"), {
     id: "delivery-occupies-dropoff-occ",
@@ -1855,6 +1885,74 @@ if (
   pass("fulfillmentDecision will-call happy path ignores client staging ids");
 } else {
   fail("fulfillmentDecision will-call", fulfillWillCallSnap.data());
+}
+
+let pavDropOffPending;
+try {
+  pavDropOffPending = await approveImport({
+    vendorInvoiceImportId: "vii-pav-dropoff-pending",
+    action: "approve",
+    fulfillmentDecision: "delivery",
+    plannedStagingLocationIds: ["staging-pav-dropoff-pending-pd1"],
+  });
+} catch (err) {
+  fail("pickup_at_vendor + delivery approve failed", err?.message);
+}
+const pavDropOffShell = shellDeliveryIdForImport("vii-pav-dropoff-pending");
+const pavDropOffSnap = await getDoc(doc(db, "deliveries", pavDropOffShell));
+const pavDropOffDelivery = pavDropOffSnap.data();
+const pavDropOffItemsSnap = await getDocs(
+  query(collection(db, "items"), where("deliveryOrderId", "==", pavDropOffShell)),
+);
+const pavDropOffQtyReceived = pavDropOffItemsSnap.docs.reduce(
+  (sum, itemDoc) => sum + (itemDoc.data()?.qtyReceived ?? 0),
+  0,
+);
+if (
+  pavDropOffPending?.data?.reviewStatus === "approved" &&
+  pavDropOffDelivery?.status === "pending" &&
+  pavDropOffDelivery?.invoiceFulfillmentMethod === "delivery" &&
+  pavDropOffDelivery?.plannedStagingLocationIds?.[0] ===
+    "staging-pav-dropoff-pending-pd1" &&
+  pavDropOffDelivery?.invoiceImportStatus === "pickup_at_vendor" &&
+  pavDropOffQtyReceived === 0 &&
+  pavDropOffDelivery?.vendorPhysicalDropoffConfirmed !== true
+) {
+  pass(
+    "pickup_at_vendor + fulfillmentDecision delivery → pending (prod regression)",
+  );
+} else {
+  fail("pickup_at_vendor + delivery pending status", {
+    response: pavDropOffPending?.data,
+    delivery: pavDropOffDelivery,
+    qtyReceived: pavDropOffQtyReceived,
+  });
+}
+
+let pavWillCallGuard;
+try {
+  pavWillCallGuard = await approveImport({
+    vendorInvoiceImportId: "vii-pav-willcall-guard",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+    plannedStagingLocationIds: ["staging-pav-willcall-guard-wg1"],
+  });
+} catch (err) {
+  fail("pickup_at_vendor + will_call approve failed", err?.message);
+}
+const pavWillCallShell = shellDeliveryIdForImport("vii-pav-willcall-guard");
+const pavWillCallSnap = await getDoc(doc(db, "deliveries", pavWillCallShell));
+const pavWillCallDelivery = pavWillCallSnap.data();
+if (
+  pavWillCallGuard?.data?.reviewStatus === "approved" &&
+  pavWillCallDelivery?.status === "ready_for_pickup"
+) {
+  pass("pickup_at_vendor + fulfillmentDecision will_call → ready_for_pickup");
+} else {
+  fail("pickup_at_vendor + will_call guard", {
+    response: pavWillCallGuard?.data,
+    delivery: pavWillCallDelivery,
+  });
 }
 
 console.log("\n=== CF: idempotent approve replay ===\n");

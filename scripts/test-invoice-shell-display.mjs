@@ -21,6 +21,7 @@ import {
 } from "../functions/src/invoice/createDeliveryShellFromImport.ts";
 import {
   isInvoiceShellNoShopStaging as isInvoiceShellNoShopStagingCf,
+  resolveShellDeliveryStatus as resolveShellDeliveryStatusCf,
   skipsShopStaging as skipsShopStagingCf,
 } from "../functions/src/invoice/invoiceShellDisplayHelpers.ts";
 import { vendorInvoiceImportDisplayLabelForRow } from "../src/dispatcher/invoice/invoiceDisplayHelpers.ts";
@@ -139,8 +140,36 @@ assert(
 );
 
 assert(
-  "pickup_at_vendor import maps to ready_for_pickup shell status",
+  "pickup_at_vendor + will_call import maps to ready_for_pickup shell status",
   resolveShellDeliveryStatus("pickup_at_vendor", "will_call_pickup", false) ===
+    "ready_for_pickup",
+);
+
+assert(
+  "FE: pickup_at_vendor + delivery maps to pending shell status",
+  resolveShellDeliveryStatus("pickup_at_vendor", "delivery", false) === "pending",
+);
+
+assert(
+  "FE: pickup_at_vendor + unknown maps to ready_for_pickup shell status",
+  resolveShellDeliveryStatus("pickup_at_vendor", "unknown", false) ===
+    "ready_for_pickup",
+);
+
+assert(
+  "CF: pickup_at_vendor + delivery maps to pending shell status",
+  resolveShellDeliveryStatusCf("pickup_at_vendor", "delivery", false) === "pending",
+);
+
+assert(
+  "CF: pickup_at_vendor + will_call maps to ready_for_pickup shell status",
+  resolveShellDeliveryStatusCf("pickup_at_vendor", "will_call_pickup", false) ===
+    "ready_for_pickup",
+);
+
+assert(
+  "CF: pickup_at_vendor + unknown maps to ready_for_pickup shell status",
+  resolveShellDeliveryStatusCf("pickup_at_vendor", "unknown", false) ===
     "ready_for_pickup",
 );
 
