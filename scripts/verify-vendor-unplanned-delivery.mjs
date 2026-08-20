@@ -55,6 +55,8 @@ if (existsSync(envPath)) {
 }
 
 const locationCode = process.env.STAGEVERIFY_UNPLANNED_LOC ?? "UV";
+/** Scanned QR origin for map-nearest suggestions (must be a Staging Map slot). */
+const scanLocationCode = process.env.STAGEVERIFY_UNPLANNED_SCAN_LOC ?? "G1";
 const email = process.env.STAGEVERIFY_TEST_EMAIL;
 const password = process.env.STAGEVERIFY_TEST_PASSWORD;
 
@@ -284,7 +286,7 @@ try {
     console.warn(`Seed soft-fail — reusing existing fixture: ${seedMsg.slice(0, 160)}`);
   }
 
-  const scanUrl = `${appBase}/#/s?loc=${encodeURIComponent(locationCode)}`;
+  const scanUrl = `${appBase}/#/s?loc=${encodeURIComponent(scanLocationCode)}`;
   await page.goto(scanUrl, { waitUntil: "domcontentloaded" });
   await page.getByTestId("vendor-pin-verify").or(page.locator("text=Enter PIN")).first().waitFor({
     state: "visible",
@@ -407,26 +409,27 @@ try {
   }
   record("identifier accepts job / PO / invoice / order numbers", true);
   await identifier.fill("INV-TEST-001");
-  const submit = page.getByTestId("vendor-unplanned-submit");
+  const submit = largeCard.getByTestId("vendor-unplanned-submit");
+  const cancel = largeCard.getByTestId("vendor-unplanned-cancel");
   assert(
-    (await submit.innerText()).trim() === "Complete Delivery",
-    "incomplete action must say Complete Delivery",
+    (await submit.innerText()).trim() === "Submit",
+    "in-card action must say Submit",
   );
-  assert(await submit.isEnabled(), "Complete Delivery should be enabled");
+  assert(await submit.isEnabled(), "Submit should be enabled");
+  assert(await cancel.isVisible(), "Cancel should sit under the identifier");
+  assert(
+    (await page.getByText("Complete Delivery", { exact: true }).count()) === 0,
+    "Complete Delivery must not appear on this screen",
+  );
   const submitBackground = await submit.evaluate(
     (element) => getComputedStyle(element).backgroundColor,
   );
   const rgb = (submitBackground.match(/\d+/g) ?? []).map(Number);
   assert(
     rgb.length >= 3 && rgb[2] > rgb[0] && rgb[2] > rgb[1],
-    `Complete Delivery must use blue actionable treatment, got ${submitBackground}`,
+    `Submit must use blue actionable treatment, got ${submitBackground}`,
   );
-  assert(
-    submitBackground !== "rgb(16, 185, 129)" &&
-      submitBackground !== "rgb(4, 120, 87)",
-    "Complete Delivery must not use delivered green",
-  );
-  record("Complete Delivery uses enabled blue actionable treatment", true);
+  record("in-card Cancel and Submit; no Complete Delivery", true);
 
   await assertReadableTextContrast(page, {
     rootSelector: '[data-testid="vendor-unplanned-form"]',
@@ -442,41 +445,25 @@ try {
         selector: '[data-testid="vendor-unplanned-reference"]',
       },
       {
-        name: "Complete Delivery button",
+        name: "Submit button",
         selector: '[data-testid="vendor-unplanned-submit"]',
+      },
+      {
+        name: "Cancel button",
+        selector: '[data-testid="vendor-unplanned-cancel"]',
       },
     ],
   });
   record("D-42 contrast on selected card form", true);
 
-  await submit.click();
-  const confirmation = page.getByTestId("vendor-unplanned-confirm-dialog");
-  await confirmation.waitFor({ state: "visible" });
+  await cancel.click();
   assert(
-    await confirmation.getByText("Complete this delivery?", { exact: true }).isVisible(),
-    "confirmation title missing",
+    (await largeCard.getAttribute("data-expanded")) === "false",
+    "Cancel should collapse the selected card",
   );
-  await assertReadableTextContrast(page, {
-    rootSelector: '[data-testid="vendor-unplanned-confirm-dialog"]',
-    elements: [
-      { name: "confirmation heading", selector: "h3" },
-      {
-        name: "confirmation Cancel",
-        selector: '[data-testid="vendor-unplanned-confirm-cancel"]',
-      },
-      {
-        name: "confirmation Complete Delivery",
-        selector: '[data-testid="vendor-unplanned-confirm-complete"]',
-      },
-    ],
-  });
-  record("confirmation dialog and D-42 actions", true);
-
-  await page.getByTestId("vendor-unplanned-confirm-cancel").click();
-  await confirmation.waitFor({ state: "hidden" });
   assert(
-    await page.getByTestId("vendor-unplanned-form").isVisible(),
-    "Cancel should keep the form visible",
+    (await page.getByTestId("vendor-unplanned-reference").count()) === 0,
+    "Cancel should clear the identifier field",
   );
   assert(
     !(await page
@@ -493,11 +480,12 @@ try {
         .catch(() => false)),
     "Cancel must not start match/create or show review/success",
   );
-  record("confirmation Cancel performs no match/create/write", true);
+  record("in-card Cancel performs no match/create/write", true);
 
-  await submit.click();
-  await confirmation.waitFor({ state: "visible" });
-  await page.getByTestId("vendor-unplanned-confirm-complete").click();
+  await largeCard.locator("button").first().click();
+  await largeCard.getByTestId("vendor-unplanned-reference").waitFor();
+  await largeCard.getByTestId("vendor-unplanned-reference").fill("INV-TEST-001");
+  await largeCard.getByTestId("vendor-unplanned-submit").click();
   try {
     await page
       .getByTestId("vendor-unplanned-confirm")
@@ -521,11 +509,33 @@ try {
       });
       record("Need More Space state", true);
     } else if (await page.getByTestId("vendor-unplanned-success").isVisible()) {
+      await page
+        .getByTestId("vendor-unplanned-suggest")
+        .waitFor({ state: "visible", timeout: 20_000 });
+      assert(
+        (await page.getByText("Complete Delivery", { exact: true }).count()) ===
+          0,
+        "Complete Delivery must stay off the planning screen",
+      );
+      const suggestCode = page.getByTestId("vendor-unplanned-suggest-code");
+      if (await suggestCode.isVisible().catch(() => false)) {
+        record(
+          "nearest staging suggestion shown after Submit",
+          true,
+          (await suggestCode.innerText()).trim(),
+        );
+      } else {
+        record(
+          "nearest staging suggestion shown after Submit",
+          true,
+          "need-space planning state",
+        );
+      }
       await page.screenshot({
         path: resolve(outDir, "05-assigned-location.png"),
         fullPage: true,
       });
-      record("create success / assigned location", true);
+      record("create success / planning suggestion", true);
     } else if (await page.getByTestId("vendor-unplanned-review").isVisible()) {
       await page.screenshot({
         path: resolve(outDir, "04-review-ambiguous.png"),
@@ -548,24 +558,36 @@ try {
             `${tier} should collapse after completion`,
           );
         }
-        const done = page.getByTestId("vendor-unplanned-submit");
-        const doneText = (await done.innerText()).trim();
-        const completed = (await done.getAttribute("data-completed")) === "true";
-        if (completed) {
-          assert(
-            doneText === "✓ Delivery Complete",
-            `expected Delivery Complete, got ${doneText}`,
+        assert(
+          (await page.getByText("Complete Delivery", { exact: true }).count()) ===
+            0,
+          "Complete Delivery must stay off the planning screen",
+        );
+        const suggest = page.getByTestId("vendor-unplanned-suggest");
+        await suggest.waitFor({ state: "visible", timeout: 20_000 });
+        const suggestCode = page.getByTestId("vendor-unplanned-suggest-code");
+        if (await suggestCode.isVisible().catch(() => false)) {
+          const code = (await suggestCode.innerText()).trim();
+          assert(code.length > 0, "suggested location code missing");
+          record("nearest staging suggestion shown after Submit", true, code);
+        } else if (
+          await page.getByTestId("vendor-unplanned-need-space").isVisible()
+        ) {
+          record(
+            "nearest staging suggestion shown after Submit",
+            true,
+            "no available XL spot — need-space planning state",
           );
-          record("authoritative Delivery Complete after unmatched create", true);
         } else {
           record(
-            "authoritative Delivery Complete after unmatched create",
-            true,
-            `soft-pass — receiving not confirmed yet (${doneText})`,
+            "nearest staging suggestion shown after Submit",
+            false,
+            "suggestion card empty",
           );
         }
+        record("no Complete Delivery / receiving complete on this screen", true);
         await page.screenshot({
-          path: resolve(outDir, "after-vendor-unplanned-complete.png"),
+          path: resolve(outDir, "after-vendor-unplanned-suggest.png"),
           fullPage: false,
         });
       }

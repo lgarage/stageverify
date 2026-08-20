@@ -5,14 +5,21 @@ import {
   matchUnplannedVendorDeliveryClient,
 } from "./phase2CallableClients";
 import {
-  deliveryHasAssignableSpot,
   type MatchUnplannedVendorDeliveryResult,
+  type StagingLocation,
   type UnplannedMatchCandidateSummary,
   type UnplannedSpaceTier,
   type UnplannedVendorDeliverySuccessResult,
   type VendorPinBootstrap,
 } from "./dispatcher/models";
-import { firestoreDataService } from "./dispatcher/firestoreService";
+import {
+  firestoreDataService,
+  getAppSettings,
+  listGloballyAssignedStagingLocationIdsForDelivery,
+  mapOccupancyByLocationId,
+} from "./dispatcher/firestoreService";
+import { pickNearestAvailableStagingSpot } from "./dispatcher/shopMapProximity";
+import { normalizeStagingCodeKey } from "./dispatcher/stagingCode";
 import {
   bridgeVendorRunSessionToDelivery,
   clearVendorUnplannedPinSession,
@@ -75,13 +82,17 @@ export function VendorUnplannedDeliveryFlow({
   const [step, setStep] = useState<FlowStep>("form");
   const [reference, setReference] = useState("");
   const [spaceTier, setSpaceTier] = useState<UnplannedSpaceTier | null>(null);
-  const [showCompleteConfirmation, setShowCompleteConfirmation] =
-    useState(false);
   const [matchResult, setMatchResult] =
     useState<MatchUnplannedVendorDeliveryResult | null>(null);
   const [successPayload, setSuccessPayload] =
     useState<UnplannedVendorDeliverySuccessResult | null>(null);
-  const [receivingConfirmed, setReceivingConfirmed] = useState(false);
+  const [suggestedLocation, setSuggestedLocation] =
+    useState<StagingLocation | null>(null);
+  const [suggestionStatus, setSuggestionStatus] = useState<
+    "idle" | "loading" | "ready" | "none"
+  >("idle");
+  const [suggestionConfirmed, setSuggestionConfirmed] = useState(false);
+  const [confirmingLocation, setConfirmingLocation] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const tierCardRefs = useRef<
     Record<UnplannedSpaceTier, HTMLDivElement | null>
@@ -114,42 +125,87 @@ export function VendorUnplannedDeliveryFlow({
 
       setSuccessPayload(payload);
       setStep("success");
+      setSuggestedLocation(null);
+      setSuggestionConfirmed(false);
+      setSuggestionStatus("loading");
+      const requestedSpaceTier = spaceTier;
+      if (!requestedSpaceTier) {
+        setSuggestionStatus("none");
+        return;
+      }
 
-      if (payload.needMoreSpace === true) return;
-
-      void firestoreDataService
-        .markVendorDelivered(payload.deliveryId, "Vendor Driver")
-        .then((updated) => {
-          if (updated?.delivery.vendorPhysicalDropoffConfirmed === true) {
-            setReceivingConfirmed(true);
-            setSuccessPayload((current) =>
-              current
-                ? {
-                    ...current,
-                    bootstrap: current.bootstrap
-                      ? {
-                          ...current.bootstrap,
-                          vendorPhysicalDropoffConfirmed: true,
-                          vendorPhysicalDropoffConfirmedAt:
-                            updated.delivery.vendorPhysicalDropoffConfirmedAt,
-                        }
-                      : current.bootstrap,
-                  }
-                : current,
-            );
-          }
-          if (updated && !deliveryHasAssignableSpot(updated.delivery)) {
-            setSuccessPayload((current) =>
-              current ? { ...current, needMoreSpace: true } : current,
-            );
-          }
-        })
-        .catch((err: unknown) => {
-          if (handleSessionError(err)) return;
+      try {
+        const [settings, locations, occupancy, globallyAssignedIds] =
+          await Promise.all([
+            getAppSettings(),
+            firestoreDataService.listStagingLocations(),
+            mapOccupancyByLocationId(payload.deliveryId),
+            listGloballyAssignedStagingLocationIdsForDelivery(payload.deliveryId),
+          ]);
+        const blockedIds = new Set([
+          ...Object.keys(occupancy),
+          ...globallyAssignedIds,
+        ]);
+        const suggestion = pickNearestAvailableStagingSpot({
+          originCode: locationCode ?? "",
+          spaceTier: requestedSpaceTier,
+          locations,
+          extras: settings.shopMapLayoutExtras,
+          blockedIds,
         });
+        if (!suggestion) {
+          setSuggestionStatus("none");
+          return;
+        }
+        setSuggestedLocation(suggestion);
+        setSuggestionConfirmed(
+          normalizeStagingCodeKey(payload.stagingLocationCode ?? "") ===
+            normalizeStagingCodeKey(suggestion.code),
+        );
+        setSuggestionStatus("ready");
+      } catch (err: unknown) {
+        if (handleSessionError(err)) return;
+        setSuggestionStatus("none");
+      }
     },
-    [handleSessionError, locationCode],
+    [handleSessionError, locationCode, spaceTier],
   );
+
+  const confirmSuggestedLocation = useCallback(async () => {
+    if (!successPayload || !suggestedLocation || suggestionConfirmed) return;
+    setConfirmingLocation(true);
+    setError(null);
+    try {
+      await firestoreDataService.updateStagingLocation(
+        successPayload.deliveryId,
+        suggestedLocation.id,
+      );
+      setSuccessPayload((current) =>
+        current
+          ? {
+              ...current,
+              needMoreSpace: false,
+              stagingLocationCode: suggestedLocation.code,
+            }
+          : current,
+      );
+      setSuggestionConfirmed(true);
+    } catch (err: unknown) {
+      if (handleSessionError(err)) return;
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not plan this staging spot. Try again.",
+      );
+    } finally {
+      setConfirmingLocation(false);
+    }
+  }, [
+    handleSessionError,
+    successPayload,
+    suggestedLocation,
+    suggestionConfirmed,
+  ]);
 
   const runCreate = useCallback(
     async (ref: string, tier: UnplannedSpaceTier | null) => {
@@ -262,6 +318,20 @@ export function VendorUnplannedDeliveryFlow({
       handleSessionError,
     ],
   );
+
+  const continueFromPlanning = useCallback(() => {
+    if (!successPayload) return;
+    onComplete({
+      vendorId: successPayload.vendorId,
+      vendorName: successPayload.vendorName,
+      deliveryId: successPayload.deliveryId,
+      sessionToken: successPayload.sessionToken,
+      expiresAt: successPayload.expiresAt,
+      bootstrap: successPayload.bootstrap,
+      needMoreSpace: successPayload.needMoreSpace,
+      stagingLocationCode: successPayload.stagingLocationCode,
+    });
+  }, [onComplete, successPayload]);
 
   const busy = step === "matching" || step === "creating";
 
@@ -486,7 +556,6 @@ export function VendorUnplannedDeliveryFlow({
       className="app-container flex h-full min-h-0 flex-col overflow-hidden bg-bg-primary"
       data-testid="vendor-unplanned-form"
       data-vendor-id={vendorId}
-      data-completed={receivingConfirmed ? "true" : "false"}
     >
       <header className="shrink-0 border-b border-white/10 bg-bg-secondary/70 px-5 pb-5 pt-4">
         <div className="mx-auto flex w-full max-w-sm items-center justify-between gap-4">
@@ -527,7 +596,6 @@ export function VendorUnplannedDeliveryFlow({
               {SPACE_TIER_OPTIONS.map((opt) => {
                 const selected = spaceTier === opt.value;
                 const expanded = selected && !successPayload;
-                const completedCard = selected && receivingConfirmed;
                 return (
                   <div
                     key={opt.value}
@@ -535,15 +603,12 @@ export function VendorUnplannedDeliveryFlow({
                       tierCardRefs.current[opt.value] = element;
                     }}
                     className={`min-w-0 overflow-hidden rounded-xl border transition ${
-                      completedCard
-                        ? "border-[#34d399] bg-[#047857]/25 shadow-[0_0_0_1px_rgba(52,211,153,0.25)]"
-                        : selected
-                          ? "border-[#60a5fa] bg-[#3b82f6]/10 shadow-[0_0_0_1px_rgba(96,165,250,0.25)]"
-                          : "border-white/10 bg-bg-secondary hover:border-white/20"
+                      selected
+                        ? "border-[#60a5fa] bg-[#3b82f6]/10 shadow-[0_0_0_1px_rgba(96,165,250,0.25)]"
+                        : "border-white/10 bg-bg-secondary hover:border-white/20"
                     }`}
                     data-testid={`vendor-unplanned-tier-${opt.value}`}
                     data-expanded={expanded ? "true" : "false"}
-                    data-completed={completedCard ? "true" : "false"}
                   >
                     <button
                       type="button"
@@ -630,6 +695,31 @@ export function VendorUnplannedDeliveryFlow({
                             }}
                           />
                         </label>
+                        <div className="mt-3 grid grid-cols-2 gap-3 pb-[max(env(safe-area-inset-bottom),0.25rem)]">
+                          <button
+                            type="button"
+                            className="tap-target min-h-12 rounded-xl border border-white/25 bg-transparent px-3 py-3 font-bold text-[#f8fafc] transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#94a3b8]"
+                            data-testid="vendor-unplanned-cancel"
+                            onClick={() => {
+                              setReference("");
+                              setSpaceTier(null);
+                              setMatchResult(null);
+                              setError(null);
+                              setStep("form");
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy || !reference.trim()}
+                            className="tap-target min-h-12 rounded-xl bg-[#1d4ed8] px-3 py-3 font-bold text-white shadow-lg shadow-black/20 transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60a5fa] disabled:cursor-not-allowed disabled:bg-[#1e293b] disabled:text-[#94a3b8] disabled:shadow-none"
+                            data-testid="vendor-unplanned-submit"
+                            onClick={() => void runMatch()}
+                          >
+                            Submit
+                          </button>
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -640,46 +730,83 @@ export function VendorUnplannedDeliveryFlow({
 
           {successPayload ? (
             <div
-              className={`mt-4 rounded-2xl border px-4 py-4 ${
-                successPayload.needMoreSpace
-                  ? "border-[#fbbf24]/35 bg-[#fbbf24]/10"
-                  : "border-[#34d399]/35 bg-[#34d399]/10"
-              }`}
+              className="mt-4 rounded-2xl border border-[#60a5fa]/40 bg-[#1d4ed8]/10 px-4 py-4"
               data-testid="vendor-unplanned-success"
-              role="status"
             >
-              <p
-                className={`font-semibold ${
-                  successPayload.needMoreSpace
-                    ? "text-[#fde68a]"
-                    : "text-[#a7f3d0]"
-                }`}
-              >
-                {successPayload.needMoreSpace
-                  ? "Need More Space"
-                  : "Delivery complete"}
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#93c5fd]">
+                Staging plan
               </p>
-              {successPayload.needMoreSpace ? (
-                <div data-testid="vendor-unplanned-need-space">
-                  <p className="mt-1 text-sm leading-5 text-text-primary">
-                    Dispatch has been notified. Please wait for a staging
-                    location.
+              <p className="mt-1 font-semibold text-[#f8fafc]">
+                Delivery identified
+              </p>
+
+              <div
+                className="mt-3 rounded-xl border border-white/15 bg-bg-secondary px-4 py-4"
+                data-testid="vendor-unplanned-suggest"
+              >
+                {suggestionStatus === "loading" ? (
+                  <p className="text-sm leading-5 text-text-secondary">
+                    Finding the nearest available staging spot…
                   </p>
-                </div>
-              ) : successPayload.stagingLocationCode ? (
-                <div className="mt-2" data-testid="vendor-unplanned-spot">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#a7f3d0]">
-                    Take delivery to
-                  </p>
-                  <p className="mt-1 break-words font-mono text-2xl font-bold text-text-primary">
-                    {successPayload.stagingLocationCode}
-                  </p>
-                </div>
-              ) : (
-                <p className="mt-1 text-sm leading-5 text-text-primary">
-                  Dispatch will review the delivery details.
-                </p>
-              )}
+                ) : suggestionStatus === "ready" && suggestedLocation ? (
+                  <>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#93c5fd]">
+                      Suggested location
+                    </p>
+                    <p
+                      className="mt-1 break-words font-mono text-3xl font-bold text-[#f8fafc]"
+                      data-testid="vendor-unplanned-suggest-code"
+                    >
+                      {suggestedLocation.code}
+                    </p>
+                    <p className="mt-2 text-sm leading-5 text-text-secondary">
+                      Nearest available {spaceTier} spot from{" "}
+                      <span className="font-mono text-text-primary">
+                        {locationCode}
+                      </span>
+                      .
+                    </p>
+                    {suggestionConfirmed ? (
+                      <p className="mt-3 rounded-lg border border-[#34d399]/35 bg-[#34d399]/10 px-3 py-2 text-sm font-semibold text-[#a7f3d0]">
+                        Staging spot planned
+                      </p>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={confirmingLocation}
+                        className="tap-target mt-3 min-h-12 w-full rounded-xl bg-[#1d4ed8] px-4 py-3 font-bold text-white shadow-lg shadow-black/20 transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60a5fa] disabled:cursor-not-allowed disabled:bg-[#1e293b] disabled:text-[#94a3b8]"
+                        data-testid="vendor-unplanned-confirm-location"
+                        onClick={() => void confirmSuggestedLocation()}
+                      >
+                        {confirmingLocation
+                          ? "Confirming…"
+                          : `Confirm ${suggestedLocation.code}`}
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <div data-testid="vendor-unplanned-need-space">
+                    <p className="font-semibold text-[#fde68a]">
+                      Need more staging space
+                    </p>
+                    <p className="mt-1 text-sm leading-5 text-text-primary">
+                      No available {spaceTier} spot could be planned from this
+                      scanned location. Dispatch can choose a spot in the
+                      Staging Map.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {suggestionConfirmed || suggestionStatus === "none" ? (
+                <button
+                  type="button"
+                  className="tap-target mt-4 min-h-12 w-full rounded-xl bg-[#065f46] px-4 py-3 text-base font-bold text-[#f8fafc] shadow-lg shadow-black/20 transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6ee7b7]"
+                  onClick={continueFromPlanning}
+                >
+                  Continue
+                </button>
+              ) : null}
             </div>
           ) : null}
 
@@ -693,88 +820,6 @@ export function VendorUnplannedDeliveryFlow({
           ) : null}
         </div>
       </div>
-
-      <footer className="shrink-0 border-t border-white/10 bg-bg-primary px-5 pb-[max(env(safe-area-inset-bottom),1rem)] pt-3">
-        <button
-          type="button"
-          disabled={
-            !successPayload && (busy || !spaceTier || !reference.trim())
-          }
-          className={`tap-target mx-auto min-h-12 w-full max-w-sm rounded-xl px-4 py-3 text-base font-bold text-white shadow-lg shadow-black/20 transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary ${
-            receivingConfirmed
-              ? "bg-[#047857] focus-visible:ring-[#6ee7b7]"
-              : "bg-[#1d4ed8] focus-visible:ring-[#60a5fa] disabled:cursor-not-allowed disabled:bg-[#1e293b] disabled:text-[#94a3b8] disabled:shadow-none"
-          }`}
-          data-testid="vendor-unplanned-submit"
-          data-completed={receivingConfirmed ? "true" : "false"}
-          onClick={() => {
-            if (successPayload) {
-              onComplete({
-                vendorId: successPayload.vendorId,
-                vendorName: successPayload.vendorName,
-                deliveryId: successPayload.deliveryId,
-                sessionToken: successPayload.sessionToken,
-                expiresAt: successPayload.expiresAt,
-                bootstrap: successPayload.bootstrap,
-                needMoreSpace: successPayload.needMoreSpace,
-                stagingLocationCode: successPayload.stagingLocationCode,
-              });
-              return;
-            }
-            setShowCompleteConfirmation(true);
-          }}
-        >
-          {receivingConfirmed
-            ? "✓ Delivery Complete"
-            : successPayload
-              ? "Continue to delivery"
-              : "Complete Delivery"}
-        </button>
-      </footer>
-
-      {showCompleteConfirmation ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-4 sm:items-center"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="vendor-unplanned-confirm-title"
-          data-testid="vendor-unplanned-confirm-dialog"
-        >
-          <div className="w-full max-w-sm rounded-2xl border border-white/15 bg-bg-secondary p-5 shadow-2xl shadow-black/40">
-            <h3
-              id="vendor-unplanned-confirm-title"
-              className="text-xl font-bold text-text-primary"
-            >
-              Complete this delivery?
-            </h3>
-            <p className="mt-2 text-sm leading-6 text-text-secondary">
-              We’ll check the identifying number against expected deliveries
-              before completing it.
-            </p>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                className="tap-target min-h-12 rounded-xl border border-white/15 bg-bg-surface px-3 py-3 font-bold text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60a5fa]"
-                data-testid="vendor-unplanned-confirm-cancel"
-                onClick={() => setShowCompleteConfirmation(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="tap-target min-h-12 rounded-xl bg-[#1d4ed8] px-3 py-3 font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60a5fa]"
-                data-testid="vendor-unplanned-confirm-complete"
-                onClick={() => {
-                  setShowCompleteConfirmation(false);
-                  void runMatch();
-                }}
-              >
-                Complete Delivery
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
