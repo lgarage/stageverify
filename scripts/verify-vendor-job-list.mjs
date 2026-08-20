@@ -207,6 +207,23 @@ async function main() {
           Boolean(c.poText),
       ),
     );
+    const realJobName = metrics.cardRects.every((c) => {
+      const job = c.jobText;
+      const order = c.orderText;
+      return (
+        Boolean(job) &&
+        job.toLocaleLowerCase() !== "job" &&
+        job !== order
+      );
+    });
+    record(
+      "job heading is real job name (not order fallback)",
+      realJobName && metrics.cardRects.length > 0,
+      metrics.cardRects
+        .slice(0, 4)
+        .map((c) => `${c.jobText} / ${c.orderText}`)
+        .join("; ") || "no cards",
+    );
     record(
       `order with PO (${withPoOrder})`,
       Boolean(withPo?.poText) && withPo?.poText !== "—",
