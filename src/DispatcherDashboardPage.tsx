@@ -1229,6 +1229,7 @@ export function DispatcherDashboardPage() {
                           </span>
                         </td>
                         <td
+                          data-testid={`delivery-issue-cell-${row.deliveryId}`}
                           style={{
                             padding: "14px 12px",
                             borderBottom: cellBorder,
@@ -1291,7 +1292,15 @@ export function DispatcherDashboardPage() {
                               {row.issueSummary}
                             </span>
                           ) : row.openIssueCount > 0 || row.missingStagingAssignment ? null : (
-                            "—"
+                            <span
+                              data-testid={`delivery-issue-ok-${row.deliveryId}`}
+                              style={{
+                                color: "var(--admin-text-data)",
+                                fontWeight: 600,
+                              }}
+                            >
+                              OK
+                            </span>
                           )}
                         </td>
                         <td
