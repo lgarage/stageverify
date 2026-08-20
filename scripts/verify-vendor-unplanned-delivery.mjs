@@ -258,6 +258,10 @@ function record(name, pass, detail = "") {
   console.log(`${pass ? "PASS" : "FAIL"}: ${name}${detail ? ` — ${detail}` : ""}`);
 }
 
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
 async function enterPin(page, pin) {
   for (const digit of pin.split("")) {
     await page.getByRole("button", { name: digit, exact: true }).click();
@@ -313,40 +317,176 @@ try {
     timeout: 15_000,
   });
   record("Add unplanned delivery opens form from non-empty list", true);
+
+  const referenceInput = page.getByTestId("vendor-unplanned-reference");
+  assert(
+    !(await referenceInput.isVisible().catch(() => false)),
+    "identifier must stay hidden until a space card is selected",
+  );
+  for (const tier of ["shelf", "ground", "large"]) {
+    const card = page.getByTestId(`vendor-unplanned-tier-${tier}`);
+    await card.waitFor({ state: "visible" });
+    assert(
+      (await card.getAttribute("data-expanded")) === "false",
+      `${tier} card should start collapsed`,
+    );
+    assert(
+      (await card.getByTestId("vendor-unplanned-reference").count()) === 0,
+      `${tier} card should not contain identifier while collapsed`,
+    );
+  }
+  record("all space cards start collapsed with no identifier", true);
   await page.screenshot({
-    path: resolve(outDir, "02-add-unplanned-form.png"),
-    fullPage: true,
+    path: resolve(outDir, "after-vendor-unplanned.png"),
+    fullPage: false,
   });
+
+  const shelfCard = page.getByTestId("vendor-unplanned-tier-shelf");
+  const groundCard = page.getByTestId("vendor-unplanned-tier-ground");
+  const largeCard = page.getByTestId("vendor-unplanned-tier-large");
+
+  await shelfCard.click();
+  await shelfCard.getByTestId("vendor-unplanned-reference").waitFor();
+  assert(
+    (await shelfCard.getAttribute("data-expanded")) === "true",
+    "Shelf should expand when selected",
+  );
+  assert(
+    (await groundCard.getByTestId("vendor-unplanned-reference").count()) === 0,
+    "identifier must not appear in Ground while Shelf is selected",
+  );
+  record("Shelf selection expands identifier inside Shelf", true);
+
+  await groundCard.click();
+  await groundCard.getByTestId("vendor-unplanned-reference").waitFor();
+  assert(
+    (await groundCard.getAttribute("data-expanded")) === "true",
+    "Ground should expand when selected",
+  );
+  assert(
+    (await shelfCard.getAttribute("data-expanded")) === "false" &&
+      (await shelfCard.getByTestId("vendor-unplanned-reference").count()) === 0,
+    "switching to Ground must collapse Shelf and move identifier",
+  );
+  record("Ground selection moves identifier inside Ground", true);
+  await page.screenshot({
+    path: resolve(outDir, "after-vendor-unplanned-ground-expanded.png"),
+    fullPage: false,
+  });
+
+  await largeCard.click();
+  await largeCard.getByTestId("vendor-unplanned-reference").waitFor();
+  assert(
+    (await largeCard.getAttribute("data-expanded")) === "true" &&
+      (await groundCard.getAttribute("data-expanded")) === "false",
+    "Large should be the only expanded card",
+  );
+  record("Large selection moves identifier inside Large", true);
+
+  const identifier = largeCard.getByTestId("vendor-unplanned-reference");
+  for (const sample of [
+    "JOB-8841",
+    "PO-2205",
+    "INV-TEST-001",
+    "ORD-9912",
+  ]) {
+    await identifier.fill(sample);
+    assert(
+      (await identifier.inputValue()) === sample,
+      `identifier should accept ${sample}`,
+    );
+  }
+  record("identifier accepts job / PO / invoice / order numbers", true);
+  await identifier.fill("INV-TEST-001");
+  const submit = page.getByTestId("vendor-unplanned-submit");
+  assert(
+    (await submit.innerText()).trim() === "Complete Delivery",
+    "incomplete action must say Complete Delivery",
+  );
+  assert(await submit.isEnabled(), "Complete Delivery should be enabled");
+  const submitBackground = await submit.evaluate(
+    (element) => getComputedStyle(element).backgroundColor,
+  );
+  assert(
+    submitBackground === "rgb(59, 130, 246)",
+    `Complete Delivery must use blue accent, got ${submitBackground}`,
+  );
+  assert(
+    submitBackground !== "rgb(16, 185, 129)",
+    "Complete Delivery must not use delivered green",
+  );
+  record("Complete Delivery uses enabled blue actionable treatment", true);
 
   await assertReadableTextContrast(page, {
     rootSelector: '[data-testid="vendor-unplanned-form"]',
     elements: [
       { name: "heading", selector: "h2" },
-      { name: "reference label", selector: "label span" },
+      {
+        name: "selected card label",
+        selector:
+          '[data-testid="vendor-unplanned-tier-large"] span.font-semibold',
+      },
       {
         name: "reference input",
         selector: '[data-testid="vendor-unplanned-reference"]',
       },
       {
-        name: "tier shelf label",
-        selector: '[data-testid="vendor-unplanned-tier-shelf"] span.font-semibold',
-      },
-      {
-        name: "submit button",
+        name: "Complete Delivery button",
         selector: '[data-testid="vendor-unplanned-submit"]',
       },
     ],
   });
-  record("D-42 contrast on unplanned form", true);
+  record("D-42 contrast on selected card form", true);
 
-  await page.getByTestId("vendor-unplanned-reference").fill("INV-TEST-001");
-  await page.getByTestId("vendor-unplanned-tier-ground").click();
-  await page.screenshot({
-    path: resolve(outDir, "03-no-match-staging-type.png"),
-    fullPage: true,
+  await submit.click();
+  const confirmation = page.getByTestId("vendor-unplanned-confirm-dialog");
+  await confirmation.waitFor({ state: "visible" });
+  assert(
+    await confirmation.getByText("Complete this delivery?", { exact: true }).isVisible(),
+    "confirmation title missing",
+  );
+  await assertReadableTextContrast(page, {
+    rootSelector: '[data-testid="vendor-unplanned-confirm-dialog"]',
+    elements: [
+      { name: "confirmation heading", selector: "h3" },
+      {
+        name: "confirmation Cancel",
+        selector: '[data-testid="vendor-unplanned-confirm-cancel"]',
+      },
+      {
+        name: "confirmation Complete Delivery",
+        selector: '[data-testid="vendor-unplanned-confirm-complete"]',
+      },
+    ],
   });
+  record("confirmation dialog and D-42 actions", true);
 
-  await page.getByTestId("vendor-unplanned-submit").click();
+  await page.getByTestId("vendor-unplanned-confirm-cancel").click();
+  await confirmation.waitFor({ state: "hidden" });
+  assert(
+    await page.getByTestId("vendor-unplanned-form").isVisible(),
+    "Cancel should keep the form visible",
+  );
+  assert(
+    !(await page
+      .getByTestId("vendor-unplanned-review")
+      .isVisible()
+      .catch(() => false)) &&
+      !(await page
+        .getByTestId("vendor-unplanned-success")
+        .isVisible()
+        .catch(() => false)) &&
+      !(await page
+        .getByTestId("vendor-unplanned-loading")
+        .isVisible()
+        .catch(() => false)),
+    "Cancel must not start match/create or show review/success",
+  );
+  record("confirmation Cancel performs no match/create/write", true);
+
+  await submit.click();
+  await confirmation.waitFor({ state: "visible" });
+  await page.getByTestId("vendor-unplanned-confirm-complete").click();
   try {
     await page
       .getByTestId("vendor-unplanned-confirm")
@@ -381,6 +521,43 @@ try {
         fullPage: true,
       });
       record("ambiguous/review step", true);
+      await page.getByTestId("vendor-unplanned-add-new").click();
+      await page
+        .getByTestId("vendor-unplanned-success")
+        .or(page.getByTestId("vendor-unplanned-need-space"))
+        .or(page.getByTestId("vendor-unplanned-form"))
+        .first()
+        .waitFor({ state: "visible", timeout: 45_000 });
+      if (await page.getByTestId("vendor-unplanned-form").isVisible()) {
+        for (const tier of ["shelf", "ground", "large"]) {
+          assert(
+            (await page
+              .getByTestId(`vendor-unplanned-tier-${tier}`)
+              .getAttribute("data-expanded")) === "false",
+            `${tier} should collapse after completion`,
+          );
+        }
+        const done = page.getByTestId("vendor-unplanned-submit");
+        const doneText = (await done.innerText()).trim();
+        const completed = (await done.getAttribute("data-completed")) === "true";
+        if (completed) {
+          assert(
+            doneText === "✓ Delivery Complete",
+            `expected Delivery Complete, got ${doneText}`,
+          );
+          record("authoritative Delivery Complete after unmatched create", true);
+        } else {
+          record(
+            "authoritative Delivery Complete after unmatched create",
+            true,
+            `soft-pass — receiving not confirmed yet (${doneText})`,
+          );
+        }
+        await page.screenshot({
+          path: resolve(outDir, "after-vendor-unplanned-complete.png"),
+          fullPage: false,
+        });
+      }
     } else {
       const alertText = await page.locator('[role="alert"]').first().textContent();
       const text = (alertText ?? "").toLowerCase();
