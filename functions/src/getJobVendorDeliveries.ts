@@ -21,10 +21,13 @@ interface GetJobVendorDeliveriesRequest {
 
 export interface JobVendorDeliverySummary {
   deliveryId: string;
+  jobName: string;
   orderNumber: string;
+  vendorInvoiceNumber?: string;
   poNumber?: string;
   vendorName: string;
   status: string;
+  vendorPhysicalDropoffConfirmed: boolean;
   stagingLocationCodes: string[];
   scannedStagingLocationCode?: string;
 }
@@ -85,6 +88,12 @@ export const getJobVendorDeliveries = onCall(
 
     const session = await assertVendorSessionValidForJob(sessionToken, jobId);
     const db = getDb();
+    const jobSnap = await db.collection("jobs").doc(jobId).get();
+    const rawJobName = jobSnap.data()?.jobName;
+    const jobName =
+      typeof rawJobName === "string" && rawJobName.trim()
+        ? rawJobName.trim()
+        : "Job";
 
     const deliveriesSnap = await db
       .collection("deliveries")
@@ -117,13 +126,21 @@ export const getJobVendorDeliveries = onCall(
 
       summaries.push({
         deliveryId: docSnap.id,
+        jobName,
         orderNumber: String(delivery.orderNumber ?? docSnap.id),
+        vendorInvoiceNumber:
+          typeof delivery.vendorInvoiceNumber === "string" &&
+          delivery.vendorInvoiceNumber.trim()
+            ? delivery.vendorInvoiceNumber.trim()
+            : undefined,
         poNumber,
         vendorName:
           typeof delivery.vendorName === "string" && delivery.vendorName.trim()
             ? delivery.vendorName.trim()
             : "Vendor",
         status,
+        vendorPhysicalDropoffConfirmed:
+          delivery.vendorPhysicalDropoffConfirmed === true,
         stagingLocationCodes,
         scannedStagingLocationCode: session.scannedStagingLocationCode,
       });

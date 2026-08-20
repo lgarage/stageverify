@@ -371,6 +371,7 @@ export function PinAccessManagementPanel({
   const [bootstrapFullName, setBootstrapFullName] = useState("");
   const [bootstrapAdminPin, setBootstrapAdminPin] = useState("");
   const [bootstrapBusy, setBootstrapBusy] = useState(false);
+  const [showArchivedView, setShowArchivedView] = useState(false);
 
   const clearRevealHideTimer = useCallback(() => {
     if (revealHideTimerRef.current !== null) {
@@ -608,6 +609,10 @@ export function PinAccessManagementPanel({
       hasPin: pin.hasPin,
     })),
   ].sort((a, b) => a.name.localeCompare(b.name));
+
+  const activeRows = rows.filter((row) => row.active);
+  const archivedRows = rows.filter((row) => !row.active);
+  const displayRows = showArchivedView ? archivedRows : activeRows;
 
   const selectedDispatcher =
     selected?.type === "admin" ||
@@ -922,6 +927,16 @@ export function PinAccessManagementPanel({
     setSelected(null);
     setError(null);
   };
+
+  useEffect(() => {
+    if (!selected) return;
+    const stillVisible = displayRows.some(
+      (row) => row.type === selected.type && row.id === selected.id,
+    );
+    if (!stillVisible) {
+      void cancelEditor();
+    }
+  }, [displayRows, selected]);
 
   const pinDraftIsValid = /^\d{4,6}$/.test(pinDraft);
   const confirmPinMatches =
@@ -2391,22 +2406,50 @@ export function PinAccessManagementPanel({
               data-testid="pin-access-helper"
               style={{ margin: "5px 0 0", color: MUTED, fontSize: 12 }}
             >
-              Manage access for admins, managers, dispatchers, technicians, vendors, and
-              management PINs in one place.
+              {showArchivedView
+                ? "Archived (inactive) access identities. Edit, reactivate, or remove users here."
+                : "Manage access for admins, managers, dispatchers, technicians, vendors, and management PINs in one place."}
             </p>
           </div>
-          <button
-            data-testid="pin-access-add-button"
-            type="button"
-            onClick={() => {
-              setLastTempPassword(null);
-              setWizardOpen(true);
-              setWizardStep(1);
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
             }}
-            style={primaryButtonStyle}
           >
-            Add Access
-          </button>
+            <button
+              data-testid="pin-access-archived-button"
+              type="button"
+              aria-pressed={showArchivedView}
+              onClick={() => setShowArchivedView((current) => !current)}
+              style={{
+                ...secondaryButtonStyle,
+                ...(showArchivedView
+                  ? {
+                      backgroundColor: NAVY,
+                      color: "var(--admin-on-navy)",
+                      border: "none",
+                    }
+                  : {}),
+              }}
+            >
+              {showArchivedView ? "Active Users" : "Archived Users"}
+            </button>
+            <button
+              data-testid="pin-access-add-button"
+              type="button"
+              onClick={() => {
+                setLastTempPassword(null);
+                setWizardOpen(true);
+                setWizardStep(1);
+              }}
+              style={primaryButtonStyle}
+            >
+              Add Access
+            </button>
+          </div>
         </div>
 
         {showFirstAdminBootstrap && (
@@ -2582,7 +2625,7 @@ export function PinAccessManagementPanel({
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((row, index) => {
+                    {displayRows.map((row, index) => {
                       const expanded =
                         selected?.type === row.type && selected.id === row.id;
                       return (
@@ -2793,13 +2836,24 @@ export function PinAccessManagementPanel({
                   </tbody>
                 </table>
               </div>
-              {rows.length === 0 && (
-                <p
-                  data-testid="pin-access-empty"
-                  style={{ color: MUTED, fontSize: 13, margin: "14px 0 0" }}
-                >
-                  No access identities yet.
-                </p>
+              {displayRows.length === 0 && (
+                showArchivedView ? (
+                  <p
+                    data-testid="pin-access-archived-empty"
+                    style={{ color: MUTED, fontSize: 13, margin: "14px 0 0" }}
+                  >
+                    No archived users.
+                  </p>
+                ) : (
+                  <p
+                    data-testid="pin-access-empty"
+                    style={{ color: MUTED, fontSize: 13, margin: "14px 0 0" }}
+                  >
+                    {rows.length === 0
+                      ? "No access identities yet."
+                      : "No active users. Open Archived Users to view inactive access."}
+                  </p>
+                )
               )}
             </>
           )}

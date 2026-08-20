@@ -751,10 +751,13 @@ export interface TechnicianDayRelease {
 
 export interface JobVendorDeliverySummary {
   deliveryId: string;
+  jobName: string;
   orderNumber: string;
+  vendorInvoiceNumber?: string;
   poNumber?: string;
   vendorName: string;
   status: string;
+  vendorPhysicalDropoffConfirmed: boolean;
   stagingLocationCodes: string[];
   scannedStagingLocationCode?: string;
 }

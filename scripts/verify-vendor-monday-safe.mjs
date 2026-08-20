@@ -840,10 +840,24 @@ try {
   const detailsB = page.getByTestId("vendor-run-details-verify-run-delivered-b");
   const detailsC = page.getByTestId("vendor-run-details-verify-run-active-c");
   record(
-    "vendor-run defaults undelivered expanded and delivered collapsed",
-    (await detailsA.isVisible()) &&
-      (await detailsC.isVisible()) &&
+    "vendor-run defaults all rows collapsed",
+    !(await detailsA.isVisible().catch(() => false)) &&
+      !(await detailsC.isVisible().catch(() => false)) &&
       !(await detailsB.isVisible().catch(() => false)),
+  );
+  const activeAFace = page.getByTestId("vendor-run-row-verify-run-active-a");
+  const deliveredBFace = page.getByTestId("vendor-run-row-verify-run-delivered-b");
+  record(
+    "vendor-run compact face shows job + order/invoice + PO",
+    (await activeAFace.getByText("Riverside Medical Center", { exact: true }).isVisible()) &&
+      (await activeAFace.getByText("ORDER-100", { exact: true }).isVisible()) &&
+      (await activeAFace.getByText("INV-100", { exact: true }).isVisible()) &&
+      (await activeAFace.getByText("PO-100", { exact: true }).isVisible()),
+  );
+  record(
+    "vendor-run delivered face keeps job + DELIVERED",
+    (await deliveredBFace.getByText("Oak Street Offices", { exact: true }).isVisible()) &&
+      (await deliveredBFace.getByText("DELIVERED", { exact: true }).isVisible()),
   );
   const adjacentCardGap = await page
     .locator('[data-testid^="vendor-run-row-"]')
@@ -873,14 +887,14 @@ try {
   await page.getByTestId("vendor-run-toggle-verify-run-active-c").click();
   record(
     "vendor-run expansion is independent",
-    (await detailsA.isVisible()) &&
-      !(await detailsC.isVisible().catch(() => false)),
+    !(await detailsA.isVisible().catch(() => false)) &&
+      (await detailsC.isVisible()),
   );
   await page.getByTestId("vendor-run-toggle-verify-run-delivered-b").click();
   record(
     "delivered vendor-run row expands in place",
     (await detailsB.isVisible()) &&
-      !(await detailsC.isVisible().catch(() => false)),
+      (await detailsC.isVisible()),
   );
   await page.getByTestId("vendor-run-toggle-verify-run-delivered-b").click();
 
@@ -905,7 +919,7 @@ try {
   record(
     "bulk success collapses only delivered ids",
     !(await detailsA.isVisible().catch(() => false)) &&
-      !(await detailsC.isVisible().catch(() => false)),
+      (await detailsC.isVisible()),
   );
   await assertReadableTextContrast(
     page,

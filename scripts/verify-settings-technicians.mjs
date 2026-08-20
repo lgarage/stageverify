@@ -121,13 +121,45 @@ async function ensureAuthenticated(page) {
   }
   await page.waitForTimeout(500);
 
+  const countInactiveRosterRows = async () =>
+    page
+      .locator('[data-testid="pin-access-roster"] tbody tr[data-testid^="pin-access-row-"]')
+      .evaluateAll((rowNodes) =>
+        rowNodes.filter((row) => {
+          const cells = row.querySelectorAll("td");
+          return cells[4]?.textContent?.trim() === "Inactive";
+        }).length,
+      );
+
+  const defaultInactiveCount = await countInactiveRosterRows();
+  if (defaultInactiveCount > 0) {
+    throw new Error(
+      `Default roster must hide inactive users — found ${defaultInactiveCount} Inactive row(s).`,
+    );
+  }
+  console.log("PASS: default roster excludes inactive users");
+
   await assertReadableTextContrast(page, TECHNICIAN_PANEL_CONTRAST_SPEC);
+  await assertReadableTextContrast(page, {
+    rootSelector: '[data-testid="technician-settings-panel"]',
+    elements: [
+      {
+        name: "archived users button (default)",
+        selector: '[data-testid="pin-access-archived-button"]',
+        large: false,
+      },
+    ],
+  });
   await assertNoElementOverlap(page, {
     containerSelector: '[data-testid="technician-settings-panel"]',
     elementSelectors: [
       {
         name: "PIN access heading",
         selector: '[data-testid="pin-access-heading"]',
+      },
+      {
+        name: "Archived Users button",
+        selector: '[data-testid="pin-access-archived-button"]',
       },
       {
         name: "Add Access button",
@@ -180,12 +212,49 @@ async function ensureAuthenticated(page) {
     .getByTestId("pin-access-pin-updated-contrast-probe")
     .evaluate((el) => el.remove());
 
+  await page.getByTestId("pin-access-archived-button").click();
+  await page.waitForTimeout(400);
+
+  const archivedEmpty = page.getByTestId("pin-access-archived-empty");
+  const archivedInactiveCount = await countInactiveRosterRows();
+  if ((await archivedEmpty.count()) > 0) {
+    console.log("PASS: archived view empty state (no inactive users)");
+  } else if (archivedInactiveCount > 0) {
+    console.log(
+      `PASS: archived view shows ${archivedInactiveCount} inactive row(s)`,
+    );
+  } else {
+    throw new Error(
+      "Archived view must show inactive rows or pin-access-archived-empty — neither found.",
+    );
+  }
+
+  await assertReadableTextContrast(page, {
+    rootSelector: '[data-testid="technician-settings-panel"]',
+    elements: [
+      {
+        name: "archived users button (selected)",
+        selector: '[data-testid="pin-access-archived-button"]',
+        large: false,
+      },
+    ],
+  });
+
+  await page.getByTestId("pin-access-archived-button").click();
+  await page.waitForTimeout(300);
+  const backInactiveCount = await countInactiveRosterRows();
+  if (backInactiveCount > 0) {
+    throw new Error(
+      "Active roster must hide inactive users after returning from archived view.",
+    );
+  }
+
   await page.screenshot({
     path: resolve(outDir, "settings-technicians-panel.png"),
   });
 
   console.log(
-    `PASS: PIN & Access Management technician roster/detail verified with text contrast (≥${MIN_TEXT_CONTRAST}:1 normal, ≥${MIN_LARGE_TEXT_CONTRAST}:1 large) and no header overlap.`,
+    `PASS: PIN & Access Management technician roster/detail verified with text contrast (≥${MIN_TEXT_CONTRAST}:1 normal, ≥${MIN_LARGE_TEXT_CONTRAST}:1 large), archived toggle, and no header overlap.`,
   );
   await browser.close();
 })().catch(async (err) => {
