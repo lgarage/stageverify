@@ -54,6 +54,7 @@ import {
 } from "./technicianReleasedJobsCache";
 import { stashTechnicianJobShell } from "./technicianJobShell";
 import { VendorDeliveredHub } from "./VendorDeliveredHub";
+import { VendorItemDisplayLines } from "./VendorItemDisplayLines";
 import {
   VendorUnplannedDeliveryFlow,
   type VendorUnplannedCompletePayload,
@@ -1595,12 +1596,10 @@ export function LocationScanPage() {
                           key={item.id}
                           className="rounded-lg border border-border bg-bg-primary px-3 py-2"
                         >
-                          <p className="text-sm font-medium leading-snug text-text-primary">
-                            {item.description}
-                          </p>
-                          <p className="mt-1 text-xs text-[#cbd5e1]">
-                            Qty {item.qtyOrdered}
-                          </p>
+                          <VendorItemDisplayLines
+                            description={item.description}
+                            qtyOrdered={item.qtyOrdered}
+                          />
                         </li>
                       ))}
                       {row.items.length === 0 && (

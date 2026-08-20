@@ -490,7 +490,19 @@ export const RECEIVE_CHECKIN_CONTRAST_SPEC = {
     },
     {
       name: "item description",
-      selector: ".rounded-xl.border.border-border .text-sm.font-medium.text-text-primary",
+      selector: '[data-testid="vendor-item-title"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "item specification",
+      selector: '[data-testid="vendor-item-spec"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "item quantity",
+      selector: '[data-testid="vendor-item-qty"]',
       large: false,
       optional: true,
     },
@@ -639,12 +651,40 @@ export const VENDOR_DELIVERED_HUB_ITEMS_CONTRAST_SPEC = {
   elements: [
     {
       name: "item row description",
-      selector: '[data-testid="vendor-hub-item-row"] p.text-text-primary',
+      selector: '[data-testid="vendor-hub-item-row"] [data-testid="vendor-item-title"]',
       large: false,
     },
     {
-      name: "item row meta",
-      selector: '[data-testid="vendor-hub-item-row"] p.text-text-secondary',
+      name: "item row specification",
+      selector: '[data-testid="vendor-hub-item-row"] [data-testid="vendor-item-spec"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "item row quantity",
+      selector: '[data-testid="vendor-hub-item-row"] [data-testid="vendor-item-qty"]',
+      large: false,
+    },
+  ],
+};
+
+export const VENDOR_RUN_ITEMS_CONTRAST_SPEC = {
+  rootSelector: '[data-testid="vendor-run-layout"]',
+  elements: [
+    {
+      name: "vendor-run item title",
+      selector: '[data-testid="vendor-item-title"]',
+      large: false,
+    },
+    {
+      name: "vendor-run item specification",
+      selector: '[data-testid="vendor-item-spec"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "vendor-run item quantity",
+      selector: '[data-testid="vendor-item-qty"]',
       large: false,
     },
   ],

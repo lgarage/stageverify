@@ -41,6 +41,8 @@ import { isOutsideShopGeofence } from "./geofence";
 import type { VendorDeliveryMode } from "./dispatcher/models";
 import { PublicNetworkErrorPanel } from "./PublicNetworkErrorPanel";
 import type { VendorPinVerifiedPayload } from "./VendorPinGate";
+import { VendorItemDisplayLines } from "./VendorItemDisplayLines";
+import { getVendorItemDisplay } from "./dispatcher/vendorItemDisplay";
 
 type Step = "scan" | "pin" | "hub" | "items" | "zone" | "done";
 
@@ -895,6 +897,11 @@ export function ReceivingPage() {
                         qtyAccounted >= qtyOrdered && qtyOrdered > 0;
                       const isPartialDelivery =
                         qtyAccounted > 0 && qtyAccounted < qtyOrdered;
+                      const itemDisplay = getVendorItemDisplay({
+                        description: item.description,
+                        sku: item.sku,
+                        qtyOrdered,
+                      });
 
                       return (
                         <div
@@ -905,7 +912,7 @@ export function ReceivingPage() {
                             type="button"
                             onClick={() => toggleItemCheck(item.id)}
                             className="w-full px-3 py-3 text-left"
-                            aria-label={`Toggle ${item.description}`}
+                            aria-label={`Toggle ${itemDisplay.title}`}
                           >
                             <div className="flex items-start gap-4">
                               <span
@@ -927,25 +934,12 @@ export function ReceivingPage() {
                                 />
                               </span>
                               <span className="min-w-0 flex-1">
-                                <span
-                                  className={`block text-sm font-medium ${
-                                    isFullyAccounted
-                                      ? "text-text-secondary line-through"
-                                      : "text-text-primary"
-                                  }`}
-                                >
-                                  {item.description}
-                                </span>
-                                <span
-                                  className={`mt-1 block text-xs ${
-                                    isFullyAccounted
-                                      ? "text-text-secondary/70 line-through"
-                                      : "text-text-secondary"
-                                  }`}
-                                >
-                                  Qty {qtyOrdered}
-                                  {item.sku ? ` · SKU ${item.sku}` : ""}
-                                </span>
+                                <VendorItemDisplayLines
+                                  description={item.description}
+                                  sku={item.sku}
+                                  qtyOrdered={qtyOrdered}
+                                  completed={isFullyAccounted}
+                                />
                                 {(qtyReceived > 0 || qtyDamaged > 0) && (
                                   <span className="mt-1 block text-xs text-text-secondary">
                                     Delivered: {qtyReceived}

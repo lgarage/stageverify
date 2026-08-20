@@ -6,6 +6,8 @@ import {
 } from "./dispatcher/models";
 import { VendorNeedMoreSpaceFlow } from "./VendorNeedMoreSpaceFlow";
 import { VendorIssueModal } from "./VendorIssueModal";
+import { VendorItemDisplayLines } from "./VendorItemDisplayLines";
+import { getVendorItemDisplay } from "./dispatcher/vendorItemDisplay";
 
 type DeliverCtaPhase = "idle" | "checkmark" | "delivered";
 
@@ -424,18 +426,11 @@ export function VendorDeliveredHub({
                         className="rounded-lg border border-border bg-bg-primary px-3 py-2"
                         data-testid="vendor-hub-item-row"
                       >
-                        <p className="text-sm font-medium text-text-primary leading-snug">
-                          {item.description}
-                        </p>
-                        <p className="text-xs text-text-secondary mt-1">
-                          Qty {item.qtyOrdered}
-                          {item.sku ? (
-                            <>
-                              {" · "}
-                              <span className="font-mono">{item.sku}</span>
-                            </>
-                          ) : null}
-                        </p>
+                        <VendorItemDisplayLines
+                          description={item.description}
+                          sku={item.sku}
+                          qtyOrdered={item.qtyOrdered}
+                        />
                       </div>
                     ))
                   )}
@@ -503,6 +498,11 @@ export function VendorDeliveredHub({
                   Math.max(0, Math.floor(Number(item.qtyDamaged ?? 0))),
                 ),
               };
+              const display = getVendorItemDisplay({
+                description: item.description,
+                sku: item.sku,
+                qtyOrdered: item.qtyOrdered,
+              });
               return (
                 <div
                   key={item.id}
@@ -510,7 +510,7 @@ export function VendorDeliveredHub({
                   data-testid="vendor-exception-item"
                 >
                   <p className="text-sm font-medium text-text-primary leading-snug">
-                    {item.description}
+                    <span data-testid="vendor-item-title">{display.title}</span>
                     <span className="ml-2 text-xs text-text-secondary">
                       Ordered {item.qtyOrdered}
                     </span>
