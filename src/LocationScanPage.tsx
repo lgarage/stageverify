@@ -135,9 +135,7 @@ export function LocationScanPage() {
         : location.search;
     return readLocationScanHistoryView(new URLSearchParams(raw));
   }, [hashSearch, location.search]);
-  const initialPinResumeRef = useRef(false);
   const appliedDeliveryIdRef = useRef<string | null>(null);
-  const [historyReady, setHistoryReady] = useState(false);
 
   const [step, setStep] = useState<Step>("loading");
   const [branding, setBranding] = useState<LocationBranding | null>(null);
@@ -251,8 +249,7 @@ export function LocationScanPage() {
   }, [loadBranding]);
 
   useLayoutEffect(() => {
-    if (requestLeftoverReceiveCollapse()) return;
-    setHistoryReady(true);
+    requestLeftoverReceiveCollapse();
   }, [locationCode]);
 
   useEffect(() => {
@@ -443,37 +440,6 @@ export function LocationScanPage() {
       setLoading(false);
     }
   }, [goToHistoryView]);
-
-  useEffect(() => {
-    initialPinResumeRef.current = false;
-  }, [locationCode]);
-
-  useEffect(() => {
-    if (!historyReady) return;
-    if (historyView.kind !== "pin") return;
-    if (initialPinResumeRef.current) return;
-    initialPinResumeRef.current = true;
-    const tech = getActiveTechnicianSession();
-    if (tech) {
-      goToHistoryView({ kind: "tech" }, { replace: true });
-      return;
-    }
-    if (isManagementPinSessionValid()) {
-      goToHistoryView({ kind: "mgmt" }, { replace: true });
-      return;
-    }
-    const run = getActiveVendorRunSession();
-    if (run) {
-      setVendorId(run.vendorId);
-      goToHistoryView({ kind: "deliveries" }, { replace: true });
-      return;
-    }
-    const job = getActiveJobPinSession();
-    if (job) {
-      setJobId(job.jobId);
-      goToHistoryView({ kind: "deliveries" }, { replace: true });
-    }
-  }, [goToHistoryView, historyReady, historyView.kind, locationCode]);
 
   const handlePinVerified = useCallback(
     (payload: {
@@ -1106,6 +1072,40 @@ export function LocationScanPage() {
     );
   }
 
+  // URL is SoT: Safari Back to `#/s?loc=` must paint PIN immediately.
+  // Do not wait for step===pin — list/hub step stays stale across popstate.
+  if (historyView.kind === "pin" && branding && locationCode) {
+    return (
+      <div className="app-container flex h-[100svh] max-h-[100dvh] min-h-[100svh] flex-col bg-bg-primary">
+        <div
+          className="shrink-0 border-b border-border bg-bg-surface px-3 text-center"
+          style={{ paddingBlock: "clamp(0.25rem, 0.9svh, 0.5rem)" }}
+          data-testid="location-scan-pin-header"
+        >
+          <p className="text-[10px] font-semibold uppercase leading-3 tracking-[0.18em] text-text-secondary [@media(max-height:600px)]:hidden">
+            Staging location
+          </p>
+          <p
+            className="font-mono text-2xl font-bold leading-none text-text-primary"
+            style={{ marginTop: "clamp(2px, 0.4svh, 4px)" }}
+          >
+            {branding.code}
+          </p>
+          <p
+            className="text-xs leading-4 text-text-secondary"
+            style={{ marginTop: "clamp(2px, 0.4svh, 4px)" }}
+          >
+            {branding.label}
+          </p>
+        </div>
+        <LocationScanPinGate
+          stagingLocationCode={locationCode}
+          onVerified={handleLocationScanPinVerified}
+        />
+      </div>
+    );
+  }
+
   if (step === "mgmt-landing" && branding && locationCode) {
     const mgmtCaps = getManagementSessionPermissions();
     const canCatchAllCheckIn = mgmtCaps?.catchAllCheckIn === true;
@@ -1171,39 +1171,7 @@ export function LocationScanPage() {
     );
   }
 
-  if (step === "pin" && branding && locationCode) {
-    return (
-      <div className="app-container flex h-[100svh] max-h-[100dvh] min-h-[100svh] flex-col bg-bg-primary">
-        <div
-          className="shrink-0 border-b border-border bg-bg-surface px-3 text-center"
-          style={{ paddingBlock: "clamp(0.25rem, 0.9svh, 0.5rem)" }}
-          data-testid="location-scan-pin-header"
-        >
-          <p className="text-[10px] font-semibold uppercase leading-3 tracking-[0.18em] text-text-secondary [@media(max-height:600px)]:hidden">
-            Staging location
-          </p>
-          <p
-            className="font-mono text-2xl font-bold leading-none text-text-primary"
-            style={{ marginTop: "clamp(2px, 0.4svh, 4px)" }}
-          >
-            {branding.code}
-          </p>
-          <p
-            className="text-xs leading-4 text-text-secondary"
-            style={{ marginTop: "clamp(2px, 0.4svh, 4px)" }}
-          >
-            {branding.label}
-          </p>
-        </div>
-        <LocationScanPinGate
-          stagingLocationCode={locationCode}
-          onVerified={handleLocationScanPinVerified}
-        />
-      </div>
-    );
-  }
-
-  if (step === "tech-list" && branding) {
+  if (step === "tech-list" && branding && historyView.kind === "tech") {
     const techContextParts = [branding.code, technicianName].filter(
       (part): part is string => Boolean(part),
     );
@@ -1889,7 +1857,7 @@ export function LocationScanPage() {
   return (
     <div className="app-container flex flex-col h-screen h-dvh bg-bg-primary items-center justify-center px-6">
       <p className="text-sm text-text-secondary">
-        {loading ? "Loading…" : "Select vendor or technician to continue."}
+        Loading…
       </p>
     </div>
   );
