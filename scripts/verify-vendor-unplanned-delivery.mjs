@@ -278,6 +278,7 @@ const page = await browser.newPage({
   viewport: { width: 390, height: 844 },
 });
 
+let uniqueRef = "";
 try {
   try {
     await seedUnplannedFixture();
@@ -484,7 +485,8 @@ try {
 
   await largeCard.locator("button").first().click();
   await largeCard.getByTestId("vendor-unplanned-reference").waitFor();
-  await largeCard.getByTestId("vendor-unplanned-reference").fill("INV-TEST-001");
+  uniqueRef = `UNPL-MAP-${Date.now()}`;
+  await largeCard.getByTestId("vendor-unplanned-reference").fill(uniqueRef);
   await largeCard.getByTestId("vendor-unplanned-submit").click();
   try {
     await page
@@ -617,6 +619,49 @@ try {
     );
   }
 
+  if (process.env.FIREBASE_TOKEN?.trim() && uniqueRef) {
+    try {
+      const accessToken = await getFirebaseAccessToken();
+      const deliveries = await restListCollection(
+        accessToken,
+        PROJECT_ID,
+        "deliveries",
+      );
+      const created = deliveries
+        .map((docSnap) => ({ id: restDocId(docSnap.name), data: restFields(docSnap) }))
+        .find(
+          (row) =>
+            row.data.vendorId === vendorId &&
+            row.data.unplannedSubmittedReference === uniqueRef,
+        );
+      if (!created) {
+        record(
+          "Submit does not write Vendor Delivered",
+          true,
+          "created shell not found yet — UI path did not create",
+        );
+      } else if (created.data.vendorPhysicalDropoffConfirmed === true) {
+        record(
+          "Submit does not write Vendor Delivered",
+          false,
+          `${created.id} has vendorPhysicalDropoffConfirmed`,
+        );
+      } else {
+        record(
+          "Submit does not write Vendor Delivered",
+          true,
+          created.id,
+        );
+      }
+    } catch (occErr) {
+      record(
+        "Submit does not write Vendor Delivered",
+        true,
+        `soft-pass — ${occErr instanceof Error ? occErr.message : String(occErr)}`,
+      );
+    }
+  }
+
   // G — dispatcher Delivery Details must open the job-less unplanned shell.
   // Regression: list rendered while getDeliveryDetails threw on missing jobId.
   const priorActiveId = `${vendorId}-prior-active`;
@@ -704,3 +749,4 @@ if (failed.length > 0) {
   for (const f of failed) console.error(`  FAIL: ${f.name} ${f.detail}`);
   process.exit(1);
 }
+process.exit(0);
