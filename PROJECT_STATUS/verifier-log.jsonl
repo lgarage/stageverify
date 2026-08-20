@@ -218,3 +218,4 @@
 {"date":"2026-08-18","role":"security","verdict":"PASS","taskId":"bc-4ceed7f3-fde8-5a1a-ba8a-6be5551eefef","model":"claude-sonnet-5-thinking-high","real":"na","note":""}
 {"date":"2026-08-18","role":"security","verdict":"PASS","taskId":"4ceed7f3-fde8-5a1a-ba8a-6be5551eefef","model":"claude-sonnet-5-thinking-high","real":"na","note":""}
 {"date":"2026-08-20","role":"ship","verdict":"PASS","taskId":"bc-fec183b4-dbc1-5274-817e-940360750b06","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-08-20","role":"ship","verdict":"PASS","taskId":"bc-9861d6aa-5ee5-51d2-b7ff-176566e0b710","model":"cursor-grok-4.5-high-fast","real":"na","note":"v0.0.297 Deliveries Issue OK"}

@@ -38,6 +38,7 @@ import {
   assertDeliveredOverviewTiles,
   shouldRunPickupTokenVerify,
 } from "./dispatcherVerifyHelpers.mjs";
+import { assertDeliveriesIssueColumn } from "./lib/deliveries-issue-column-assert.mjs";
 
 const baseUrl =
   process.argv.includes("--base-url")
@@ -402,6 +403,9 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
     .getByRole("heading", { name: "Delivery Overview" })
     .waitFor({ timeout: 30_000 });
   await logDeliveryTableDiagnostics(page, { authOutcome });
+
+  console.log("Deliveries Issue column (OK when no issue)…");
+  await assertDeliveriesIssueColumn(page, { viewportLabel: "desktop" });
 
   console.log("Dispatcher top bar layout + contrast (D-42/D-45)…");
   await assertNoElementOverlap(page, DISPATCHER_TOPBAR_OVERLAP_SPEC);
