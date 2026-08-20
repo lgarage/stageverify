@@ -1,6 +1,8 @@
 /**
  * Meaningful location-scan history (PIN → deliveries → order).
- * Printed QR stays `#/s?loc=`; later screens push `view=` on the same route.
+ * Printed QR stays `#/s?loc=` (PIN is a real history entry).
+ * Later screens **push** `view=` on the same route — do not replace the PIN URL
+ * on session resume, or Safari Back skips PIN and hits a stale shell.
  */
 
 export type LocationScanHistoryView =

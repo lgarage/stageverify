@@ -171,6 +171,22 @@ async function main() {
       fullPage: false,
     });
 
+    await page.goBack();
+    await page.getByRole("heading", { name: "Enter PIN", exact: true }).waitFor({
+      timeout: 15_000,
+    });
+    const afterTechBack = await page.locator("body").innerText();
+    record(
+      "Safari Back from tech list returns to PIN",
+      /Enter PIN/.test(afterTechBack) &&
+        !/Select vendor or technician to continue/i.test(afterTechBack),
+    );
+    await page.goForward();
+    await page.getByTestId("technician-released-jobs").waitFor({
+      timeout: 15_000,
+    });
+    record("Safari Forward from PIN returns to tech list", true);
+
     await page.getByTestId(`tech-released-job-${jobId}`).click();
     await page.waitForURL(/#\/pickup\?/, { timeout: 20_000 });
     record("card opens pickup", true, page.url());
