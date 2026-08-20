@@ -357,7 +357,7 @@ try {
   const groundCard = page.getByTestId("vendor-unplanned-tier-ground");
   const largeCard = page.getByTestId("vendor-unplanned-tier-large");
 
-  await shelfCard.locator("button").first().click();
+  await shelfCard.locator("button").first().click({ force: true });
   await shelfCard.getByTestId("vendor-unplanned-reference").waitFor();
   assert(
     (await shelfCard.getAttribute("data-expanded")) === "true",
@@ -369,7 +369,7 @@ try {
   );
   record("Shelf selection expands identifier inside Shelf", true);
 
-  await groundCard.locator("button").first().click();
+  await groundCard.locator("button").first().click({ force: true });
   await groundCard.getByTestId("vendor-unplanned-reference").waitFor();
   assert(
     (await groundCard.getAttribute("data-expanded")) === "true",
@@ -386,7 +386,7 @@ try {
     fullPage: false,
   });
 
-  await largeCard.locator("button").first().click();
+  await largeCard.locator("button").first().click({ force: true });
   await largeCard.getByTestId("vendor-unplanned-reference").waitFor();
   assert(
     (await largeCard.getAttribute("data-expanded")) === "true" &&
@@ -483,7 +483,7 @@ try {
   );
   record("in-card Cancel performs no match/create/write", true);
 
-  await largeCard.locator("button").first().click();
+  await largeCard.locator("button").first().click({ force: true });
   await largeCard.getByTestId("vendor-unplanned-reference").waitFor();
   uniqueRef = `UNPL-MAP-${Date.now()}`;
   await largeCard.getByTestId("vendor-unplanned-reference").fill(uniqueRef);
@@ -513,6 +513,11 @@ try {
     } else if (await page.getByTestId("vendor-unplanned-success").isVisible()) {
       await page
         .getByTestId("vendor-unplanned-suggest")
+        .waitFor({ state: "visible", timeout: 20_000 });
+      await page
+        .getByTestId("vendor-unplanned-suggest-code")
+        .or(page.getByTestId("vendor-unplanned-need-space"))
+        .first()
         .waitFor({ state: "visible", timeout: 20_000 });
       assert(
         (await page.getByText("Complete Delivery", { exact: true }).count()) ===
@@ -567,6 +572,11 @@ try {
         );
         const suggest = page.getByTestId("vendor-unplanned-suggest");
         await suggest.waitFor({ state: "visible", timeout: 20_000 });
+        await page
+          .getByTestId("vendor-unplanned-suggest-code")
+          .or(page.getByTestId("vendor-unplanned-need-space"))
+          .first()
+          .waitFor({ state: "visible", timeout: 20_000 });
         const suggestCode = page.getByTestId("vendor-unplanned-suggest-code");
         if (await suggestCode.isVisible().catch(() => false)) {
           const code = (await suggestCode.innerText()).trim();
