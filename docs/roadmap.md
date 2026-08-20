@@ -94,6 +94,8 @@
 
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
+**Shipped (2026-08-20):** Vendor Add unplanned delivery planning-only: in-card Cancel/Submit, Complete Delivery removed, nearest available Shelf/Ground/XL from Staging Map geometry vs scanned QR — **v0.0.299** gh-pages FE-only; no CF/rules.
+
 **Shipped (2026-08-20):** Vendor/technician PIN Safari Back returns to the PIN page (hash URL SoT; leftover role-select shell removed from this Back path) — **v0.0.296** gh-pages FE-only; `verify:vendor-history` PASS.
 
 **Shipped (2026-08-20):** All-vendor compact delivery cards (job + order/invoice + PO on the face; company-run starts collapsed; Settings Archived Users) — **v0.0.295** gh-pages LIVE (`index-CVmqccep.js` / Pages tip `46b149e`). `getJobVendorDeliveries` read-path fields in repo; CF deploy still needs Dan approval for job-scoped job name + DELIVERED badge.
