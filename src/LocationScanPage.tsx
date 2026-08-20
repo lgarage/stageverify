@@ -90,6 +90,7 @@ import { isVendorSessionError } from "./vendorSessionErrors";
 import { PublicNetworkErrorPanel } from "./PublicNetworkErrorPanel";
 import { isOutsideShopGeofence } from "./geofence";
 import { VendorDeliveriesLanding } from "./VendorDeliveriesLanding";
+import { VendorCompactDeliveryCard } from "./VendorCompactDeliveryCard";
 
 type Step =
   | "loading"
@@ -429,11 +430,7 @@ export function LocationScanPage() {
           }
           return next;
         }
-        return new Set(
-          result.deliveries
-            .filter((delivery) => !delivery.vendorPhysicalDropoffConfirmed)
-            .map((delivery) => delivery.deliveryId),
-        );
+        return new Set();
       });
       setStep("vendor-list");
     } catch (err) {
@@ -1527,28 +1524,19 @@ export function LocationScanPage() {
             return (
               <div
                 key={row.deliveryId}
-                className={`overflow-hidden rounded-2xl border shadow-lg shadow-black/20 ${
-                  delivered
-                    ? "border-[#059669] bg-[#047857]"
-                    : "border-white/10 bg-bg-secondary"
+                className={`vendor-compact-card overflow-hidden rounded-2xl border bg-bg-secondary shadow-lg shadow-black/20 ${
+                  delivered ? "vendor-compact-card-delivered" : "border-white/10"
                 }`}
                 data-testid={`vendor-run-row-${row.deliveryId}`}
                 data-delivered={delivered ? "true" : "false"}
               >
                 <div
-                  className={`flex min-h-16 items-center gap-3 px-3 py-2.5 ${
-                    delivered ? "bg-[#047857]" : "bg-bg-secondary"
-                  }`}
-                  data-testid={
-                    delivered
-                      ? `vendor-run-delivered-summary-${row.deliveryId}`
-                      : undefined
-                  }
+                  className="vendor-compact-card-action-row flex items-start gap-2"
                 >
                   {!delivered && (
                     <input
                       type="checkbox"
-                      className="size-6 shrink-0 accent-[#047857]"
+                      className="vendor-compact-card-checkbox size-6 shrink-0 accent-[#047857]"
                       checked={checkedDeliveryIds.has(row.deliveryId)}
                       disabled={!canCheck || loading}
                       aria-label={`Select ${row.jobName}`}
@@ -1557,81 +1545,28 @@ export function LocationScanPage() {
                   )}
                   <button
                     type="button"
-                    className="flex min-h-12 flex-1 items-center gap-3 text-left min-w-0"
+                    className="vendor-compact-card-toggle min-w-0 flex-1 text-left"
                     onClick={() => toggleExpanded(row.deliveryId)}
                     aria-expanded={expanded}
                     aria-label={`${expanded ? "Collapse" : "Expand"} ${row.jobName} delivery details`}
                     data-testid={`vendor-run-toggle-${row.deliveryId}`}
                   >
-                    <span
-                      className={`flex size-11 shrink-0 items-center justify-center rounded-xl font-mono text-sm font-semibold ${
-                        delivered
-                          ? "bg-white/15 text-white"
-                          : "bg-accent/15 text-accent"
-                      }`}
-                      data-testid={
-                        delivered
-                          ? `vendor-run-delivered-location-tile-${row.deliveryId}`
+                    <VendorCompactDeliveryCard
+                      deliveryId={row.deliveryId}
+                      variant="vendor-run"
+                      jobName={row.jobName}
+                      orderNumber={row.orderNumber}
+                      vendorInvoiceNumber={row.vendorInvoiceNumber}
+                      poNumber={row.poNumber}
+                      stagingLocationCodes={row.stagingLocationCodes}
+                      delivered={delivered}
+                      expanded={expanded}
+                      warning={
+                        !delivered && !canCheck
+                          ? "No spot — ask dispatch"
                           : undefined
                       }
-                    >
-                      {locationIdentity}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span
-                        className={`block truncate text-base font-semibold ${
-                          delivered ? "text-white" : "text-text-primary"
-                        }`}
-                        data-testid={
-                          delivered
-                            ? `vendor-run-delivered-location-${row.deliveryId}`
-                            : `vendor-run-location-${row.deliveryId}`
-                        }
-                      >
-                        Location: {locationIdentity}
-                      </span>
-                      <span
-                        className={`mt-0.5 block truncate text-xs ${
-                          delivered
-                            ? "font-bold tracking-[0.14em] text-white"
-                            : "text-[#cbd5e1]"
-                        }`}
-                        data-testid={
-                          delivered
-                            ? `vendor-run-delivered-status-${row.deliveryId}`
-                            : `vendor-run-job-${row.deliveryId}`
-                        }
-                      >
-                        {delivered ? "DELIVERED" : row.jobName}
-                      </span>
-                      {!delivered && !canCheck && (
-                        <span className="mt-1 block text-xs text-accent-red">
-                          No spot — ask dispatch
-                        </span>
-                      )}
-                    </span>
-                    <span
-                      className={`shrink-0 transition-transform duration-200 ${
-                        delivered ? "text-white" : "text-[#cbd5e1]"
-                      }`}
-                      aria-hidden
-                      style={{
-                        transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
-                      }}
-                    >
-                      <svg
-                        width="19"
-                        height="19"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="m9 18 6-6-6-6" />
-                      </svg>
-                    </span>
+                    />
                   </button>
                 </div>
                 {expanded && (
@@ -1839,12 +1774,6 @@ export function LocationScanPage() {
       >
             <div className="vendor-deliveries-card-list-inner flex flex-col gap-4">
               {deliveries.map((row) => {
-                const displayPo = row.poNumber
-                  ? /^po/i.test(row.poNumber)
-                    ? row.poNumber
-                    : `PO ${row.poNumber}`
-                  : null;
-
                 return (
                   <button
                     key={row.deliveryId}
@@ -1856,60 +1785,26 @@ export function LocationScanPage() {
                   deliveryId: row.deliveryId,
                 });
               }}
-                    className="min-h-11 w-full rounded-2xl border border-white/10 bg-bg-secondary p-4 text-left shadow-lg shadow-black/20 touch-manipulation transition active:scale-[0.99] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className={`vendor-compact-card min-h-11 w-full overflow-hidden rounded-2xl border bg-bg-secondary text-left shadow-lg shadow-black/20 touch-manipulation transition active:scale-[0.99] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                      row.vendorPhysicalDropoffConfirmed
+                        ? "vendor-compact-card-delivered"
+                        : "border-white/10"
+                    }`}
                     data-testid={`vendor-job-delivery-${row.deliveryId}`}
+                    data-delivered={
+                      row.vendorPhysicalDropoffConfirmed ? "true" : "false"
+                    }
                   >
-                    <div className="vendor-job-delivery-order-row flex items-start gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="vendor-job-delivery-order break-words text-lg font-bold leading-6 text-text-primary [overflow-wrap:anywhere]">
-                          {row.orderNumber}
-                        </p>
-                        {displayPo && (
-                          <p className="vendor-job-delivery-po mt-1.5 break-words text-sm leading-5 text-[#cbd5e1] [overflow-wrap:anywhere]">
-                            {displayPo}
-                          </p>
-                        )}
-                      </div>
-                      <span
-                        className="mt-0.5 shrink-0 text-text-secondary"
-                        aria-hidden
-                      >
-                        <svg
-                          width="18"
-                          height="18"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="m9 18 6-6-6-6" />
-                        </svg>
-                      </span>
-                    </div>
-
-                    <div className="vendor-job-delivery-staging mt-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-secondary">
-                        Staging locations
-                      </p>
-                      <div className="vendor-job-delivery-staging-values mt-1.5 flex flex-wrap gap-1.5">
-                        {row.stagingLocationCodes.length > 0 ? (
-                          row.stagingLocationCodes.map((code) => (
-                            <span
-                              key={code}
-                              className="rounded-lg bg-accent/15 px-2.5 py-1 font-mono text-sm font-semibold text-accent"
-                            >
-                              {code}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-sm text-[#cbd5e1]">
-                            Not assigned yet
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                    <VendorCompactDeliveryCard
+                      deliveryId={row.deliveryId}
+                      variant="vendor-job"
+                      jobName={row.jobName}
+                      orderNumber={row.orderNumber}
+                      vendorInvoiceNumber={row.vendorInvoiceNumber}
+                      poNumber={row.poNumber}
+                      stagingLocationCodes={row.stagingLocationCodes}
+                      delivered={row.vendorPhysicalDropoffConfirmed === true}
+                    />
                   </button>
                 );
               })}

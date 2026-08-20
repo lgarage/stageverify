@@ -111,23 +111,30 @@ async function main() {
       const cardRects = cardEls.map((el) => {
         const r = el.getBoundingClientRect();
         const style = getComputedStyle(el);
-        const order = el.querySelector(".vendor-job-delivery-order");
-        const po = el.querySelector(".vendor-job-delivery-po");
-        const chips = [...el.querySelectorAll(".vendor-job-delivery-staging-values > span")].map(
-          (s) => (s.textContent ?? "").trim(),
-        );
+        const face = el.querySelector(".vendor-compact-card-face");
+        const faceStyle = face ? getComputedStyle(face) : null;
+        const job = el.querySelector(".vendor-compact-card-job");
+        const order = el.querySelector(".vendor-compact-card-order");
+        const invoice = el.querySelector(".vendor-compact-card-invoice");
+        const po = el.querySelector(".vendor-compact-card-po");
+        const staging = el.querySelector(".vendor-compact-card-location-value");
+        const deliveredBadge = el.querySelector(".vendor-compact-card-status");
         return {
           top: r.top,
           bottom: r.bottom,
           height: r.height,
           width: r.width,
           overflowX: el.scrollWidth > el.clientWidth + 1,
-          pad: parseFloat(style.paddingTop ?? "0"),
+          pad: parseFloat(faceStyle?.paddingTop ?? "0"),
           bg: style.backgroundColor,
+          jobText: (job?.textContent ?? "").trim(),
           orderText: (order?.textContent ?? "").trim(),
           orderOverflow: order ? order.scrollWidth > order.clientWidth + 1 : false,
+          invoiceText: (invoice?.textContent ?? "").trim(),
           poText: (po?.textContent ?? "").trim(),
-          chips,
+          stagingText: (staging?.textContent ?? "").trim(),
+          delivered: el.getAttribute("data-delivered") === "true",
+          deliveredBadge: (deliveredBadge?.textContent ?? "").trim(),
         };
       });
       const gap =
@@ -155,7 +162,7 @@ async function main() {
       metrics.headerPl >= 15 &&
       metrics.headerPt >= 12 &&
       metrics.mainPl >= 15 &&
-      metrics.cardRects.every((c) => c.pad >= 15 && c.height >= 44) &&
+      metrics.cardRects.every((c) => c.pad >= 11 && c.height >= 44) &&
       (metrics.gap ?? 16) >= 12 &&
       metrics.footerPb >= 12 &&
       metrics.backVisible &&
@@ -179,16 +186,43 @@ async function main() {
     record("distinct cards (gap + independent buttons)", (metrics.gap ?? 0) >= 12 && metrics.cardCount >= 2);
 
     const withPo = metrics.cardRects.find((c) => c.orderText === withPoOrder);
-    const withoutPo = metrics.cardRects.find((c) => c.orderText && c.orderText !== withPoOrder && !c.poText);
-    const withSpots = metrics.cardRects.find((c) => c.chips.some((chip) => chip && chip !== "Not assigned yet"));
-    const withoutSpots = metrics.cardRects.find((c) => c.chips.includes("Not assigned yet"));
+    const withoutPo = metrics.cardRects.find(
+      (c) => c.orderText && c.orderText !== withPoOrder && c.poText === "—",
+    );
+    const withSpots = metrics.cardRects.find(
+      (c) => c.stagingText && c.stagingText !== "Not assigned",
+    );
+    const withoutSpots = metrics.cardRects.find(
+      (c) => c.stagingText === "Not assigned",
+    );
     const longId = metrics.cardRects.find((c) => c.orderText.length >= 16);
+    const deliveredCards = metrics.cardRects.filter((c) => c.delivered);
 
-    record(`order with PO (${withPoOrder})`, Boolean(withPo?.poText) && !/^PO PO/i.test(withPo?.poText ?? ""), withPo?.poText ?? "missing");
-    record("order without PO", Boolean(withoutPo), withoutPo?.orderText ?? "missing");
-    record("order with staging locations", Boolean(withSpots), withSpots?.chips.join(",") ?? "missing");
-    record("order without staging (calm, not error)", Boolean(withoutSpots), withoutSpots?.chips.join(",") ?? "missing");
+    record(
+      "compact face shows job + order/invoice + PO",
+      metrics.cardRects.every(
+        (c) =>
+          Boolean(c.jobText) &&
+          Boolean(c.orderText || c.invoiceText) &&
+          Boolean(c.poText),
+      ),
+    );
+    record(
+      `order with PO (${withPoOrder})`,
+      Boolean(withPo?.poText) && withPo?.poText !== "—",
+      withPo?.poText ?? "missing",
+    );
+    record("order without PO uses em dash", Boolean(withoutPo), withoutPo?.orderText ?? "missing");
+    record("order with staging locations", Boolean(withSpots), withSpots?.stagingText ?? "missing");
+    record("order without staging (calm, not error)", Boolean(withoutSpots), withoutSpots?.stagingText ?? "missing");
     record("long order identifier wraps", Boolean(longId) && !longId?.orderOverflow, longId?.orderText ?? "missing");
+    record(
+      "delivered cards show DELIVERED on the compact face",
+      deliveredCards.every((card) => card.deliveredBadge === "DELIVERED"),
+      deliveredCards.length > 0
+        ? `delivered=${deliveredCards.length}`
+        : "no delivered fixture — not applicable",
+    );
 
     const singleCard = await page.evaluate(() => {
       const cards = [...document.querySelectorAll('[data-testid^="vendor-job-delivery-"]')];
@@ -198,7 +232,8 @@ async function main() {
       });
       const visible = cards.find((el) => el.style.display !== "none");
       const r = visible?.getBoundingClientRect();
-      const style = visible ? getComputedStyle(visible) : null;
+      const face = visible?.querySelector(".vendor-compact-card-face");
+      const style = face ? getComputedStyle(face) : null;
       return {
         visibleCount: cards.filter((el) => el.style.display !== "none").length,
         pad: parseFloat(style?.paddingTop ?? "0"),
@@ -208,7 +243,7 @@ async function main() {
     });
     record(
       "single available order still a distinct card",
-      singleCard.visibleCount === 1 && singleCard.pad >= 15 && singleCard.height >= 44,
+      singleCard.visibleCount === 1 && singleCard.pad >= 11 && singleCard.height >= 44,
       JSON.stringify(singleCard),
     );
     await page.screenshot({
@@ -227,10 +262,24 @@ async function main() {
       elements: [
         { name: "title", selector: "h1", large: true },
         { name: "helper", selector: ".vendor-job-deliveries-helper" },
-        { name: "order", selector: ".vendor-job-delivery-order", large: true },
+        { name: "job", selector: ".vendor-compact-card-job", large: true },
+        { name: "order", selector: ".vendor-compact-card-order" },
+        { name: "PO", selector: ".vendor-compact-card-po" },
+        { name: "staging", selector: ".vendor-compact-card-location" },
         { name: "back", selector: "footer button" },
       ],
     });
+    if (deliveredCards.length > 0) {
+      await assertReadableTextContrast(page, {
+        rootSelector: '[data-testid="vendor-job-deliveries"]',
+        elements: [
+          {
+            name: "delivered status",
+            selector: ".vendor-compact-card-status",
+          },
+        ],
+      });
+    }
     record("D-42 contrast", true);
 
     await page.screenshot({
@@ -238,9 +287,19 @@ async function main() {
       fullPage: false,
     });
 
-    await page.getByRole("button", { name: new RegExp(withPoOrder) }).click();
+    const navigationOrder =
+      metrics.cardRects.find((card) => !card.delivered)?.orderText ?? withPoOrder;
+    await page
+      .locator('[data-testid^="vendor-job-delivery-"]')
+      .filter({ hasText: navigationOrder })
+      .first()
+      .click();
     await page.getByTestId("vendor-mark-delivered").waitFor({ timeout: 25_000 });
-    record("order selection opens hub (unchanged behavior)", true);
+    record(
+      "order selection opens hub (unchanged behavior)",
+      true,
+      navigationOrder,
+    );
 
     await page.getByRole("button", { name: "← Back" }).click();
     await page.getByTestId("vendor-job-deliveries").waitFor({ timeout: 15_000 });
