@@ -17,7 +17,7 @@
 | `html5-qr-type` | camera scanner | `Html5QrcodeInstance` from `qrScannerTypes.ts` — no `any` |
 | `delivery-status` | new `DeliveryStatus` | update `RECEIVE_BLOCKED` and `ZONE_CLEARED` in same change |
 | `backend-critical` | rules, CF writes, schema, auth/PIN, security-sensitive | archetype `backend-write-critical` / T3; **D-60** Sonnet pre → builder → Grok adversarial → Sonnet final → **D-38**; CF/rules deploy need Dan approval |
-| `billing` | model / tier pick | D-65: simple UI → Composer; visual-judgment UI → Sol High Task; ≤1 Grok on routine T1; T3/high-risk PROTECTED D-60 (Sonnet+Grok adversarial+Sonnet) + D-38 |
+| `billing` | model / tier pick | D-92: Grok 4.6 preferred orch; Composer default implementer; Sol visual; Sonnet 5 PROTECTED D-60/D-38; D-65 ≤1 Grok on routine T1; one Composer repair then Grok takeover of same verified defect |
 | `agent-lessons` | repeating mistakes, QR/hash races, "say fixed" too early | Read **§ agent-lessons** (+ Diagnose before tweak) before public routes / scan fixes |
 | `delivery-display-wiring` | list filter, drawer status, partial @ qty=0, unit counts | Read **§ delivery-display-wiring** before dispatcher list/drawer readiness edits |
 | `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
@@ -43,8 +43,8 @@
 - Occupancy map: `mapActiveZoneOccupancyByCode`.
 
 ## § billing
-- **D-65:** Simple UI → Composer + mechanical verify; visual-judgment UI → Sol (`gpt-5.6-sol-high` Task directly); do not stack 3–4 Grok lanes on routine T1.
-- **Non-UI:** Composer 2.5 = orchestrator + default worker.
+- **D-92:** Grok 4.6 preferred orchestrator; Composer 2.5 Fast default implementer; Sol (`gpt-5.6-sol-high`) visual-judgment UI; Sonnet 5 PROTECTED D-60/D-38. Grok reviews the actual Composer diff; one Composer repair; same verified defect still open → Grok takeover of that scope only (does not bypass Sonnet; does not steal Sol).
+- **D-65:** Simple UI → Composer + mechanical verify; visual-judgment UI → Sol Task directly; do not stack 3–4 Grok lanes on routine T1.
 - Sonnet 5 (`claude-sonnet-5-thinking-high`) = **PROTECTED** D-38 + D-60 (on-demand). D-65 must not N/A the T3 loop.
 - **Public Firestore writes:** code fix + `firebase deploy --only firestore:rules` in the same session — `npm run deploy` (gh-pages) does not ship rules. CF/rules deploy still need explicit Dan approval.
 

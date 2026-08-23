@@ -38,13 +38,14 @@ For away/sleep/overnight **execute** (phase 4 only):
 
 Suggest **batch runs** to Dan at plan time; run them only after queue + approval.
 
-## Composer 2.5 = orchestrator (always)
+## Model routing (D-92)
 
-The **parent Composer 2.5 Fast session** is the orchestrator. It:
+Away parent follows the same routing as interactive sessions (`model-gates.mdc` § Default model routing): **Grok 4.6 preferred orchestrator** when that is the session parent; **Composer 2.5 Fast default implementer** (Sol for visual-judgment UI). The **orchestrator** (not implementer workers):
 
 - Classifies each item (archetype + tier).
 - Runs parallel **read-only scouts** when useful (see below).
 - **Synthesizes** scout output before any file edit.
+- Delegates implementation (Composer/Sol) or implements inline when Composer is parent.
 - Implements **one away item at a time** — never two items in parallel.
 - May delegate **non-overlapping file domains within the current item** to domain executors (`parallel-agent-strategy.mdc` § File-ownership batches); coordinator merges, then runs verify/build/ship itself.
 - Runs **verify gates** itself — do not delegate Playwright/build/ship to subagents.

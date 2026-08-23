@@ -55,6 +55,7 @@ Voice-cheap — **"log pain: <what you wanted and couldn't do>"** in any channel
 - 2026-08-09: Dan-directed reopen (owner authority): Timekeeper health check B.PARTIAL — elapsed checkpoints could be consumed on best-effort hooks without agent-visible delivery; cadence too sparse for 20–30m jobs — amend D-72 pending→delivered + denser ~10–35m elapsed ladder (no parallel anti-thrash system).
 - 2026-08-09: Dan-directed reopen (owner authority): product/fix/deploy jobs closed with automated verify PASS but no Dan-facing real-user procedure — wanted mandatory **MANUAL TEST FOR DAN** in the completion report before DONE/ARCHIVE (D-78).
 - 2026-08-09: Dan-directed reopen (owner authority): high-risk/security-sensitive work needed mandatory independent multi-model iteration — Sonnet 5 pre-review → builder → Grok adversarial critical review (iterate) → Sonnet 5 final verify → D-38, with fail-closed behavior and unchanged CF/rules deploy approval (D-60 amend).
+- 2026-08-23: Dan-directed: Grok parents self-implemented routine code (`ui-implementer: grok-session`) despite D-37/D-43; wanted explicit Grok 4.6 orch + Composer 2.5 implementer lock, plus Composer one-repair then Grok takeover of the same verified defect (D-92).
 
 ## Deferred designs (reviewed 2026-07-09, rounds 1-5; retrievable via pain ticket)
 
