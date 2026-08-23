@@ -3,6 +3,7 @@ import { deriveVendorOrderFulfillmentLabel } from "../src/dispatcher/vendorJobCa
 import {
   createVendorRunDetailsCache,
   enrichVendorRunFulfillment,
+  invalidateVendorRunDetailsCache,
   vendorRunFulfillmentUsesPhysicalFallback,
 } from "../src/dispatcher/vendorRunFulfillmentHydration.ts";
 
@@ -37,6 +38,9 @@ async function fetchDetails({ deliveryId }) {
   fetchCount += 1;
   fetchedIds.push(deliveryId);
   return {
+    delivery: {
+      vendorPhysicalDropoffConfirmedAt: "2026-08-22T10:00:00.000Z",
+    },
     items: [
       {
         id: "i1",
@@ -60,6 +64,11 @@ const first = await enrichVendorRunFulfillment(
 assert.equal(fetchCount, 1, "fetches only rows missing qtyReceived");
 assert.deepEqual(fetchedIds, ["d1"]);
 assert.equal(first[0].items[0].qtyReceived, 1);
+assert.equal(
+  first[0].vendorPhysicalDropoffConfirmedAt,
+  "2026-08-22T10:00:00.000Z",
+  "copies timestamp from details.delivery",
+);
 assert.equal(first[1].items[0].qtyReceived, 1);
 
 const second = await enrichVendorRunFulfillment(
@@ -70,6 +79,11 @@ const second = await enrichVendorRunFulfillment(
 );
 assert.equal(fetchCount, 1, "reuses session cache on second enrich");
 assert.equal(second[0].items[0].qtyBackordered, 1);
+assert.equal(
+  second[0].vendorPhysicalDropoffConfirmedAt,
+  "2026-08-22T10:00:00.000Z",
+  "timestamp survives cache reuse",
+);
 
 const emptyFetchCount = { n: 0 };
 const kept = await enrichVendorRunFulfillment(
@@ -83,6 +97,65 @@ const kept = await enrichVendorRunFulfillment(
 assert.equal(emptyFetchCount.n, 1);
 assert.equal(kept[0].items[0].description, "Unit");
 assert.equal(kept[0].items[0].qtyReceived, undefined);
+
+const listWithTimestamp = {
+  ...listOnly,
+  deliveryId: "d3",
+  vendorPhysicalDropoffConfirmedAt: "2026-08-20T08:00:00.000Z",
+};
+const merged = await enrichVendorRunFulfillment(
+  [listWithTimestamp],
+  "token-c",
+  async () => {
+    throw new Error("should not fetch when qty already on row");
+  },
+  createVendorRunDetailsCache(),
+);
+assert.equal(
+  merged[0].vendorPhysicalDropoffConfirmedAt,
+  "2026-08-20T08:00:00.000Z",
+  "keeps list-row timestamp when present",
+);
+
+const flatDetailsFetch = await enrichVendorRunFulfillment(
+  [
+    {
+      ...listOnly,
+      deliveryId: "d4",
+      items: [{ id: "i4", description: "Unit", qtyOrdered: 1 }],
+    },
+  ],
+  "token-d",
+  async () => ({
+    vendorPhysicalDropoffConfirmedAt: "2026-08-21T09:00:00.000Z",
+    items: [
+      {
+        id: "i4",
+        description: "Unit",
+        qtyOrdered: 1,
+        qtyReceived: 1,
+      },
+    ],
+  }),
+);
+assert.equal(
+  flatDetailsFetch[0].vendorPhysicalDropoffConfirmedAt,
+  "2026-08-21T09:00:00.000Z",
+  "accepts flattened details.vendorPhysicalDropoffConfirmedAt",
+);
+
+invalidateVendorRunDetailsCache(cache, "token-a", "d1");
+const afterInvalidate = await enrichVendorRunFulfillment(
+  [listOnly],
+  "token-a",
+  fetchDetails,
+  cache,
+);
+assert.equal(fetchCount, 2, "invalidated cache refetches on next enrich");
+assert.equal(
+  afterInvalidate[0].vendorPhysicalDropoffConfirmedAt,
+  "2026-08-22T10:00:00.000Z",
+);
 
 assert.equal(vendorRunFulfillmentUsesPhysicalFallback(listOnly.items), false);
 assert.equal(
@@ -106,4 +179,4 @@ assert.equal(
   "hydrated backorder remains Partial",
 );
 
-console.log("PASS: test-vendor-run-fulfillment-hydration (6 cases)");
+console.log("PASS: test-vendor-run-fulfillment-hydration (12 cases)");

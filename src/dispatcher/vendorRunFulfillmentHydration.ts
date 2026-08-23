@@ -3,6 +3,11 @@ import { vendorItemsHaveFulfillmentQty } from "./vendorJobCardStatus";
 
 export type VendorRunHydratedItems = VendorRunDeliverySummary["items"];
 
+export type VendorRunDetailsCacheEntry = {
+  items: VendorRunHydratedItems;
+  vendorPhysicalDropoffConfirmedAt?: string;
+};
+
 export type VendorReceiveDetailsFetcher = (input: {
   deliveryId: string;
   sessionToken: string;
@@ -15,6 +20,10 @@ export type VendorReceiveDetailsFetcher = (input: {
     qtyBackordered?: unknown;
     status?: unknown;
   }>;
+  delivery?: {
+    vendorPhysicalDropoffConfirmedAt?: unknown;
+  };
+  vendorPhysicalDropoffConfirmedAt?: unknown;
 }>;
 
 function cacheKey(sessionToken: string, deliveryId: string): string {
@@ -44,23 +53,57 @@ function toHydratedItems(
   }));
 }
 
+function extractVendorPhysicalDropoffConfirmedAt(
+  details: Awaited<ReturnType<VendorReceiveDetailsFetcher>>,
+): string | undefined {
+  const nested = details.delivery?.vendorPhysicalDropoffConfirmedAt;
+  if (typeof nested === "string" && nested.length > 0) {
+    return nested;
+  }
+  if (
+    typeof details.vendorPhysicalDropoffConfirmedAt === "string" &&
+    details.vendorPhysicalDropoffConfirmedAt.length > 0
+  ) {
+    return details.vendorPhysicalDropoffConfirmedAt;
+  }
+  return undefined;
+}
+
 /**
  * Session-scoped cache for company-run item qty hydration.
  * Safe for qty/backorder (immutable for a session) — physical drop-off
- * still comes from the list DTO refresh.
+ * timestamp is merged when present on details responses.
  */
-export function createVendorRunDetailsCache(): Map<string, VendorRunHydratedItems> {
+export function createVendorRunDetailsCache(): Map<
+  string,
+  VendorRunDetailsCacheEntry
+> {
   return new Map();
+}
+
+export function invalidateVendorRunDetailsCache(
+  cache: Map<string, VendorRunDetailsCacheEntry>,
+  sessionToken: string,
+  deliveryId: string,
+): void {
+  cache.delete(cacheKey(sessionToken, deliveryId));
 }
 
 export function mergeVendorRunHydratedItems(
   rows: VendorRunDeliverySummary[],
-  byId: Map<string, VendorRunHydratedItems>,
+  byId: Map<string, VendorRunDetailsCacheEntry>,
 ): VendorRunDeliverySummary[] {
   if (byId.size === 0) return rows;
   return rows.map((row) => {
-    const items = byId.get(row.deliveryId);
-    return items ? { ...row, items } : row;
+    const entry = byId.get(row.deliveryId);
+    if (!entry) return row;
+    return {
+      ...row,
+      items: entry.items,
+      vendorPhysicalDropoffConfirmedAt:
+        row.vendorPhysicalDropoffConfirmedAt ??
+        entry.vendorPhysicalDropoffConfirmedAt,
+    };
   });
 }
 
@@ -73,14 +116,14 @@ export async function enrichVendorRunFulfillment(
   rows: VendorRunDeliverySummary[],
   sessionToken: string,
   fetchDetails: VendorReceiveDetailsFetcher,
-  cache: Map<string, VendorRunHydratedItems> = createVendorRunDetailsCache(),
+  cache: Map<string, VendorRunDetailsCacheEntry> = createVendorRunDetailsCache(),
 ): Promise<VendorRunDeliverySummary[]> {
-  const byId = new Map<string, VendorRunHydratedItems>();
+  const byId = new Map<string, VendorRunDetailsCacheEntry>();
 
   for (const row of rows) {
     if (vendorItemsHaveFulfillmentQty(row.items)) continue;
     const cached = cache.get(cacheKey(sessionToken, row.deliveryId));
-    if (cached && vendorItemsHaveFulfillmentQty(cached)) {
+    if (cached && vendorItemsHaveFulfillmentQty(cached.items)) {
       byId.set(row.deliveryId, cached);
     }
   }
@@ -101,8 +144,19 @@ export async function enrichVendorRunFulfillment(
         if (rawItems.length === 0) return;
         const items = toHydratedItems(rawItems);
         if (!vendorItemsHaveFulfillmentQty(items)) return;
-        cache.set(cacheKey(sessionToken, row.deliveryId), items);
-        byId.set(row.deliveryId, items);
+        const key = cacheKey(sessionToken, row.deliveryId);
+        const prev = cache.get(key);
+        const vendorPhysicalDropoffConfirmedAt =
+          extractVendorPhysicalDropoffConfirmedAt(details) ??
+          prev?.vendorPhysicalDropoffConfirmedAt;
+        const entry: VendorRunDetailsCacheEntry = {
+          items,
+          ...(vendorPhysicalDropoffConfirmedAt
+            ? { vendorPhysicalDropoffConfirmedAt }
+            : {}),
+        };
+        cache.set(key, entry);
+        byId.set(row.deliveryId, entry);
       } catch {
         // Keep list DTO when details are unavailable (legacy CF / mocks).
       }

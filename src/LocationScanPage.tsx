@@ -102,10 +102,11 @@ import {
   deriveVendorOrderFulfillmentLabel,
   vendorFulfillmentTone,
 } from "./dispatcher/vendorJobCardStatus";
-import { orderVendorJobsDeliveredLast } from "./dispatcher/vendorJobListOrder";
+import { orderVendorJobsDeliveredLast, partitionVendorRunDeliveries } from "./dispatcher/vendorJobListOrder";
 import {
   createVendorRunDetailsCache,
   enrichVendorRunFulfillment,
+  invalidateVendorRunDetailsCache,
   vendorRunFulfillmentUsesPhysicalFallback,
 } from "./dispatcher/vendorRunFulfillmentHydration";
 
@@ -187,6 +188,8 @@ export function LocationScanPage() {
   const [vendorRunIssueReportedIds, setVendorRunIssueReportedIds] = useState<
     Set<string>
   >(new Set());
+  const [vendorRunCompletedExpanded, setVendorRunCompletedExpanded] =
+    useState(false);
   const [technicianId, setTechnicianId] = useState<string | null>(null);
   const [technicianName, setTechnicianName] = useState<string | null>(null);
   const [releasedJobs, setReleasedJobs] = useState<TechnicianReleasedJobSummary[]>(
@@ -199,8 +202,8 @@ export function LocationScanPage() {
     () => orderVendorJobsDeliveredLast(deliveries),
     [deliveries],
   );
-  const vendorRunDeliveriesForList = useMemo(
-    () => orderVendorJobsDeliveredLast(vendorRunDeliveries),
+  const vendorRunListPartition = useMemo(
+    () => partitionVendorRunDeliveries(vendorRunDeliveries),
     [vendorRunDeliveries],
   );
 
@@ -942,6 +945,13 @@ export function LocationScanPage() {
           failed.map((f) => `${f.deliveryId}: ${f.error ?? "failed"}`).join("; "),
         );
       }
+      for (const id of deliveredIds) {
+        invalidateVendorRunDetailsCache(
+          vendorRunDetailsCacheRef.current,
+          token,
+          id,
+        );
+      }
       await loadVendorRunDeliveries(vendorId, {
         preserveExpandedIds: new Set(expandedDeliveryIds),
         collapseDeliveryIds: deliveredIds,
@@ -974,6 +984,14 @@ export function LocationScanPage() {
       if (!updated || updated.delivery.vendorPhysicalDropoffConfirmed) {
         setError("This delivery can no longer be undone.");
         return;
+      }
+      const undoToken = getVendorRunSessionToken(vendorId);
+      if (undoToken) {
+        invalidateVendorRunDetailsCache(
+          vendorRunDetailsCacheRef.current,
+          undoToken,
+          deliveryId,
+        );
       }
       const preserveExpandedIds = new Set(expandedDeliveryIds);
       preserveExpandedIds.add(deliveryId);
@@ -1424,6 +1442,240 @@ export function LocationScanPage() {
 
   if (step === "vendor-list" && branding && historyView.kind === "deliveries") {
     const runSession = vendorId ? getVendorRunPinSession(vendorId) : null;
+    const renderVendorRunCard = (row: VendorRunDeliverySummary) => {
+      const canComplete = row.hasAssignableSpot;
+      const expanded = expandedDeliveryIds.has(row.deliveryId);
+      const delivered = row.vendorPhysicalDropoffConfirmed;
+      const fulfillmentLabel = deriveVendorOrderFulfillmentLabel({
+        items: row.items,
+        deliveryStatus: row.status,
+        vendorPhysicalDropoffConfirmed:
+          vendorRunFulfillmentUsesPhysicalFallback(row.items)
+            ? row.vendorPhysicalDropoffConfirmed
+            : false,
+      });
+      const fulfillmentTone = vendorFulfillmentTone(fulfillmentLabel);
+      const locationIdentity =
+        row.stagingLocationCodes.length > 0
+          ? row.stagingLocationCodes.join(", ")
+          : "—";
+      return (
+        <div
+          key={row.deliveryId}
+          className={`vendor-compact-card overflow-hidden rounded-2xl border bg-bg-secondary shadow-lg shadow-black/20 ${
+            fulfillmentTone === "delivered"
+              ? "vendor-compact-card-delivered"
+              : fulfillmentTone === "partial"
+                ? "vendor-compact-card-partial"
+                : "border-white/10"
+          }`}
+          data-testid={`vendor-run-row-${row.deliveryId}`}
+          data-delivered={delivered ? "true" : "false"}
+          data-fulfillment={fulfillmentTone}
+        >
+          <div className="vendor-compact-card-action-row">
+            <button
+              type="button"
+              className="vendor-compact-card-toggle w-full min-w-0 text-left"
+              onClick={() => toggleExpanded(row.deliveryId)}
+              aria-expanded={expanded}
+              aria-label={`${expanded ? "Collapse" : "Expand"} ${row.jobName} delivery details`}
+              data-testid={`vendor-run-toggle-${row.deliveryId}`}
+            >
+              <VendorCompactDeliveryCard
+                deliveryId={row.deliveryId}
+                variant="vendor-run"
+                jobName={row.jobName}
+                orderNumber={row.orderNumber}
+                vendorInvoiceNumber={row.vendorInvoiceNumber}
+                poNumber={row.poNumber}
+                stagingLocationCodes={row.stagingLocationCodes}
+                delivered={delivered}
+                fulfillment={fulfillmentTone}
+                expanded={expanded}
+                warning={
+                  !delivered && !canComplete
+                    ? "No spot — ask dispatch"
+                    : undefined
+                }
+              />
+            </button>
+          </div>
+          {expanded && (
+            <div
+              className="border-t border-border bg-bg-surface"
+              data-testid={`vendor-run-details-${row.deliveryId}`}
+            >
+              <div className="space-y-2.5 px-4 py-3.5">
+                {[
+                  { label: "Job / Site", value: row.jobName, mono: false },
+                  { label: "Order #", value: row.orderNumber, mono: true },
+                  {
+                    label: "Invoice #",
+                    value: row.vendorInvoiceNumber ?? "—",
+                    mono: true,
+                  },
+                  { label: "PO #", value: row.poNumber ?? "—", mono: true },
+                  { label: "Location", value: locationIdentity, mono: false },
+                ].map(({ label, value, mono }) => (
+                  <div
+                    key={label}
+                    className="flex min-w-0 items-center justify-between gap-3 text-sm"
+                  >
+                    <span
+                      className="shrink-0 text-[#cbd5e1]"
+                      data-testid="vendor-run-details-label"
+                    >
+                      {label}
+                    </span>
+                    <span
+                      className={`min-w-0 text-right font-medium text-text-primary ${
+                        mono ? "max-w-[55%]" : ""
+                      }`}
+                      data-testid="vendor-run-details-value"
+                    >
+                      {mono ? (
+                        <span className="inline-block max-w-full truncate rounded bg-bg-secondary px-2 py-0.5 font-mono text-xs">
+                          {value}
+                        </span>
+                      ) : (
+                        value
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="border-t border-border px-4 py-3">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-[#cbd5e1]">Expected items</span>
+                  <span className="font-medium text-text-primary">
+                    {row.items.length}
+                  </span>
+                </div>
+              </div>
+              <ul className="space-y-2.5 border-t border-border bg-bg-secondary/40 px-4 py-3">
+                {row.items.map((item) => (
+                  <li
+                    key={item.id}
+                    className="rounded-lg border border-border bg-bg-primary px-3 py-2"
+                    data-testid={`vendor-run-item-${item.id}`}
+                  >
+                    <VendorItemDisplayLines
+                      description={item.description}
+                      qtyOrdered={item.qtyOrdered}
+                      lineStatus={deriveVendorItemLineStatus(item)}
+                    />
+                  </li>
+                ))}
+                {row.items.length === 0 && (
+                  <li className="text-sm text-[#cbd5e1]">
+                    No item details available.
+                  </li>
+                )}
+              </ul>
+              {vendorRunIssueReportedIds.has(row.deliveryId) && (
+                <p
+                  className="border-t border-[#34d399]/30 bg-[#34d399]/10 px-4 py-3 text-center text-sm font-semibold text-[#6ee7b7]"
+                  role="status"
+                  data-testid={`vendor-run-issue-reported-${row.deliveryId}`}
+                >
+                  Issue reported — dispatcher notified.
+                </p>
+              )}
+              {!delivered && (
+                <div className="space-y-2.5 border-t border-border bg-bg-surface p-3">
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => setExpandedDeliveryIds(new Set())}
+                      className="action-btn action-btn-secondary flex-1 disabled:opacity-50"
+                      data-testid={`vendor-run-cancel-${row.deliveryId}`}
+                    >
+                      Cancel / Back
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canComplete || loading}
+                      onClick={() =>
+                        void handleVendorRunComplete(row.deliveryId)
+                      }
+                      className="action-btn action-btn-delivered flex-1 disabled:opacity-40"
+                      style={{ backgroundColor: "#047857" }}
+                      data-testid={`vendor-run-complete-${row.deliveryId}`}
+                    >
+                      {loading ? "Completing…" : "Complete delivery"}
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() =>
+                      setVendorRunIssueTarget({
+                        deliveryId: row.deliveryId,
+                        jobId: row.jobId,
+                        orderNumber: row.orderNumber,
+                        vendorName: runSession?.vendorName ?? "Vendor",
+                      })
+                    }
+                    className="min-h-11 w-full rounded-xl border border-[#fbbf24]/60 bg-[#fbbf24]/10 px-4 py-2.5 text-sm font-bold text-[#fde68a] transition active:scale-[0.99] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fbbf24]"
+                    data-testid={`vendor-run-report-issue-${row.deliveryId}`}
+                  >
+                    Report an issue
+                  </button>
+                </div>
+              )}
+              {delivered && (
+                <div className="space-y-3 border-t border-border bg-bg-surface p-3">
+                  {fulfillmentLabel === "Partial" && (
+                    <p
+                      className="text-center text-sm font-semibold"
+                      style={{ color: "var(--admin-purple-text)" }}
+                      data-testid={`vendor-run-order-status-${row.deliveryId}`}
+                    >
+                      Order status: Partial
+                    </p>
+                  )}
+                  <p
+                    className="text-center text-sm font-semibold text-[#6ee7b7]"
+                    data-testid={`vendor-run-complete-status-${row.deliveryId}`}
+                  >
+                    Physical drop-off complete
+                  </p>
+                  <button
+                    type="button"
+                    disabled={vendorRunRevertingId !== null}
+                    onClick={() =>
+                      setVendorRunIssueTarget({
+                        deliveryId: row.deliveryId,
+                        jobId: row.jobId,
+                        orderNumber: row.orderNumber,
+                        vendorName: runSession?.vendorName ?? "Vendor",
+                      })
+                    }
+                    className="min-h-11 w-full rounded-xl border border-[#fbbf24]/60 bg-[#fbbf24]/10 px-4 py-2.5 text-sm font-bold text-[#fde68a] transition active:scale-[0.99] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fbbf24]"
+                    data-testid={`vendor-run-report-issue-${row.deliveryId}`}
+                  >
+                    Report an issue
+                  </button>
+                  <button
+                    type="button"
+                    disabled={vendorRunRevertingId !== null}
+                    onClick={() => void handleVendorRunUndo(row.deliveryId)}
+                    className="action-btn action-btn-secondary w-full disabled:opacity-50"
+                    data-testid={`vendor-run-undo-${row.deliveryId}`}
+                  >
+                    {vendorRunRevertingId === row.deliveryId
+                      ? "Reverting…"
+                      : "Undo drop-off"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    };
     return (
       <VendorDeliveriesLanding
         rootTestId="vendor-run-layout"
@@ -1484,242 +1736,61 @@ export function LocationScanPage() {
             className="flex flex-col gap-4"
             data-testid="vendor-run-card-list"
           >
-            {vendorRunDeliveriesForList.map((row) => {
-            const canComplete = row.hasAssignableSpot;
-            const expanded = expandedDeliveryIds.has(row.deliveryId);
-            const delivered = row.vendorPhysicalDropoffConfirmed;
-            const fulfillmentLabel = deriveVendorOrderFulfillmentLabel({
-              items: row.items,
-              deliveryStatus: row.status,
-              vendorPhysicalDropoffConfirmed:
-                vendorRunFulfillmentUsesPhysicalFallback(row.items)
-                  ? row.vendorPhysicalDropoffConfirmed
-                  : false,
-            });
-            const fulfillmentTone = vendorFulfillmentTone(fulfillmentLabel);
-            const locationIdentity =
-              row.stagingLocationCodes.length > 0
-                ? row.stagingLocationCodes.join(", ")
-                : "—";
-            return (
+            {vendorRunListPartition.mainList.map(renderVendorRunCard)}
+            {vendorRunListPartition.completedDeliveries.length > 0 && (
               <div
-                key={row.deliveryId}
-                className={`vendor-compact-card overflow-hidden rounded-2xl border bg-bg-secondary shadow-lg shadow-black/20 ${
-                  fulfillmentTone === "delivered"
-                    ? "vendor-compact-card-delivered"
-                    : fulfillmentTone === "partial"
-                      ? "vendor-compact-card-partial"
-                      : "border-white/10"
-                }`}
-                data-testid={`vendor-run-row-${row.deliveryId}`}
-                data-delivered={delivered ? "true" : "false"}
-                data-fulfillment={fulfillmentTone}
+                className="vendor-run-completed-deliveries overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.025]"
+                data-testid="vendor-run-completed-deliveries"
               >
-                <div
-                  className="vendor-compact-card-action-row"
+                <button
+                  type="button"
+                  className={`vendor-run-completed-deliveries-toggle flex min-h-12 w-full items-center justify-between gap-3 px-3.5 py-3 text-left transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6ee7b7] focus-visible:ring-inset ${
+                    vendorRunCompletedExpanded
+                      ? "bg-white/[0.035]"
+                      : "bg-transparent"
+                  }`}
+                  onClick={() =>
+                    setVendorRunCompletedExpanded((previous) => !previous)
+                  }
+                  aria-expanded={vendorRunCompletedExpanded}
+                  data-testid="vendor-run-completed-deliveries-toggle"
                 >
-                  <button
-                    type="button"
-                    className="vendor-compact-card-toggle w-full min-w-0 text-left"
-                    onClick={() => toggleExpanded(row.deliveryId)}
-                    aria-expanded={expanded}
-                    aria-label={`${expanded ? "Collapse" : "Expand"} ${row.jobName} delivery details`}
-                    data-testid={`vendor-run-toggle-${row.deliveryId}`}
-                  >
-                    <VendorCompactDeliveryCard
-                      deliveryId={row.deliveryId}
-                      variant="vendor-run"
-                      jobName={row.jobName}
-                      orderNumber={row.orderNumber}
-                      vendorInvoiceNumber={row.vendorInvoiceNumber}
-                      poNumber={row.poNumber}
-                      stagingLocationCodes={row.stagingLocationCodes}
-                      delivered={delivered}
-                      fulfillment={fulfillmentTone}
-                      expanded={expanded}
-                      warning={
-                        !delivered && !canComplete
-                          ? "No spot — ask dispatch"
-                          : undefined
-                      }
-                    />
-                  </button>
-                </div>
-                {expanded && (
+                  <span className="text-sm font-semibold text-[#cbd5e1]">
+                    Completed deliveries
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="text-xs font-semibold text-[#aebdce]">
+                      {vendorRunCompletedExpanded ? "Hide" : "Show"}{" "}
+                      {vendorRunListPartition.completedDeliveries.length}
+                    </span>
+                    <svg
+                      className={`size-4 text-[#cbd5e1] transition-transform duration-150 ${
+                        vendorRunCompletedExpanded ? "rotate-90" : ""
+                      }`}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </span>
+                </button>
+                {vendorRunCompletedExpanded && (
                   <div
-                    className="border-t border-border bg-bg-surface"
-                    data-testid={`vendor-run-details-${row.deliveryId}`}
+                    className="vendor-run-completed-deliveries-list flex flex-col gap-3 border-t border-white/[0.08] bg-black/10 p-3"
+                    data-testid="vendor-run-completed-deliveries-list"
                   >
-                    <div className="space-y-2.5 px-4 py-3.5">
-                    {[
-                      { label: "Job / Site", value: row.jobName, mono: false },
-                      { label: "Order #", value: row.orderNumber, mono: true },
-                      {
-                        label: "Invoice #",
-                        value: row.vendorInvoiceNumber ?? "—",
-                        mono: true,
-                      },
-                      { label: "PO #", value: row.poNumber ?? "—", mono: true },
-                      { label: "Location", value: locationIdentity, mono: false },
-                    ].map(({ label, value, mono }) => (
-                      <div
-                        key={label}
-                        className="flex min-w-0 items-center justify-between gap-3 text-sm"
-                      >
-                        <span
-                          className="shrink-0 text-[#cbd5e1]"
-                          data-testid="vendor-run-details-label"
-                        >
-                          {label}
-                        </span>
-                        <span
-                          className={`min-w-0 text-right font-medium text-text-primary ${
-                            mono ? "max-w-[55%]" : ""
-                          }`}
-                          data-testid="vendor-run-details-value"
-                        >
-                          {mono ? (
-                            <span className="inline-block max-w-full truncate rounded bg-bg-secondary px-2 py-0.5 font-mono text-xs">
-                              {value}
-                            </span>
-                          ) : (
-                            value
-                          )}
-                        </span>
-                      </div>
-                    ))}
-                    </div>
-                    <div className="border-t border-border px-4 py-3">
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="text-[#cbd5e1]">Expected items</span>
-                        <span className="font-medium text-text-primary">
-                          {row.items.length}
-                        </span>
-                      </div>
-                    </div>
-                    <ul className="space-y-2.5 border-t border-border bg-bg-secondary/40 px-4 py-3">
-                      {row.items.map((item) => (
-                        <li
-                          key={item.id}
-                          className="rounded-lg border border-border bg-bg-primary px-3 py-2"
-                          data-testid={`vendor-run-item-${item.id}`}
-                        >
-                          <VendorItemDisplayLines
-                            description={item.description}
-                            qtyOrdered={item.qtyOrdered}
-                            lineStatus={deriveVendorItemLineStatus(item)}
-                          />
-                        </li>
-                      ))}
-                      {row.items.length === 0 && (
-                        <li className="text-sm text-[#cbd5e1]">
-                          No item details available.
-                        </li>
-                      )}
-                    </ul>
-                    {vendorRunIssueReportedIds.has(row.deliveryId) && (
-                      <p
-                        className="border-t border-[#34d399]/30 bg-[#34d399]/10 px-4 py-3 text-center text-sm font-semibold text-[#6ee7b7]"
-                        role="status"
-                        data-testid={`vendor-run-issue-reported-${row.deliveryId}`}
-                      >
-                        Issue reported — dispatcher notified.
-                      </p>
-                    )}
-                    {!delivered && (
-                      <div className="space-y-2.5 border-t border-border bg-bg-surface p-3">
-                        <div className="flex gap-3">
-                          <button
-                            type="button"
-                            disabled={loading}
-                            onClick={() => setExpandedDeliveryIds(new Set())}
-                            className="action-btn action-btn-secondary flex-1 disabled:opacity-50"
-                            data-testid={`vendor-run-cancel-${row.deliveryId}`}
-                          >
-                            Cancel / Back
-                          </button>
-                          <button
-                            type="button"
-                            disabled={!canComplete || loading}
-                            onClick={() =>
-                              void handleVendorRunComplete(row.deliveryId)
-                            }
-                            className="action-btn action-btn-delivered flex-1 disabled:opacity-40"
-                            style={{ backgroundColor: "#047857" }}
-                            data-testid={`vendor-run-complete-${row.deliveryId}`}
-                          >
-                            {loading ? "Completing…" : "Complete delivery"}
-                          </button>
-                        </div>
-                        <button
-                          type="button"
-                          disabled={loading}
-                          onClick={() =>
-                            setVendorRunIssueTarget({
-                              deliveryId: row.deliveryId,
-                              jobId: row.jobId,
-                              orderNumber: row.orderNumber,
-                              vendorName: runSession?.vendorName ?? "Vendor",
-                            })
-                          }
-                          className="min-h-11 w-full rounded-xl border border-[#fbbf24]/60 bg-[#fbbf24]/10 px-4 py-2.5 text-sm font-bold text-[#fde68a] transition active:scale-[0.99] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fbbf24]"
-                          data-testid={`vendor-run-report-issue-${row.deliveryId}`}
-                        >
-                          Report an issue
-                        </button>
-                      </div>
-                    )}
-                    {delivered && (
-                      <div className="space-y-3 border-t border-border bg-bg-surface p-3">
-                        {fulfillmentLabel === "Partial" && (
-                          <p
-                            className="text-center text-sm font-semibold"
-                            style={{ color: "var(--admin-purple-text)" }}
-                            data-testid={`vendor-run-order-status-${row.deliveryId}`}
-                          >
-                            Order status: Partial
-                          </p>
-                        )}
-                        <p
-                          className="text-center text-sm font-semibold text-[#6ee7b7]"
-                          data-testid={`vendor-run-complete-status-${row.deliveryId}`}
-                        >
-                          Physical drop-off complete
-                        </p>
-                        <button
-                          type="button"
-                          disabled={vendorRunRevertingId !== null}
-                          onClick={() =>
-                            setVendorRunIssueTarget({
-                              deliveryId: row.deliveryId,
-                              jobId: row.jobId,
-                              orderNumber: row.orderNumber,
-                              vendorName: runSession?.vendorName ?? "Vendor",
-                            })
-                          }
-                          className="min-h-11 w-full rounded-xl border border-[#fbbf24]/60 bg-[#fbbf24]/10 px-4 py-2.5 text-sm font-bold text-[#fde68a] transition active:scale-[0.99] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fbbf24]"
-                          data-testid={`vendor-run-report-issue-${row.deliveryId}`}
-                        >
-                          Report an issue
-                        </button>
-                        <button
-                          type="button"
-                          disabled={vendorRunRevertingId !== null}
-                          onClick={() => void handleVendorRunUndo(row.deliveryId)}
-                          className="action-btn action-btn-secondary w-full disabled:opacity-50"
-                          data-testid={`vendor-run-undo-${row.deliveryId}`}
-                        >
-                          {vendorRunRevertingId === row.deliveryId
-                            ? "Reverting…"
-                            : "Undo drop-off"}
-                        </button>
-                      </div>
+                    {vendorRunListPartition.completedDeliveries.map(
+                      renderVendorRunCard,
                     )}
                   </div>
                 )}
               </div>
-            );
-            })}
+            )}
           {vendorRunDeliveries.length === 0 ? (
             <div
               className="vendor-deliveries-empty-card rounded-2xl border border-white/10 bg-bg-secondary px-5 py-6 text-center shadow-lg shadow-black/15"

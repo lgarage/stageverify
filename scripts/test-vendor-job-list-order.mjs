@@ -1,25 +1,42 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import ts from "typescript";
-
-const helperSource = readFileSync(
-  resolve(process.cwd(), "src/dispatcher/vendorJobListOrder.ts"),
-  "utf8",
-);
-const helperJavaScript = ts.transpileModule(helperSource, {
-  compilerOptions: {
-    module: ts.ModuleKind.ESNext,
-    target: ts.ScriptTarget.ES2022,
-  },
-}).outputText;
-const helperModule = await import(
-  `data:text/javascript;base64,${Buffer.from(helperJavaScript).toString("base64")}`
-);
-const { isVendorJobCardDelivered, orderVendorJobsDeliveredLast } = helperModule;
+import {
+  isVendorJobCardDelivered,
+  orderVendorJobsDeliveredLast,
+  partitionVendorRunDeliveries,
+  classifyVendorRunDeliveryRow,
+  VENDOR_COMPLETED_MS_24H,
+  VENDOR_COMPLETED_MS_72H,
+} from "../src/dispatcher/vendorJobListOrder.ts";
 
 function row(id, delivered) {
   return { id, vendorPhysicalDropoffConfirmed: delivered };
+}
+
+function partitionRow(id, opts = {}) {
+  return {
+    id,
+    deliveryId: id,
+    vendorPhysicalDropoffConfirmed: opts.delivered ?? false,
+    vendorPhysicalDropoffConfirmedAt: opts.at,
+    status: opts.status,
+    items: opts.items ?? [],
+  };
+}
+
+function fullDeliveredItems() {
+  return [{ id: "i1", qtyOrdered: 1, qtyReceived: 1 }];
+}
+
+function partialItems() {
+  return [
+    {
+      id: "i1",
+      qtyOrdered: 2,
+      qtyReceived: 1,
+      qtyBackordered: 1,
+      status: "backordered",
+    },
+  ];
 }
 
 const source = [
@@ -100,4 +117,138 @@ assert.equal(
 );
 assert.equal(orderVendorJobsDeliveredLast([timestampOnly, row("d", true)])[0].id, "stale");
 
-console.log("PASS: test-vendor-job-list-order (9 cases)");
+const nowMs = Date.parse("2026-08-23T12:00:00.000Z");
+const hoursAgoIso = (hours) =>
+  new Date(nowMs - hours * 60 * 60 * 1000).toISOString();
+
+function deliveredLifecycleRow(id, hoursAgo, extra = {}) {
+  return partitionRow(id, {
+    delivered: true,
+    at: hoursAgoIso(hoursAgo),
+    items: fullDeliveredItems(),
+    ...extra,
+  });
+}
+
+assert.equal(VENDOR_COMPLETED_MS_24H, 24 * 60 * 60 * 1000);
+assert.equal(VENDOR_COMPLETED_MS_72H, 72 * 60 * 60 * 1000);
+
+assert.equal(
+  classifyVendorRunDeliveryRow(deliveredLifecycleRow("23h59m", 23 + 59 / 60), nowMs),
+  "recentCompleted",
+  "23h59m → main recentCompleted",
+);
+assert.equal(
+  classifyVendorRunDeliveryRow(deliveredLifecycleRow("24h", 24), nowMs),
+  "completedSection",
+  "exactly 24h → completed section",
+);
+assert.equal(
+  classifyVendorRunDeliveryRow(deliveredLifecycleRow("24h01m", 24 + 1 / 60), nowMs),
+  "completedSection",
+  "24h01m → completed section",
+);
+assert.equal(
+  classifyVendorRunDeliveryRow(deliveredLifecycleRow("48h", 48), nowMs),
+  "completedSection",
+  "48h → completed section",
+);
+assert.equal(
+  classifyVendorRunDeliveryRow(deliveredLifecycleRow("71h59m", 71 + 59 / 60), nowMs),
+  "completedSection",
+  "71h59m → completed section",
+);
+assert.equal(
+  classifyVendorRunDeliveryRow(deliveredLifecycleRow("72h", 72), nowMs),
+  "completedSection",
+  "exactly 72h → completed section (inclusive)",
+);
+assert.equal(
+  classifyVendorRunDeliveryRow(deliveredLifecycleRow("72h01m", 72 + 1 / 60), nowMs),
+  "hidden",
+  "72h01m → hidden",
+);
+assert.equal(
+  classifyVendorRunDeliveryRow(deliveredLifecycleRow("1h", 1), nowMs),
+  "recentCompleted",
+  "1h → main recentCompleted",
+);
+
+const missingTs = partitionRow("missing-ts", {
+  delivered: true,
+  items: fullDeliveredItems(),
+});
+assert.equal(
+  classifyVendorRunDeliveryRow(missingTs, nowMs),
+  "recentCompleted",
+  "missing timestamp never hides",
+);
+
+const partialOldDropoff = partitionRow("partial-old", {
+  delivered: true,
+  at: hoursAgoIso(240),
+  status: "partial",
+  items: partialItems(),
+});
+assert.equal(
+  classifyVendorRunDeliveryRow(partialOldDropoff, nowMs),
+  "partial",
+  "Partial stays main even with old drop-off timestamp",
+);
+
+const lifecycleSource = [
+  partitionRow("open-b", { delivered: false, items: [] }),
+  deliveredLifecycleRow("recent-a", 1),
+  partitionRow("partial-first", {
+    delivered: true,
+    at: hoursAgoIso(200),
+    items: partialItems(),
+  }),
+  partitionRow("open-a", { delivered: false, items: [] }),
+  deliveredLifecycleRow("section-48h", 48),
+  deliveredLifecycleRow("hidden-80h", 80),
+];
+const lifecycle = partitionVendorRunDeliveries(lifecycleSource, nowMs);
+assert.deepEqual(
+  lifecycle.mainList.map((r) => r.id),
+  ["partial-first", "open-b", "open-a", "recent-a"],
+  "Partial first, open next, recent completed last",
+);
+assert.deepEqual(
+  lifecycle.completedDeliveries.map((r) => r.id),
+  ["section-48h"],
+  "24–72h fully completed only in collapsed section",
+);
+assert.ok(
+  !lifecycle.mainList.some((r) => r.id === "hidden-80h") &&
+    !lifecycle.completedDeliveries.some((r) => r.id === "hidden-80h"),
+  ">72h hidden from both lists",
+);
+
+const undoRow = partitionRow("undo-me", {
+  delivered: false,
+  at: undefined,
+  items: fullDeliveredItems(),
+});
+assert.equal(
+  classifyVendorRunDeliveryRow(undoRow, nowMs),
+  "open",
+  "cleared drop-off returns to open group",
+);
+
+const orderWithinGroups = [
+  partitionRow("open-2", { delivered: false }),
+  partitionRow("open-1", { delivered: false }),
+  deliveredLifecycleRow("recent-2", 2),
+  deliveredLifecycleRow("recent-1", 1),
+  partitionRow("partial-2", { delivered: true, items: partialItems() }),
+  partitionRow("partial-1", { delivered: true, items: partialItems() }),
+];
+const grouped = partitionVendorRunDeliveries(orderWithinGroups, nowMs);
+assert.deepEqual(
+  grouped.mainList.map((r) => r.id),
+  ["partial-2", "partial-1", "open-2", "open-1", "recent-2", "recent-1"],
+  "source order preserved inside each main-list group",
+);
+
+console.log("PASS: test-vendor-job-list-order (28 cases)");
