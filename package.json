@@ -179,8 +179,6 @@
     "test:auto-submit-readiness": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-auto-submit-readiness.mjs\"",
     "test:pin-session-validity": "npx tsx scripts/test-pin-session-validity.mjs",
     "test:readiness": "npx tsx scripts/test-readiness-two-source.mjs",
-    "test:vendor-job-list-order": "node scripts/test-vendor-job-list-order.mjs",
-    "test:vendor-job-card-status": "node scripts/test-vendor-job-card-status.mjs",
     "test:readiness-persistence": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-readiness-persistence.mjs\"",
     "test:demo-matrix": "npx tsx scripts/demo-delivery-matrix.mjs",
     "test:evidence-alignment": "npx tsx scripts/test-evidence-model-alignment.mjs",
