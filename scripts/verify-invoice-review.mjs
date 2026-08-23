@@ -937,6 +937,45 @@ async function main() {
         console.log("PASS: approved date/time readable contrast");
       }
 
+      const fieldGrid = page.getByTestId("invoice-review-approved-fields").first();
+      await fieldGrid.waitFor({ timeout: 5000 });
+      const layout = await fieldGrid.evaluate((grid) => {
+        const list = grid.closest('[data-testid="invoice-review-approved-list"]');
+        const values = [...grid.querySelectorAll('[data-testid="invoice-review-field-value"]')];
+        const buyer = values[3];
+        const approved = grid.querySelector(
+          '[data-testid="invoice-review-approved-at"] [data-testid="invoice-review-field-value"]',
+        );
+        const listWidth = list?.getBoundingClientRect().width ?? 0;
+        const gridWidth = grid.getBoundingClientRect().width;
+        return {
+          listWidth,
+          gridWidth,
+          coverage: listWidth ? gridWidth / listWidth : 0,
+          buyerText: buyer?.textContent?.trim() ?? "",
+          buyerClipped: buyer ? buyer.scrollWidth > buyer.clientWidth + 1 : true,
+          buyerWidth: buyer ? buyer.getBoundingClientRect().width : 0,
+          approvedText: approved?.textContent?.trim() ?? "",
+          approvedClipped: approved
+            ? approved.scrollWidth > approved.clientWidth + 1
+            : true,
+        };
+      });
+      if (layout.coverage < 0.85) {
+        throw new Error(
+          `Approved field grid uses only ${(layout.coverage * 100).toFixed(1)}% of list width`,
+        );
+      }
+      if (layout.buyerClipped && layout.buyerWidth < 150) {
+        throw new Error(`Buyer column still too narrow (${layout.buyerWidth}px): ${layout.buyerText}`);
+      }
+      if (layout.approvedClipped) {
+        throw new Error(`Approved timestamp is clipped: ${layout.approvedText}`);
+      }
+      console.log(
+        `PASS: approved fields use ${(layout.coverage * 100).toFixed(0)}% of list width (buyer ${Math.round(layout.buyerWidth)}px)`,
+      );
+
       await page.locator('[data-testid^="invoice-review-row-content-"]').first().click();
       await page.getByTestId("invoice-parsed-inspect-modal").waitFor({ timeout: 10_000 });
       const modalApprove = page.getByTestId("invoice-parsed-inspect-approve");
