@@ -92,6 +92,7 @@ import { PublicNetworkErrorPanel } from "./PublicNetworkErrorPanel";
 import { isOutsideShopGeofence } from "./geofence";
 import { VendorDeliveriesLanding } from "./VendorDeliveriesLanding";
 import { VendorCompactDeliveryCard } from "./VendorCompactDeliveryCard";
+import { orderVendorJobsDeliveredLast } from "./dispatcher/vendorJobListOrder";
 
 type Step =
   | "loading"
@@ -177,6 +178,15 @@ export function LocationScanPage() {
   const activeVendorRun = useMemo(() => {
     return vendorRunDeliveries.filter((d) => !d.vendorPhysicalDropoffConfirmed);
   }, [vendorRunDeliveries]);
+
+  const jobDeliveriesForList = useMemo(
+    () => orderVendorJobsDeliveredLast(deliveries),
+    [deliveries],
+  );
+  const vendorRunDeliveriesForList = useMemo(
+    () => orderVendorJobsDeliveredLast(vendorRunDeliveries),
+    [vendorRunDeliveries],
+  );
 
   const historyViewKey =
     historyView.kind === "delivery"
@@ -1482,7 +1492,7 @@ export function LocationScanPage() {
             className="flex flex-col gap-4"
             data-testid="vendor-run-card-list"
           >
-            {vendorRunDeliveries.map((row) => {
+            {vendorRunDeliveriesForList.map((row) => {
             const canCheck = row.hasAssignableSpot;
             const expanded = expandedDeliveryIds.has(row.deliveryId);
             const delivered = row.vendorPhysicalDropoffConfirmed;
@@ -1740,7 +1750,7 @@ export function LocationScanPage() {
         }
       >
             <div className="vendor-deliveries-card-list-inner flex flex-col gap-4">
-              {deliveries.map((row) => {
+              {jobDeliveriesForList.map((row) => {
                 return (
                   <button
                     key={row.deliveryId}

@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.305",
+  "version": "0.0.306",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -149,6 +149,7 @@
     "aecs:test": "node --test aecs/installer/paths.test.mjs aecs/installer/install.test.mjs aecs/updater/update.test.mjs aecs/updater/hardening.test.mjs aecs/updater/rollback-progress.test.mjs aecs/release/export.test.mjs",
     "test:mark-vendor-delivered": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-mark-vendor-delivered.mjs\"",
     "test:vendor-delivered-item-truth": "npx tsx scripts/test-vendor-delivered-item-truth.mjs",
+    "test:vendor-job-list-order": "node scripts/test-vendor-job-list-order.mjs",
     "test:reassign-staging-location": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-reassign-staging-location.mjs\"",
     "test:vendor-unplanned-delivery": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-vendor-unplanned-delivery.mjs\"",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"node scripts/test-delivery-status-transitions.mjs\"",

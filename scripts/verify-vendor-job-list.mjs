@@ -230,6 +230,19 @@ async function main() {
         ? `delivered=${deliveredCards.length}`
         : "no delivered fixture — not applicable",
     );
+    const deliveredFlags = metrics.cardRects.map((c) => c.delivered);
+    const firstDelivered = deliveredFlags.indexOf(true);
+    const lastUnfinished = deliveredFlags.lastIndexOf(false);
+    const mixedList = firstDelivered !== -1 && lastUnfinished !== -1;
+    record(
+      "delivered cards grouped at bottom",
+      !mixedList || firstDelivered === lastUnfinished + 1,
+      mixedList
+        ? `firstDelivered=${firstDelivered} lastUnfinished=${lastUnfinished} n=${deliveredFlags.length}`
+        : deliveredCards.length > 0
+          ? "delivered-only — existing order preserved"
+          : "unfinished-only — existing order preserved",
+    );
 
     const singleCard = await page.evaluate(() => {
       const cards = [...document.querySelectorAll('[data-testid^="vendor-job-delivery-"]')];
