@@ -52,6 +52,13 @@ export type ZoneOccupancySummaryWithReadiness = ZoneOccupancySummary & {
   plannedOnly: boolean;
 };
 
+/**
+ * board — dispatcher list / CA count (hides seed + non-invoice rows in prod).
+ * authoritative — same occupant set the CF availability guard uses
+ * (any non-cleared delivery with actual or planned location ids).
+ */
+export type ZoneOccupancyMode = "board" | "authoritative";
+
 function locationIdsForMapColor(delivery: DeliveryOrder): string[] {
   const actual = getAllStagingLocationIds(delivery);
   const planned = delivery.plannedStagingLocationIds ?? [];
@@ -103,10 +110,14 @@ export function countCatchAllAssignedDeliveries(
 export function computeZoneOccupancyByCode(
   locations: StagingLocation[],
   deliveries: DeliveryOrder[],
+  mode: ZoneOccupancyMode = "board",
 ): Record<string, ZoneOccupancySummaryWithReadiness> {
   const byCode: Record<string, ZoneOccupancySummaryWithReadiness> = {};
   const locById = new Map(locations.map((loc) => [loc.id, loc]));
-  const stagingDeliveries = filterDeliveriesForBoardStagingOccupancy(deliveries);
+  const stagingDeliveries =
+    mode === "authoritative"
+      ? deliveries
+      : filterDeliveriesForBoardStagingOccupancy(deliveries);
 
   const shouldReplace = (
     existing: ZoneOccupancySummaryWithReadiness,
@@ -120,9 +131,9 @@ export function computeZoneOccupancyByCode(
 
   for (const delivery of stagingDeliveries) {
     if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
-    // Will-Call / no-shop-staging must never reserve map spots (defense-in-depth
-    // if active refs were left stale by a partial write).
-    if (skipsShopStaging(delivery)) continue;
+    // Board paint hides Will-Call leftovers. Authoritative mode keeps them so
+    // Confirm availability and map color cannot disagree with the CF guard.
+    if (mode !== "authoritative" && skipsShopStaging(delivery)) continue;
     const actualIds = new Set(getAllStagingLocationIds(delivery));
     const readyForPickup =
       effectiveReadinessStatus(delivery) === "ready_for_pickup";

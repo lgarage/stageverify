@@ -47,6 +47,30 @@ function assertApproveConfirmRefreshWiring() {
     throw new Error("refreshPortalData() must be awaited before navigate() on Confirm success");
   }
   console.log("PASS: approveFlow Confirm awaits portal refresh before Invoice Review navigate");
+
+  if (!zone.includes("resolveStagingLocationForLayoutSlot")) {
+    throw new Error(
+      "Assign Location must resolve visible spots via resolveStagingLocationForLayoutSlot",
+    );
+  }
+  if (!zone.includes("setPendingAssignSpot(null)") || !zone.includes("await loadZones()")) {
+    throw new Error(
+      "unavailable Confirm must clear the stale selection and refresh map state",
+    );
+  }
+  const invoiceCatch = zone.slice(
+    zone.indexOf("Failed to save draft staging location."),
+    zone.indexOf("if (!assignDeliveryId || !assignDetails)"),
+  );
+  if (
+    !invoiceCatch.includes('setPendingAssignSpot(null)') ||
+    !invoiceCatch.includes("await loadZones()")
+  ) {
+    throw new Error(
+      "approveFlow Confirm unavailable path must clear pendingAssignSpot and reload zones",
+    );
+  }
+  console.log("PASS: assign resolve + unavailable Confirm refresh/clear wiring");
 }
 
 const args = process.argv.slice(2);

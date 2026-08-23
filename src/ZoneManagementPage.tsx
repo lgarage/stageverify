@@ -15,6 +15,11 @@ import {
   normalizeStagingCodeKey,
 } from "./dispatcher/stagingCode";
 import {
+  indexZonesByLayoutKey,
+  resolveStagingLocationForLayoutSlot,
+} from "./dispatcher/resolveStagingLocationForSlot";
+import { isMapSlotPlaceholderStagingLocation } from "./dispatcher/stagingMapSync";
+import {
   listAllZones,
   createZone,
   updateZone,
@@ -544,15 +549,14 @@ export function ZoneManagementPage() {
     [layoutExtras],
   );
 
+  const assignResolveZones = useMemo(
+    () => (liveOccupancy.ready ? liveOccupancy.zones : zones),
+    [liveOccupancy.ready, liveOccupancy.zones, zones],
+  );
+
   const zonesByLayoutSlot = useMemo(
-    () =>
-      Object.fromEntries(
-        zones.map((z) => [
-          normalizeStagingCodeKey(z.mapLayoutSlot ?? z.code),
-          z,
-        ]),
-      ),
-    [zones],
+    () => indexZonesByLayoutKey(assignResolveZones),
+    [assignResolveZones],
   );
 
   const handleMapZoneSave = useCallback(
@@ -1085,15 +1089,10 @@ export function ZoneManagementPage() {
     }
 
     for (const layoutSlot of allShopMapSpotCodes(mapLayout)) {
-      const key = normalizeStagingCodeKey(layoutSlot);
-      const zone =
-        zonesByLayoutSlot[key] ??
-        zones.find(
-          (z) =>
-            normalizeStagingCodeKey(z.code) === key ||
-            (z.mapLayoutSlot &&
-              normalizeStagingCodeKey(z.mapLayoutSlot) === key),
-        );
+      const zone = resolveStagingLocationForLayoutSlot(
+        assignResolveZones,
+        layoutSlot,
+      );
       if (zone && plannedIds.has(zone.id)) {
         slots.add(layoutSlot);
       }
@@ -1104,25 +1103,13 @@ export function ZoneManagementPage() {
     assignImportDetails,
     assignDetails,
     mapLayout,
-    zones,
-    zonesByLayoutSlot,
+    assignResolveZones,
   ]);
 
   const zoneForLayoutSlot = useCallback(
-    (layoutSlot: string): StagingLocation | undefined => {
-      const key = normalizeStagingCodeKey(layoutSlot);
-      return (
-        zonesByLayoutSlot[key] ??
-        zonesByLayoutSlot[layoutSlot] ??
-        zones.find(
-          (z) =>
-            normalizeStagingCodeKey(z.code) === key ||
-            (z.mapLayoutSlot &&
-              normalizeStagingCodeKey(z.mapLayoutSlot) === key),
-        )
-      );
-    },
-    [zones, zonesByLayoutSlot],
+    (layoutSlot: string): StagingLocation | undefined =>
+      resolveStagingLocationForLayoutSlot(assignResolveZones, layoutSlot),
+    [assignResolveZones],
   );
 
   const displayCodeForLayoutSlot = useCallback(
@@ -1144,27 +1131,64 @@ export function ZoneManagementPage() {
   const handleAssignSpotClick = useCallback(
     (layoutSlot: string) => {
       if (!assignDeliveryId && !assignInvoiceImportId) return;
-      const zone = zoneForLayoutSlot(layoutSlot);
-      if (!zone?.id) {
-        showAssignToast("Could not resolve that spot — try another.", "error");
-        return;
-      }
-      const code = displayCodeForLayoutSlot(layoutSlot);
-      // Assign merge: refuse re-clicking already-self spots.
-      // Change Location (reassign): allow own spots for promote/collapse/no-op.
-      if (!reassignMode && selfPlannedLayoutSlots.has(layoutSlot)) {
-        return;
-      }
-      setPendingAssignSpot({ layoutSlot, zoneId: zone.id, code });
+      void (async () => {
+        const existing = resolveStagingLocationForLayoutSlot(
+          assignResolveZones,
+          layoutSlot,
+        );
+        if (existing && !isLocationActive(existing)) {
+          showAssignToast("That location is no longer available.", "error");
+          setPendingAssignSpot(null);
+          return;
+        }
+        let zone = existing;
+        if (!zone?.id || isMapSlotPlaceholderStagingLocation(zone)) {
+          try {
+            const canonicalCode = formatStagingCodeCanonical(layoutSlot);
+            const layoutSlotCanonical = formatStagingCodeCanonical(layoutSlot);
+            const createdId = await createZone({
+              code: canonicalCode,
+              label: defaultLabelForSpotCode(layoutSlot),
+              type: inferSpotZoneType(canonicalCode),
+              status: "Active",
+              mapLayoutSlot: layoutSlotCanonical,
+            });
+            zone = {
+              id: createdId,
+              code: canonicalCode,
+              label: defaultLabelForSpotCode(layoutSlot),
+              type: inferSpotZoneType(canonicalCode),
+              status: "Active",
+              mapLayoutSlot: layoutSlotCanonical,
+            };
+            setZones((prev) =>
+              prev.some((row) => row.id === createdId) ? prev : [...prev, zone!],
+            );
+          } catch {
+            showAssignToast(
+              "Could not resolve that spot — try another.",
+              "error",
+            );
+            return;
+          }
+        }
+        const code = zone.code || displayCodeForLayoutSlot(layoutSlot);
+        // Assign merge: refuse re-clicking already-self spots.
+        // Change Location (reassign): allow own spots for promote/collapse/no-op.
+        if (!reassignMode && selfPlannedLayoutSlots.has(layoutSlot)) {
+          return;
+        }
+        setPendingAssignSpot({ layoutSlot, zoneId: zone.id, code });
+      })();
     },
     [
       assignDeliveryId,
       assignInvoiceImportId,
+      assignResolveZones,
       displayCodeForLayoutSlot,
       reassignMode,
       selfPlannedLayoutSlots,
       showAssignToast,
-      zoneForLayoutSlot,
     ],
   );
 
@@ -1235,16 +1259,23 @@ export function ZoneManagementPage() {
           err && typeof err === "object" && "message" in err
             ? String((err as { message?: unknown }).message ?? "")
             : "";
+        const unavailable = /no longer available/i.test(message);
         const cleaned = message
           .replace(/^Firebase:\s*/i, "")
           .replace(/^Error:\s*/i, "")
           .trim();
         showAssignToast(
-          approveFlow
-            ? cleaned || "Approve failed — import is still pending review."
-            : "Failed to save draft staging location.",
+          unavailable
+            ? "That location is no longer available."
+            : approveFlow
+              ? cleaned || "Approve failed — import is still pending review."
+              : "Failed to save draft staging location.",
           "error",
         );
+        if (unavailable) {
+          setPendingAssignSpot(null);
+          await loadZones();
+        }
       } finally {
         setAssignSaving(false);
       }
@@ -1315,6 +1346,10 @@ export function ZoneManagementPage() {
             : "Failed to save planned location.",
         "error",
       );
+      if (unavailable) {
+        setPendingAssignSpot(null);
+        await loadZones();
+      }
     } finally {
       setAssignSaving(false);
     }
@@ -1331,6 +1366,7 @@ export function ZoneManagementPage() {
     refreshPortalData,
     reassignMode,
     showAssignToast,
+    loadZones,
   ]);
 
   const assignIdentityLabel = useMemo(() => {

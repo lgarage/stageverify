@@ -7,10 +7,11 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "../firebase";
-import type {
-  DeliveryOrder,
-  ShopStockLocationMapping,
-  StagingLocation,
+import {
+  parseStagingLocation,
+  type DeliveryOrder,
+  type ShopStockLocationMapping,
+  type StagingLocation,
 } from "./models";
 import { mapActiveShopStockReservationsByCode } from "./shopStockMapping";
 import {
@@ -62,7 +63,11 @@ export function useLiveZoneOccupancy(enabled: boolean): LiveZoneOccupancyState {
       setState({
         zones,
         deliveries,
-        occupancyByZoneCode: computeZoneOccupancyByCode(zones, deliveries),
+        occupancyByZoneCode: computeZoneOccupancyByCode(
+          zones,
+          deliveries,
+          "authoritative",
+        ),
         shopStockByCode: mapActiveShopStockReservationsByCode(mappings),
         ready: zonesReady && deliveriesReady && mappingsReady,
         error,
@@ -75,10 +80,9 @@ export function useLiveZoneOccupancy(enabled: boolean): LiveZoneOccupancyState {
       onSnapshot(
         query(collection(db, "stagingLocations"), limit(LIVE_QUERY_LIMIT)),
         (snap) => {
-          zones = snap.docs.map((d) => ({
-            ...(d.data() as StagingLocation),
-            id: d.id,
-          }));
+          zones = snap.docs.map((d) =>
+            parseStagingLocation(d.id, d.data() as Record<string, unknown>),
+          );
           zonesReady = true;
           publish();
         },

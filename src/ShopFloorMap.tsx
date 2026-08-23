@@ -11,7 +11,11 @@ import {
   type ReactNode,
 } from "react";
 import type { DeliveryDetails } from "./dispatcher";
-import type { ShopStockLocationMapping, StagingLocation } from "./dispatcher/models";
+import {
+  isLocationActive,
+  type ShopStockLocationMapping,
+  type StagingLocation,
+} from "./dispatcher/models";
 import { firestoreDataService } from "./dispatcher/firestoreService";
 import {
   SHOP_MAP_GROUND_SPOT_H,
@@ -588,8 +592,14 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
   const suppressClickRef = useRef(false);
 
   const zoneForLayoutSlot = useCallback(
-    (layoutSlot: string) =>
-      zonesByLayoutSlot[normalizeStagingCodeKey(layoutSlot)],
+    (layoutSlot: string) => {
+      const key = normalizeStagingCodeKey(layoutSlot);
+      return (
+        zonesByLayoutSlot[key] ??
+        zonesByLayoutSlot[layoutSlot] ??
+        zonesByLayoutSlot[formatStagingCodeCanonical(layoutSlot)]
+      );
+    },
     [zonesByLayoutSlot],
   );
 
@@ -2810,12 +2820,18 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     boxSizing: "border-box",
   };
 
-  const colorOf = (layoutSlot: string) =>
-    resolveSpotColor(
+  const colorOf = (layoutSlot: string) => {
+    const color = resolveSpotColor(
       displayCodeForSlot(layoutSlot),
       occupancyByZoneCode,
       shopStockByCode,
     );
+    if (assignMode && color === "green") {
+      const zone = zoneForLayoutSlot(layoutSlot);
+      if (zone && !isLocationActive(zone)) return "orange";
+    }
+    return color;
+  };
 
   const onEnter = async (layoutSlot: string) => {
     const displayCode = displayCodeForSlot(layoutSlot);
@@ -2869,6 +2885,11 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
     }
     if (assignMode && onAssignSpotClick) {
       if (!reassignMode && selfPlannedLayoutSlots?.has(layoutSlot)) {
+        return;
+      }
+      const existingZone = zoneForLayoutSlot(layoutSlot);
+      if (existingZone && !isLocationActive(existingZone)) {
+        onAssignSpotRefused?.("That location is no longer available.");
         return;
       }
       const displayCode = displayCodeForSlot(layoutSlot);
