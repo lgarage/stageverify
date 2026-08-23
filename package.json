@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.321",
+  "version": "0.0.322",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -162,6 +162,7 @@
     "cleanup:vendor-unplanned-verify": "node scripts/cleanup-vendor-unplanned-verify-fixtures.mjs",
     "test:app-settings-cache": "npx tsx scripts/test-app-settings-cache.mjs",
     "test:invoice-shell-backfill-defer": "npx tsx scripts/test-invoice-shell-backfill-defer.mjs",
+    "test:vendor-conversation-history": "npx tsx scripts/test-vendor-conversation-history.mjs",
     "test:vendor-pin-bootstrap-client": "npx tsx scripts/test-vendor-pin-bootstrap-client.mjs",
     "test:vendor-pin-bootstrap": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-vendor-pin-bootstrap.mjs\"",
     "test:upsert-management-pin-secrets": "npm run build:functions && firebase emulators:exec --only firestore \"node scripts/test-upsert-management-pin-secrets.mjs\"",
