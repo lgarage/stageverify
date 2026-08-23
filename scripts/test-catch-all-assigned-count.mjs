@@ -75,6 +75,34 @@ assert.equal(
 
 assert.equal(
   count([
+    delivery("planned-only", {
+      plannedStagingLocationIds: ["loc-ca-code"],
+    }),
+  ]),
+  1,
+  "planned-only CA assignment counts as one delivery",
+);
+
+{
+  const moving = delivery("moving", { stagingLocationId: "loc-g10" });
+  assert.equal(count([moving]), 0, "before assign into CA → 0");
+  const intoCa = {
+    ...moving,
+    stagingLocationId: "loc-ca-code",
+    updatedAt: now,
+  };
+  assert.equal(count([intoCa]), 1, "after assign into CA → 1");
+  const outOfCa = {
+    ...intoCa,
+    stagingLocationId: "loc-g10",
+    plannedStagingLocationIds: [],
+    updatedAt: now,
+  };
+  assert.equal(count([outOfCa]), 0, "after assign out of CA → 0");
+}
+
+assert.equal(
+  count([
     delivery("actual-code", { stagingLocationId: "loc-ca-code" }),
     delivery("actual-slot", { stagingLocationId: "loc-ca-slot" }),
     delivery("actual-configured", {

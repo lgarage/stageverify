@@ -1082,6 +1082,35 @@
       "warning": "Soft-WARN only for known flaky sync (e.g. catch-all delivery top-bar after Add — designation lag). Do not soft-WARN away hard gates for real unloadable-delivery / broken-drawer regressions unless product says occupancy data is known-noisy. Occupied-spot focus timeout may WARN so unrelated geometry asserts still run (v0.0.139, 2026-07-24)."
     },
     {
+      "id": "verify-catch-all-map-deletes-prod-ca",
+      "match": [
+        "clearCatchAllIfPresent",
+        "verify:catch-all-map",
+        "catch-all overlay missing",
+        "catchAllStagingLocationId deleted",
+        "parcelIntakeEnabled cleared"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "ship-verify",
+      "files": [
+        "scripts/verify-catch-all-map.mjs",
+        "scripts/verify-catch-all-count.mjs"
+      ],
+      "rules": [],
+      "commands": [
+        "node scripts/verify-catch-all-count.mjs",
+        "npm run verify:catch-all-map"
+      ],
+      "gateCandidate": true,
+      "injectBefore": [
+        "verify:catch-all-map",
+        "Catch-all count",
+        "CA overlay missing"
+      ],
+      "warning": "verify:catch-all-map clearCatchAllIfPresent deletes the production CA overlay and can clear catchAllStagingLocationId / parcelIntakeEnabled. Use view-only scripts/verify-catch-all-count.mjs for count checks. Do not run verify:catch-all-map or :prod against live unless you will immediately restore CA via Edit → Add Catch All Location (v0.0.304, 2026-08-23)."
+    },
+    {
       "id": "task-model-slug-grok",
       "match": [
         "grok-4.5-fast-xhigh",
