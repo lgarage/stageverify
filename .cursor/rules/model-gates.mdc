@@ -5,13 +5,99 @@ alwaysApply: true
 
 # Model Gates (pre-edit + post-change)
 
+## Default model routing (D-92) — SSOT
+
+Single authoritative model-routing definition. Other harness files pointer-reference this section.
+
+### Roles
+
+- **Preferred parent/orchestrator:** Grok 4.6 when the Cursor job/session is Grok 4.6 / available — inspect scope, classify risk, choose worker/lanes, coordinate investigation, **delegate implementation**, review outputs, coordinate verification, decide gates, write the final report. Must **not** automatically write product or harness implementation code. Platform limitation: Cursor chooses the parent at job start; rules cannot force every job to boot as Grok 4.6. When parent **is already** Composer 2.5 Fast (desktop Auto+Composer), Composer may implement **inline**. When parent is Grok 4.6 (or any non-Composer/non-Sol parent), it MUST `Task({ model: "composer-2.5-fast" })` for routine/simple-UI/non-UI code, or `gpt-5.6-sol-high` for visual-judgment UI. Never `resume: "self"` except D-50 or **D-92 Composer-repair takeover**.
+
+- **Default implementer:** Composer 2.5 Fast (`composer-2.5-fast`) whenever available and the task fits + confidence/risk allow — routine frontend, non-UI, straightforward React/TS, obvious CSS/layout, copy, small helpers, tests, routine perf, in-scope refactors.
+
+- **Visual authority:** `gpt-5.6-sol-high` for visual-judgment UI (D-63/D-65). Do not weaken.
+
+- **Verifier:** Grok family when a D-65 lane actually fires. Mechanical Task slug remains repo-approved `cursor-grok-4.5-high-fast`. If rejected → fallback `cursor-grok-4.6-high-fast`. Parent Grok 4.6 may in-session review when it is the parent. **Parent Grok in-session review does not create or replace a D-65 Task lane.** Do not reintroduce mandatory multi-Grok stacks.
+
+- **Security/high-risk authority:** Sonnet 5 (`claude-sonnet-5-thinking-high`) owns D-60 `sonnet-instruct:` + `sonnet-verify:` and D-38 `security-gate-id`. Grok 4.6 orchestrates but does **not** replace Sonnet. Grok adversarial remains Grok (`high-risk-adversarial:`). Composer may implement mechanical code under Sonnet constraints. Do not downgrade any Sonnet gate to Grok. Retired Sonnet 4.6 Task slugs are unavailable (D-38 2026-08-08) — authority **is** Sonnet 5; do not call Sonnet 5 a “preferred Sonnet 4.6”.
+
+### Implementer lock (hard STOP)
+
+Routine product/harness code must go to Composer 2.5 Fast unless one of:
+
+1. visual-judgment UI → Sol
+2. D-50 stuck-task carve-out (and D-62 rounds)
+3. D-60 high-risk explicitly assigns another builder (Composer remains default mechanical builder under Sonnet constraints when capable)
+4. Composer unavailable/incapable = **only** platform Task rejection of `composer-2.5-fast` (record `fallback-from: composer-2.5-fast`) — **not** subjective “I already have context / faster inline”
+5. A documented confidence/risk gate requires escalation (existing 2-fail / D-50 / Sonnet diagnose — not a new escape hatch)
+6. **D-92 Composer-repair takeover** (§ below) — Grok implements **only** the failed/stuck Composer scope after one failed repair of the same Grok-verified defect. Not permission to start as implementer.
+
+**"Parent already has context" is NOT a sufficient reason for Grok to self-implement.** `ui-implementer: grok-session` is NOT the normal path.
+
+If Grok writes code under an exception, the report MUST state the exact exception and why Composer was not used.
+
+### Ship lock (paired)
+
+Implementer workers (Composer/Sol/Grok-as-D-50/Grok-as-D-92-takeover) never commit/push/deploy. Orchestrator role owns ship. Grok-as-orchestrator may ship; Grok-as-implementer never ships. Ship permission ≠ implement permission.
+
+### Composer-repair + Grok takeover (D-92 implementer-review loop)
+
+Applies when parent is **Grok 4.6** and implementer is **Composer 2.5 Fast** (routine path). Composer-parent inline implement → this loop `N/A`. Visual-judgment UI stays with Sol — do **not** use this loop to take visual authority from `gpt-5.6-sol-high`.
+
+1. Grok 4.6 orchestrates.
+2. Composer 2.5 Fast implements.
+3. Grok 4.6 reviews the **actual** implementation (read the diff/files/test output — do **not** merely trust Composer’s summary).
+4. PASS → continue. Composer work is **not complete** until this review (or a fired D-65 Grok Task lane) PASSes.
+5. FAIL → Grok returns exact defect + fix requirements to Composer.
+6. Composer gets **ONE** repair attempt only.
+7. Grok 4.6 re-verifies the actual repair.
+8. If the **same verified defect** is still not fixed → Grok 4.6 takes over **that stuck scope only** and fixes it directly. Do **not** burn more Composer attempts on that defect.
+9. Grok 4.6 verifies closure of the takeover before PASS/DONE (`grok-final-verification:`).
+
+Parent Grok in-session review of the actual diff **is** this review — it does **not** create or replace a D-65 Task lane. This is an explicit D-50-style exception, **not** permission for Grok to implement routine work from the start.
+
+**Does not bypass** D-60 / Sonnet 5 / D-38. High-risk takeover still needs `sonnet-instruct:` / `high-risk-adversarial:` / `sonnet-verify:` / `security-gate-id`. Grok must not self-approve protected security-sensitive changes.
+
+**vs D-50/D-55:** this loop is the Composer-implementation-review path only. D-50 remains for other counted fails (build / Playwright / Ship Verifier / mixed). Do not require a second Composer retry after this loop already handed the same defect to Grok. Do not skip D-50 Agree when the fail class is D-50’s (e.g. 2× Ship Verifier).
+
+### Evidence (applicable substantive jobs; no invented Task IDs)
+
+On substantive **non-Composer-parent** code/harness ships, require at least:
+
+- `orchestrator-model:`
+- `implementer-model:`
+- `implementer-exception:` N/A or exact exception
+
+Also report when applicable (valid N/A style preserved):
+
+- `verifier-model:`
+- `visual-authority:`
+- `model-routing-verdict:`
+- `composer-repair-attempt: PASS | FAIL | N/A`
+- `grok-takeover: N/A` or exact reason (same verified defect after one Composer repair)
+- `grok-final-verification: PASS | FAIL` (required when Grok parent reviewed Composer output, or after takeover)
+
+Do **not** add these tokens to `ship:evidence-preflight.mjs`.
+
+### Cost
+
+Prefer cheapest capable implementer (Composer over Grok writing code). Use Grok 4.6 where reasoning/review value matters. Do not over-trigger D-65-N/A lanes.
+
+### Platform parity
+
+Desktop Cursor, cloud VM, mobile Cursor — identical. No mobile-only routing.
+
+### Preserve
+
+97 rule, D-65, D-50, D-51, D-60, D-38, D-27, D-32, Sol visual authority, no auto-stack. D-92 takeover does not weaken Sonnet or Sol.
+
 ## Pre-edit dispatch (announce-and-go — Dan-nonblocking, not Grok-skip)
 
 **BEFORE any file edit**, state: (1) **Archetype** (2) **Tier** T0–T3 + default model (3) **Dispatch** — inline Composer 2.5 or escalate (4) **Parallel plan** per `parallel-agent-strategy.mdc` (5) **conf** per `confidence-gate.mdc` (D-46/D-47/D-69 **97 rule**) — conf ≥ 97% before the first byte changes **and** before DONE; honesty + subagent bars apply on investigate/verify/ship too. "Announce-and-go" means **never wait for Dan's go-ahead**. Verifier lanes follow **§ Risk-based routing (D-65)** — do **not** auto-stack Solution + UI Playwright + Build Checker + Ship on routine T1. When D-36 Solution Verifier **does** apply, Agree **before** the first edit (D-48). **Workers/subagents:** when D-36 applies, dispatch Solution Verifier (or receive parent Agree) **before** editing — never implement-first and defer Agree to parent (D-48).
 
-> **Quota (constraint, not purpose — see § Trust over cost, D-34):** Composer 2.5 Fast = orchestrator + default worker (included quota). Sonnet 5 = on-demand only (D-38/D-60 gates). **D-65:** trigger trim ≠ skip agreement when a lane fires.
+> **Quota (constraint, not purpose — see § Trust over cost, D-34):** Grok 4.6 preferred orchestrator (D-92); Composer 2.5 Fast default implementer (included quota). Sonnet 5 = on-demand only (D-38/D-60 gates). **D-65:** trigger trim ≠ skip agreement when a lane fires.
 
-| Tier | Archetypes | Model |
+| Tier | Archetypes | Model (implementer; parent/orchestrator = D-92 Grok 4.6 preferred) |
 |------|-----------|-------|
 | T0 UI simple | wording/labels/column swap/obvious CSS | **Composer 2.5 Fast** (inline) — D-65 |
 | T0/T1 UI visual-judgment | theme/contrast/a11y/complex layout/redesign | **Sol** — Task → `gpt-5.6-sol-high` **directly** (Medium not Task-runnable); parent already Medium → inline Medium — see § UI/UX (D-63/D-65) |
@@ -28,7 +114,7 @@ alwaysApply: true
 - **Visual-judgment UI → Sol** (theme, contrast, dark/light, a11y/readability, complex layout, major UX redesign, visual consistency). **Task dispatch uses `gpt-5.6-sol-high` directly** — do **not** attempt/describe Medium as a Task subagent. Parent already Sol Medium → inline Medium. Fallbacks: High → high-fast → xhigh → xhigh-fast.
 - **Silent Composer on visual-judgment UI = NOT RUN.** All Sol rejected on visual-judgment → STOP.
 - **UI verifier:** at most **one** Grok lane when warranted (prefer judgment-from-log/screenshots; see § UI Playwright). Mechanical D-42 + D-51 remain **PROTECTED** for visible UI.
-- **Ship lock:** Composer/orchestrator commits/pushes/deploys; Grok never ships.
+- **Ship lock (D-92):** Implementer workers never commit/push/deploy; orchestrator role owns ship. Grok-as-orchestrator may ship; Grok-as-implementer never ships.
 - **After D-50 stuck ship:** resume Sol for visual-judgment UI; Composer for simple UI / non-UI.
 - **Sonnet gates unchanged:** D-38 + D-60 — **PROTECTED** (D-65 hard STOP — do not soft-skip on T3).
 
@@ -76,7 +162,7 @@ Mechanical evidence gate identical across clients — CI gate-check on PRs; loca
 
 ## 2-fail + 3-fail stuck ladder (Dan 2026-07-03; D-19 stall; D-50 third-fail Agree + Grok implement; **D-55** third try = D-50)
 
-**Default implementer:** **Composer** for non-UI and **simple UI** (D-65); **Sol** (Task→`gpt-5.6-sol-high` directly) for **visual-judgment UI** only; **Composer/orchestrator** completes the ship loop. **Exception:** after **D-50 stuck-task Agree** on the **3rd try**, **Grok implements** that stuck scope only until that ship closes — then Sol resumes for visual-judgment UI; Composer otherwise.
+**Default implementer:** **Composer** for non-UI and **simple UI** (D-65); **Sol** (Task→`gpt-5.6-sol-high` directly) for **visual-judgment UI** only; **orchestrator** (D-92) completes the ship loop. **Exception:** after **D-50 stuck-task Agree** on the **3rd try**, **Grok implements** that stuck scope only until that ship closes — then Sol resumes for visual-judgment UI; Composer otherwise.
 
 **D-55 (hard rule — Dan 2026-07-25):** After **2 consecutive fails** on the **same task/ship scope** (session or continued thread), the **next attempt (3rd try) is automatic D-50** — **not** another Composer-only implement+verify retry, **not** a 3rd Ship Verifier retrospective close, **not** another build/Playwright/verify-fix loop without **D-50 Phase A Agree** first. **Fail type and fingerprint do not exempt the 3rd try** from D-50 (fingerprint still governs **2nd-fail** handling only — stall-advisor vs Sonnet diagnose — below).
 
@@ -107,7 +193,7 @@ Two consecutive fails on the same task scope share a fingerprint when the **norm
 
 1. **1st fail** → Composer retry (+ optional self-trace per `MODEL_DOSSIER.md` tag `composer-trace`) — this is **attempt 2**.
 2. **2nd consecutive fail** on same scope → **2nd-fail lane only** (counts toward D-55): **same fingerprint** → **Grok stall-advisor** (mandatory); **different fingerprint** → **Sonnet 5** diagnose-only. **Do not** start another ordinary Composer implement+verify / Ship Verifier close / verify-fix as the “3rd try.”
-3. **3rd try (automatic D-55 + D-50)** → **D-50 stuck-task escalation** (§ below) — **mandatory** after two consecutive fails: **Grok ↔ Sonnet 5** peer deliberation until **Agree** on root cause + exact fix plan (Solution-style Agree + D-30/D-33; incorporate stall-advisor / Sonnet diagnose output); if scope touches CF/rules/auth, Sonnet uses **diagnose/Agree** role (security gate slug per `security-review-gate.mdc` when high-risk — separate mandatory gate before push unchanged) → **Grok implements** agreed fix for that scope only → normal D-43 verify ladder (UI Playwright / Build Checker when triggered; **Composer/orchestrator only** commit + push + deploy; Ship Verifier; Sonnet security gate before push if high-risk) → **Sol (UI-class) / Composer (non-UI) resumes** default implementer for the next task.
+3. **3rd try (automatic D-55 + D-50)** → **D-50 stuck-task escalation** (§ below) — **mandatory** after two consecutive fails: **Grok ↔ Sonnet 5** peer deliberation until **Agree** on root cause + exact fix plan (Solution-style Agree + D-30/D-33; incorporate stall-advisor / Sonnet diagnose output); if scope touches CF/rules/auth, Sonnet uses **diagnose/Agree** role (security gate slug per `security-review-gate.mdc` when high-risk — separate mandatory gate before push unchanged) → **Grok implements** agreed fix for that scope only → normal D-43 verify ladder (UI Playwright / Build Checker when triggered; **orchestrator only** commit + push + deploy — implementer workers never ship; Ship Verifier; Sonnet security gate before push if high-risk) → **Sol (UI-class) / Composer (non-UI) resumes** default implementer for the next task.
 4. **Sonnet diagnose-only without two prior consecutive fails** — when **only one** fail so far and ANY of: `confStart < 70`; Dan says "still broken" without new hypothesis (after 1st-fail self-trace); architecture unclear after one Composer pass. Composer implements after Sonnet returns — **not** a substitute for step 3 when two consecutive fails already occurred (**D-55** blocks ordinary attempt 3).
 
 Other Sonnet triggers: security verifier before push; architecture unclear after synthesis. **Not** for scouts or routine T0/T1/T2 before 1st fail + retry. Opus 4.6 = locked fallback only if Sonnet security gate returns HIGH Composer cannot resolve.
@@ -118,9 +204,9 @@ Other Sonnet triggers: security verifier before push; architecture unclear after
 
 **Phase A — Agree (readonly Tasks):** Orchestrator (usually Composer) synthesizes failure history + fingerprints → dispatch **Grok** (`cursor-grok-4.5-high-fast`, `generalPurpose`, `readonly`) and **Sonnet 5** (`claude-sonnet-5-thinking-high` per D-38 allowlist; on rejection retry next allowlist slug, `generalPurpose` or `security-review` when CF/rules/auth in scope — **diagnose/Agree only**, not implementation) → peer deliberate until **Agree** on root cause + **exact fix plan** (file paths, acceptance = named `verify:*` PASS). Max 3 Agree cycles; unresolved → present both positions to Dan. **Evidence:** `stuck-task-agree: <grok-task-id> + <sonnet-task-id>` + model lines + verdict **Agree** (or `escalated to Dan`).
 
-**Phase B — Implement (Grok carve-out):** **Grok** (Task `generalPurpose`, `cursor-grok-4.5-high-fast` or orchestrating Grok parent **only for this stuck scope**) writes product code per agreed plan — **overrides D-43/D-37 Composer-only implementer lock for this stuck task only**. Grok **still never** commits, pushes, or deploys (ship lock unchanged). **Evidence:** `stuck-implementer: grok (<task-id or inline session>)`.
+**Phase B — Implement (Grok carve-out):** **Grok** (Task `generalPurpose`, `cursor-grok-4.5-high-fast` or orchestrating Grok parent **only for this stuck scope**) writes product code per agreed plan — **overrides D-43/D-37 Composer-only implementer lock for this stuck task only**. Grok-as-implementer **never** commits, pushes, or deploys (orchestrator owns ship). **Evidence:** `stuck-implementer: grok (<task-id or inline session>)` + `implementer-exception: D-50 stuck scope`.
 
-**Phase C — Close stuck ship:** Run normal post-implement ladder on the agreed diff. **High-risk/T3 stuck ships:** close via **D-60 Phases 3–5** (`high-risk-adversarial:` → `sonnet-verify:` → D-38) — do **not** substitute Build Checker / UI Playwright as if D-60 were absent. Non-high-risk: UI Playwright when visible UI; Build Checker when judgment needed; **Composer/orchestrator** commit + push + deploy; Sonnet **security gate** before push when high-risk; Ship Verifier after push. Stuck-task ship **done** → **Sol (UI-class) / Composer (non-UI)** is default implementer again for new work (D-43 lock restored).
+**Phase C — Close stuck ship:** Run normal post-implement ladder on the agreed diff. **High-risk/T3 stuck ships:** close via **D-60 Phases 3–5** (`high-risk-adversarial:` → `sonnet-verify:` → D-38) — do **not** substitute Build Checker / UI Playwright as if D-60 were absent. Non-high-risk: UI Playwright when visible UI; Build Checker when judgment needed; **orchestrator** commit + push + deploy (implementer workers never ship); Sonnet **security gate** before push when high-risk; Ship Verifier after push. Stuck-task ship **done** → **Sol (UI-class) / Composer (non-UI)** is default implementer again for new work (D-43 lock restored).
 
 **D-62 — Post-D-50 retry rounds (Dan 2026-08-05):** If after a completed **D-50 Phase A Agree → Phase B Grok implement** the **same task/ship scope** still fails under the same counted-fail classes as D-50 (implement+verify / build / Playwright / Ship Verifier — security-gate runs excluded), do **not** resume Composer-only implement+verify and do **not** open unbounded retries. Allow at most **2 additional retry rounds**, each = full **Phase A** (Grok↔Sonnet peer Agree on revised root cause + exact fix plan; Max 3 Agree peer iterations per round unchanged) → **Phase B** (Grok implements; still never commits/pushes/deploys) → Phase C ladder. **Grok remains stuck-scope implementer** across D-50 + D-62 rounds until ship closes or Dan escalate. Evidence each round: `stuck-task-agree: … (d62-round N/2)` + `stuck-implementer: grok …`. After **2** D-62 rounds still failing → **STOP** — escalate to Dan with clarifying questions (what's still broken, acceptance, scope); no 3rd D-62 round, no Composer spin. Amends D-50/D-55. Platform parity D-32.
 
@@ -192,11 +278,13 @@ Complete ship loop (`ship-loop.mdc`) before declaring done for code/config chang
 
 Evidence standard (every tier): Task id + model line in the report, else **NOT RUN**. After each verifier/gate verdict, log via `npm run verifier:log -- --role <role> --verdict <verdict> --task-id <id> --model <slug>`; `--real yes|no` labels non-PASS findings only (real vs noise; PASS rows stay `na`); `npm run verifier:stats` finding-precision output is admissible evidence for Harness V1 Freeze (D-16) decisions.
 
-**Dispatcher verifies (D-37 — Dan 2026-07-17; verify-dedup amend 2026-07-19):** work is done by Composer; orchestrators never edit when Composer is available. Before ship/present, the dispatcher MUST: (1) read returned diff vs agreed scope; (2) confirm worker reported clean `build` and PASS on affected `verify:*`/Playwright **by exact script name** in that ship cycle; (3) route normal verifier lanes above. Dispatcher MUST NOT re-run those same `verify:*`/Playwright scripts in that cycle when (2) holds, unless: evidence missing/ambiguous, diff shows scope drift, those scripts FAILed earlier this cycle, or Dan asks recheck. Optional cheap spot-check of `build` / `away:validate` if worker omitted them. After deploy, `:prod` runs once on the deploy path — worker `:prod` PASS for named scripts counts; dispatcher need not re-run them. Does not weaken security gate, Ship Verifier, fix-closure, or other ladder tiers. Never silently trust a returned diff.
+**Dispatcher verifies (D-37 — Dan 2026-07-17; verify-dedup amend 2026-07-19; D-92 orchestrator may be Grok 4.6 parent):** work is done by Composer/Sol implementers; orchestrators never inline-edit product when Composer/Sol is available. Before ship/present, the orchestrator MUST: (1) read returned diff vs agreed scope; (2) confirm worker reported clean `build` and PASS on affected `verify:*`/Playwright **by exact script name** in that ship cycle; (3) route normal verifier lanes above. Dispatcher MUST NOT re-run those same `verify:*`/Playwright scripts in that cycle when (2) holds, unless: evidence missing/ambiguous, diff shows scope drift, those scripts FAILed earlier this cycle, or Dan asks recheck. Optional cheap spot-check of `build` / `away:validate` if worker omitted them. After deploy, `:prod` runs once on the deploy path — worker `:prod` PASS for named scripts counts; dispatcher need not re-run them. Does not weaken security gate, Ship Verifier, fix-closure, or other ladder tiers. Never silently trust a returned diff.
 
 ## Fix-closure rule (universal — Dan 2026-07-08)
 
 When any verifier/reviewer model (Repair Verifier/Grok, Planning Verifier/Grok, Q&A Verifier/Grok, Ship Verifier/Grok, Solution Verifier/Grok, **UI Playwright Verifier/Grok**, **D-60 high-risk-adversarial Grok**, **Sonnet high-risk final verify (D-60)**, security gate/Sonnet, Work Verifier/Fable, Critical Reviewer/Grok on blocking findings) reports an issue and Composer applies fixes, the **SAME model re-verifies before the finding closes** — in every context (interactive, away, overnight). One re-verify cycle per existing loop bounds; still failing → escalate per that role's rule. Composer self-attesting "fixed" NEVER closes a finding. Evidence: the completion report must include `fix-verified: <re-verify task-id>` (same-model) for every closed finding; a finding without it stays OPEN and blocks the next ship per the Ship Verifier blocking rule.
+
+**D-92 Composer-implementation review (Grok parent):** Grok must review the actual diff/result, not Composer’s summary. After one failed Composer repair of the **same verified defect**, Grok takes over that scope (§ Default model routing — Composer-repair + Grok takeover). That path does **not** replace this section’s Task-lane fix-closure, the Dan-intent Repair loop (max 3), or D-50 for build/Playwright/Ship counted fails. High-risk still closes through D-60/D-38.
 
 ### Peer deliberation (D-30 — Dan 2026-07-12)
 
@@ -301,13 +389,13 @@ Task({
 **Trigger:** any Dan question that dispatches a qualifier/verifier model (Q&A Verifier, Planning Verifier, or any verifier/reviewer consulted to shape an answer).
 
 - **Deliberate, don't dictate:** the drafting agent and the verifier exchange positions as **peers** until genuine agreement on the best answer — verifier findings are proposals; the author adopts or rebuts with reasoning; the verifier's next turn explicitly accepts or rejects each rebuttal (never merely restates its verdict). Existing max cycles unchanged (Q&A 2; Planning 3).
-- **Orchestrator presents:** the final note to Dan is always authored and delivered by the session's orchestrating agent (currently Composer 2.5 by default) in its own words — **never raw verifier output pasted as the answer**. Verifier contribution appears only as evidence lines (`qa-verifier:`, `planning-verifier:`, `fix-verified:`, `findings:`).
+- **Orchestrator presents:** the final note to Dan is always authored and delivered by the session's orchestrating agent (D-92: Grok 4.6 preferred; Composer when parent is Composer) in its own words — **never raw verifier output pasted as the answer**. Verifier contribution appears only as evidence lines (`qa-verifier:`, `planning-verifier:`, `fix-verified:`, `findings:`).
 - **Unresolved after max cycles:** the orchestrator presents **both positions** with a `Caveat:` line — never silent compliance, never silent dismissal.
 - Platform parity automatic per D-32 default (desktop Windows PC, mobile Cursor, cloud VM).
 
 ### Solution deliberation (D-36 — Dan 2026-07-13; D-43; amended D-65)
 
-**Standing default (D-65 risk-based):** Follow § Risk-based routing lane table. Do **not** auto-run Solution + UI Playwright + Build Checker + Ship on routine T1. Grok **never** commits, pushes, or deploys. See `.cursor/rules/composer-grok-collab.mdc`.
+**Standing default (D-65 risk-based):** Follow § Risk-based routing lane table. Do **not** auto-run Solution + UI Playwright + Build Checker + Ship on routine T1. **Ship lock (D-92):** implementer workers never commit/push/deploy; orchestrator owns ship. See `.cursor/rules/composer-grok-collab.mdc`.
 
 **Implementer lock:** Non-Composer/non-Sol parents MUST Task **`composer-2.5-fast`** for simple UI / non-UI, or **`gpt-5.6-sol-high`** (directly — no Medium Task attempt) for **visual-judgment UI** — never `resume: "self"` except D-50 stuck scope. Composer may implement simple UI and non-UI inline. Sol Medium parent may implement visual-judgment UI inline as Medium.
 

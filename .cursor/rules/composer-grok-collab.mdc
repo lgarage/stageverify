@@ -5,27 +5,33 @@ alwaysApply: true
 
 # Composer ↔ Grok collaboration (D-43 / D-65)
 
-**Dan standing preference (every session):** Risk-based build lock per `model-gates.mdc` § Risk-based routing (D-65). Do **not** auto-stack Solution + UI Playwright + Build Checker + Ship on routine T1. When a Grok lane **does** fire, peer-agree + fix-closure still apply (D-34 — trigger trim ≠ skip agreement). Platform parity (D-20/D-32).
+**Dan standing preference (every session):** Risk-based build lock per `model-gates.mdc` § Default model routing (D-92) + § Risk-based routing (D-65). Do **not** auto-stack Solution + UI Playwright + Build Checker + Ship on routine T1. When a Grok lane **does** fire, peer-agree + fix-closure still apply (D-34 — trigger trim ≠ skip agreement). Platform parity (D-20/D-32).
 
 ## Phases (only those the D-65 lane table requires)
 
 | Phase | Who | When |
 |-------|-----|------|
 | **1 — Agree** | Grok **Solution Verifier** | Only if multiple paths / unclear SoT / ambiguous data model / multi-file diverge risk. Else `solution-verifier: N/A (…)`. **High-risk/T3:** `solution-verifier: N/A (high-risk — D-60 sonnet-instruct)` — Sonnet owns pre-review. **conf ≥ 97%** always (D-47). |
-| **2 — Implement** | **Simple UI / non-UI → Composer**; **visual-judgment UI → Sol** (Task → `gpt-5.6-sol-high` **directly**; parent Medium → inline). Grok only after D-50 stuck Agree. | Always for product builds. **D-51** before first visible UI edit. **High-risk:** builder follows Sonnet constraints (`high-risk-sonnet-loop.mdc`). |
+| **2 — Implement** | **Simple UI / non-UI → Composer**; **visual-judgment UI → Sol** (Task → `gpt-5.6-sol-high` **directly**; parent Medium → inline). Grok only after D-50 stuck Agree or **D-92 Composer-repair takeover**. | Always for product builds. **D-51** before first visible UI edit. **High-risk:** builder follows Sonnet constraints (`high-risk-sonnet-loop.mdc`). |
 | **2b — UI judgment** | Grok **UI Playwright** (optional) | Prefer judgment-from-log after worker `verify:*` PASS; live re-run only per D-45/D-65 criteria. Simple UI usually N/A. **High-risk:** N/A (Sonnet owns Playwright acceptance). |
 | **3 — Pre-commit** | Mechanical build/verify; Grok **Build Checker** only when judgment needed | Not to re-run green `npm run build`. **High-risk/T3:** mandatory Grok **`high-risk-adversarial:`** then Sonnet final verify — Build Checker N/A (adversarial owns diff judgment). |
-| **4 — Ship** | Composer commit/push/deploy; Grok **Ship Verifier** when required | Tiny-fast-safe FE → Ship N/A; run `ship:evidence-preflight` before any Ship Task. High-risk keeps D-60 full loop + D-38 + Ship; CF/rules deploy still need Dan approval. |
+| **4 — Ship** | **Orchestrator** commit/push/deploy; Grok **Ship Verifier** when required | Tiny-fast-safe FE → Ship N/A; run `ship:evidence-preflight` before any Ship Task. High-risk keeps D-60 full loop + D-38 + Ship; CF/rules deploy still need Dan approval. Implementer workers never ship. |
 
-**Ship lock (hard STOP):** Grok **never** commits, pushes, or deploys — except D-50 Phase B product edits after stuck-task Agree (still no ship lock transfer).
+**Ship lock (hard STOP — D-92 paired):** Implementer workers (Composer/Sol/Grok-as-D-50/Grok-as-D-92-takeover) never commit, push, or deploy. Orchestrator role owns ship. Grok-as-orchestrator may ship; Grok-as-implementer never ships. Ship permission ≠ implement permission.
 
 ## Implementer lock (hard STOP)
+
+See `model-gates.mdc` § Default model routing (D-92) for full exceptions. Summary:
 
 - **Simple UI** (wording, labels, column swaps, obvious CSS, straightforward visibility): **Composer**.
 - **Visual-judgment UI** (theme, contrast, dark/light, a11y, complex layout, major redesign, visual consistency): **Sol** — Task uses `gpt-5.6-sol-high` directly (do not attempt Medium as Task). Silent Composer on visual-judgment = **NOT RUN**.
 - **Non-UI:** Composer.
-- **D-50 stuck carve-out:** Grok implements stuck scope after Agree until ship closes.
-- Non-Composer/non-Sol parents MUST Task Composer or Sol High — never `resume: "self"` except D-50.
+- **D-50 stuck carve-out (+ D-62 rounds):** Grok implements stuck scope after Agree until ship closes; report `implementer-exception: D-50 stuck scope`.
+- **D-92 Composer-repair takeover:** after Grok reviews the **actual** Composer diff (not the summary), FAIL → Composer gets **one** repair → if the same verified defect remains, Grok takes over **that scope only**. Report `composer-repair-attempt: FAIL`, `grok-takeover:`, `implementer-exception: D-92 Composer-repair takeover`. Does not bypass D-60/Sonnet/D-38. Does not steal Sol visual authority.
+- **D-60 high-risk:** Composer default mechanical builder under Sonnet constraints when capable.
+- **Composer unavailable:** only platform Task rejection of `composer-2.5-fast` (`fallback-from:`) — not “parent already has context.”
+- Non-Composer/non-Sol parents MUST Task Composer or Sol High — never `resume: "self"` except D-50 or D-92 Composer-repair takeover.
+- **`ui-implementer: grok-session` is NOT the normal path.** If Grok writes code under an exception, report `implementer-exception:` with exact reason.
 
 ## Pre-edit gate ordering (D-48)
 
@@ -35,6 +41,8 @@ When Solution Verifier is required, PASS/N/A **before first repo write**. Worker
 
 Include evidence lines **only for lanes that fired** (or valid N/A). Do not invent Solution/Build/UI-PW/Ship Task ids for skipped lanes. **D-51** still required for visible UI. High-risk/T3: `sonnet-instruct:` + `high-risk-adversarial:` + `sonnet-verify:` + `security-gate-id` **PROTECTED** (D-60).
 
+On substantive **non-Composer-parent** code/harness ships, also include D-92 lines per `model-gates.mdc` § Default model routing: `orchestrator-model:`, `implementer-model:`, `implementer-exception:` (+ `verifier-model:`, `visual-authority:`, `model-routing-verdict:`, `composer-repair-attempt:`, `grok-takeover:`, `grok-final-verification:` when applicable).
+
 ## Authority
 
-SSOT mechanics: `model-gates.mdc` (D-65 lane table, D-36/D-45/Ship, D-50). This file is the plain-language collab lock — it must not reintroduce a mandatory four-Grok stack.
+SSOT mechanics: `model-gates.mdc` § Default model routing (D-92) + D-65 lane table (D-36/D-45/Ship, D-50). This file is the plain-language collab lock — it must not reintroduce a mandatory four-Grok stack.

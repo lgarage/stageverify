@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Parallel Agent Strategy (stageverify)
 
-Composer 2.5 Fast is the **orchestrator**. Parallel cheap subagents are the **default** for independent read-only work. Dan does **not** need to ask for parallel execution when this file's triggers apply.
+Orchestrator follows **D-92** (`model-gates.mdc` § Default model routing): Grok 4.6 preferred parent; Composer 2.5 Fast default implementer. Parallel cheap subagents are the **default** for independent read-only work. Dan does **not** need to ask for parallel execution when this file's triggers apply.
 
 **Authority:** This file governs fan-out vs serialize. `composer-orchestrator.mdc` governs build/Playwright/ship. `model-gates.mdc` governs tier/model pick. On conflict about *whether* to parallelize, this file wins. On conflict about *commit/deploy*, ship-loop wins.
 
@@ -13,7 +13,7 @@ Composer 2.5 Fast is the **orchestrator**. Parallel cheap subagents are the **de
 
 | Role | Actor | May write repo files? |
 |------|-------|----------------------|
-| Coordinator | Composer 2.5 (parent session) | Yes — synthesizes scouts; merges domains; **one ship loop** |
+| Coordinator | Orchestrator (Grok 4.6 preferred; Composer when parent is Composer) | Yes — synthesizes scouts; merges domains; **one ship loop** |
 | Scout | `explore` or cheap `generalPurpose` Task subagent | **No** — `readonly: true` for explore; scouts return summaries only |
 | Security scanner | `explore` / `gemini-3-flash` | No — risk list only |
 | Security verifier | Sonnet 5 Task subagent | No — verdict only; never commits |
@@ -196,7 +196,7 @@ Domain executors are **coordinator-delegated slices** of one task. Multitask "co
 - Inconsistent repo state
 - Playwright on same dev server port
 - `backend-write-critical` **implementation**
-- **Grok (or any non-Composer/non-Sol parent) implementing product code** via inline edits or `resume: "self"` — dispatch `composer-2.5-fast` for simple UI / non-UI, or `gpt-5.6-sol-high` **directly** for visual-judgment UI (D-43 / D-37 / D-63 / D-65) **except** D-50 stuck-task scope after **stuck-task Agree**
+- **Grok (or any non-Composer/non-Sol parent) implementing product code** via inline edits or `resume: "self"` — dispatch `composer-2.5-fast` for simple UI / non-UI, or `gpt-5.6-sol-high` **directly** for visual-judgment UI (D-43 / D-37 / D-63 / D-65) **except** D-50 stuck-task scope after **stuck-task Agree** or **D-92 Composer-repair takeover** (one failed Composer repair of the same Grok-verified defect)
 
 ## Sonnet 5 — rare escalation only
 
