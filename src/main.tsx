@@ -10,6 +10,10 @@ import { NoAccessPage } from "./NoAccessPage";
 import { normalizeLegacyAppHash, normalizeLocationScanHash, normalizePickupHash, normalizeReceiveHash } from "./receiveQrUrls";
 import { applyPendingLeftoverReceiveCollapse } from "./locationScanHistoryCollapse";
 import { seedFirestore } from "./dispatcher/seedFirestore";
+// Eager: a failed React.lazy() of VendorsPage empties #root (blank dark screen)
+// while HashRouter has already committed #/vendors. Reload "fixes" it because
+// the import runs again; client-side nav reuses the rejected module promise.
+import { VendorsPage } from "./VendorsPage";
 
 const ReceivingPage = lazy(() => import("./ReceivingPage").then(m => ({ default: m.ReceivingPage })));
 const CheckinToReceiveRedirect = lazy(() =>
@@ -36,7 +40,6 @@ const LocationSignBatchPrintPage = lazy(() =>
     default: m.LocationSignBatchPrintPage,
   })),
 );
-const VendorsPage = lazy(() => import("./VendorsPage").then(m => ({ default: m.VendorsPage })));
 const InvoiceReviewPage = lazy(() =>
   import("./InvoiceReviewPage").then((m) => ({ default: m.InvoiceReviewPage })),
 );
