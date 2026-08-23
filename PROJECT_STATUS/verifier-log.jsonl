@@ -219,3 +219,5 @@
 {"date":"2026-08-18","role":"security","verdict":"PASS","taskId":"4ceed7f3-fde8-5a1a-ba8a-6be5551eefef","model":"claude-sonnet-5-thinking-high","real":"na","note":""}
 {"date":"2026-08-20","role":"ship","verdict":"PASS","taskId":"bc-fec183b4-dbc1-5274-817e-940360750b06","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
 {"date":"2026-08-20","role":"ship","verdict":"PASS","taskId":"bc-2695a4cd-c0d7-5c25-888c-db1744924cb0","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-08-23","role":"repair","verdict":"PASS","taskId":"bc-bdcf0a85-b31e-5fdc-9cc5-47094fc246ae","model":"cursor-grok-4.5-high-fast","real":"na","note":"Change Location navy current-spot box restore"}
+{"date":"2026-08-23","role":"security","verdict":"PASS","taskId":"bc-87d6acea-03f5-5e28-b396-536ca606b5fe","model":"claude-sonnet-5-thinking-high","real":"na","note":""}

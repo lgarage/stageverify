@@ -229,6 +229,8 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 
 **Assigned / Planned + legend color align (2026-08-09, v0.0.265)** — User-facing 0-received yellow label is **Assigned / Planned** (constant `AWAITING_DELIVERY_STATUS_LABEL`; enums unchanged). Deliveries legend: yellow Assigned/Planned, green Staged — Ready for Pickup (not purple), bright orange Unplanned (`UNPLANNED_BADGE` / `--color-accent-orange`), gray Shop Stock. `verify:delivery-consistency` legend assert + D-42.
 **Unplanned status single-badge + U1 fixture cleanup (2026-08-09, v0.0.266)** — `deliveryNeedsUnplannedJobMatch` → primary `Unplanned` label (no Assigned/Planned overlay); unresolved staging ids → Needs staging / Staging location missing; verify default loc `UV`; cleanup covers drawer+verify vendors. `verify-unplanned-delivery-drawer` 12/12.
+**Change Location current-spot box (2026-08-23, v0.0.300)** — Staging Map reassign mode reuses existing navy focus chrome (`3px #0a3161`) on `selfPlanned` current assignment spots; move-note text unchanged. Verify: `verify:change-location` (+ `:prod`).
+**Vendors client-nav blank screen (2026-08-23, v0.0.301)** — `#/vendors` stayed blank after sidebar click when the lazy `VendorsPage` chunk failed (`#root` emptied). Vendors is eager-imported so client-side nav renders immediately; reload still works. Verify: `verify:dispatcher-nav` cycles + Back/Forward + blocked `VendorsPage-*.js`.
 
 
 **Settings staging UI cleanup (2026-07-25, v0.0.155, D-52/D-53)** — Removed light-blue duplicate spot summary and “Orphan zones not on the map” callout; editable table is the only list. Verify: `verify:settings-staging` (`assertNoOrphanStagingCallout`).
