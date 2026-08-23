@@ -2183,6 +2183,8 @@ export interface DeliveryListRow {
   unplanned?: boolean;
   /** reviewFlag.reason contains Unplanned — list filter/badge. */
   unplannedReviewFlag?: boolean;
+  /** Linked vendor invoice import — invoice-source email in comms history. */
+  vendorInvoiceImportId?: string;
 }
 
 export interface DeliveryDetails {
