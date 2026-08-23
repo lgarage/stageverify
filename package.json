@@ -71,6 +71,8 @@
     "verify:change-location:prod": "node scripts/run-verify-with-learning.mjs --script verify:change-location:prod scripts/verify-change-location.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:catch-all-map": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map scripts/verify-catch-all-map.mjs",
     "verify:catch-all-map:prod": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map:prod scripts/verify-catch-all-map.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:catch-all-count": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-count scripts/verify-catch-all-count.mjs",
+    "verify:catch-all-count:prod": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-count:prod scripts/verify-catch-all-count.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-review": "node scripts/verify-invoice-review.mjs",
     "verify:invoice-assign-location": "node scripts/verify-invoice-assign-location.mjs",
     "verify:invoice-assign-location:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-assign-location:prod scripts/verify-invoice-assign-location.mjs --base-url=https://lgarage.github.io/stageverify",
