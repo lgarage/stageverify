@@ -766,6 +766,10 @@ export interface VendorRunDeliveryItem {
   id: string;
   description: string;
   qtyOrdered: number;
+  /** Present when CF/hydrate exposes existing item truth. */
+  qtyReceived?: number;
+  qtyBackordered?: number;
+  status?: string;
 }
 
 export interface VendorRunDeliverySummary {
@@ -778,6 +782,8 @@ export interface VendorRunDeliverySummary {
   stagingLocationCodes: string[];
   hasAssignableSpot: boolean;
   vendorPhysicalDropoffConfirmed: boolean;
+  /** Persisted delivery.status — optional on older CF payloads. */
+  status?: string;
   items: VendorRunDeliveryItem[];
 }
 
