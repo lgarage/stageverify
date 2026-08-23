@@ -657,7 +657,12 @@ export function VendorDeliveredHub({
 
       {showIssueModal && (
         <VendorIssueModal
-          deliveryDetails={deliveryDetails}
+          target={{
+            deliveryId: delivery.id,
+            jobId: delivery.jobId ?? "",
+            orderNumber: delivery.orderNumber,
+            vendorName: vendor.name,
+          }}
           onClose={() => setShowIssueModal(false)}
           onSubmitted={showIssueSubmitted}
         />

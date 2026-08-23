@@ -225,6 +225,7 @@ Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** (pickup resol
 | Bare `/#/receive` | ✅ Recovery → scan location QR (obsolete Receive Delivery / manual Delivery ID removed) |
 | Legacy zone URLs | ✅ `#/receive?zone=` / `#/r?z=` → `#/s?loc=` |
 | Exception-only hub | ✅ `appSettings.vendorDeliveryMode`; Delivered / Need More Space / Report a Problem |
+| Company-run job-card issue | ✅ Per-job **Report an issue** on expanded vendor-run cards (`v0.0.317`; reuses `VendorIssueModal` + `createMaterialIssue`) |
 | Legacy full check-in | ✅ Same page when `vendorDeliveryMode = full_checkin` |
 | Verify | ✅ `verify:vendor-delivered` + `node scripts/verify-receive-legacy-entry.mjs` |
 

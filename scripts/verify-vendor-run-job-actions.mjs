@@ -118,6 +118,7 @@ async function enterPin(page, digits) {
     },
   ];
   let lastVendorRunCompleteIds = [];
+  const materialIssueRequests = [];
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -207,6 +208,31 @@ async function enterPin(page, digits) {
       }),
     });
   });
+  await page.route("**/createMaterialIssue", async (route) => {
+    const requestBody = JSON.parse(route.request().postData() ?? "{}");
+    const {
+      deliveryOrderId,
+      jobId,
+      type,
+      description,
+    } = requestBody.data ?? {};
+    materialIssueRequests.push({
+      deliveryOrderId,
+      jobId,
+      type,
+      description,
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        result: {
+          issueId: `issue-${materialIssueRequests.length}`,
+          duplicate: false,
+        },
+      }),
+    });
+  });
 
   await page.goto(`${appBase}/#/s?loc=G2`, {
     waitUntil: "domcontentloaded",
@@ -265,10 +291,86 @@ async function enterPin(page, digits) {
     "Cancel / Back is inside the expanded job",
     await page.getByTestId("vendor-run-cancel-verify-run-active-a").isVisible(),
   );
+  record(
+    "unfinished job exposes secondary Report an issue",
+    await page
+      .getByTestId("vendor-run-report-issue-verify-run-active-a")
+      .isVisible(),
+  );
   await assertReadableTextContrast(page, VENDOR_RUN_LAYOUT_CONTRAST_SPEC);
   record("D-42 expanded unfinished contrast", true);
   await page.screenshot({
     path: resolve(outDir, "expanded-complete-delivery.png"),
+    fullPage: false,
+  });
+
+  await page
+    .getByTestId("vendor-run-report-issue-verify-run-active-a")
+    .click();
+  await page.getByTestId("vendor-issue-modal").waitFor();
+  record(
+    "issue sheet exposes stable entry controls",
+    (await page.getByTestId("vendor-issue-option-wrong_location").isVisible()) &&
+      (await page.getByTestId("vendor-issue-option-damaged").isVisible()) &&
+      (await page.getByTestId("vendor-issue-option-missing").isVisible()) &&
+      (await page.getByTestId("vendor-issue-option-other").isVisible()) &&
+      (await page.getByTestId("vendor-issue-note").isVisible()) &&
+      (await page.getByTestId("vendor-issue-cancel").isVisible()) &&
+      (await page.getByTestId("vendor-issue-submit").isVisible()),
+  );
+  await page.screenshot({
+    path: resolve(outDir, "issue-entry.png"),
+    fullPage: false,
+  });
+  await page.getByTestId("vendor-issue-cancel").click();
+  await page.getByTestId("vendor-issue-modal").waitFor({ state: "detached" });
+  record(
+    "cancel issue entry writes nothing and keeps Job A expanded",
+    materialIssueRequests.length === 0 && (await detailsA.isVisible()),
+  );
+
+  await page
+    .getByTestId("vendor-run-report-issue-verify-run-active-a")
+    .click();
+  await page.getByTestId("vendor-issue-option-damaged").click();
+  await page.getByTestId("vendor-issue-note").fill("Outer carton is crushed");
+  await page.getByTestId("vendor-issue-submit").click();
+  await page
+    .getByTestId("vendor-run-issue-reported-verify-run-active-a")
+    .waitFor();
+  record(
+    "Job A issue uses existing delivery-level payload",
+    JSON.stringify(materialIssueRequests[0]) ===
+      JSON.stringify({
+        deliveryOrderId: "verify-run-active-a",
+        jobId: "job-a",
+        type: "damaged",
+        description: "Outer carton is crushed",
+      }),
+    JSON.stringify(materialIssueRequests[0]),
+  );
+  record(
+    "Job A submit stays expanded with scoped confirmation",
+    (await detailsA.isVisible()) &&
+      ((await page
+        .getByTestId("vendor-run-issue-reported-verify-run-active-a")
+        .textContent()) ?? "").includes("dispatcher notified"),
+  );
+  record(
+    "Job B is unchanged after Job A issue submit",
+    materialIssueRequests.every(
+      (request) => request.deliveryOrderId !== "verify-run-delivered-b",
+    ) &&
+      (await page
+        .getByTestId("vendor-run-row-verify-run-delivered-b")
+        .getAttribute("data-delivered")) === "true" &&
+      !(await page
+        .getByTestId("vendor-run-issue-reported-verify-run-delivered-b")
+        .isVisible()
+        .catch(() => false)),
+  );
+  await page.screenshot({
+    path: resolve(outDir, "issue-success.png"),
     fullPage: false,
   });
 
@@ -392,12 +494,86 @@ async function enterPin(page, digits) {
       .getByTestId("vendor-item-line-status")
       .textContent()) ?? "").trim() === "NOT DELIVERED",
   );
+  const partialStateIsUnchanged = async () =>
+    ((await page
+      .getByTestId("vendor-run-complete-status-verify-run-partial-d")
+      .textContent()) ?? "").trim() === "Physical drop-off complete" &&
+    ((await page
+      .getByTestId("vendor-run-order-status-verify-run-partial-d")
+      .textContent()) ?? "").includes("Partial") &&
+    ((await backorderBadges.textContent()) ?? "").trim() === "BACKORDERED" &&
+    (await page
+      .getByTestId("vendor-run-undo-verify-run-partial-d")
+      .isVisible()) &&
+    (await page
+      .getByTestId("vendor-run-row-verify-run-partial-d")
+      .getAttribute("data-delivered")) === "true";
+  record(
+    "partial delivered card exposes Report an issue",
+    await page
+      .getByTestId("vendor-run-report-issue-verify-run-partial-d")
+      .isVisible(),
+  );
+  await page
+    .getByTestId("vendor-run-report-issue-verify-run-partial-d")
+    .click();
+  await page.getByTestId("vendor-issue-modal").waitFor();
+  record(
+    "partial/backordered truth remains under open issue sheet",
+    await partialStateIsUnchanged(),
+  );
+  await page.getByTestId("vendor-issue-submit").click();
+  await page
+    .getByTestId("vendor-run-issue-reported-verify-run-partial-d")
+    .waitFor();
+  record(
+    "partial issue submit targets only its delivery",
+    JSON.stringify(materialIssueRequests[1]) ===
+      JSON.stringify({
+        deliveryOrderId: "verify-run-partial-d",
+        jobId: "job-d",
+        type: "other",
+        description: "Wrong location",
+      }),
+    JSON.stringify(materialIssueRequests[1]),
+  );
+  record(
+    "partial/backordered truth remains after issue submit",
+    await partialStateIsUnchanged(),
+  );
   await assertReadableTextContrast(page, VENDOR_RUN_PARTIAL_ROW_CONTRAST_SPEC);
   record("D-42 partial face contrast", true);
   await page.screenshot({
     path: resolve(outDir, "partial-backorder-status.png"),
     fullPage: false,
   });
+
+  await page
+    .getByTestId("vendor-run-toggle-verify-run-delivered-b")
+    .click();
+  const deliveredBIssueCount = materialIssueRequests.length;
+  record(
+    "delivered job can open per-job issue sheet",
+    await page
+      .getByTestId("vendor-run-report-issue-verify-run-delivered-b")
+      .isVisible(),
+  );
+  await page
+    .getByTestId("vendor-run-report-issue-verify-run-delivered-b")
+    .click();
+  await page.getByTestId("vendor-issue-modal").waitFor();
+  await page.getByTestId("vendor-issue-cancel").click();
+  await page.getByTestId("vendor-issue-modal").waitFor({ state: "detached" });
+  record(
+    "delivered issue cancel does not undo drop-off",
+    materialIssueRequests.length === deliveredBIssueCount &&
+      (await page
+        .getByTestId("vendor-run-row-verify-run-delivered-b")
+        .getAttribute("data-delivered")) === "true" &&
+      (await page
+        .getByTestId("vendor-run-undo-verify-run-delivered-b")
+        .isVisible()),
+  );
 
   await browser.close();
 

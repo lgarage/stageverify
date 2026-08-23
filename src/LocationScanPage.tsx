@@ -55,6 +55,10 @@ import {
 } from "./technicianReleasedJobsCache";
 import { stashTechnicianJobShell } from "./technicianJobShell";
 import { VendorDeliveredHub } from "./VendorDeliveredHub";
+import {
+  VendorIssueModal,
+  type VendorIssueTarget,
+} from "./VendorIssueModal";
 import { VendorItemDisplayLines } from "./VendorItemDisplayLines";
 import {
   VendorUnplannedDeliveryFlow,
@@ -209,6 +213,11 @@ export function LocationScanPage() {
   const [vendorRunRevertingId, setVendorRunRevertingId] = useState<string | null>(
     null,
   );
+  const [vendorRunIssueTarget, setVendorRunIssueTarget] =
+    useState<VendorIssueTarget | null>(null);
+  const [vendorRunIssueReportedIds, setVendorRunIssueReportedIds] = useState<
+    Set<string>
+  >(new Set());
   const [technicianId, setTechnicianId] = useState<string | null>(null);
   const [technicianName, setTechnicianName] = useState<string | null>(null);
   const [releasedJobs, setReleasedJobs] = useState<TechnicianReleasedJobSummary[]>(
@@ -1065,6 +1074,8 @@ export function LocationScanPage() {
     setDeliveries([]);
     setVendorRunDeliveries([]);
     setExpandedDeliveryIds(new Set());
+    setVendorRunIssueTarget(null);
+    setVendorRunIssueReportedIds(new Set());
     setDeliveryDetails(null);
     setError(null);
     goToHistoryView({ kind: "pin" }, { replace: true });
@@ -1434,11 +1445,26 @@ export function LocationScanPage() {
           </div>
         }
         overlay={
-          runSession ? (
-            <p className="sr-only" data-testid="vendor-run-session-active">
-              vendor-run-session
-            </p>
-          ) : undefined
+          <>
+            {runSession && (
+              <p className="sr-only" data-testid="vendor-run-session-active">
+                vendor-run-session
+              </p>
+            )}
+            {vendorRunIssueTarget && (
+              <VendorIssueModal
+                target={vendorRunIssueTarget}
+                onClose={() => setVendorRunIssueTarget(null)}
+                onSubmitted={() =>
+                  setVendorRunIssueReportedIds((previous) => {
+                    const next = new Set(previous);
+                    next.add(vendorRunIssueTarget.deliveryId);
+                    return next;
+                  })
+                }
+              />
+            )}
+          </>
         }
       >
           {error && (
@@ -1585,28 +1611,55 @@ export function LocationScanPage() {
                         </li>
                       )}
                     </ul>
+                    {vendorRunIssueReportedIds.has(row.deliveryId) && (
+                      <p
+                        className="border-t border-[#34d399]/30 bg-[#34d399]/10 px-4 py-3 text-center text-sm font-semibold text-[#6ee7b7]"
+                        role="status"
+                        data-testid={`vendor-run-issue-reported-${row.deliveryId}`}
+                      >
+                        Issue reported — dispatcher notified.
+                      </p>
+                    )}
                     {!delivered && (
-                      <div className="flex gap-3 border-t border-border bg-bg-surface p-3">
+                      <div className="space-y-2.5 border-t border-border bg-bg-surface p-3">
+                        <div className="flex gap-3">
+                          <button
+                            type="button"
+                            disabled={loading}
+                            onClick={() => setExpandedDeliveryIds(new Set())}
+                            className="action-btn action-btn-secondary flex-1 disabled:opacity-50"
+                            data-testid={`vendor-run-cancel-${row.deliveryId}`}
+                          >
+                            Cancel / Back
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!canComplete || loading}
+                            onClick={() =>
+                              void handleVendorRunComplete(row.deliveryId)
+                            }
+                            className="action-btn action-btn-delivered flex-1 disabled:opacity-40"
+                            style={{ backgroundColor: "#047857" }}
+                            data-testid={`vendor-run-complete-${row.deliveryId}`}
+                          >
+                            {loading ? "Completing…" : "Complete delivery"}
+                          </button>
+                        </div>
                         <button
                           type="button"
                           disabled={loading}
-                          onClick={() => setExpandedDeliveryIds(new Set())}
-                          className="action-btn action-btn-secondary flex-1 disabled:opacity-50"
-                          data-testid={`vendor-run-cancel-${row.deliveryId}`}
-                        >
-                          Cancel / Back
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!canComplete || loading}
                           onClick={() =>
-                            void handleVendorRunComplete(row.deliveryId)
+                            setVendorRunIssueTarget({
+                              deliveryId: row.deliveryId,
+                              jobId: row.jobId,
+                              orderNumber: row.orderNumber,
+                              vendorName: runSession?.vendorName ?? "Vendor",
+                            })
                           }
-                          className="action-btn action-btn-delivered flex-1 disabled:opacity-40"
-                          style={{ backgroundColor: "#047857" }}
-                          data-testid={`vendor-run-complete-${row.deliveryId}`}
+                          className="min-h-11 w-full rounded-xl border border-[#fbbf24]/60 bg-[#fbbf24]/10 px-4 py-2.5 text-sm font-bold text-[#fde68a] transition active:scale-[0.99] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fbbf24]"
+                          data-testid={`vendor-run-report-issue-${row.deliveryId}`}
                         >
-                          {loading ? "Completing…" : "Complete delivery"}
+                          Report an issue
                         </button>
                       </div>
                     )}
@@ -1627,6 +1680,22 @@ export function LocationScanPage() {
                         >
                           Physical drop-off complete
                         </p>
+                        <button
+                          type="button"
+                          disabled={vendorRunRevertingId !== null}
+                          onClick={() =>
+                            setVendorRunIssueTarget({
+                              deliveryId: row.deliveryId,
+                              jobId: row.jobId,
+                              orderNumber: row.orderNumber,
+                              vendorName: runSession?.vendorName ?? "Vendor",
+                            })
+                          }
+                          className="min-h-11 w-full rounded-xl border border-[#fbbf24]/60 bg-[#fbbf24]/10 px-4 py-2.5 text-sm font-bold text-[#fde68a] transition active:scale-[0.99] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fbbf24]"
+                          data-testid={`vendor-run-report-issue-${row.deliveryId}`}
+                        >
+                          Report an issue
+                        </button>
                         <button
                           type="button"
                           disabled={vendorRunRevertingId !== null}

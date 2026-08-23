@@ -1,8 +1,5 @@
 import { useState } from "react";
-import {
-  type DeliveryDetails,
-  type MaterialIssueType,
-} from "./dispatcher/models";
+import { type MaterialIssueType } from "./dispatcher/models";
 import { reportMaterialIssue } from "./dispatcher/firestoreService";
 
 type VendorIssueChoice =
@@ -36,14 +33,21 @@ function buildDescription(
   return trimmed || undefined;
 }
 
+export interface VendorIssueTarget {
+  deliveryId: string;
+  jobId: string;
+  orderNumber: string;
+  vendorName: string;
+}
+
 interface VendorIssueModalProps {
-  deliveryDetails: DeliveryDetails;
+  target: VendorIssueTarget;
   onClose: () => void;
   onSubmitted: () => void;
 }
 
 export function VendorIssueModal({
-  deliveryDetails,
+  target,
   onClose,
   onSubmitted,
 }: VendorIssueModalProps) {
@@ -56,7 +60,7 @@ export function VendorIssueModal({
     setSubmitting(true);
     setError(null);
     try {
-      const jobId = deliveryDetails.delivery.jobId?.trim();
+      const jobId = target.jobId.trim();
       if (!jobId) {
         setError(
           "This delivery is not linked to a job yet — ask dispatch to match it before reporting.",
@@ -64,7 +68,7 @@ export function VendorIssueModal({
         return;
       }
       await reportMaterialIssue({
-        deliveryOrderId: deliveryDetails.delivery.id,
+        deliveryOrderId: target.deliveryId,
         jobId,
         type: mapIssueType(choice),
         description: buildDescription(choice, note),
@@ -84,6 +88,7 @@ export function VendorIssueModal({
     <div
       className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60"
       onClick={onClose}
+      data-testid="vendor-issue-modal"
     >
       <div
         className="rounded-t-2xl border-t border-border bg-bg-primary px-4 pt-5 pb-[calc(env(safe-area-inset-bottom,16px)+20px)]"
@@ -93,7 +98,7 @@ export function VendorIssueModal({
           What&apos;s the issue?
         </h2>
         <p className="text-sm text-text-secondary mt-1 mb-5">
-          {deliveryDetails.delivery.orderNumber} · {deliveryDetails.vendor.name}
+          {target.orderNumber} · {target.vendorName}
         </p>
 
         <div className="space-y-2.5 mb-4">
@@ -104,6 +109,7 @@ export function VendorIssueModal({
                 key={opt.id}
                 type="button"
                 onClick={() => setChoice(opt.id)}
+                data-testid={`vendor-issue-option-${opt.id}`}
                 className={`w-full flex items-center gap-3 rounded-xl border px-3 py-3.5 text-left transition-colors ${
                   selected
                     ? "border-accent bg-accent/10"
@@ -135,6 +141,7 @@ export function VendorIssueModal({
           onChange={(e) => setNote(e.target.value)}
           placeholder="Add details…"
           rows={3}
+          data-testid="vendor-issue-note"
           className="w-full rounded-xl border border-border bg-bg-secondary px-3 py-3 text-sm text-text-primary resize-none focus:outline-none focus:border-accent"
         />
 
@@ -149,6 +156,7 @@ export function VendorIssueModal({
             type="button"
             onClick={onClose}
             disabled={submitting}
+            data-testid="vendor-issue-cancel"
             className="rounded-xl bg-bg-secondary py-3.5 text-[15px] font-semibold text-text-secondary hover:bg-bg-surface transition-colors disabled:opacity-50"
           >
             Cancel
@@ -157,6 +165,7 @@ export function VendorIssueModal({
             type="button"
             onClick={() => void handleSubmit()}
             disabled={submitting}
+            data-testid="vendor-issue-submit"
             className="rounded-xl bg-accent-amber py-3.5 text-[15px] font-semibold text-bg-primary hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {submitting ? "Submitting…" : "Submit"}

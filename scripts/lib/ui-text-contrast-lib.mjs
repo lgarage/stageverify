@@ -664,6 +664,11 @@ export const VENDOR_RUN_LAYOUT_CONTRAST_SPEC = {
       selector: '[data-testid^="vendor-run-cancel-"]',
       large: false,
     },
+    {
+      name: "vendor-run Report an issue button",
+      selector: '[data-testid^="vendor-run-report-issue-"]',
+      large: false,
+    },
   ],
 };
 

@@ -4,6 +4,7 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 
 | Date | Task type (archetype) | Tier | Recommended model | confStart | confAfter | Outcome | Note |
 |------|----------------------|------|-------------------|-----------|-----------|---------|------|
+| 2026-08-23 | ui-component / visual-judgment (vendor mobile job-card issue) | T1 | Sol High implement + Sol High review (`gpt-5.6-sol-high`) | 98 | 99 | ok | Per-job Report an issue on vendor-run cards; v0.0.317 |
 | 2026-08-23 | ui-component (simple — reuse existing nav button) | T1 | Composer 2.5 Fast implement + Sol High visual (`gpt-5.6-sol-high`) | 98 | 99 | ok | Rejected invoices top Back to review queue; v0.0.316 |
 | 2026-08-23 | ui-component (simple — duplicate existing nav button) | T1 | Composer 2.5 Fast implement + Sol High visual (`gpt-5.6-sol-high`) | 98 | 99 | ok | Approved invoices top Back to review queue; v0.0.312 |
 | 2026-08-23 | ui-component / visual-judgment (Approved invoices column layout) | T1 | Composer 2.5 Fast implement + Sol High visual (`gpt-5.6-sol-high`) | 99 | 99 | ok | Full-width approved field grid; v0.0.310 |
