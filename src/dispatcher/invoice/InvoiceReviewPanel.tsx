@@ -35,6 +35,7 @@ import {
 } from "./creditReturnSkip";
 import {
   buildInvoiceApproveToastMessage,
+  consumeInvoiceApproveDismissedImportId,
   consumeInvoiceApproveSuccessToast,
   INVOICE_APPROVE_FLOW_STORAGE_KEY,
 } from "./invoiceApproveToast";
@@ -322,6 +323,9 @@ export function InvoiceReviewPanel({
     useState<VendorInvoiceImportReview | null>(null);
   const lastAppliedGeneration = useRef(0);
   const inspectDeepLinkHandled = useRef<string | null>(null);
+  const dismissedApprovedImportIdRef = useRef<string | null>(
+    consumeInvoiceApproveDismissedImportId(),
+  );
 
   useEffect(() => {
     try {
@@ -401,6 +405,13 @@ export function InvoiceReviewPanel({
   };
 
   const applyImports = useCallback((items: VendorInvoiceImportReview[]) => {
+    const dismissedId = dismissedApprovedImportIdRef.current;
+    if (dismissedId) {
+      const row = items.find((item) => item.id === dismissedId);
+      if (!row || row.reviewStatus !== "pending_review") {
+        dismissedApprovedImportIdRef.current = null;
+      }
+    }
     setImports(items);
   }, []);
 
@@ -452,7 +463,11 @@ export function InvoiceReviewPanel({
     if (filter === "rejected") {
       return imports.filter((i) => i.reviewStatus === "rejected");
     }
-    return imports.filter((i) => i.reviewStatus === "pending_review");
+    return imports.filter(
+      (i) =>
+        i.reviewStatus === "pending_review" &&
+        i.id !== dismissedApprovedImportIdRef.current,
+    );
   }, [imports, filter]);
 
   const approvedCount = useMemo(
