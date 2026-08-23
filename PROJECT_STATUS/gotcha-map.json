@@ -1466,6 +1466,33 @@
         "Firestore seed in verify"
       ],
       "warning": "D-75: Production verification must clean up any Firestore data it creates unless intentionally retained and documented. Client rules deny vendor/accessPinSecrets deletes — use FIREBASE_TOKEN admin REST teardown in finally (or npm run cleanup:vendor-unplanned-verify -- --confirm). Prefer deterministic fixture ids over Date.now(). Pattern: cleanup-mgmt-verify-fixtures.mjs allowlist + safety checks. Pain: verify:vendor-unplanned-delivery:prod left multiple Unplanned Verify Vendor rows in Settings (2026-08-09)."
+    },
+    {
+      "id": "verify-script-no-process-exit",
+      "match": [
+        "ALL PASS",
+        "process.exit(0)",
+        "verify hang",
+        "Firebase auth listeners",
+        "verify-delivery-drawer-status hang",
+        "verify-change-location hang"
+      ],
+      "orchestratorSteps": [],
+      "dossierTags": [],
+      "lessonsSection": "ship-verify",
+      "files": [
+        "scripts/verify-delivery-drawer-status.mjs",
+        "scripts/verify-change-location.mjs",
+        "scripts/run-verify-with-learning.mjs"
+      ],
+      "rules": ["ship-loop.mdc"],
+      "commands": [],
+      "gateCandidate": false,
+      "injectBefore": [
+        "verify:delivery-drawer-status",
+        "verify:change-location"
+      ],
+      "warning": "Some Playwright verify scripts print ALL PASS after browser.close() but never process.exit(0). Firebase Auth listeners keep Node alive; run-verify-with-learning then hangs and may auto-capture a false vfl. Treat printed ALL PASS as the verdict; kill the specific hung PID (not pkill -f). New focused verifies should call process.exit(0)."
     }
   ]
 }

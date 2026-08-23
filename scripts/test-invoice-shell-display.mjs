@@ -28,6 +28,7 @@ import { computeDeliveryReadiness } from "../src/dispatcher/readiness.ts";
 import { deliveryReadinessDisplayLabel } from "../src/dispatcher/jobReadinessDisplay.ts";
 import {
   buildIssueSummaryPanelData,
+  buildUnifiedOrderSummaryRows,
   computeDeliveryDisplayState,
   sumEffectiveItemQtyReceived,
   isCompleteOverviewRow,
@@ -244,13 +245,25 @@ const willCallMixedItems = [
     qtyBackordered: 0,
     status: "partial",
   },
-];
-const willCallBoPanel = buildIssueSummaryPanelData(
   {
-    ...willCallShellDelivery,
-    id: "delivery-willcall-bo",
-    invoiceFulfillmentMethod: "will_call_pickup",
+    id: "item-wc-delivered",
+    deliveryOrderId: "delivery-willcall-bo",
+    description: "Delivered line",
+    qtyOrdered: 3,
+    qtyReceived: 3,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+    qtyBackordered: 0,
+    status: "received",
   },
+];
+const willCallMixedDelivery = {
+  ...willCallShellDelivery,
+  id: "delivery-willcall-bo",
+  invoiceFulfillmentMethod: "will_call_pickup",
+};
+const willCallBoPanel = buildIssueSummaryPanelData(
+  willCallMixedDelivery,
   willCallMixedItems,
 );
 assert(
@@ -259,6 +272,70 @@ assert(
     willCallBoPanel.issueRows[0].status === "Backordered" &&
     willCallBoPanel.issueRows[0].itemId === "item-wc-bo",
   `rows=${willCallBoPanel.issueRows.map((r) => r.status).join(",")}`,
+);
+
+const willCallUnifiedRows = buildUnifiedOrderSummaryRows(
+  willCallMixedDelivery,
+  willCallMixedItems,
+);
+assert(
+  "will-call unified Order Summary keeps every line and status",
+  willCallUnifiedRows.length === willCallMixedItems.length &&
+    willCallUnifiedRows.map((row) => row.status).join(",") ===
+      "Backordered,Not Delivered,Partial Delivery,Delivered",
+  `rows=${willCallUnifiedRows.map((row) => row.status).join(",")}`,
+);
+
+const mixedOrderItems = [
+  {
+    ...willCallMixedItems[3],
+    id: "item-mixed-delivered-first",
+    deliveryOrderId: "delivery-mixed",
+  },
+  {
+    ...willCallMixedItems[2],
+    id: "item-mixed-partial",
+    deliveryOrderId: "delivery-mixed",
+  },
+  {
+    ...willCallMixedItems[1],
+    id: "item-mixed-not-delivered",
+    deliveryOrderId: "delivery-mixed",
+  },
+  {
+    ...willCallMixedItems[3],
+    id: "item-mixed-delivered-last",
+    deliveryOrderId: "delivery-mixed",
+  },
+];
+const mixedSourceOrder = mixedOrderItems.map((item) => item.id).join(",");
+const mixedUnifiedRows = buildUnifiedOrderSummaryRows(
+  { ...willCallMixedDelivery, id: "delivery-mixed", invoiceFulfillmentMethod: "delivery" },
+  mixedOrderItems,
+);
+assert(
+  "mixed unified Order Summary keeps all items, unfinished first, delivered last",
+  mixedUnifiedRows.length === mixedOrderItems.length &&
+    mixedUnifiedRows.map((row) => row.itemId).join(",") ===
+      "item-mixed-partial,item-mixed-not-delivered,item-mixed-delivered-first,item-mixed-delivered-last" &&
+    mixedUnifiedRows.map((row) => row.status).join(",") ===
+      "Partial Delivery,Not Delivered,Delivered,Delivered" &&
+    mixedOrderItems.map((item) => item.id).join(",") === mixedSourceOrder,
+  `rows=${mixedUnifiedRows.map((row) => `${row.itemId}:${row.status}`).join(",")}`,
+);
+
+const noDeliveredItems = willCallMixedItems.slice(0, 3);
+const noDeliveredUnifiedRows = buildUnifiedOrderSummaryRows(
+  { ...willCallMixedDelivery, invoiceFulfillmentMethod: "delivery" },
+  noDeliveredItems,
+);
+assert(
+  "unified Order Summary with no delivered items keeps source order and every line",
+  noDeliveredUnifiedRows.length === noDeliveredItems.length &&
+    noDeliveredUnifiedRows.map((row) => row.itemId).join(",") ===
+      noDeliveredItems.map((item) => item.id).join(",") &&
+    noDeliveredUnifiedRows.every((row) => row.status !== "Delivered"),
+  `rows=${noDeliveredUnifiedRows.map((row) => row.status).join(",")}`,
 );
 
 assert(
@@ -552,6 +629,17 @@ assert(
   "issue summary panel hides not-delivered rows when site delivery confirmed",
   confirmedPanel.issueRows.length === 0 &&
     confirmedPanel.receivedItems.length === 2,
+);
+const confirmedUnifiedRows = buildUnifiedOrderSummaryRows(
+  deliverToSiteConfirmedDelivery,
+  deliverToSiteItems,
+);
+assert(
+  "site-confirmed unified Order Summary keeps every item as Delivered",
+  confirmedUnifiedRows.length === deliverToSiteItems.length &&
+    confirmedUnifiedRows.every((row) => row.status === "Delivered") &&
+    confirmedUnifiedRows.map((row) => row.qty).join(",") === "20,23",
+  `rows=${confirmedUnifiedRows.map((row) => `${row.status}:${row.qty}`).join(",")}`,
 );
 
 const confirmedDisplay = computeDeliveryDisplayState(
