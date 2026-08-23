@@ -6,6 +6,7 @@
 import {
   computeDeliveryReadiness,
   computeJobReadiness,
+  computeStagingAssignmentComplete,
 } from "../src/dispatcher/readiness.ts";
 import {
   computeDeliveryDisplayState,
@@ -87,6 +88,8 @@ assert(
       ...baseDelivery,
       vendorOrderComplete: true,
       stagingLocationId: "",
+      additionalStagingLocationIds: [],
+      plannedStagingLocationIds: [],
     },
     completeItems,
   ).readyForPickup,
@@ -780,6 +783,162 @@ assert(
 assert(
   readyBanner.whyBullets.length === 0 && readyBanner.nextStepBullets.length === 0,
   "All Clear has no Why/Next attention copy",
+);
+
+// Planned-only staging (Invoice Review Assign Location) counts as assigned for readiness
+const plannedOnlyDelivery = {
+  ...baseDelivery,
+  stagingLocationId: "",
+  additionalStagingLocationIds: [],
+  plannedStagingLocationIds: ["loc-g12"],
+  vendorOrderComplete: true,
+  vendorPhysicalDropoffConfirmed: true,
+  status: "arrived",
+};
+
+assert(
+  computeStagingAssignmentComplete(plannedOnlyDelivery, completeItems),
+  "Invoice Review planned loc-g12 only → stagingAssignmentComplete true",
+);
+
+const plannedOnlyReadiness = computeDeliveryReadiness(
+  plannedOnlyDelivery,
+  completeItems,
+);
+assert(
+  plannedOnlyReadiness.readyForPickup,
+  "fully delivered + planned loc-g12 only → readyForPickup true",
+);
+assert(
+  deliveryReadinessDisplayLabel(
+    plannedOnlyDelivery,
+    plannedOnlyReadiness,
+    completeItems,
+  ) === "Staged — Ready for Pickup",
+  "fully delivered + planned loc-g12 → Staged — Ready for Pickup label",
+);
+const plannedOnlyBanner = buildDrawerActionBannerContent(
+  plannedOnlyDelivery,
+  completeItems,
+  [],
+);
+assert(
+  plannedOnlyBanner.bannerMode === "all_clear",
+  "fully delivered + planned loc-g12 → banner all_clear (not staging missing)",
+);
+assert(
+  !plannedOnlyBanner.whyBullets.some((b) => /staging location/i.test(b)),
+  "fully delivered + planned loc-g12 → no staging location missing copy",
+);
+
+// No staging at all (cleared primary, additional, and planned)
+const noStagingDelivery = {
+  ...baseDelivery,
+  stagingLocationId: "",
+  additionalStagingLocationIds: [],
+  plannedStagingLocationIds: [],
+  vendorOrderComplete: true,
+  vendorPhysicalDropoffConfirmed: true,
+  status: "arrived",
+};
+const noStagingReadiness = computeDeliveryReadiness(
+  noStagingDelivery,
+  completeItems,
+);
+assert(
+  !noStagingReadiness.readyForPickup,
+  "fully delivered + no staging fields → not readyForPickup",
+);
+const noStagingBanner = buildDrawerActionBannerContent(
+  noStagingDelivery,
+  completeItems,
+  [],
+);
+assert(
+  noStagingBanner.bannerMode === "attention_required",
+  "fully delivered + no staging → attention banner",
+);
+assert(
+  noStagingBanner.attentionHeadline === "Staging location missing",
+  "fully delivered + no staging → Staging location missing headline",
+);
+
+// 6167419-shaped: 3 items all received, vendor complete, physical confirmed, planned G12 only
+const fixture6167419Items = [
+  {
+    id: "item-6167419-1",
+    deliveryOrderId: "delivery-6167419",
+    description: "TH8320R1003/U THERMOSTAT",
+    qtyOrdered: 1,
+    qtyReceived: 1,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+    qtyBackordered: 0,
+    status: "received",
+  },
+  {
+    id: "item-6167419-2",
+    deliveryOrderId: "delivery-6167419",
+    description: "4050-08 SEALANT",
+    qtyOrdered: 1,
+    qtyReceived: 1,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+    qtyBackordered: 0,
+    status: "received",
+  },
+  {
+    id: "item-6167419-3",
+    deliveryOrderId: "delivery-6167419",
+    description: "TEST-001 FILTER DRIER",
+    qtyOrdered: 1,
+    qtyReceived: 1,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+    qtyBackordered: 0,
+    status: "received",
+  },
+];
+const fixture6167419Delivery = {
+  ...baseDelivery,
+  id: "delivery-6167419",
+  orderNumber: "6167419",
+  stagingLocationId: "",
+  additionalStagingLocationIds: [],
+  plannedStagingLocationIds: ["loc-g12"],
+  vendorOrderComplete: true,
+  vendorPhysicalDropoffConfirmed: true,
+  status: "partial",
+  openBlockingIssueCount: 0,
+};
+const fixture6167419Readiness = computeDeliveryReadiness(
+  fixture6167419Delivery,
+  fixture6167419Items,
+);
+assert(
+  fixture6167419Readiness.readyForPickup,
+  "6167419-shaped fixture → readyForPickup true",
+);
+assert(
+  deliveryReadinessDisplayLabel(
+    fixture6167419Delivery,
+    fixture6167419Readiness,
+    fixture6167419Items,
+  ) === "Staged — Ready for Pickup",
+  "6167419-shaped fixture → Staged — Ready for Pickup label",
+);
+const fixture6167419Banner = buildDrawerActionBannerContent(
+  fixture6167419Delivery,
+  fixture6167419Items,
+  [],
+);
+assert(
+  fixture6167419Banner.bannerMode === "all_clear",
+  "6167419-shaped fixture → banner all_clear",
+);
+assert(
+  fixture6167419Banner.attentionHeadline !== "Staging location missing",
+  "6167419-shaped fixture → no Staging location missing headline",
 );
 
 if (failures.length) {

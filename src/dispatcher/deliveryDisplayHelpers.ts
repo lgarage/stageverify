@@ -27,6 +27,7 @@ import {
 } from "./jobReadinessDisplay";
 import {
   computeDeliveryReadiness,
+  deliveryHasCurrentShopStagingAssignment,
   type DeliveryReadinessResult,
   type ReadinessComputeOptions,
 } from "./readiness";
@@ -361,7 +362,7 @@ function buildBlockerLabels(
     }
   }
   if (
-    !delivery.stagingLocationId?.trim() &&
+    !deliveryHasCurrentShopStagingAssignment(delivery) &&
     items.some((item) => item.qtyReceived > 0) &&
     !skipsShopStaging(delivery) &&
     !labels.includes("Staging location not assigned")
@@ -997,7 +998,7 @@ export function buildDrawerActionBannerContent(
     }
 
     if (
-      !delivery.stagingLocationId?.trim() &&
+      !deliveryHasCurrentShopStagingAssignment(delivery) &&
       items.some((item) => item.qtyReceived > 0) &&
       !skipsShopStaging(delivery)
     ) {
@@ -1113,7 +1114,7 @@ export function buildDrawerActionBannerContent(
       return true;
     });
     const stagingMissing =
-      !delivery.stagingLocationId?.trim() &&
+      !deliveryHasCurrentShopStagingAssignment(delivery) &&
       items.some((item) => item.qtyReceived > 0) &&
       !skipsShopStaging(delivery);
     const vendorMismatch =
