@@ -224,3 +224,5 @@
 {"date":"2026-08-23","role":"security","verdict":"PASS","taskId":"bc-d9aea894-c12a-50f7-b68a-67feeaf84160","model":"claude-sonnet-5-thinking-high","real":"na","note":""}
 {"date":"2026-08-23","role":"ship","verdict":"PASS","taskId":"070727f6-d3d8-4351-8b33-4190a34e84b7","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
 {"date":"2026-08-23","role":"ship","verdict":"PASS","taskId":"bc-41174e81-ffff-51f0-bc5b-24a2a5a871f2","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-08-23","role":"ship","verdict":"PASS","taskId":"a06ccde0-4f1e-4437-ae89-cb79ca6c30d7","model":"cursor-grok-4.5-high-fast","real":"na","note":""}
+{"date":"2026-08-23","role":"security","verdict":"PASS","taskId":"28d95962-d921-4c91-ac97-8781ef2e9430","model":"claude-sonnet-5-thinking-high","real":"na","note":""}
