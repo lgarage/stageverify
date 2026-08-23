@@ -27,6 +27,10 @@ import {
 } from "firebase/firestore";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import {
+  readExplicitTestPin,
+  skipWithoutExplicitTestPin,
+} from "./lib/test-job-pin.mjs";
+import {
   assertNoElementOverlap,
   assertReadableTextContrast,
   VENDOR_DELIVERED_COLLAPSED_CONTRAST_SPEC,
@@ -54,8 +58,10 @@ const appBase = resolveAppBase(baseUrl);
 const email = process.env.STAGEVERIFY_TEST_EMAIL;
 const password = process.env.STAGEVERIFY_TEST_PASSWORD;
 let deliveryId = process.env.STAGEVERIFY_RECEIVE_DELIVERY;
-const vendorPin = process.env.STAGEVERIFY_VENDOR_PIN ?? "1234";
-const jobPin = process.env.STAGEVERIFY_JOB1_PIN ?? "1234";
+const vendorPin =
+  readExplicitTestPin("STAGEVERIFY_VENDOR_PIN") ??
+  readExplicitTestPin("STAGEVERIFY_JOB1_PIN");
+const jobPin = readExplicitTestPin("STAGEVERIFY_JOB1_PIN") ?? vendorPin;
 const runSuffix = Date.now().toString(36);
 const ephemeralNoSpotDeliveryId = `delivery-monday-verify-nospot-${runSuffix}`;
 const ephemeralWithSpotDeliveryId = `delivery-monday-verify-wspot-${runSuffix}`;
@@ -235,6 +241,16 @@ record(
 
 let priorMode = "full_checkin";
 let modeRestored = false;
+
+if (
+  skipWithoutExplicitTestPin(
+    jobPin,
+    "verify:vendor-monday-safe",
+    "STAGEVERIFY_JOB1_PIN or STAGEVERIFY_VENDOR_PIN",
+  )
+) {
+  process.exit(0);
+}
 
 try {
   priorMode = await readMode();
@@ -813,7 +829,7 @@ try {
   await page.getByRole("heading", { name: "Enter PIN" }).waitFor({
     timeout: 30_000,
   });
-  await enterPin(page, "1234");
+  await enterPin(page, jobPin);
   await page.getByTestId("location-scan-pin-verify").click();
   await page
     .getByTestId("vendor-deliveries-heading")

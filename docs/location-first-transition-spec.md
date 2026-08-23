@@ -248,7 +248,7 @@ Open pickup checklist:
 
 - All existing `verify:*` scripts green locally **and** `:prod`.
 - **NEW negative-test script** asserting an unauth client cannot: list deliveries, read another vendor's items, or write status without a session.
-- Vendor demo flow (PIN `1234`) works end to end.
+- Vendor demo flow works end to end with a configured job PIN (retired seed PIN removed).
 
 **Test plan:** Full existing verify suite local + prod; new negative privacy test script; vendor demo E2E.
 

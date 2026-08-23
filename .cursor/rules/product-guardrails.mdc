@@ -17,8 +17,8 @@ When task touches **vendor receive**, **PIN gate**, `/#/receive`, or iPhone/Safa
 
 **Canonical vendor UI:** `ReceivingPage` at `/#/receive` only — never rebuild separate vendor UIs. **Vendor PIN is job-scoped (D14)** — post-PIN shows only that job's spots/deliveries.
 
-1. Open demo QR: `https://lgarage.github.io/stageverify/#/demo/vendor-scan` (PIN `1234`)
-2. **Include in reply** — link, PIN, Playwright screenshot at `screenshots/vendor-demo/qr-for-phone.png`
+1. Open demo QR: `https://lgarage.github.io/stageverify/#/demo/vendor-scan`
+2. **Include in reply** — link and Playwright screenshot at `screenshots/vendor-demo/qr-for-phone.png`. Use `STAGEVERIFY_JOB1_PIN` or the job PIN configured for that delivery — never advertise a retired seed PIN and never put a production company PIN in this rule.
 3. Fallback: `https://lgarage.github.io/stageverify/#/receive?id=delivery-demo-vendor-1`
 
 Do not declare vendor/iPhone work "ready for Dan" without step 2.

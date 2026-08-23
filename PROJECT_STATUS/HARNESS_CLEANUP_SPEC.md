@@ -288,7 +288,7 @@ Merges `minew-nda-compliance.mdc` (91) + `vendor-phone-qr.mdc` (20).
 - [ ] Keep hard prohibitions only: never commit Minew API docs/keys/login URLs/authenticated
   examples; Minew HTTP calls server-side only (CF + Firebase secrets, never `src/` client);
   `minew-confidential/` never staged; vendor phone test = demo QR page
-  (`https://lgarage.github.io/stageverify/#/demo/vendor-scan`) + PIN `1234` + Playwright screenshot
+  (`https://lgarage.github.io/stageverify/#/demo/vendor-scan`) + configured job PIN (never a retired seed PIN) + Playwright screenshot
   `screenshots/vendor-demo/qr-for-phone.png` in the reply; canonical vendor UI = `ReceivingPage`
   at `/#/receive` only (never rebuild separate vendor UIs); vendor PIN is job-scoped (D14).
 - [ ] Create `PROJECT_STATUS/KNOWLEDGE/minew-nda.md` (new folder) and move the NDA legal detail
