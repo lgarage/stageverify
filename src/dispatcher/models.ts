@@ -782,6 +782,8 @@ export interface VendorRunDeliverySummary {
   stagingLocationCodes: string[];
   hasAssignableSpot: boolean;
   vendorPhysicalDropoffConfirmed: boolean;
+  /** Authoritative vendor completion instant — hydrated from getVendorReceiveDetails. */
+  vendorPhysicalDropoffConfirmedAt?: string;
   /** Persisted delivery.status — optional on older CF payloads. */
   status?: string;
   items: VendorRunDeliveryItem[];

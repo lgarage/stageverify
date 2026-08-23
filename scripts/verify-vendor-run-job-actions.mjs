@@ -12,6 +12,7 @@ import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import {
   assertReadableTextContrast,
+  VENDOR_RUN_COMPLETED_DELIVERIES_CONTRAST_SPEC,
   VENDOR_RUN_DELIVERED_ROW_CONTRAST_SPEC,
   VENDOR_RUN_LAYOUT_CONTRAST_SPEC,
   VENDOR_RUN_PARTIAL_ROW_CONTRAST_SPEC,
@@ -35,6 +36,9 @@ async function enterPin(page, digits) {
 }
 
 (async () => {
+  const hoursAgoIso = (hours) =>
+    new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+
   let vendorRunRows = [
     {
       deliveryId: "verify-run-active-a",
@@ -58,6 +62,7 @@ async function enterPin(page, digits) {
       stagingLocationCodes: ["S1-A"],
       hasAssignableSpot: true,
       vendorPhysicalDropoffConfirmed: true,
+      vendorPhysicalDropoffConfirmedAt: hoursAgoIso(1),
       items: [
         {
           id: "item-b",
@@ -112,6 +117,48 @@ async function enterPin(page, digits) {
           description: "Filter MERV 13",
           qtyOrdered: 8,
           qtyReceived: 0,
+          qtyBackordered: 0,
+        },
+      ],
+    },
+    {
+      deliveryId: "verify-run-completed-48h",
+      jobId: "job-48h",
+      jobName: "Completed 48h Shop",
+      orderNumber: "ORDER-480",
+      vendorInvoiceNumber: "INV-480",
+      poNumber: "PO-480",
+      stagingLocationCodes: ["G3"],
+      hasAssignableSpot: true,
+      vendorPhysicalDropoffConfirmed: true,
+      vendorPhysicalDropoffConfirmedAt: hoursAgoIso(48),
+      items: [
+        {
+          id: "item-48h",
+          description: "Duct section",
+          qtyOrdered: 1,
+          qtyReceived: 1,
+          qtyBackordered: 0,
+        },
+      ],
+    },
+    {
+      deliveryId: "verify-run-completed-80h",
+      jobId: "job-80h",
+      jobName: "Hidden 80h Shop",
+      orderNumber: "ORDER-800",
+      vendorInvoiceNumber: "INV-800",
+      poNumber: "PO-800",
+      stagingLocationCodes: ["G4"],
+      hasAssignableSpot: true,
+      vendorPhysicalDropoffConfirmed: true,
+      vendorPhysicalDropoffConfirmedAt: hoursAgoIso(80),
+      items: [
+        {
+          id: "item-80h",
+          description: "Old coil",
+          qtyOrdered: 1,
+          qtyReceived: 1,
           qtyBackordered: 0,
         },
       ],
@@ -177,9 +224,15 @@ async function enterPin(page, digits) {
       contentType: "application/json",
       body: JSON.stringify({
         result: {
+          delivery: {
+            vendorPhysicalDropoffConfirmedAt:
+              row?.vendorPhysicalDropoffConfirmedAt ?? null,
+          },
           items: (row?.items ?? []).map((item) => ({
             ...item,
-            qtyReceived: item.qtyReceived ?? 0,
+            qtyReceived: row?.vendorPhysicalDropoffConfirmed
+              ? (item.qtyReceived ?? item.qtyOrdered ?? 0)
+              : (item.qtyReceived ?? 0),
             qtyBackordered: item.qtyBackordered ?? 0,
           })),
         },
@@ -205,7 +258,16 @@ async function enterPin(page, digits) {
     lastVendorRunCompleteIds = deliveryIds;
     vendorRunRows = vendorRunRows.map((row) =>
       deliveryIds.includes(row.deliveryId)
-        ? { ...row, vendorPhysicalDropoffConfirmed: true }
+        ? {
+            ...row,
+            vendorPhysicalDropoffConfirmed: true,
+            vendorPhysicalDropoffConfirmedAt: new Date().toISOString(),
+            items: row.items.map((item) => ({
+              ...item,
+              qtyReceived: item.qtyReceived ?? item.qtyOrdered ?? 0,
+              qtyBackordered: item.qtyBackordered ?? 0,
+            })),
+          }
         : row,
     );
     await route.fulfill({
@@ -290,22 +352,72 @@ async function enterPin(page, digits) {
   );
 
   const rowOrder = async () =>
-    page.locator('[data-testid^="vendor-run-row-"]').evaluateAll((rows) =>
-      rows.map((row) =>
-        (row.getAttribute("data-testid") ?? "").replace("vendor-run-row-", ""),
-      ),
-    );
+    page
+      .locator(
+        '[data-testid="vendor-run-card-list"] > [data-testid^="vendor-run-row-"]',
+      )
+      .evaluateAll((rows) =>
+        rows.map((row) =>
+          (row.getAttribute("data-testid") ?? "").replace("vendor-run-row-", ""),
+        ),
+      );
   const expectedInitialOrder = [
+    "verify-run-partial-d",
     "verify-run-active-a",
     "verify-run-active-c",
     "verify-run-delivered-b",
-    "verify-run-partial-d",
   ];
   record(
-    "PR #173 unfinished-first delivered-last",
+    "lifecycle main list: Partial then open then recent Delivered",
     JSON.stringify(await rowOrder()) === JSON.stringify(expectedInitialOrder),
     (await rowOrder()).join(" → "),
   );
+  record(
+    "48h completed job not in main list",
+    !(await page
+      .getByTestId("vendor-run-row-verify-run-completed-48h")
+      .isVisible()
+      .catch(() => false)),
+  );
+  record(
+    "80h completed job not visible anywhere",
+    !(await page
+      .getByTestId("vendor-run-row-verify-run-completed-80h")
+      .isVisible()
+      .catch(() => false)),
+  );
+  record(
+    "Completed deliveries section collapsed by default",
+    (await page.getByTestId("vendor-run-completed-deliveries-toggle").isVisible()) &&
+      (await page
+        .getByTestId("vendor-run-completed-deliveries-toggle")
+        .getAttribute("aria-expanded")) === "false",
+  );
+  await assertReadableTextContrast(
+    page,
+    VENDOR_RUN_COMPLETED_DELIVERIES_CONTRAST_SPEC,
+  );
+  record("D-42 completed deliveries toggle contrast", true);
+  await page.getByTestId("vendor-run-completed-deliveries-toggle").click();
+  const completedList = page.getByTestId("vendor-run-completed-deliveries-list");
+  record(
+    "expand Completed deliveries shows 24–72h jobs only",
+    (await page
+      .getByTestId("vendor-run-completed-deliveries-toggle")
+      .getAttribute("aria-expanded")) === "true" &&
+      (await completedList
+        .getByTestId("vendor-run-row-verify-run-completed-48h")
+        .isVisible()) &&
+      !(await completedList
+        .getByTestId("vendor-run-row-verify-run-completed-80h")
+        .isVisible()
+        .catch(() => false)) &&
+      !(await completedList
+        .getByTestId("vendor-run-row-verify-run-delivered-b")
+        .isVisible()
+        .catch(() => false)),
+  );
+  await page.getByTestId("vendor-run-completed-deliveries-toggle").click();
 
   const detailsA = page.getByTestId("vendor-run-details-verify-run-active-a");
   const detailsC = page.getByTestId("vendor-run-details-verify-run-active-c");
@@ -422,11 +534,31 @@ async function enterPin(page, digits) {
 
   await page.getByTestId("vendor-run-toggle-verify-run-active-a").click();
   await page.getByTestId("vendor-run-complete-verify-run-active-a").click();
+  const expectedAfterComplete = [
+    "verify-run-partial-d",
+    "verify-run-active-c",
+    "verify-run-active-a",
+    "verify-run-delivered-b",
+  ];
   await page.waitForFunction(
     () =>
       document
         .querySelector('[data-testid="vendor-run-row-verify-run-active-a"]')
         ?.getAttribute("data-delivered") === "true",
+    { timeout: 20_000 },
+  );
+  await page.waitForFunction(
+    (expectedJson) => {
+      const rows = [
+        ...document.querySelectorAll(
+          '[data-testid="vendor-run-card-list"] > [data-testid^="vendor-run-row-"]',
+        ),
+      ].map((row) =>
+        (row.getAttribute("data-testid") ?? "").replace("vendor-run-row-", ""),
+      );
+      return JSON.stringify(rows) === expectedJson;
+    },
+    JSON.stringify(expectedAfterComplete),
     { timeout: 20_000 },
   );
   record(
@@ -435,14 +567,8 @@ async function enterPin(page, digits) {
       JSON.stringify(["verify-run-active-a"]),
     lastVendorRunCompleteIds.join(", "),
   );
-  const expectedAfterComplete = [
-    "verify-run-active-c",
-    "verify-run-active-a",
-    "verify-run-delivered-b",
-    "verify-run-partial-d",
-  ];
   record(
-    "completed job moves into delivered-last group",
+    "completed job moves into recent Delivered group on main list",
     JSON.stringify(await rowOrder()) === JSON.stringify(expectedAfterComplete),
     (await rowOrder()).join(" → "),
   );
@@ -603,9 +729,13 @@ async function enterPin(page, digits) {
         .isVisible()),
   );
 
+  const uniqueDetailIdsFinal = [...new Set(vendorReceiveDetailsIds)];
   record(
-    "complete/refresh does not refetch cached details",
-    vendorReceiveDetailsIds.length === 2,
+    "complete/refresh does not add extra details fetches when list already has qty",
+    vendorReceiveDetailsIds.length === 2 &&
+      uniqueDetailIdsFinal.length === 2 &&
+      uniqueDetailIdsFinal.sort().join(",") ===
+        "verify-run-active-a,verify-run-active-c",
     vendorReceiveDetailsIds.join(","),
   );
 

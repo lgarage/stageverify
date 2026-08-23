@@ -708,6 +708,16 @@ button:active {
   min-height: 44px;
 }
 
+.vendor-deliveries-landing .vendor-run-completed-deliveries-toggle {
+  min-height: 48px;
+  padding: 12px 14px;
+}
+
+.vendor-deliveries-landing .vendor-run-completed-deliveries-list {
+  gap: 12px;
+  padding: 12px;
+}
+
 .vendor-deliveries-landing .vendor-compact-card-face {
   min-width: 0;
   padding: 12px;

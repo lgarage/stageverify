@@ -616,6 +616,17 @@ export const VENDOR_RUN_DELIVERED_ROW_CONTRAST_SPEC = {
   ],
 };
 
+export const VENDOR_RUN_COMPLETED_DELIVERIES_CONTRAST_SPEC = {
+  rootSelector: '[data-testid="vendor-run-completed-deliveries"]',
+  elements: [
+    {
+      name: "completed deliveries toggle",
+      selector: '[data-testid="vendor-run-completed-deliveries-toggle"]',
+      large: true,
+    },
+  ],
+};
+
 export const VENDOR_RUN_LAYOUT_CONTRAST_SPEC = {
   rootSelector: '[data-testid="vendor-run-layout"]',
   elements: [
