@@ -7,7 +7,7 @@ import {
 /** Unicode em dash (U+2014) — Dan locked subject separator. */
 const EM_DASH = "\u2014";
 
-const SHORT_EXCEPTION_HEADLINE = /backordered|missing|partially outstanding/i;
+const SHORT_EXCEPTION_HEADLINE = /backordered|missing|partial/i;
 
 const CALM_ISSUE_SUMMARY_PATTERNS = [
   /^Will-Call Pickup$/i,

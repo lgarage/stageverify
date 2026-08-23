@@ -507,6 +507,157 @@ const DISPATCHER_NEXT_BY_BLOCK_REASON: Record<string, string> = {
     "Confirm backorder ETA or alternate sourcing with the vendor",
 };
 
+/** Compact WNA presentation only — does not change readiness or issue detection. */
+interface AttentionCopyLine {
+  title: string;
+  why: string;
+  next: string;
+}
+
+function compactDrawerAttentionCopy(input: {
+  emailReviewRequired: boolean;
+  deliverToSitePending: boolean;
+  deliverToSiteLabel: string;
+  stagingMissing: boolean;
+  blockingIssueCount: number;
+  includedBlockReasons: string[];
+  vendorMismatch: boolean;
+  missingCount: number;
+  partialCount: number;
+  backorderCount: number;
+}): { attentionHeadline: string; whyBullets: string[]; nextStepBullets: string[] } {
+  const lines: AttentionCopyLine[] = [];
+  const hasPhysical = input.includedBlockReasons.includes(
+    "physical_dropoff_incomplete",
+  );
+  const hasVendorOrder = input.includedBlockReasons.includes(
+    "vendor_order_incomplete",
+  );
+  const hasDamage = input.includedBlockReasons.includes("unresolved_damage");
+  const itemCategoryCount = [
+    input.missingCount > 0,
+    input.partialCount > 0,
+    input.backorderCount > 0,
+  ].filter(Boolean).length;
+
+  if (input.blockingIssueCount > 0) {
+    lines.push({
+      title: "Material issue open",
+      why: "A blocking material issue still needs resolution.",
+      next: "Review and resolve the issue.",
+    });
+  }
+  if (input.emailReviewRequired) {
+    lines.push({
+      title: "Vendor email needs review",
+      why: "Vendor email proposal needs dispatcher review.",
+      next: "Review the vendor email.",
+    });
+  }
+  if (input.stagingMissing) {
+    lines.push({
+      title: "Staging location missing",
+      why: "Received material has no staging location.",
+      next: "Assign a staging location.",
+    });
+  }
+  if (itemCategoryCount >= 2) {
+    lines.push({
+      title: "Items still need attention",
+      why: "Some required items are still not delivered or backordered.",
+      next: "Review the incomplete items.",
+    });
+  } else if (input.partialCount > 0) {
+    lines.push({
+      title: "Partial delivery",
+      why: "Some required items are still not delivered or backordered.",
+      next: "Review the incomplete items.",
+    });
+  } else if (input.missingCount > 0) {
+    lines.push({
+      title: "Items not delivered",
+      why: "Required items have not been received.",
+      next: "Review the incomplete items.",
+    });
+  } else if (input.backorderCount > 0) {
+    lines.push({
+      title:
+        input.backorderCount === 1
+          ? "1 item backordered"
+          : `${input.backorderCount} items backordered`,
+      why: "Some items are still on backorder.",
+      next: "Review the incomplete items.",
+    });
+  }
+  if (input.deliverToSitePending) {
+    const label = input.deliverToSiteLabel;
+    lines.push({
+      title: "Site delivery unconfirmed",
+      why: label
+        ? `Material was shipped to ${label}.`
+        : "Material was shipped to the job site.",
+      next: "Confirm when it is on site.",
+    });
+  }
+  if (hasPhysical) {
+    lines.push({
+      title: "Physical delivery incomplete",
+      why: "Vendor drop-off has not been confirmed.",
+      next: "Confirm the physical delivery.",
+    });
+  } else if (hasVendorOrder) {
+    lines.push({
+      title: "Vendor order incomplete",
+      why: "Vendor has not confirmed the order is complete.",
+      next: "Confirm order status with the vendor.",
+    });
+  }
+  if (input.vendorMismatch) {
+    lines.push({
+      title: "Receipt does not match",
+      why: "Vendor reported delivery but shop receipt does not match.",
+      next: "Confirm physical receipt.",
+    });
+  }
+  if (hasDamage && input.blockingIssueCount === 0) {
+    lines.push({
+      title: "Item damage open",
+      why: "Reported item damage has not been resolved.",
+      next: "Review the damage with the vendor.",
+    });
+  }
+
+  if (lines.length === 0) {
+    return {
+      attentionHeadline: "Review required",
+      whyBullets: ["This delivery is not ready for pickup."],
+      nextStepBullets: ["Review the delivery details."],
+    };
+  }
+
+  const primary = lines[0];
+  const whyBullets: string[] = [];
+  const nextStepBullets: string[] = [];
+  const seenWhy = new Set<string>();
+  const seenNext = new Set<string>();
+  for (const line of lines.slice(0, 2)) {
+    if (!seenWhy.has(line.why)) {
+      seenWhy.add(line.why);
+      whyBullets.push(line.why);
+    }
+    if (!seenNext.has(line.next)) {
+      seenNext.add(line.next);
+      nextStepBullets.push(line.next);
+    }
+  }
+
+  return {
+    attentionHeadline: primary.title,
+    whyBullets,
+    nextStepBullets,
+  };
+}
+
 export type DrawerBannerMode = "all_clear" | "calm_waiting" | "attention_required";
 
 export interface DrawerActionBannerContent {
@@ -941,41 +1092,52 @@ export function buildDrawerActionBannerContent(
       "No material received yet. No dispatcher action required unless overdue or vendor says delivered.";
   } else {
     bannerMode = "attention_required";
-    const missingCount = missingExceptionRows.length;
-    const partialCount = partialExceptionRows.length;
-    const backorderCount = backorderedExceptionRows.length;
-    const categoryCount = [
-      missingCount > 0,
-      partialCount > 0,
-      backorderCount > 0,
-    ].filter(Boolean).length;
-    const orderSummaryPointer =
-      "Review the Order Summary below for individual items.";
-    const itemLabel = (n: number) =>
-      n === 1 ? "1 order item" : `${n} order items`;
-
-    if (categoryCount >= 2) {
-      const total = missingCount + partialCount + backorderCount;
-      attentionHeadline = `${itemLabel(total)} still need attention. ${orderSummaryPointer}`;
-    } else if (missingCount > 0) {
-      attentionHeadline = `${itemLabel(missingCount)} still need${
-        missingCount === 1 ? "s" : ""
-      } to be delivered. ${orderSummaryPointer}`;
-    } else if (partialCount > 0) {
-      attentionHeadline = `${itemLabel(partialCount)} ${
-        partialCount === 1 ? "was" : "were"
-      } only partially delivered. ${orderSummaryPointer}`;
-    } else if (backorderCount > 0) {
-      attentionHeadline = `${itemLabel(backorderCount)} ${
-        backorderCount === 1 ? "is" : "are"
-      } backordered. ${orderSummaryPointer}`;
-    } else {
-      attentionHeadline =
-        whyBullets[0] ??
-        (display.readiness.readyForPickup
-          ? "Review required before pickup"
-          : "Order not ready for pickup — review exceptions below");
-    }
+    const includedBlockReasons = readinessBlockReasons.filter((reason) => {
+      if (
+        !shouldIncludeReadinessBlockReasonForBanner(
+          reason,
+          panel.itemsReceivedCount,
+          delivery,
+        )
+      ) {
+        return false;
+      }
+      if (reason === "unresolved_backorder") return false;
+      if (
+        (itemDrivenBanner || backorderedExceptionRows.length > 0) &&
+        (reason === "vendor_order_incomplete" ||
+          reason === "physical_dropoff_incomplete")
+      ) {
+        return false;
+      }
+      return true;
+    });
+    const stagingMissing =
+      !delivery.stagingLocationId?.trim() &&
+      items.some((item) => item.qtyReceived > 0) &&
+      !skipsShopStaging(delivery);
+    const vendorMismatch =
+      !itemDrivenBanner &&
+      backorderedExceptionRows.length === 0 &&
+      vendorClaimsDelivered(delivery) &&
+      panel.itemsReceivedCount < panel.itemsTotalCount;
+    const compact = compactDrawerAttentionCopy({
+      emailReviewRequired: options?.emailReviewRequired === true,
+      deliverToSitePending,
+      deliverToSiteLabel: delivery.invoiceDeliverToLabel?.trim() ?? "",
+      stagingMissing,
+      blockingIssueCount: openBlockingMaterialIssues(materialIssues).length,
+      includedBlockReasons,
+      vendorMismatch,
+      missingCount: missingExceptionRows.length,
+      partialCount: partialExceptionRows.length,
+      backorderCount: backorderedExceptionRows.length,
+    });
+    attentionHeadline = compact.attentionHeadline;
+    whyBullets.length = 0;
+    whyBullets.push(...compact.whyBullets);
+    nextStepBullets.length = 0;
+    nextStepBullets.push(...compact.nextStepBullets);
   }
 
   return {
