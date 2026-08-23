@@ -284,8 +284,11 @@ async function ensureAuthenticated(page) {
         throw new Error("Review Vendor Email button must be visible when email review required");
       }
       await reviewEmailBtn.click();
-      await page.getByTestId("email-evidence-list").waitFor({ timeout: 10_000 });
-      console.log("PASS: Review Vendor Email opens matched email evidence.");
+      await page.getByTestId("review-vendor-email-modal").waitFor({ timeout: 10_000 });
+      if (!(await page.getByTestId("drawer-action-banner").isVisible().catch(() => false))) {
+        throw new Error("Review Vendor Email modal must keep Delivery Details open");
+      }
+      console.log("PASS: Review Vendor Email opens centered matched-email modal.");
     }
 
     const statusEl = page.getByTestId("readiness-evidence-condition1-status");
@@ -298,7 +301,15 @@ async function ensureAuthenticated(page) {
     }
 
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(250);
+    if (await page.getByTestId("review-vendor-email-modal").isVisible().catch(() => false)) {
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(250);
+    }
+    if (await page.getByTestId("drawer-action-banner").isVisible().catch(() => false)) {
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(400);
+    }
   } else {
     throw new Error("Expected at least one delivery row for drawer email evidence test");
   }

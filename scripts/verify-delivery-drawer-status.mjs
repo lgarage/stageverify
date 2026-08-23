@@ -140,6 +140,29 @@ const ASSIGN_LOCATION_CONTRAST = {
   ],
 };
 
+const REVIEW_VENDOR_EMAIL_MODAL_CONTRAST = {
+  rootSelector: '[data-testid="review-vendor-email-modal-panel"]',
+  elements: [
+    {
+      name: "modal title",
+      selector: '[data-testid="review-vendor-email-modal-title"]',
+      large: true,
+    },
+    {
+      name: "modal context",
+      selector: '[data-testid="review-vendor-email-modal-context"]',
+      large: false,
+    },
+    {
+      name: "modal close button",
+      selector: '[data-testid="review-vendor-email-modal-close"]',
+      large: false,
+    },
+  ],
+};
+
+const REVIEW_VENDOR_EMAIL_DELIVERY_ID = "delivery-demo-vendor-2";
+
 (async () => {
   mkdirSync(outDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
@@ -991,6 +1014,93 @@ const ASSIGN_LOCATION_CONTRAST = {
   }
   console.log(
     "PASS CASE C: Will-Call / Pickup from Vendor wording present; staging not required by skipsShopStaging",
+  );
+
+  // ── Review Vendor Email — centered read-only modal (ORD-006 / delivery-demo-vendor-2) ──
+  await openDeliveryDrawerByDeepLink(page, appBase, REVIEW_VENDOR_EMAIL_DELIVERY_ID);
+  await page.getByTestId("drawer-action-banner").waitFor({ timeout: 15_000 });
+  const reviewBtn = page.getByTestId("drawer-action-review-vendor-email");
+  if (!(await reviewBtn.isVisible().catch(() => false))) {
+    throw new Error(
+      "FAIL Review Vendor Email: button must be visible on delivery-demo-vendor-2.",
+    );
+  }
+  await reviewBtn.click();
+  const modal = page.getByTestId("review-vendor-email-modal");
+  await modal.waitFor({ state: "visible", timeout: 10_000 });
+  await page.getByTestId("review-vendor-email-modal-panel").waitFor({
+    state: "visible",
+    timeout: 5_000,
+  });
+  const contextText = (
+    await page.getByTestId("review-vendor-email-modal-context").innerText()
+  ).trim();
+  if (!/ORD-006/i.test(contextText)) {
+    throw new Error(
+      `FAIL Review Vendor Email: modal context must name ORD-006 — got "${contextText}".`,
+    );
+  }
+  if (!(await page.getByTestId("issue-summary-panel").isVisible().catch(() => false))) {
+    throw new Error(
+      "FAIL Review Vendor Email: Delivery Details drawer must stay open behind the modal.",
+    );
+  }
+  const emailCard = page.locator(
+    '[data-testid="review-vendor-email-modal-body"] [data-testid^="email-evidence-card-"]',
+  ).first();
+  if ((await emailCard.count()) === 0) {
+    throw new Error(
+      "FAIL Review Vendor Email: modal must show the matched vendor email card.",
+    );
+  }
+  const originalBody = page.locator(
+    '[data-testid="review-vendor-email-modal-body"] [data-testid^="email-evidence-original-body-"]',
+  ).first();
+  if (!(await originalBody.isVisible().catch(() => false))) {
+    throw new Error(
+      "FAIL Review Vendor Email: original email body should be visible in the modal.",
+    );
+  }
+  await assertReadableTextContrast(page, REVIEW_VENDOR_EMAIL_MODAL_CONTRAST);
+
+  await page.getByTestId("review-vendor-email-modal-close").click();
+  await modal.waitFor({ state: "hidden", timeout: 8_000 });
+  if (!(await page.getByTestId("drawer-action-banner").isVisible().catch(() => false))) {
+    throw new Error(
+      "FAIL Review Vendor Email: drawer must remain open after modal Close.",
+    );
+  }
+  if (await page.getByTestId("review-vendor-email-modal").isVisible().catch(() => false)) {
+    throw new Error("FAIL Review Vendor Email: modal must close after Close.");
+  }
+
+  await reviewBtn.click();
+  await modal.waitFor({ state: "visible", timeout: 8_000 });
+  const reopenContext = (
+    await page.getByTestId("review-vendor-email-modal-context").innerText()
+  ).trim();
+  if (!/ORD-006/i.test(reopenContext)) {
+    throw new Error(
+      `FAIL Review Vendor Email: re-open must still show ORD-006 — got "${reopenContext}".`,
+    );
+  }
+  await page.keyboard.press("Escape");
+  await modal.waitFor({ state: "hidden", timeout: 8_000 });
+  if (!(await page.getByTestId("drawer-action-banner").isVisible().catch(() => false))) {
+    throw new Error(
+      "FAIL Review Vendor Email: Escape must close only the modal and keep Delivery Details open.",
+    );
+  }
+
+  await openDeliveryDrawerByDeepLink(page, appBase, FIXTURE_ASSIGNED_STAGING_ID);
+  await page.getByTestId("drawer-action-banner").waitFor({ timeout: 15_000 });
+  if (await page.getByTestId("review-vendor-email-modal").isVisible().catch(() => false)) {
+    throw new Error(
+      "FAIL Review Vendor Email: switching deliveries must close the previous email modal.",
+    );
+  }
+  console.log(
+    "PASS Review Vendor Email: centered modal open/close, correct ORD-006 email, Escape, no leak on switch",
   );
 
   await page.screenshot({

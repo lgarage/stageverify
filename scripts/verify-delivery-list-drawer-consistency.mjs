@@ -1733,22 +1733,35 @@ async function assertOrd006EmailReviewAction(page, record) {
   await reviewBtn.click();
   await page.waitForTimeout(600);
 
-  const detailsSection = page.getByTestId("readiness-evidence-details");
+  const modal = page.getByTestId("review-vendor-email-modal");
   record(
-    "ORD-006 Review Vendor Email expands readiness details",
-    (await detailsSection.count()) > 0 && (await detailsSection.isVisible()),
+    "ORD-006 Review Vendor Email opens centered modal",
+    (await modal.count()) > 0 && (await modal.isVisible()),
   );
 
-  const emailList = page.getByTestId("email-evidence-list");
   record(
-    "ORD-006 Review Vendor Email expands email evidence list",
-    (await emailList.count()) > 0 && (await emailList.isVisible()),
+    "ORD-006 Delivery Details stays open behind email modal",
+    (await page.getByTestId("issue-summary-panel").count()) > 0 &&
+      (await page.getByTestId("issue-summary-panel").isVisible()),
   );
 
-  const evidenceCard = page.locator('[data-testid^="email-evidence-card-"]').first();
+  const evidenceCard = page
+    .locator('[data-testid="review-vendor-email-modal-body"] [data-testid^="email-evidence-card-"]')
+    .first();
   record(
-    "ORD-006 email evidence card present after review click",
+    "ORD-006 email evidence card present in review modal",
     (await evidenceCard.count()) > 0,
+  );
+
+  const closeBtn = page.getByTestId("review-vendor-email-modal-close");
+  if ((await closeBtn.count()) > 0) {
+    await closeBtn.click();
+    await page.waitForTimeout(400);
+  }
+  record(
+    "ORD-006 modal Close returns to Delivery Details",
+    (await page.getByTestId("review-vendor-email-modal").count()) === 0 &&
+      (await page.getByTestId("drawer-action-banner").isVisible()),
   );
 }
 

@@ -310,7 +310,7 @@ export function DetailContent({
   const [emailFieldsTouched, setEmailFieldsTouched] = useState(false);
   const [vendorCommsRefresh, setVendorCommsRefresh] = useState(0);
   const [vendorCommsExpandSignal, setVendorCommsExpandSignal] = useState(0);
-  const [emailEvidenceExpandSignal, setEmailEvidenceExpandSignal] = useState(0);
+  const [reviewVendorEmailOpen, setReviewVendorEmailOpen] = useState(false);
   const [activityHistoryExpanded, setActivityHistoryExpanded] = useState(false);
   const [activityHistoryFullView, setActivityHistoryFullView] = useState(false);
   const [expandedResolvedIssueIds, setExpandedResolvedIssueIds] = useState<
@@ -332,6 +332,7 @@ export function DetailContent({
     setActivityHistoryExpanded(false);
     setActivityHistoryFullView(false);
     setDrawerEmailModalOpen(false);
+    setReviewVendorEmailOpen(false);
     setShowPickupInput(false);
     setPendingStatusSelection(null);
     setPickupTechnicianName("");
@@ -378,12 +379,8 @@ export function DetailContent({
     });
   };
 
-  const expandEmailEvidenceReview = () => {
-    setEmailEvidenceExpandSignal((value) => value + 1);
-    requestAnimationFrame(() => {
-      const panel = document.querySelector('[data-testid="readiness-evidence-panel"]');
-      panel?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+  const openReviewVendorEmail = () => {
+    setReviewVendorEmailOpen(true);
   };
 
   const resolutionContext = {
@@ -1200,7 +1197,7 @@ export function DetailContent({
               .querySelector('[data-testid="issue-summary-panel"]')
               ?.scrollIntoView({ behavior: "smooth", block: "start" });
           }}
-          onReviewVendorEmail={expandEmailEvidenceReview}
+          onReviewVendorEmail={openReviewVendorEmail}
           onEmailVendor={() => setDrawerEmailModalOpen(true)}
         />
         <IssueSummaryPanel
@@ -1219,7 +1216,8 @@ export function DetailContent({
             navy={navy}
             font={font}
             onExpandVendorCommunications={expandVendorCommunications}
-            emailEvidenceExpandSignal={emailEvidenceExpandSignal}
+            reviewVendorEmailOpen={reviewVendorEmailOpen}
+            onCloseReviewVendorEmail={() => setReviewVendorEmailOpen(false)}
           />,
         )}
         {nonBlockingOpenIssues.length > 0 &&
