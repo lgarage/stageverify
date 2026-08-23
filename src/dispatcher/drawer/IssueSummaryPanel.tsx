@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { DeliveryDetails } from "../models";
 import {
   buildIssueSummaryPanelData,
+  buildUnifiedOrderSummaryRows,
   isDeliverToSiteFullyReceived,
   ITEM_ISSUE_STATUS_COLOR,
   type ItemIssueDisplayStatus,
@@ -42,8 +43,6 @@ export function IssueSummaryPanel({
     status: OrderSummaryEditableStatus,
   ) => Promise<void>;
 }) {
-  const [receivedExpanded, setReceivedExpanded] = useState(false);
-
   const summary = useMemo(
     () =>
       buildIssueSummaryPanelData(
@@ -52,6 +51,10 @@ export function IssueSummaryPanel({
         details.materialIssues,
       ),
     [details.delivery, details.items, details.materialIssues],
+  );
+  const unifiedRows = useMemo(
+    () => buildUnifiedOrderSummaryRows(details.delivery, details.items),
+    [details.delivery, details.items],
   );
 
   const siteConfirmed = isDeliverToSiteFullyReceived(details.delivery);
@@ -146,7 +149,7 @@ export function IssueSummaryPanel({
           </p>
         )}
 
-        {summary.issueRows.length > 0 && (
+        {unifiedRows.length > 0 && (
           <div
             data-testid="issue-summary-table"
             style={{
@@ -176,12 +179,15 @@ export function IssueSummaryPanel({
               <span style={{ textAlign: "center" }}>Qty</span>
               <span style={{ textAlign: "right" }}>Status</span>
             </div>
-            {summary.issueRows.map((row) => (
+            {unifiedRows.map((row) => (
               <IssueTableRow
                 key={row.itemId}
                 row={row}
                 font={font}
-                canEdit={canEditReceipt && row.status === "Not Delivered"}
+                canEdit={
+                  canEditReceipt &&
+                  (row.status === "Not Delivered" || row.status === "Delivered")
+                }
                 onChangeStatus={
                   onUpdateItemReceiptStatus
                     ? (status) => onUpdateItemReceiptStatus(row.itemId, status)
@@ -189,97 +195,6 @@ export function IssueSummaryPanel({
                 }
               />
             ))}
-          </div>
-        )}
-
-        {summary.receivedItems.length > 0 && (
-          <div data-testid="issue-summary-received-items">
-            <button
-              type="button"
-              data-testid="issue-summary-received-toggle"
-              onClick={() => setReceivedExpanded((v) => !v)}
-              aria-expanded={receivedExpanded}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                width: "100%",
-                padding: "8px 0 0",
-                border: "none",
-                borderTop: summary.issueRows.length > 0 ? "1px solid var(--admin-border)" : undefined,
-                background: "none",
-                cursor: "pointer",
-                fontFamily: font,
-                fontSize: 13,
-                fontWeight: 700,
-                color: "var(--admin-accent-soft)",
-                textAlign: "left",
-              }}
-            >
-              <span style={{ fontSize: 10, color: "var(--admin-text-muted)" }}>
-                {receivedExpanded ? "▼" : "▶"}
-              </span>
-              {summary.receivedItems.length} Item
-              {summary.receivedItems.length === 1 ? "" : "s"} Received
-            </button>
-            {receivedExpanded && (
-              <ul
-                data-testid="issue-summary-received-list"
-                style={{
-                  margin: "8px 0 0",
-                  paddingLeft: 0,
-                  listStyle: "none",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 6,
-                }}
-              >
-                {summary.receivedItems.map((item) => (
-                  <li
-                    key={item.itemId}
-                    style={{
-                      fontSize: 13,
-                      color: "var(--admin-success-text)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 8,
-                    }}
-                  >
-                    <span>
-                      <span aria-hidden>✓ </span>({item.qty}) {item.description}
-                    </span>
-                    {canEditReceipt && onUpdateItemReceiptStatus ? (
-                      <select
-                        data-testid={`issue-summary-status-${item.itemId}`}
-                        aria-label={`Status for ${item.description}`}
-                        value="Delivered"
-                        disabled={loading}
-                        onChange={(e) => {
-                          const next = e.target.value as OrderSummaryEditableStatus;
-                          if (next === "Delivered") return;
-                          void onUpdateItemReceiptStatus(item.itemId, next);
-                        }}
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 700,
-                          fontFamily: font,
-                          color: ITEM_ISSUE_STATUS_COLOR.Delivered,
-                          border: "1px solid var(--admin-border)",
-                          borderRadius: 4,
-                          padding: "2px 6px",
-                          backgroundColor: "var(--admin-surface)",
-                          maxWidth: 130,
-                        }}
-                      >
-                        <option value="Delivered">Delivered</option>
-                        <option value="Not Delivered">Not Delivered</option>
-                      </select>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
         )}
       </div>
@@ -324,14 +239,16 @@ function IssueTableRow({
       >
         {row.qty}
       </span>
-      {canEdit && onChangeStatus && row.status === "Not Delivered" ? (
+      {canEdit &&
+      onChangeStatus &&
+      (row.status === "Not Delivered" || row.status === "Delivered") ? (
         <select
           data-testid={`issue-summary-status-${row.itemId}`}
           aria-label={`Status for ${row.description}`}
-          value="Not Delivered"
+          value={row.status}
           onChange={(e) => {
             const next = e.target.value as OrderSummaryEditableStatus;
-            if (next === "Not Delivered") return;
+            if (next === row.status) return;
             void onChangeStatus(next);
           }}
           style={{

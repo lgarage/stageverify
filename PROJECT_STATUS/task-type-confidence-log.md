@@ -36,3 +36,4 @@ Append-only session log (Dan standing preference). Not a planning SSOT.
 | 2026-08-10 | ship-op (D-80 Dan MANUAL acceptance + archive) | ship-op / acceptance closeout | T0 | Composer 2.5 Fast | 99 | 99 | Dan PASS v0.0.279; pink category separate; CURRENT_STATE stamp |
 | 2026-08-10 | backend-write-critical / ship-op | Change Location CF reassign LIVE | T3 | Composer 2.5 Fast | 99 | 99 | ok |
 | 2026-08-10 | Invoice Review Approve→fulfillment decision flow | backend-write-critical + visual-judgment UI | T3 | Composer 2.5 Fast + Sol High + Sonnet D-60/D-38 + Grok adversarial | 88 | 99 | PR open; CF deploy NOT approved; tip 731e8f3a |
+| 2026-08-23 | Delivery Details unified Order Summary (delivered stays in same list) | ui-component / visual-judgment | T1 | Sol High (`gpt-5.6-sol-high`) + Grok orchestrate/ship | 98 | 99 | FE-only v0.0.308; deriveItemIssueDisplayStatus + effectiveItemQtyReceived; no CF/rules |

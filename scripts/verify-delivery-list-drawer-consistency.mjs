@@ -2391,34 +2391,116 @@ async function assertOrd006EmailReviewAction(page, record) {
     } else {
       record("Issue table Qty/Status layout", false, "bounding boxes unavailable");
     }
+
+    const visibleRows = issueTable.locator(
+      '[data-testid^="issue-summary-row-"]:visible',
+    );
+    const visibleRowCount = await visibleRows.count();
+    const rowStatuses = await visibleRows.evaluateAll((rows) =>
+      rows.map((row) => {
+        const status = row.querySelector('[data-testid^="issue-summary-status-"]');
+        if (status instanceof HTMLSelectElement) return status.value.trim();
+        const statusText = status?.textContent?.trim();
+        if (statusText) return statusText;
+        return (
+          row
+            .querySelector('[data-testid="issue-summary-backordered-badge"]')
+            ?.textContent?.trim()
+            .replace("BACKORDERED", "Backordered") ?? ""
+        );
+      }),
+    );
+    const unfinishedStatuses = new Set([
+      "Not Delivered",
+      "Partial Delivery",
+      "Backordered",
+    ]);
+    const unfinishedCount = rowStatuses.filter((status) =>
+      unfinishedStatuses.has(status),
+    ).length;
+    const deliveredCount = rowStatuses.filter(
+      (status) => status === "Delivered",
+    ).length;
+    record(
+      "Unified Order Summary shows every unfinished and delivered row",
+      visibleRowCount === unfinishedCount + deliveredCount,
+      `visible=${visibleRowCount}, unfinished=${unfinishedCount}, delivered=${deliveredCount}`,
+    );
+
+    const firstDeliveredIndex = rowStatuses.indexOf("Delivered");
+    const lastUnfinishedIndex = rowStatuses.reduce(
+      (last, status, index) =>
+        status === "Delivered" ? last : index,
+      -1,
+    );
+    record(
+      "Unified Order Summary places delivered rows after unfinished rows",
+      firstDeliveredIndex === -1 ||
+        lastUnfinishedIndex === -1 ||
+        firstDeliveredIndex > lastUnfinishedIndex,
+      rowStatuses.join(" → "),
+    );
+
+    const deliveredStatusTestId = await issueTable
+      .locator('[data-testid^="issue-summary-status-"]')
+      .evaluateAll((statuses) => {
+        const delivered = statuses.find((status) =>
+          status instanceof HTMLSelectElement
+            ? status.value.trim() === "Delivered"
+            : status.textContent?.trim() === "Delivered",
+        );
+        return delivered?.getAttribute("data-testid") ?? "";
+      });
+    if (deliveredStatusTestId) {
+      const deliveredStatus = page.getByTestId(deliveredStatusTestId);
+      const deliveredTone = await deliveredStatus.evaluate((element) => {
+        const probe = document.createElement("span");
+        probe.style.color = "var(--admin-success-text)";
+        document.body.appendChild(probe);
+        const expected = getComputedStyle(probe).color;
+        probe.remove();
+        const actual = getComputedStyle(element).color;
+        return { actual, expected, matches: actual === expected };
+      });
+      record(
+        "Delivered Order Summary status uses success color",
+        deliveredTone.matches,
+        `actual=${deliveredTone.actual}, expected=${deliveredTone.expected}`,
+      );
+      try {
+        await assertReadableTextContrast(page, {
+          rootSelector: '[data-testid="issue-summary-table"]',
+          elements: [
+            {
+              name: "Delivered Order Summary status",
+              selector: `[data-testid="${deliveredStatusTestId}"]`,
+              large: false,
+            },
+          ],
+        });
+        record("Delivered Order Summary status contrast (D-42)", true);
+      } catch (err) {
+        record(
+          "Delivered Order Summary status contrast (D-42)",
+          false,
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    } else {
+      record(
+        "Delivered Order Summary status contrast skipped (no delivered rows)",
+        true,
+      );
+    }
   } else {
-    record("Issue table skipped (no open item issues)", true);
+    record("Issue table skipped (delivery has no order items)", true);
   }
 
   const receivedToggle = page.getByTestId("issue-summary-received-toggle");
-  if ((await receivedToggle.count()) > 0) {
-    const expandedBefore = await receivedToggle.getAttribute("aria-expanded");
-    record(
-      "Received Items collapsed by default",
-      expandedBefore === "false",
-      `aria-expanded=${expandedBefore}`,
-    );
-
-    await receivedToggle.click();
-    await page.waitForTimeout(300);
-
-    const receivedList = page.getByTestId("issue-summary-received-list");
-    await receivedList.waitFor({ timeout: 5_000 });
-    const firstReceived = receivedList.locator("li").first();
-    const receivedText = (await firstReceived.innerText()).trim();
-    record(
-      "Expanded received item shows qty in parentheses",
-      /\(\d+\)/.test(receivedText),
-      receivedText.slice(0, 60),
-    );
-  } else {
-    record("Received Items section skipped (none received)", true);
-  }
+  record(
+    "Separate received-items toggle is absent",
+    (await receivedToggle.count()) === 0,
+  );
 
   await page.goto(`${appBase}/#/dispatcher`, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(1500);

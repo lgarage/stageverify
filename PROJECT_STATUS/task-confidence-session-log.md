@@ -3,6 +3,7 @@
 Running log per Dan standing preference (classify → cheapest model → conf → do work).
 
 | Date | Task type (archetype) | Tier | Recommended model | confStart | confAfter | Outcome | Note |
+| 2026-08-23 | ui-component / visual-judgment (drawer Order Summary unified list) | T1 | Sol High Task (`gpt-5.6-sol-high`) | 98 | 99 | ok | Unified Order Summary unfinished-first/delivered-last; v0.0.308 |
 | 2026-08-23 | ui-component / css-restyle (visual-judgment drawer) | T1 | Sol High Task (`gpt-5.6-sol-high`; Medium not Task-runnable) | 98 | 98 | ok | Move View original PDF under Close; v0.0.303 |
 |------|----------------------|------|-------------------|-----------|-----------|---------|------|
 | 2026-08-23 | bug-investigate / service-logic (Vendors blank on client nav) | T1 | Composer 2.5 Fast | 88 | 99 | ok | Root: lazy VendorsPage chunk fail empties #root; eager import |
