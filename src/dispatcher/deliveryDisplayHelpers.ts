@@ -1042,6 +1042,48 @@ export function deriveItemIssueQty(item: Item, status: ItemIssueDisplayStatus): 
   return item.qtyOrdered;
 }
 
+/** Order Summary rows: unfinished items first, then fully delivered items. */
+export function buildUnifiedOrderSummaryRows(
+  delivery: DeliveryOrder,
+  items: Item[],
+): ItemIssueRow[] {
+  const unfinished: ItemIssueRow[] = [];
+  const delivered: ItemIssueRow[] = [];
+
+  for (const item of items) {
+    const status = deriveItemIssueDisplayStatus(item, delivery);
+    if (status) {
+      unfinished.push({
+        itemId: item.id,
+        description: item.description,
+        qty: deriveItemIssueQty(item, status),
+        status,
+      });
+      continue;
+    }
+
+    const qtyReceived = effectiveItemQtyReceived(delivery, item);
+    if (qtyReceived > 0) {
+      delivered.push({
+        itemId: item.id,
+        description: item.description,
+        qty: qtyReceived,
+        status: "Delivered",
+      });
+      continue;
+    }
+
+    unfinished.push({
+      itemId: item.id,
+      description: item.description,
+      qty: item.qtyOrdered,
+      status: "Not Delivered",
+    });
+  }
+
+  return [...unfinished, ...delivered];
+}
+
 export function buildIssueSummaryPanelData(
   delivery: DeliveryOrder,
   items: Item[],
