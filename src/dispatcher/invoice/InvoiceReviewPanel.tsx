@@ -248,6 +248,37 @@ const ARCHIVE_NAV_BUTTON_STYLE = {
   cursor: "pointer",
 } as const;
 
+const BACK_TO_QUEUE_BUTTON_STYLE = {
+  backgroundColor: "var(--admin-surface)",
+  color: "var(--admin-text-label)",
+  border: "1px solid var(--admin-border)",
+  borderRadius: "var(--admin-control-radius)",
+  padding: "8px 16px",
+  fontSize: 13,
+  fontWeight: 700,
+  cursor: "pointer",
+} as const;
+
+function BackToReviewQueueButton({
+  onBackToReviewQueue,
+  testId,
+}: {
+  onBackToReviewQueue: () => void;
+  testId: string;
+}) {
+  return (
+    <button
+      type="button"
+      className="admin-btn"
+      data-testid={testId}
+      onClick={onBackToReviewQueue}
+      style={BACK_TO_QUEUE_BUTTON_STYLE}
+    >
+      Back to review queue
+    </button>
+  );
+}
+
 function LinkedDeliveryBadge({ linkedDeliveryOrderId }: { linkedDeliveryOrderId?: string }) {
   const linked = Boolean(linkedDeliveryOrderId?.trim());
   return (
@@ -770,6 +801,8 @@ export function InvoiceReviewPanel({
         shellDeliveryIdForImport(inspectImport.id),
   );
 
+  const handleBackToReviewQueue = () => setFilter("pending");
+
   return (
     <div
       data-testid="invoice-review-panel"
@@ -797,6 +830,12 @@ export function InvoiceReviewPanel({
           <span style={{ fontWeight: 700, color: "var(--admin-text-label)", fontSize: 14 }}>
             {listHeading(filter)}
           </span>
+          {filter === "approved" && (
+            <BackToReviewQueueButton
+              onBackToReviewQueue={handleBackToReviewQueue}
+              testId="invoice-review-back-to-queue-top"
+            />
+          )}
           {!isArchiveFilter(filter) && (
             <select
               className="admin-control"
@@ -1085,24 +1124,10 @@ export function InvoiceReviewPanel({
         data-testid="invoice-review-archive-nav"
       >
         {isArchiveFilter(filter) ? (
-          <button
-            type="button"
-            className="admin-btn"
-            data-testid="invoice-review-back-to-queue"
-            onClick={() => setFilter("pending")}
-            style={{
-              backgroundColor: "var(--admin-surface)",
-              color: "var(--admin-text-label)",
-              border: "1px solid var(--admin-border)",
-              borderRadius: "var(--admin-control-radius)",
-              padding: "8px 16px",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            Back to review queue
-          </button>
+          <BackToReviewQueueButton
+            onBackToReviewQueue={handleBackToReviewQueue}
+            testId="invoice-review-back-to-queue"
+          />
         ) : (
           <>
             <button

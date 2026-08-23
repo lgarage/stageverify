@@ -993,9 +993,45 @@ async function main() {
       console.log("PASS: approved empty state renders");
     }
 
+    const topBack = page.getByTestId("invoice-review-back-to-queue-top");
+    const bottomBack = page.getByTestId("invoice-review-back-to-queue");
+    await topBack.waitFor({ timeout: 5_000 });
+    await bottomBack.waitFor({ timeout: 5_000 });
+    {
+      const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+      await assertReadableTextContrast(page, {
+        rootSelector: '[data-testid="invoice-review-panel"]',
+        elements: [
+          {
+            name: "Top Back to review queue",
+            selector: '[data-testid="invoice-review-back-to-queue-top"]',
+          },
+          {
+            name: "Bottom Back to review queue",
+            selector: '[data-testid="invoice-review-back-to-queue"]',
+          },
+        ],
+      });
+      console.log("PASS: Back to review queue buttons readable contrast");
+    }
+    const topVisibleWithoutScroll = await topBack.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.top >= 0 && rect.bottom <= window.innerHeight && rect.height > 0;
+    });
+    if (!topVisibleWithoutScroll) {
+      throw new Error("Top Back to review queue button is not visible without scrolling");
+    }
+    console.log("PASS: Approved invoices has top and bottom Back to review queue buttons");
+
+    await topBack.click();
+    await page.getByTestId("invoice-review-queue").waitFor({ timeout: 10_000 });
+    console.log("PASS: top back to review queue navigation");
+
+    await page.getByTestId("invoice-review-approved-link").click();
+    await page.getByTestId("invoice-review-approved-list").waitFor({ timeout: 15_000 });
     await page.getByTestId("invoice-review-back-to-queue").click();
     await page.getByTestId("invoice-review-queue").waitFor({ timeout: 10_000 });
-    console.log("PASS: back to review queue navigation");
+    console.log("PASS: bottom back to review queue navigation");
 
     await rejectedLink.waitFor({ timeout: 10_000 });
     await rejectedLink.click();
