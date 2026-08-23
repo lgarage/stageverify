@@ -93,12 +93,45 @@ export function computePhysicalDropoffComplete(
   return computeQtyBasedPhysicalDropoffComplete(items);
 }
 
-/** Staging: primary zone assigned when material received or vendor confirmed drop-off. */
+/**
+ * Shop staging assignment present on the delivery document (display SoT parity).
+ * Counts stagingLocationId, additionalStagingLocationIds, and plannedStagingLocationIds.
+ * plannedStagingLocationIds is the Invoice Review / Assign Location write until a later
+ * path promotes to stagingLocationId — compatibility fallback so readiness matches UI.
+ */
+export function deliveryHasCurrentShopStagingAssignment(
+  delivery: Pick<
+    DeliveryOrder,
+    | "stagingLocationId"
+    | "additionalStagingLocationIds"
+    | "plannedStagingLocationIds"
+  >,
+): boolean {
+  if (delivery.stagingLocationId?.trim()) return true;
+  if (
+    (delivery.additionalStagingLocationIds ?? []).some(
+      (id) => typeof id === "string" && id.trim().length > 0,
+    )
+  ) {
+    return true;
+  }
+  if (
+    (delivery.plannedStagingLocationIds ?? []).some(
+      (id) => typeof id === "string" && id.trim().length > 0,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** Staging: zone assigned when material received or vendor confirmed drop-off. */
 export function computeStagingAssignmentComplete(
   delivery: Pick<
     DeliveryOrder,
     | "stagingLocationId"
     | "additionalStagingLocationIds"
+    | "plannedStagingLocationIds"
     | "vendorPhysicalDropoffConfirmed"
   >,
   items: Item[],
@@ -107,7 +140,7 @@ export function computeStagingAssignmentComplete(
   const vendorConfirmedDropoff =
     delivery.vendorPhysicalDropoffConfirmed === true;
   if (!anyReceived && !vendorConfirmedDropoff) return true;
-  return Boolean(delivery.stagingLocationId?.trim());
+  return deliveryHasCurrentShopStagingAssignment(delivery);
 }
 
 export interface ReadinessComputeOptions {
