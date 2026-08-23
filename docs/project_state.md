@@ -234,6 +234,8 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 **Change Location current-spot box (2026-08-23, v0.0.300)** — Staging Map reassign mode reuses existing navy focus chrome (`3px #0a3161`) on `selfPlanned` current assignment spots; move-note text unchanged. Verify: `verify:change-location` (+ `:prod`).
 **Vendors client-nav blank screen (2026-08-23, v0.0.301)** — `#/vendors` stayed blank after sidebar click when the lazy `VendorsPage` chunk failed (`#root` emptied). Vendors is eager-imported so client-side nav renders immediately; reload still works. Verify: `verify:dispatcher-nav` cycles + Back/Forward + blocked `VendorsPage-*.js`.
 
+**Vendor company-run in-card Complete delivery (2026-08-23, v0.0.307)** — Expanded unfinished job shows Complete delivery + Cancel/Back; leftover batch checkboxes and global Delivered footer removed. Write path remains `markVendorDeliveriesBulk` with `vendorPhysicalDropoffConfirmed === true`. PR #173 unfinished-first / delivered-last unchanged. Verify: `verify:vendor-job-detail-actions`, `node scripts/test-vendor-job-list-order.mjs`.
+
 
 **Settings staging UI cleanup (2026-07-25, v0.0.155, D-52/D-53)** — Removed light-blue duplicate spot summary and “Orphan zones not on the map” callout; editable table is the only list. Verify: `verify:settings-staging` (`assertNoOrphanStagingCallout`).
 

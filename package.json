@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.306",
+  "version": "0.0.307",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -121,6 +121,7 @@
     "verify:location-scan:prod": "node scripts/reset-vendor-demo-fixture.mjs && node scripts/set-vendor-delivery-mode.mjs exception_only && node scripts/seed-vendor-pin-data.mjs && node scripts/verify-location-scan-v2.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:vendor-run-checklist": "node scripts/reset-vendor-demo-fixture.mjs && node scripts/set-vendor-delivery-mode.mjs exception_only && node scripts/seed-vendor-pin-data.mjs && node scripts/verify-vendor-run-checklist.mjs",
     "verify:vendor-run-checklist:prod": "node scripts/reset-vendor-demo-fixture.mjs && node scripts/set-vendor-delivery-mode.mjs exception_only && node scripts/seed-vendor-pin-data.mjs && node scripts/verify-vendor-run-checklist.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:vendor-job-detail-actions": "node scripts/verify-vendor-job-detail-actions.mjs",
     "test:location-scan-history": "npx tsx scripts/test-location-scan-history.mjs",
     "verify:vendor-history": "node scripts/run-verify-with-learning.mjs --script verify:vendor-history scripts/verify-vendor-history.mjs",
     "verify:vendor-history:prod": "node scripts/run-verify-with-learning.mjs --script verify:vendor-history:prod scripts/verify-vendor-history.mjs --base-url=https://lgarage.github.io/stageverify",

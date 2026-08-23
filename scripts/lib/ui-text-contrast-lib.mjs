@@ -639,8 +639,13 @@ export const VENDOR_RUN_LAYOUT_CONTRAST_SPEC = {
       large: false,
     },
     {
-      name: "vendor-run Delivered button",
-      selector: '[data-testid="vendor-run-bulk-deliver"]',
+      name: "vendor-run Complete delivery button",
+      selector: '[data-testid^="vendor-run-complete-"]',
+      large: false,
+    },
+    {
+      name: "vendor-run Cancel / Back button",
+      selector: '[data-testid^="vendor-run-cancel-"]',
       large: false,
     },
   ],

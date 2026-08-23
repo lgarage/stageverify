@@ -3,6 +3,7 @@
 Append-only session log (Dan standing preference). Not a planning SSOT.
 
 | Date | Task type | Archetype | Tier | Cheapest model | confStart | confAfter | Notes |
+| 2026-08-23 | Vendor job details Complete delivery + Cancel in expanded card | ui-component / visual-judgment | T1 | Sol High (`gpt-5.6-sol-high`) + Grok orchestrate/ship | 97 | 99 | FE-only v0.0.307; reuse markVendorDeliveriesBulk single-id; batch UI removed |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-08-10 | C3-D.1 Settings Invoice Learning read-only visual verify UI | ui-component / visual-judgment | T1 | Sol High (`gpt-5.6-sol-high`) + Composer wiring/ship | 98 | 99 | FE-only v0.0.285; list API enough; no evaluate button; no CF/rules |
 | 2026-08-10 | Timekeeper long-job terminal audit (read-only) | harness-audit / scout | T0 | Composer 2.5 Fast | 92 | 98 | enforcement/visibility gap; once-only force35; no edits |

@@ -94,6 +94,7 @@
 
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
+**Shipped (2026-08-23):** Vendor company-run expanded job shows in-card Complete delivery + Cancel/Back; leftover batch checkboxes and global Delivered footer removed; same `markVendorDeliveriesBulk` write path; PR #173 delivered-last unchanged — **v0.0.307** gh-pages FE-only; no CF/rules.
 **Shipped (2026-08-23):** Catch-all count uses unique active deliveries assigned to CA (top-bar badge + map spot + status drawer share `countCatchAllAssignedDeliveries`) — **v0.0.304** gh-pages FE-only; Change Location navy chrome unchanged; no CF/rules.
 **Shipped (2026-08-23):** Delivery Details View original PDF moved to sticky header (below ✕ Close, above Delivery Basics) — **v0.0.303** gh-pages FE-only; existing control reused; no CF/rules.
 **Shipped (2026-08-23):** Retired leftover production `jobs/job-1` seed PIN (`1234`) deleted; Johnstone company PIN untouched; demo/seed/verify no longer recreate or advertise that seed PIN — **v0.0.302** (prod data + FE). no CF/rules.

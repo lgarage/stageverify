@@ -722,6 +722,7 @@ try {
       items: [{ id: "item-c", description: "Condensing unit", qtyOrdered: 1 }],
     },
   ];
+  const vendorRunCompleteRequests = [];
 
   await page.route("**/resolveLocationScanPin", async (route) => {
     await route.fulfill({
@@ -758,6 +759,7 @@ try {
   await page.route("**/markVendorDeliveriesBulk", async (route) => {
     const requestBody = JSON.parse(route.request().postData() ?? "{}");
     const deliveryIds = requestBody.data?.deliveryIds ?? [];
+    vendorRunCompleteRequests.push(deliveryIds);
     vendorRunRows = vendorRunRows.map((row) =>
       deliveryIds.includes(row.deliveryId)
         ? { ...row, vendorPhysicalDropoffConfirmed: true }
@@ -841,14 +843,14 @@ try {
         (row.getAttribute("data-testid") ?? "").replace("vendor-run-row-", ""),
       ),
     );
-  const expectedStableOrder = [
+  const expectedInitialOrder = [
     "verify-run-active-a",
-    "verify-run-delivered-b",
     "verify-run-active-c",
+    "verify-run-delivered-b",
   ];
   record(
-    "vendor-run preserves server list order",
-    JSON.stringify(await rowOrder()) === JSON.stringify(expectedStableOrder),
+    "vendor-run groups delivered jobs at the bottom",
+    JSON.stringify(await rowOrder()) === JSON.stringify(expectedInitialOrder),
     (await rowOrder()).join(" → "),
   );
 
@@ -902,24 +904,29 @@ try {
 
   await page.getByTestId("vendor-run-toggle-verify-run-active-c").click();
   record(
-    "vendor-run expansion is independent",
+    "vendor-run opens one unfinished job",
     !(await detailsA.isVisible().catch(() => false)) &&
       (await detailsC.isVisible()),
   );
   await page.getByTestId("vendor-run-toggle-verify-run-delivered-b").click();
   record(
-    "delivered vendor-run row expands in place",
+    "vendor-run accordion opening delivered job collapses prior job",
     (await detailsB.isVisible()) &&
-      (await detailsC.isVisible()),
+      !(await detailsC.isVisible().catch(() => false)),
   );
   await page.getByTestId("vendor-run-toggle-verify-run-delivered-b").click();
 
   const rowA = page.getByTestId("vendor-run-row-verify-run-active-a");
-  await rowA.locator('input[type="checkbox"]').check();
+  await page.getByTestId("vendor-run-toggle-verify-run-active-a").click();
   await assertReadableTextContrast(page, VENDOR_RUN_LAYOUT_CONTRAST_SPEC);
   record("vendor-run enabled layout contrast", true);
-  await page.getByTestId("vendor-run-bulk-deliver").click();
-  await page.getByRole("button", { name: "Confirm", exact: true }).click();
+  record(
+    "vendor-run has no global Delivered action or checkboxes",
+    (await page.getByTestId("vendor-run-bulk-deliver").count()) === 0 &&
+      (await page.locator('[data-testid^="vendor-run-row-"] input[type="checkbox"]').count()) ===
+        0,
+  );
+  await page.getByTestId("vendor-run-complete-verify-run-active-a").click();
   await page.waitForFunction(
     () =>
       document
@@ -928,14 +935,33 @@ try {
     { timeout: 20_000 },
   );
   record(
-    "bulk delivered row stays in the same position",
-    JSON.stringify(await rowOrder()) === JSON.stringify(expectedStableOrder),
+    "in-card completion sends only the expanded job id",
+    JSON.stringify(vendorRunCompleteRequests) ===
+      JSON.stringify([["verify-run-active-a"]]),
+    JSON.stringify(vendorRunCompleteRequests),
+  );
+  record(
+    "in-card completion changes only the selected row",
+    (await rowA.getAttribute("data-delivered")) === "true" &&
+      (await page
+        .getByTestId("vendor-run-row-verify-run-active-c")
+        .getAttribute("data-delivered")) === "false" &&
+      (await deliveredBFace.getAttribute("data-delivered")) === "true",
+  );
+  const expectedCompletedOrder = [
+    "verify-run-active-c",
+    "verify-run-active-a",
+    "verify-run-delivered-b",
+  ];
+  record(
+    "completed job moves behind unfinished jobs with delivered group",
+    JSON.stringify(await rowOrder()) === JSON.stringify(expectedCompletedOrder),
     (await rowOrder()).join(" → "),
   );
   record(
-    "bulk success collapses only delivered ids",
+    "job completion collapses the completed details",
     !(await detailsA.isVisible().catch(() => false)) &&
-      (await detailsC.isVisible()),
+      !(await detailsC.isVisible().catch(() => false)),
   );
   await assertReadableTextContrast(
     page,
@@ -944,7 +970,7 @@ try {
   record("vendor-run collapsed delivered row contrast", true);
   await page.getByTestId("vendor-run-toggle-verify-run-active-a").click();
   record(
-    "bulk delivered row expands with details",
+    "completed vendor-run row expands with details",
     await detailsA.isVisible(),
   );
   record(
@@ -963,10 +989,10 @@ try {
     { timeout: 20_000 },
   );
   record(
-    "vendor-run Undo restores expanded undelivered row in place",
-    JSON.stringify(await rowOrder()) === JSON.stringify(expectedStableOrder) &&
+    "vendor-run Undo restores expanded undelivered row in delivered-last order",
+    JSON.stringify(await rowOrder()) === JSON.stringify(expectedInitialOrder) &&
       (await detailsA.isVisible()) &&
-      (await rowA.locator('input[type="checkbox"]').isVisible()),
+      (await rowA.getByTestId("vendor-run-complete-verify-run-active-a").isVisible()),
     (await rowOrder()).join(" → "),
   );
 

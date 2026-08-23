@@ -148,13 +148,9 @@ export function LocationScanPage() {
   const [vendorRunDeliveries, setVendorRunDeliveries] = useState<
     VendorRunDeliverySummary[]
   >([]);
-  const [checkedDeliveryIds, setCheckedDeliveryIds] = useState<Set<string>>(
-    new Set(),
-  );
   const [expandedDeliveryIds, setExpandedDeliveryIds] = useState<Set<string>>(
     new Set(),
   );
-  const [confirmBulkOpen, setConfirmBulkOpen] = useState(false);
   const [scannedCode, setScannedCode] = useState<string | null>(null);
   const [deliveryDetails, setDeliveryDetails] =
     useState<DeliveryDetails | null>(null);
@@ -174,10 +170,6 @@ export function LocationScanPage() {
   );
   const [jobsRevalidating, setJobsRevalidating] = useState(false);
   const [isCatchAllParcelIntake, setIsCatchAllParcelIntake] = useState(false);
-
-  const activeVendorRun = useMemo(() => {
-    return vendorRunDeliveries.filter((d) => !d.vendorPhysicalDropoffConfirmed);
-  }, [vendorRunDeliveries]);
 
   const jobDeliveriesForList = useMemo(
     () => orderVendorJobsDeliveredLast(deliveries),
@@ -429,7 +421,6 @@ export function LocationScanPage() {
       setSessionScope("vendor");
       setVendorRunDeliveries(result.deliveries);
       setScannedCode(result.scannedStagingLocationCode);
-      setCheckedDeliveryIds(new Set());
       setExpandedDeliveryIds(() => {
         if (expansionUpdate) {
           const next = new Set(expansionUpdate.preserveExpandedIds);
@@ -818,7 +809,6 @@ export function LocationScanPage() {
     setDeliveryDetails(null);
     setDeliveries([]);
     setVendorRunDeliveries([]);
-    setCheckedDeliveryIds(new Set());
     if (jobId) clearJobPinSession(jobId);
     if (vendorId) clearVendorRunPinSession(vendorId);
     if (vendorId) clearVendorUnplannedPinSession(vendorId);
@@ -858,37 +848,14 @@ export function LocationScanPage() {
     return () => window.clearInterval(interval);
   }, [jobId, vendorId, technicianId, handlePinSessionExpired]);
 
-  const toggleChecked = (deliveryId: string, enabled: boolean) => {
-    if (!enabled) return;
-    setCheckedDeliveryIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(deliveryId)) next.delete(deliveryId);
-      else next.add(deliveryId);
-      return next;
-    });
-  };
-
   const toggleExpanded = (deliveryId: string) => {
-    setExpandedDeliveryIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(deliveryId)) next.delete(deliveryId);
-      else next.add(deliveryId);
-      return next;
-    });
+    setExpandedDeliveryIds((prev) =>
+      prev.has(deliveryId) ? new Set() : new Set([deliveryId]),
+    );
   };
 
-  const distinctJobsForChecked = useMemo(() => {
-    const names = new Set<string>();
-    for (const row of activeVendorRun) {
-      if (checkedDeliveryIds.has(row.deliveryId)) {
-        names.add(row.jobName);
-      }
-    }
-    return [...names].sort();
-  }, [activeVendorRun, checkedDeliveryIds]);
-
-  const handleBulkDeliver = async () => {
-    if (!vendorId || checkedDeliveryIds.size === 0) return;
+  const completeVendorRunDeliveries = async (deliveryIds: string[]) => {
+    if (!vendorId || deliveryIds.length === 0) return;
     if (vendorGeofenceEnforce && outsideGeofence) {
       setError("You must be at the shop to confirm delivery.");
       return;
@@ -901,7 +868,6 @@ export function LocationScanPage() {
     setLoading(true);
     setError(null);
     try {
-      const deliveryIds = [...checkedDeliveryIds];
       const result = await markVendorDeliveriesBulkClient({
         sessionToken: token,
         deliveryIds,
@@ -912,23 +878,27 @@ export function LocationScanPage() {
           .filter((row) => row.success)
           .map((row) => row.deliveryId),
       );
-      if (failed.length > 0) {
-        setError(
-          failed.map((f) => `${f.deliveryId}: ${f.error ?? "failed"}`).join("; "),
-        );
-      }
+      const failureMessage =
+        failed.length > 0
+          ? failed
+              .map((failure) =>
+                failure.error ?? "Delivery could not be completed.",
+              )
+              .join("; ")
+          : null;
       await loadVendorRunDeliveries(vendorId, {
         preserveExpandedIds: new Set(expandedDeliveryIds),
         collapseDeliveryIds: deliveredIds,
       });
-      setConfirmBulkOpen(false);
-      setCheckedDeliveryIds(new Set());
+      if (failureMessage) setError(failureMessage);
     } catch (err) {
       if (isVendorSessionError(err)) {
         handlePinSessionExpired();
         return;
       }
-      setError(err instanceof Error ? err.message : "Bulk deliver failed.");
+      setError(
+        err instanceof Error ? err.message : "Delivery could not be completed.",
+      );
     } finally {
       setLoading(false);
     }
@@ -1050,7 +1020,6 @@ export function LocationScanPage() {
     setSessionScope(null);
     setDeliveries([]);
     setVendorRunDeliveries([]);
-    setCheckedDeliveryIds(new Set());
     setExpandedDeliveryIds(new Set());
     setDeliveryDetails(null);
     setError(null);
@@ -1406,10 +1375,10 @@ export function LocationScanPage() {
             {runSession?.vendorName ? ` · ${runSession.vendorName}` : ""}
           </>
         }
-        helper="Check each order you delivered, then tap Delivered."
+        helper="Tap a job to review it, then complete that delivery."
         helperTestId="vendor-run-helper"
         footer={
-          <div className="space-y-2" data-testid="vendor-run-footer">
+          <div data-testid="vendor-run-footer">
             <button
               type="button"
               onClick={resetFlow}
@@ -1418,59 +1387,10 @@ export function LocationScanPage() {
             >
               ← Back
             </button>
-            <button
-              type="button"
-              disabled={loading || checkedDeliveryIds.size === 0}
-              onClick={() => setConfirmBulkOpen(true)}
-              className="action-btn action-btn-delivered w-full disabled:opacity-40"
-              style={{ backgroundColor: "#047857" }}
-              data-testid="vendor-run-bulk-deliver"
-            >
-              Delivered
-              {checkedDeliveryIds.size > 0
-                ? ` (${checkedDeliveryIds.size})`
-                : ""}
-            </button>
           </div>
         }
         overlay={
           <>
-            {confirmBulkOpen && (
-              <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-4 pb-6">
-                <div className="w-full max-w-sm rounded-2xl bg-bg-surface p-6 shadow-xl">
-                  <h2 className="text-lg font-bold text-text-primary mb-2">
-                    Confirm delivered
-                  </h2>
-                  <p className="text-sm text-text-secondary mb-3">
-                    Jobs in this batch:
-                  </p>
-                  <ul className="text-sm text-text-primary mb-6 list-disc pl-5 space-y-1">
-                    {distinctJobsForChecked.map((name) => (
-                      <li key={name}>{name}</li>
-                    ))}
-                  </ul>
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      className="action-btn action-btn-secondary flex-1"
-                      onClick={() => setConfirmBulkOpen(false)}
-                      disabled={loading}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className="action-btn action-btn-delivered flex-1"
-                      onClick={() => void handleBulkDeliver()}
-                      disabled={loading}
-                    >
-                      Confirm
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {runSession && (
               <p className="sr-only" data-testid="vendor-run-session-active">
                 vendor-run-session
@@ -1493,7 +1413,7 @@ export function LocationScanPage() {
             data-testid="vendor-run-card-list"
           >
             {vendorRunDeliveriesForList.map((row) => {
-            const canCheck = row.hasAssignableSpot;
+            const hasAssignableSpot = row.hasAssignableSpot;
             const expanded = expandedDeliveryIds.has(row.deliveryId);
             const delivered = row.vendorPhysicalDropoffConfirmed;
             const locationIdentity =
@@ -1509,19 +1429,7 @@ export function LocationScanPage() {
                 data-testid={`vendor-run-row-${row.deliveryId}`}
                 data-delivered={delivered ? "true" : "false"}
               >
-                <div
-                  className="vendor-compact-card-action-row flex items-start gap-2"
-                >
-                  {!delivered && (
-                    <input
-                      type="checkbox"
-                      className="vendor-compact-card-checkbox size-6 shrink-0 accent-[#047857]"
-                      checked={checkedDeliveryIds.has(row.deliveryId)}
-                      disabled={!canCheck || loading}
-                      aria-label={`Select ${row.jobName}`}
-                      onChange={() => toggleChecked(row.deliveryId, canCheck)}
-                    />
-                  )}
+                <div>
                   <button
                     type="button"
                     className="vendor-compact-card-toggle min-w-0 flex-1 text-left"
@@ -1541,7 +1449,7 @@ export function LocationScanPage() {
                       delivered={delivered}
                       expanded={expanded}
                       warning={
-                        !delivered && !canCheck
+                        !delivered && !hasAssignableSpot
                           ? "No spot — ask dispatch"
                           : undefined
                       }
@@ -1630,6 +1538,31 @@ export function LocationScanPage() {
                           {vendorRunRevertingId === row.deliveryId
                             ? "Reverting…"
                             : "Undo Delivery"}
+                        </button>
+                      </div>
+                    )}
+                    {!delivered && (
+                      <div className="vendor-run-detail-actions border-t border-border">
+                        <button
+                          type="button"
+                          disabled={!hasAssignableSpot || loading}
+                          onClick={() =>
+                            void completeVendorRunDeliveries([row.deliveryId])
+                          }
+                          className="action-btn action-btn-delivered w-full disabled:opacity-40"
+                          style={{ backgroundColor: "#047857" }}
+                          data-testid={`vendor-run-complete-${row.deliveryId}`}
+                        >
+                          {loading ? "Completing…" : "Complete delivery"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={loading}
+                          onClick={() => toggleExpanded(row.deliveryId)}
+                          className="action-btn action-btn-secondary w-full disabled:opacity-40"
+                          data-testid={`vendor-run-cancel-${row.deliveryId}`}
+                        >
+                          Cancel / Back
                         </button>
                       </div>
                     )}

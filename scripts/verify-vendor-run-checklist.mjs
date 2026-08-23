@@ -123,21 +123,38 @@ async function enterPin(page, digits) {
   record("Multi-job checklist shows ORD-005", body.includes(job1Order));
   record("Multi-job checklist shows ORD-006", body.includes(otherJobOrder));
 
-  const initialOrder = await page
-    .locator('[data-testid^="vendor-run-row-"]')
-    .evaluateAll((rows) =>
-      rows.map((row) => row.getAttribute("data-testid") ?? ""),
+  const deliveryState = async () =>
+    page.locator('[data-testid^="vendor-run-row-"]').evaluateAll((rows) =>
+      rows.map((row) => ({
+        testId: row.getAttribute("data-testid") ?? "",
+        delivered: row.getAttribute("data-delivered") === "true",
+      })),
     );
+  const deliveredLast = (rows) => {
+    const firstDelivered = rows.findIndex((row) => row.delivered);
+    return (
+      firstDelivered === -1 ||
+      rows.slice(firstDelivered).every((row) => row.delivered)
+    );
+  };
+  const initialState = await deliveryState();
+  record("PR #173 delivered-last ordering holds initially", deliveredLast(initialState));
+  record(
+    "Vendor-run has no global Delivered button or checkboxes",
+    (await page.getByTestId("vendor-run-bulk-deliver").count()) === 0 &&
+      (await page.locator('[data-testid^="vendor-run-row-"] input[type="checkbox"]').count()) ===
+        0,
+  );
   const selectedRow = page
     .locator('[data-testid^="vendor-run-row-"][data-delivered="false"]')
     .first();
   const selectedTestId = await selectedRow.getAttribute("data-testid");
-  const checkbox = selectedRow.locator('input[type="checkbox"]');
-  const disabled = await checkbox.isDisabled().catch(() => true);
+  const selectedId = selectedTestId?.replace("vendor-run-row-", "") ?? "";
+  await selectedRow.locator('[data-testid^="vendor-run-toggle-"]').click();
+  const completeButton = page.getByTestId(`vendor-run-complete-${selectedId}`);
+  const disabled = await completeButton.isDisabled().catch(() => true);
   if (!disabled) {
-    await checkbox.check();
-    await page.getByTestId("vendor-run-bulk-deliver").click();
-    await page.getByRole("button", { name: "Confirm", exact: true }).click();
+    await completeButton.click();
     await page.waitForFunction(
       (testId) =>
         document
@@ -146,19 +163,29 @@ async function enterPin(page, digits) {
       selectedTestId,
       { timeout: 30_000 },
     );
-    const afterOrder = await page
-      .locator('[data-testid^="vendor-run-row-"]')
-      .evaluateAll((rows) =>
-        rows.map((row) => row.getAttribute("data-testid") ?? ""),
-      );
+    const afterState = await deliveryState();
+    const initialById = new Map(
+      initialState.map((row) => [row.testId, row.delivered]),
+    );
     record(
-      "Bulk deliver keeps stable list order",
-      JSON.stringify(afterOrder) === JSON.stringify(initialOrder),
-      afterOrder.join(" → "),
+      "Complete delivery changes only the expanded job",
+      afterState.every((row) =>
+        row.testId === selectedTestId
+          ? row.delivered
+          : row.delivered === initialById.get(row.testId),
+      ),
+      afterState
+        .map((row) => `${row.testId}:${row.delivered ? "delivered" : "active"}`)
+        .join(" → "),
+    );
+    record(
+      "PR #173 delivered-last ordering holds after completion",
+      deliveredLast(afterState),
+      afterState.map((row) => row.testId).join(" → "),
     );
     const deliveredRow = page.getByTestId(selectedTestId);
     record(
-      "Bulk delivered row collapses",
+      "Completed job details collapse",
       (await deliveredRow
         .locator('[data-testid^="vendor-run-details-"]')
         .isVisible()
@@ -176,7 +203,11 @@ async function enterPin(page, digits) {
         .isVisible(),
     );
   } else {
-    record("Bulk deliver confirm dialog completes", true, "skipped — no assignable spot row");
+    record(
+      "In-card Complete delivery works",
+      true,
+      "skipped — no assignable spot row",
+    );
   }
 
   await page.screenshot({
