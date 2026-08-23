@@ -59,6 +59,24 @@ function assertUrl(page, pattern, label) {
   }
 }
 
+async function assertRootNotEmpty(page, label) {
+  const rootHtmlLen = await page.evaluate(
+    () => document.getElementById("root")?.innerHTML.length ?? 0,
+  );
+  if (rootHtmlLen === 0) {
+    throw new Error(`${label}: #root is empty (blank screen at ${page.url()})`);
+  }
+}
+
+async function assertVendorsRendered(page, label) {
+  await assertRootNotEmpty(page, label);
+  assertUrl(page, /\/vendors/, label);
+  await page.getByRole("heading", { name: "Vendors", exact: true }).waitFor({
+    timeout: 10_000,
+  });
+  await page.getByTestId("vendors-search").waitFor({ timeout: 10_000 });
+}
+
 /** Left edge x of vendor-communications-entry (stable across breadcrumb lengths). */
 async function vendorCommsEntryX(page) {
   const box = await page.getByTestId("vendor-communications-entry").boundingBox();
@@ -531,7 +549,35 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   });
   await page.getByTestId("add-vendor-email-domain").waitFor({ timeout: 10_000 });
   await page.getByTestId("vendors-search").waitFor({ timeout: 10_000 });
+  await assertVendorsRendered(page, "Vendors first click");
   console.log("PASS: Vendors page includes company/location + Email Domain fields.");
+
+  console.log("Vendors client-nav cycles (no reload)…");
+  await page.route("**/VendorsPage-*.js", (route) =>
+    route.fulfill({ status: 404, body: "not found" }),
+  );
+  for (let i = 1; i <= 3; i++) {
+    await nav
+      .getByRole("link", { name: "Dispatcher Dashboard", exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: "Delivery Overview" })
+      .waitFor({ timeout: 15_000 });
+    await nav.getByRole("link", { name: "Vendors", exact: true }).click();
+    await assertVendorsRendered(page, `Vendors cycle ${i}`);
+  }
+  console.log("PASS: Vendors re-renders on repeated client-side navigation.");
+
+  console.log("Vendors browser Back / Forward…");
+  await page.goBack();
+  await page
+    .getByRole("heading", { name: "Delivery Overview" })
+    .waitFor({ timeout: 15_000 });
+  assertUrl(page, /\/dispatcher/, "Back from Vendors");
+  await assertRootNotEmpty(page, "Back from Vendors");
+  await page.goForward();
+  await assertVendorsRendered(page, "Forward back to Vendors");
+  console.log("PASS: Vendors Back/Forward keep the page rendered.");
 
   console.log("Sidebar: Dispatcher Dashboard…");
   await nav
