@@ -56,3 +56,28 @@ export function consumeInvoiceApproveSuccessToast(): string | null {
     return null;
   }
 }
+
+/** After authoritative Drop-Off Confirm, hide this import from pending until portal refresh applies. */
+export const INVOICE_APPROVE_DISMISSED_ID_KEY =
+  "stageverify-invoice-approve-dismissed-id";
+
+export function stashInvoiceApproveDismissedImportId(importId: string): void {
+  const trimmed = importId.trim();
+  if (!trimmed) return;
+  try {
+    sessionStorage.setItem(INVOICE_APPROVE_DISMISSED_ID_KEY, trimmed);
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+export function consumeInvoiceApproveDismissedImportId(): string | null {
+  try {
+    const value = sessionStorage.getItem(INVOICE_APPROVE_DISMISSED_ID_KEY);
+    sessionStorage.removeItem(INVOICE_APPROVE_DISMISSED_ID_KEY);
+    const trimmed = value?.trim() ?? "";
+    return trimmed || null;
+  } catch {
+    return null;
+  }
+}

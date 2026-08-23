@@ -33,6 +33,7 @@ import {
 import {
   buildInvoiceApproveToastMessage,
   INVOICE_APPROVE_FLOW_STORAGE_KEY,
+  stashInvoiceApproveDismissedImportId,
   stashInvoiceApproveSuccessToast,
 } from "./dispatcher/invoice/invoiceApproveToast";
 import { resolveDeliveryPoNumber } from "./dispatcher/invoice/invoiceShellDisplayHelpers";
@@ -339,6 +340,7 @@ export function ZoneManagementPage() {
     handleRefreshNow,
     zonesSnapshot,
     refreshGeneration,
+    refreshPortalData,
   } = useDispatcherPortal();
   const [zones, setZones] = useState<StagingLocation[]>([]);
   const [occupancyByZoneCode, setOccupancyByZoneCode] = useState<
@@ -1202,7 +1204,9 @@ export function ZoneManagementPage() {
           stashInvoiceApproveSuccessToast(
             buildInvoiceApproveToastMessage(result, "delivery"),
           );
+          stashInvoiceApproveDismissedImportId(assignInvoiceImportId);
           setPendingAssignSpot(null);
+          await refreshPortalData();
           navigate("/dispatcher?focus=needs-review", { replace: true });
           return;
         }
@@ -1324,6 +1328,7 @@ export function ZoneManagementPage() {
     loadZones,
     navigate,
     pendingAssignSpot,
+    refreshPortalData,
     reassignMode,
     showAssignToast,
   ]);
