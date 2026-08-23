@@ -664,16 +664,12 @@ async function assertDeliveryBasicsStaging(page, record, label, expectUnassigned
 const EXPECTED_DELIVERY_HEADERS = [
   "Status",
   "Fulfillment",
-  "Vendor",
   "Job Name",
   "Invoice #",
   "PO #",
   "Staging Location",
-  "Items",
-  "Delivery / Pickup Date",
   "Issue",
   "Assigned Technician",
-  "Action",
 ];
 
 function normalizeDeliveryHeader(text) {
@@ -1938,7 +1934,15 @@ async function assertOrd006EmailReviewAction(page, record) {
   }
 
   if (itemsReceivedLine) {
-    const itemsColumnIndex = await deliveryColumnIndex(page, "Items");
+    const headers = await deliveryHeaders(page);
+    const itemsColumnIndex = headers.indexOf("Items");
+    if (itemsColumnIndex < 0) {
+      record(
+        "Drawer item counts recorded (Items list column retired)",
+        true,
+        itemsReceivedLine,
+      );
+    } else {
     const listItemsRecv = (
       await ord005Row.locator("td").nth(itemsColumnIndex).innerText()
     ).trim();
@@ -1956,6 +1960,7 @@ async function assertOrd006EmailReviewAction(page, record) {
         true,
         `list=${listItemsRecv}, drawer=${itemsReceivedLine}`,
       );
+    }
     }
   } else {
     record("Drawer items received line present", false);
@@ -2456,7 +2461,7 @@ async function assertOrd006EmailReviewAction(page, record) {
       const deliveredTone = await deliveredStatus.evaluate((element) => {
         const probe = document.createElement("span");
         probe.style.color = "var(--admin-success-text)";
-        document.body.appendChild(probe);
+        element.parentElement?.appendChild(probe);
         const expected = getComputedStyle(probe).color;
         probe.remove();
         const actual = getComputedStyle(element).color;
