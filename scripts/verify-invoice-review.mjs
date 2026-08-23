@@ -624,23 +624,30 @@ async function main() {
       await assertTrainingPanelContrast(page);
       await assertTrainingPanelNoOverlap(page);
 
-      // Approve fulfillment wizard — run before teach-chat CF (env may fail closed on propose).
-      await page.getByTestId("invoice-parsed-inspect-staging-panel").waitFor({
-        timeout: 5000,
-      });
-      const fulfillmentLabel = (
-        await page.getByTestId("invoice-parsed-inspect-fulfillment-label").innerText()
-      ).trim();
-      console.log(`PASS: staging panel fulfillment shown (${fulfillmentLabel})`);
-
-      const stagingNa = page.getByTestId("invoice-parsed-inspect-staging-na");
-      const isWillCall = /Will-Call/i.test(fulfillmentLabel);
-      if (isWillCall) {
-        if (!(await stagingNa.isVisible().catch(() => false))) {
-          throw new Error("Will-Call should show staging N/A copy");
-        }
-        console.log("PASS: Will-Call staging N/A");
+      // Approve fulfillment wizard — idle inspect must hide fulfillment/staging controls.
+      const stagingPanel = page.getByTestId("invoice-parsed-inspect-staging-panel");
+      if (await stagingPanel.isVisible().catch(() => false)) {
+        throw new Error("Leftover staging panel visible before Approve");
       }
+      console.log("PASS: no leftover staging panel before Approve");
+
+      const choiceBeforeApprove = page.getByTestId("invoice-approve-fulfillment-choice");
+      if (await choiceBeforeApprove.isVisible().catch(() => false)) {
+        throw new Error("Fulfillment choice visible before Approve");
+      }
+      console.log("PASS: fulfillment choice hidden before Approve");
+
+      const idleAssign = page.locator(
+        '[data-testid="invoice-parsed-inspect-staging-location-assign"]',
+      );
+      if (await idleAssign.isVisible().catch(() => false)) {
+        throw new Error("Assign Location visible before Approve");
+      }
+      console.log("PASS: no Assign Location before Approve");
+
+      await page.getByTestId("invoice-parsed-inspect-approve").waitFor({ timeout: 5000 });
+      await page.getByTestId("invoice-parsed-inspect-reject").waitFor({ timeout: 5000 });
+      console.log("PASS: Approve and Reject visible in idle inspect");
 
       const footerAssign = page.getByTestId("invoice-parsed-inspect-assign-location");
       if (await footerAssign.isVisible().catch(() => false)) {
@@ -664,63 +671,75 @@ async function main() {
           await page.getByTestId("invoice-approve-choice-willcall").waitFor({ timeout: 5000 });
           console.log("PASS: Approve opens fulfillment choice (Drop-Off + Will-Call)");
 
+          {
+            const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+            await assertReadableTextContrast(page, {
+              rootSelector: '[data-testid="invoice-parsed-inspect-modal"]',
+              elements: [
+                {
+                  name: "Fulfillment choice Drop-Off",
+                  selector: '[data-testid="invoice-approve-choice-dropoff"]',
+                  large: true,
+                },
+                {
+                  name: "Fulfillment choice Will-Call",
+                  selector: '[data-testid="invoice-approve-choice-willcall"]',
+                  large: true,
+                },
+              ],
+            });
+            console.log("PASS: fulfillment choice readable contrast");
+          }
+
           await page.getByTestId("invoice-approve-fulfillment-cancel").click();
           await choicePanel.waitFor({ state: "hidden", timeout: 5000 });
           await modalApproveBtn.waitFor({ timeout: 5000 });
           console.log("PASS: fulfillment Cancel returns to inspect");
 
-          if (isWillCall) {
-            await modalApproveBtn.click();
-            await choicePanel.waitFor({ timeout: 5000 });
-            await page.getByTestId("invoice-approve-choice-willcall").click();
-            await page.getByTestId("invoice-approve-willcall-confirm").waitFor({ timeout: 5000 });
-            console.log("PASS: Will-Call confirm step visible");
-            await page.getByTestId("invoice-approve-fulfillment-cancel").click();
-            await page.getByTestId("invoice-approve-willcall-confirm").waitFor({
-              state: "hidden",
-              timeout: 5000,
+          await modalApproveBtn.click();
+          await choicePanel.waitFor({ timeout: 5000 });
+          await page.getByTestId("invoice-approve-choice-willcall").click();
+          await page.getByTestId("invoice-approve-willcall-confirm").waitFor({ timeout: 5000 });
+          console.log("PASS: Will-Call confirm step visible");
+          await page.getByTestId("invoice-approve-fulfillment-cancel").click();
+          await page.getByTestId("invoice-approve-willcall-confirm").waitFor({
+            state: "hidden",
+            timeout: 5000,
+          });
+          console.log("PASS: Will-Call confirm Cancel returns to choice");
+
+          await page.getByTestId("invoice-approve-choice-dropoff").click();
+          await page
+            .getByTestId("invoice-parsed-inspect-actions")
+            .getByTestId("invoice-parsed-inspect-staging-needed")
+            .waitFor({ timeout: 5000 });
+          console.log("PASS: Drop-Off choice shows staging-needed banner");
+
+          {
+            const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+            await assertReadableTextContrast(page, {
+              rootSelector: '[data-testid="invoice-parsed-inspect-staging-needed"]',
+              elements: [
+                {
+                  name: "Wizard staging banner Assign Location",
+                  selector: '[data-testid="invoice-parsed-inspect-staging-location-assign"]',
+                },
+              ],
             });
-            console.log("PASS: Will-Call confirm Cancel returns to choice");
-          } else {
-            await modalApproveBtn.click();
-            await choicePanel.waitFor({ timeout: 5000 });
-            await page.getByTestId("invoice-approve-choice-dropoff").click();
-            await page
-              .getByTestId("invoice-parsed-inspect-actions")
-              .getByTestId("invoice-parsed-inspect-staging-needed")
-              .waitFor({ timeout: 5000 });
-            console.log("PASS: Drop-Off choice shows staging-needed banner");
-            await page.getByTestId("invoice-approve-fulfillment-cancel").click();
-            await page
-              .getByTestId("invoice-parsed-inspect-actions")
-              .getByTestId("invoice-parsed-inspect-staging-needed")
-              .waitFor({ state: "hidden", timeout: 5000 });
-            console.log("PASS: Drop-Off staging Cancel returns to choice");
+            console.log("PASS: Drop-Off staging banner readable contrast");
           }
+
+          await page.getByTestId("invoice-approve-fulfillment-cancel").click();
+          await page
+            .getByTestId("invoice-parsed-inspect-actions")
+            .getByTestId("invoice-parsed-inspect-staging-needed")
+            .waitFor({ state: "hidden", timeout: 5000 });
+          console.log("PASS: Drop-Off staging Cancel returns to choice");
         } else {
           console.log(
             `SKIP: modal Approve wizard (${approvalEligibleText}, disabled=${modalApproveDisabled})`,
           );
         }
-      }
-
-      {
-        const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
-        await assertReadableTextContrast(page, {
-          rootSelector: '[data-testid="invoice-parsed-inspect-modal"]',
-          elements: [
-            {
-              name: "Staging panel",
-              selector: '[data-testid="invoice-parsed-inspect-staging-panel"]',
-              large: true,
-            },
-            {
-              name: "Fulfillment label",
-              selector: '[data-testid="invoice-parsed-inspect-fulfillment-label"]',
-            },
-          ],
-        });
-        console.log("PASS: staging panel readable contrast");
       }
 
       if (await modalApproveBtn.isVisible().catch(() => false)) {
@@ -734,11 +753,11 @@ async function main() {
       }
 
       await page.screenshot({
-        path: resolve(screenshotDir, "after-invoice-review-staging-panel.png"),
+        path: resolve(screenshotDir, "after-invoice-review-approve-idle.png"),
         fullPage: false,
       });
       console.log(
-        "Screenshot: screenshots/invoice-review-verify/after-invoice-review-staging-panel.png",
+        "Screenshot: screenshots/invoice-review-verify/after-invoice-review-approve-idle.png",
       );
 
       try {
