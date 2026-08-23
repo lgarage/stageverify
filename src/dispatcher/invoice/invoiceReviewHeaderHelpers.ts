@@ -183,6 +183,46 @@ export function queueRowIssueSummary(importRow: VendorInvoiceImportReview): stri
   return incomplete ?? "";
 }
 
+const REVIEW_DATE_ONLY_OPTIONS: Intl.DateTimeFormatOptions = {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+};
+
+function formatLocalDateOnly(d: Date): string {
+  return d.toLocaleDateString(undefined, REVIEW_DATE_ONLY_OPTIONS);
+}
+
+function formatLocalMilitaryHm(d: Date): string {
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+function parseIsoTimestamp(iso: string | undefined): Date | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Approved invoices: authoritative `approvedAt` date + 24-hour local time.
+ * Missing/invalid `approvedAt` keeps date-only fallback — never fabricates a time.
+ */
+export function formatApprovedAtDisplay(
+  approvedAt: string | undefined,
+  fallbackDateIso?: string,
+): string {
+  const approved = parseIsoTimestamp(approvedAt);
+  if (approved) {
+    return `${formatLocalDateOnly(approved)} ${formatLocalMilitaryHm(approved)}`;
+  }
+  const fallback = parseIsoTimestamp(fallbackDateIso);
+  if (fallback) return formatLocalDateOnly(fallback);
+  if (fallbackDateIso) return fallbackDateIso.slice(0, 10);
+  return "—";
+}
+
 export function queueRowLineCount(importRow: VendorInvoiceImportReview): number {
   if (typeof importRow.parsedLineCount === "number") return importRow.parsedLineCount;
   return importRow.parsedLines?.length ?? 0;

@@ -686,11 +686,13 @@ async function main() {
             await choicePanel.waitFor({ timeout: 5000 });
             await page.getByTestId("invoice-approve-choice-dropoff").click();
             await page
+              .getByTestId("invoice-parsed-inspect-actions")
               .getByTestId("invoice-parsed-inspect-staging-needed")
               .waitFor({ timeout: 5000 });
             console.log("PASS: Drop-Off choice shows staging-needed banner");
             await page.getByTestId("invoice-approve-fulfillment-cancel").click();
             await page
+              .getByTestId("invoice-parsed-inspect-actions")
               .getByTestId("invoice-parsed-inspect-staging-needed")
               .waitFor({ state: "hidden", timeout: 5000 });
             console.log("PASS: Drop-Off staging Cancel returns to choice");
@@ -866,6 +868,74 @@ async function main() {
         throw new Error(`Unexpected linked delivery badge: ${badgeText}`);
       }
       console.log(`PASS: linked delivery badge shown (${badgeText})`);
+
+      const approvedAtCells = page.getByTestId("invoice-review-approved-at");
+      const approvedAtCount = await approvedAtCells.count();
+      if (approvedAtCount !== approvedRowCount) {
+        throw new Error(
+          `Expected ${approvedRowCount} approved-at cells, got ${approvedAtCount}`,
+        );
+      }
+      const dateTimeRe = /^[A-Z][a-z]{2} \d{1,2}, \d{4} \d{2}:\d{2}$/;
+      const dateOnlyRe = /^[A-Z][a-z]{2} \d{1,2}, \d{4}$/;
+      const displayedTimes = [];
+      for (let i = 0; i < approvedAtCount; i += 1) {
+        const text = (
+          await approvedAtCells
+            .nth(i)
+            .locator('[data-testid="invoice-review-field-value"]')
+            .innerText()
+        ).trim();
+        if (/\b(?:AM|PM)\b/i.test(text)) {
+          throw new Error(`Approved time must be 24-hour, got AM/PM: ${text}`);
+        }
+        if (dateTimeRe.test(text)) {
+          const match = text.match(/(\d{2}):(\d{2})$/);
+          const hour = Number(match?.[1]);
+          const minute = Number(match?.[2]);
+          if (hour > 23 || minute > 59) {
+            throw new Error(`Approved time out of range: ${text}`);
+          }
+          displayedTimes.push(text);
+        } else if (dateOnlyRe.test(text) || text === "—") {
+          console.log(`PASS: legacy/missing approvedAt stays date-only (${text})`);
+        } else {
+          throw new Error(`Unexpected approved date/time display: ${text}`);
+        }
+      }
+      const tooNarrow = await approvedAtCells.evaluateAll((els) =>
+        els.some((el) => {
+          const value = el.querySelector('[data-testid="invoice-review-field-value"]');
+          if (!value) return true;
+          const width = value.getBoundingClientRect().width;
+          return width < 130;
+        }),
+      );
+      if (tooNarrow) {
+        throw new Error("Approved date/time cell is too narrow to scan the 24-hour time");
+      }
+      if (displayedTimes.length > 0) {
+        console.log(
+          `PASS: ${displayedTimes.length} approved row(s) show date + 24-hour time (e.g. ${displayedTimes[0]})`,
+        );
+        const unique = new Set(displayedTimes);
+        if (displayedTimes.length >= 2 && unique.size >= 2) {
+          console.log("PASS: same-list approvals show distinct date/time values");
+        }
+      }
+      {
+        const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+        await assertReadableTextContrast(page, {
+          rootSelector: '[data-testid="invoice-review-approved-list"]',
+          elements: [
+            {
+              name: "Approved date/time",
+              selector: '[data-testid="invoice-review-approved-at"]',
+            },
+          ],
+        });
+        console.log("PASS: approved date/time readable contrast");
+      }
 
       await page.locator('[data-testid^="invoice-review-row-content-"]').first().click();
       await page.getByTestId("invoice-parsed-inspect-modal").waitFor({ timeout: 10_000 });
