@@ -18,6 +18,7 @@ import { AutoImportSuggestionBadge } from "./autoImportSuggestionUi";
 import { InvoiceParsedInspectModal } from "./InvoiceParsedInspectModal";
 import { reconcileParseWarningsForHeader } from "./reconcileParseWarningsForHeader";
 import {
+  formatApprovedAtDisplay,
   formatInvoiceHeaderField,
   matchUnavailableReason,
   queueRowIssueSummary,
@@ -268,9 +269,21 @@ function LinkedDeliveryBadge({ linkedDeliveryOrderId }: { linkedDeliveryOrderId?
   );
 }
 
-function FieldCell({ label, value }: { label: string; value: string }) {
+function FieldCell({
+  label,
+  value,
+  testId,
+  minWidth,
+  showFullValue,
+}: {
+  label: string;
+  value: string;
+  testId?: string;
+  minWidth?: number;
+  showFullValue?: boolean;
+}) {
   return (
-    <div style={{ minWidth: 0 }}>
+    <div style={{ minWidth: minWidth ?? 0 }} data-testid={testId}>
       <div style={{ color: "var(--admin-text-muted)", fontSize: 10, fontWeight: 600, textTransform: "uppercase" }}>
         {label}
       </div>
@@ -280,8 +293,8 @@ function FieldCell({ label, value }: { label: string; value: string }) {
           color: "var(--admin-text-data)",
           fontSize: 12,
           fontWeight: value === "—" ? 400 : 500,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
+          overflow: showFullValue ? "visible" : "hidden",
+          textOverflow: showFullValue ? undefined : "ellipsis",
           whiteSpace: "nowrap",
         }}
         title={value === "—" ? undefined : value}
@@ -937,7 +950,10 @@ export function InvoiceReviewPanel({
                       <>
                         <FieldCell
                           label="Approved"
-                          value={formatReviewDate(row.approvedAt, row.updatedAt)}
+                          value={formatApprovedAtDisplay(row.approvedAt, row.updatedAt)}
+                          testId="invoice-review-approved-at"
+                          minWidth={158}
+                          showFullValue
                         />
                         <div style={{ minWidth: 0, display: "flex", alignItems: "flex-end" }}>
                           <LinkedDeliveryBadge
