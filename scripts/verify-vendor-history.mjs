@@ -23,6 +23,10 @@ import { resolve } from "path";
 import { chromium } from "playwright";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import { assertReadableTextContrast } from "./lib/ui-text-contrast-lib.mjs";
+import {
+  readExplicitTestPin,
+  skipWithoutExplicitTestPin,
+} from "./lib/test-job-pin.mjs";
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -39,7 +43,7 @@ if (existsSync(envPath)) {
   }
 }
 
-const job1Pin = process.env.STAGEVERIFY_JOB1_PIN ?? "1234";
+const job1Pin = readExplicitTestPin("STAGEVERIFY_JOB1_PIN");
 const signLocationCode = process.env.STAGEVERIFY_SIGN_LOC ?? "G2";
 
 const appBase = resolveAppBase(baseUrl);
@@ -122,6 +126,9 @@ async function waitForHash(page, predicate, label, timeoutMs = 15_000) {
 }
 
 (async () => {
+  if (skipWithoutExplicitTestPin(job1Pin, "verify:vendor-history")) {
+    process.exit(0);
+  }
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },

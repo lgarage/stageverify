@@ -15,6 +15,10 @@ import { mkdirSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import { loadEnvLocal } from "./dispatcherVerifyHelpers.mjs";
+import {
+  readExplicitTestPin,
+  skipWithoutExplicitTestPin,
+} from "./lib/test-job-pin.mjs";
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getFirestore, updateDoc } from "firebase/firestore";
@@ -74,7 +78,20 @@ mkdirSync(outDir, { recursive: true });
 
 loadEnvLocal();
 
+const receivePin =
+  readExplicitTestPin("STAGEVERIFY_VENDOR_PIN") ??
+  readExplicitTestPin("STAGEVERIFY_JOB1_PIN");
+
 (async () => {
+  if (
+    skipWithoutExplicitTestPin(
+      receivePin,
+      "verify:receive",
+      "STAGEVERIFY_VENDOR_PIN or STAGEVERIFY_JOB1_PIN",
+    )
+  ) {
+    process.exit(0);
+  }
   try {
     execSync("node scripts/seed-vendor-pin-data.mjs", { stdio: "pipe" });
   } catch {
@@ -110,7 +127,7 @@ loadEnvLocal();
   if (await pinHeading.isVisible().catch(() => false)) {
     await assertReadableTextContrast(page, RECEIVE_PIN_GATE_CONTRAST_SPEC);
     console.log("D-42 PASS: receive PIN gate text contrast.");
-    for (const digit of "1234") {
+    for (const digit of receivePin) {
       await page.getByRole("button", { name: digit, exact: true }).click();
     }
     await page

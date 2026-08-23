@@ -18,6 +18,10 @@ import {
   loadEnvLocal,
   openDeliveryDrawerByDeepLink,
 } from "./dispatcherVerifyHelpers.mjs";
+import {
+  readExplicitTestPin,
+  skipWithoutExplicitTestPin,
+} from "./lib/test-job-pin.mjs";
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -34,7 +38,9 @@ const outDir = resolve(process.cwd(), "screenshots", "location-phase4");
 mkdirSync(outDir, { recursive: true });
 loadEnvLocal();
 
-const vendorPin = process.env.STAGEVERIFY_VENDOR_PIN ?? "1234";
+const vendorPin =
+  readExplicitTestPin("STAGEVERIFY_VENDOR_PIN") ??
+  readExplicitTestPin("STAGEVERIFY_JOB1_PIN");
 
 const results = [];
 
@@ -358,7 +364,21 @@ async function main() {
     await verifyPlannedStagingInteractive(page);
     await context.close();
     dispatcherContextClosed = true;
-    await verifyVendorNmsFlow(browser);
+    if (
+      skipWithoutExplicitTestPin(
+        vendorPin,
+        "verify:location-phase4 vendor NMS",
+        "STAGEVERIFY_VENDOR_PIN or STAGEVERIFY_JOB1_PIN",
+      )
+    ) {
+      record(
+        "vendor NMS PIN flow",
+        true,
+        "skipped — explicit test PIN required",
+      );
+    } else {
+      await verifyVendorNmsFlow(browser);
+    }
 
     record(
       "Occupancy conflict negative (scaffold)",

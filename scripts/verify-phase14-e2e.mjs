@@ -42,7 +42,6 @@ const forwardArgs = baseUrlOverride ? [`--base-url=${baseUrlOverride}`] : [];
 const DEMO_E2E_ENV = {
   STAGEVERIFY_RECEIVE_DELIVERY: "delivery-demo-vendor-1",
   STAGEVERIFY_VENDOR_ORDER: "ORD-005",
-  STAGEVERIFY_VENDOR_PIN: "1234",
   STAGEVERIFY_VENDOR_JOB: "Riverside Medical Center",
   STAGEVERIFY_VENDOR_PO: "PO-88390",
 };

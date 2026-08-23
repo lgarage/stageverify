@@ -1,6 +1,6 @@
 /**
  * Vendor post-PIN job-selection list polish (390 iPhone viewport).
- * Presentation + D-42 contrast + order-tap behavior. Job PIN 1234 @ G1.
+ * Presentation + D-42 contrast + order-tap behavior. Requires STAGEVERIFY_JOB1_PIN @ G1.
  *
  * Usage:
  *   npm run dev
@@ -12,6 +12,10 @@ import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import { assertReadableTextContrast } from "./lib/ui-text-contrast-lib.mjs";
+import {
+  readExplicitTestPin,
+  skipWithoutExplicitTestPin,
+} from "./lib/test-job-pin.mjs";
 
 const envPath = resolve(process.cwd(), ".env.local");
 if (existsSync(envPath)) {
@@ -23,7 +27,7 @@ if (existsSync(envPath)) {
 
 const baseUrl = process.env.STAGEVERIFY_BASE_URL ?? "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
-const jobPin = process.env.STAGEVERIFY_JOB1_PIN ?? "1234";
+const jobPin = readExplicitTestPin("STAGEVERIFY_JOB1_PIN");
 const loc = process.env.STAGEVERIFY_SIGN_LOC ?? "G1";
 const withPoOrder = process.env.STAGEVERIFY_VENDOR_ORDER ?? "ORD-005";
 const outDir = resolve(process.cwd(), "screenshots", "vendor-job-list");
@@ -46,6 +50,9 @@ async function enterPin(page, digits) {
 }
 
 async function main() {
+  if (skipWithoutExplicitTestPin(jobPin, "verify-vendor-job-list")) {
+    process.exit(0);
+  }
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },

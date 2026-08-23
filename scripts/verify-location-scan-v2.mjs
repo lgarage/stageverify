@@ -24,6 +24,10 @@ import {
 } from "firebase/firestore";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 import { assertReadableTextContrast } from "./lib/ui-text-contrast-lib.mjs";
+import {
+  readExplicitTestPin,
+  skipWithoutExplicitTestPin,
+} from "./lib/test-job-pin.mjs";
 
 const PROD_APP_BASE = "https://lgarage.github.io/stageverify";
 
@@ -56,7 +60,8 @@ if (!process.env.STAGEVERIFY_RECEIVE_DELIVERY) {
   process.env.STAGEVERIFY_RECEIVE_DELIVERY = "delivery-demo-vendor-1";
 }
 
-const job1Pin = process.env.STAGEVERIFY_JOB1_PIN ?? "1234";
+const job1Pin = readExplicitTestPin("STAGEVERIFY_JOB1_PIN");
+const job2Pin = readExplicitTestPin("STAGEVERIFY_JOB2_PIN");
 const job1Order = process.env.STAGEVERIFY_VENDOR_ORDER ?? "ORD-005";
 const otherJobOrder = process.env.STAGEVERIFY_OTHER_JOB_ORDER ?? "ORD-006";
 /** Ferguson (vendor-3) order at G2 — must not appear for job-1 Johnstone PIN session. */
@@ -76,6 +81,12 @@ const firebaseApp = initializeApp({
 /** CF findJobByPin fails when multiple jobs share the same pinCode query match. */
 async function ensureUniqueJobPinForLocationScan() {
   if (!email || !password) return;
+  if (!job1Pin) {
+    console.log(
+      "SKIP job PIN write — set STAGEVERIFY_JOB1_PIN (never the retired seed PIN, never a production company PIN)",
+    );
+    return;
+  }
   const auth = getAuth(firebaseApp);
   const db = getFirestore(firebaseApp);
   await signInWithEmailAndPassword(auth, email, password);
@@ -85,20 +96,20 @@ async function ensureUniqueJobPinForLocationScan() {
     { pinCode: job1Pin, updatedAt: now },
     { merge: true },
   );
-  await setDoc(
-    doc(db, "jobs", "job-2"),
-    { pinCode: "5678", updatedAt: now },
-    { merge: true },
-  );
+  if (job2Pin) {
+    await setDoc(
+      doc(db, "jobs", "job-2"),
+      { pinCode: job2Pin, updatedAt: now },
+      { merge: true },
+    );
+  }
   const dupSnap = await getDocs(
     query(collection(db, "jobs"), where("pinCode", "==", job1Pin)),
   );
   for (const jobDoc of dupSnap.docs) {
     if (jobDoc.id === "job-1") continue;
-    await setDoc(
-      jobDoc.ref,
-      { pinCode: "5891", updatedAt: now },
-      { merge: true },
+    throw new Error(
+      `Refusing to rewrite ${jobDoc.id} pinCode — duplicate of STAGEVERIFY_JOB1_PIN. Set a unique test fixture PIN.`,
     );
   }
 }
@@ -809,6 +820,9 @@ async function assertPermanentSignUrl(browser) {
 }
 
 (async () => {
+  if (skipWithoutExplicitTestPin(job1Pin, "verify:location-scan")) {
+    process.exit(0);
+  }
   await ensureUniqueJobPinForLocationScan();
 
   const browser = await chromium.launch({ headless: true });
@@ -850,7 +864,7 @@ async function assertPermanentSignUrl(browser) {
   const bodyAfterPin = await page.locator("body").innerText();
   if (/Invalid code/i.test(bodyAfterPin)) {
     throw new Error(
-      "Job PIN rejected (Invalid code) — run seed-vendor-pin-data or check duplicate job pinCode in Firestore",
+      "Job PIN rejected (Invalid code) — set STAGEVERIFY_JOB1_PIN to a unique test fixture PIN (never the retired seed PIN)",
     );
   }
   await page.waitForTimeout(1500);

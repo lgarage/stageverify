@@ -22,7 +22,6 @@ const jobs: Job[] = [
     materialOwnerName: "Dispatch Lead",
     createdAt: "2026-05-20T08:00:00Z",
     updatedAt: "2026-05-29T15:00:00Z",
-    pinCode: "1234",
   },
   {
     id: "job-2",
@@ -53,7 +52,6 @@ const vendors: Vendor[] = [
     contactPhone: "555-0101",
     email: "dispatch@johnstone.com",
     emailDomain: "johnstone.com",
-    pinCode: "1234",
     active: true,
     createdAt: "2026-05-01T08:00:00Z",
     updatedAt: "2026-06-08T12:00:00Z",

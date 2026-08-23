@@ -2,7 +2,6 @@ import { buildEslTagQrUrl } from "./receiveQrUrls";
 import { EslQrCode } from "./EslQrCode";
 
 const DEMO_DELIVERY_ID = "delivery-demo-vendor-1";
-const DEMO_PIN = "1234";
 
 const receiveQrUrl = buildEslTagQrUrl({
   deliveryId: DEMO_DELIVERY_ID,
@@ -27,7 +26,10 @@ export function VendorDemoScanPage() {
           <dt className="font-semibold text-text-secondary">Order</dt>
           <dd>ORD-005 (Johnstone Supply)</dd>
           <dt className="font-semibold text-text-secondary">PIN</dt>
-          <dd className="text-accent-red font-bold tracking-widest">{DEMO_PIN}</dd>
+          <dd>
+            Use the job PIN configured for this delivery. The old demo seed PIN
+            is retired.
+          </dd>
           <dt className="font-semibold text-text-secondary">After scan</dt>
           <dd>Enter PIN → confirm job &amp; PO → tap Mark Delivered</dd>
         </dl>
@@ -35,8 +37,8 @@ export function VendorDemoScanPage() {
           <li>Open iPhone Camera and point at this QR.</li>
           <li>Tap the banner → Safari opens the receive page.</li>
           <li>
-            Enter PIN <strong className="text-text-primary">{DEMO_PIN}</strong> on
-            the keypad.
+            Enter the configured job PIN on the keypad. Do not use a retired
+            seed code.
           </li>
           <li>
             Confirm the correct job and PO, then tap{" "}

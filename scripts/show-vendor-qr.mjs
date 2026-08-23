@@ -24,7 +24,7 @@ await browser.close();
 
 console.log(`QR screenshot: ${outPath}`);
 console.log(`Scan URL: ${url}`);
-console.log("PIN: 1234 (ORD-005)");
+console.log("PIN: use STAGEVERIFY_JOB1_PIN / the configured job PIN (retired seed PIN removed)");
 
 if (process.platform === "win32") {
   execSync(`cmd /c start ${url}`, { stdio: "ignore" });

@@ -82,7 +82,7 @@ V2 optional fields and forward-compatible stub types live in `src/dispatcher/mod
 
 **Vendor DELIVERED security (shipped 2026-06-20):** F1/F2 closed ? `markVendorDelivered` CF validates vendor session and writes physical evidence via Admin SDK; Firestore rules deny unauth positive evidence; `recalculateDeliveryReadiness` requires Firebase auth or delivery-scoped vendor session. Tests: `npm run test:mark-vendor-delivered`, `test:firestore-rules`.
 
-**Vendor PIN gate (shipped 2026-06-08):** 4-digit PIN keypad after QR scan on `/#/receive`. `verifyVendorPin` CF validates PIN against order?s vendor; `vendors` collection auth-only read; 15-minute session timeout; audit log in `pinVerificationEvents`. Demo: `vendor-1` PIN `1234` on `delivery-demo-vendor-1`.
+**Vendor PIN gate (shipped 2026-06-08):** 4-digit PIN keypad after QR scan on `/#/receive`. `verifyVendorPin` CF validates PIN against order?s vendor; `vendors` collection auth-only read; 15-minute session timeout; audit log in `pinVerificationEvents`. Demo: `vendor-1` / `delivery-demo-vendor-1` no longer ships a hardcoded seed PIN — use the configured company or job PIN.
 
 **Vendor public-path fix (shipped 2026-06-08):** Unauthenticated vendor receive no longer reads `vendors` for occupancy; `submitCheckin` / `updateStagingLocation` return `getDeliveryDetailsPublic` after write. E2E: `npm run verify:vendor-e2e`. Rules: `additionalStagingLocationIds` allowed on unauth delivery update (deploy rules separately).
 

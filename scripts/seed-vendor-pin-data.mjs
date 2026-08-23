@@ -1,5 +1,6 @@
 /**
- * Patches Firestore vendors with demo PINs and deliveries with vendorName.
+ * Patches demo staging locations and delivery vendorName fields.
+ * Does not write job or vendor PINs (retired seed PIN must not be recreated).
  * Requires STAGEVERIFY_TEST_EMAIL / STAGEVERIFY_TEST_PASSWORD in .env.local.
  *
  * Usage: node scripts/seed-vendor-pin-data.mjs
@@ -44,22 +45,6 @@ const app = initializeApp({
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-const vendors = [
-  {
-    id: "vendor-1",
-    pinCode: "1234",
-    active: true,
-    companyWideSessionEnabled: true,
-  },
-  { id: "vendor-2", pinCode: "2345", active: true },
-  { id: "vendor-3", pinCode: "3456", active: true },
-];
-
-const jobs = [
-  { id: "job-1", pinCode: "1234" },
-  { id: "job-2", pinCode: "5678" },
-];
-
 const stagingLocations = [
   { id: "staging-1", code: "G1", label: "Ground Spot 1", type: "ground", status: "Active", sortOrder: 1 },
   { id: "staging-2", code: "G2", label: "Ground Spot 2", type: "ground", status: "Active", sortOrder: 2 },
@@ -98,24 +83,6 @@ const now = new Date().toISOString();
 
 await signInWithEmailAndPassword(auth, email, password);
 
-for (const vendor of vendors) {
-  await setDoc(
-    doc(db, "vendors", vendor.id),
-    { pinCode: vendor.pinCode, active: vendor.active, updatedAt: now },
-    { merge: true },
-  );
-  console.log(`Patched vendor ${vendor.id}`);
-}
-
-for (const job of jobs) {
-  await setDoc(
-    doc(db, "jobs", job.id),
-    { pinCode: job.pinCode, updatedAt: now },
-    { merge: true },
-  );
-  console.log(`Patched job ${job.id} pinCode`);
-}
-
 for (const loc of stagingLocations) {
   await setDoc(
     doc(db, "stagingLocations", loc.id),
@@ -138,5 +105,5 @@ for (const delivery of deliveries) {
   console.log(`Patched delivery ${id}`);
 }
 
-console.log("Vendor PIN seed complete.");
+console.log("Vendor demo location/delivery seed complete (no PIN writes).");
 process.exit(0);
