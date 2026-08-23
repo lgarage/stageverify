@@ -830,7 +830,7 @@ export function InvoiceReviewPanel({
           <span style={{ fontWeight: 700, color: "var(--admin-text-label)", fontSize: 14 }}>
             {listHeading(filter)}
           </span>
-          {filter === "approved" && (
+          {isArchiveFilter(filter) && (
             <BackToReviewQueueButton
               onBackToReviewQueue={handleBackToReviewQueue}
               testId="invoice-review-back-to-queue-top"
