@@ -686,11 +686,13 @@ async function main() {
             await choicePanel.waitFor({ timeout: 5000 });
             await page.getByTestId("invoice-approve-choice-dropoff").click();
             await page
+              .getByTestId("invoice-parsed-inspect-actions")
               .getByTestId("invoice-parsed-inspect-staging-needed")
               .waitFor({ timeout: 5000 });
             console.log("PASS: Drop-Off choice shows staging-needed banner");
             await page.getByTestId("invoice-approve-fulfillment-cancel").click();
             await page
+              .getByTestId("invoice-parsed-inspect-actions")
               .getByTestId("invoice-parsed-inspect-staging-needed")
               .waitFor({ state: "hidden", timeout: 5000 });
             console.log("PASS: Drop-Off staging Cancel returns to choice");
@@ -878,7 +880,12 @@ async function main() {
       const dateOnlyRe = /^[A-Z][a-z]{2} \d{1,2}, \d{4}$/;
       const displayedTimes = [];
       for (let i = 0; i < approvedAtCount; i += 1) {
-        const text = (await approvedAtCells.nth(i).innerText()).trim();
+        const text = (
+          await approvedAtCells
+            .nth(i)
+            .locator('[data-testid="invoice-review-field-value"]')
+            .innerText()
+        ).trim();
         if (/\b(?:AM|PM)\b/i.test(text)) {
           throw new Error(`Approved time must be 24-hour, got AM/PM: ${text}`);
         }
