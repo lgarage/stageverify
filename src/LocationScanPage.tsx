@@ -101,9 +101,13 @@ import {
   deriveVendorItemLineStatus,
   deriveVendorOrderFulfillmentLabel,
   vendorFulfillmentTone,
-  vendorItemsHaveFulfillmentQty,
 } from "./dispatcher/vendorJobCardStatus";
 import { orderVendorJobsDeliveredLast } from "./dispatcher/vendorJobListOrder";
+import {
+  createVendorRunDetailsCache,
+  enrichVendorRunFulfillment,
+  vendorRunFulfillmentUsesPhysicalFallback,
+} from "./dispatcher/vendorRunFulfillmentHydration";
 
 type Step =
   | "loading"
@@ -130,45 +134,6 @@ interface VendorRunExpansionUpdate {
   collapseDeliveryIds: Set<string>;
 }
 
-async function enrichVendorRunFulfillment(
-  rows: VendorRunDeliverySummary[],
-  sessionToken: string,
-): Promise<VendorRunDeliverySummary[]> {
-  const missing = rows.filter(
-    (row) => !vendorItemsHaveFulfillmentQty(row.items),
-  );
-  if (missing.length === 0) return rows;
-  const byId = new Map<string, VendorRunDeliverySummary["items"]>();
-  await Promise.all(
-    missing.map(async (row) => {
-      try {
-        const details = await getVendorReceiveDetailsClient({
-          deliveryId: row.deliveryId,
-          sessionToken,
-        });
-        byId.set(
-          row.deliveryId,
-          details.items.map((item) => ({
-            id: item.id,
-            description: item.description,
-            qtyOrdered: item.qtyOrdered,
-            qtyReceived: item.qtyReceived,
-            qtyBackordered: item.qtyBackordered,
-            status: item.status,
-          })),
-        );
-      } catch {
-        // Keep list DTO when details are unavailable (legacy CF / mocks).
-      }
-    }),
-  );
-  if (byId.size === 0) return rows;
-  return rows.map((row) => {
-    const items = byId.get(row.deliveryId);
-    return items ? { ...row, items } : row;
-  });
-}
-
 export function LocationScanPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -188,6 +153,10 @@ export function LocationScanPage() {
     return readLocationScanHistoryView(new URLSearchParams(raw));
   }, [hashSearch, location.search]);
   const appliedDeliveryIdRef = useRef<string | null>(null);
+  const vendorRunDetailsCacheRef = useRef(createVendorRunDetailsCache());
+  const vendorRunInFlightRef = useRef<string | null>(null);
+  const vendorRunPaintedRef = useRef<string | null>(null);
+  const vendorRunLoadGenerationRef = useRef(0);
 
   const [step, setStep] = useState<Step>("loading");
   const [branding, setBranding] = useState<LocationBranding | null>(null);
@@ -468,17 +437,26 @@ export function LocationScanPage() {
       goToHistoryView({ kind: "pin" }, { replace: true });
       return;
     }
+    const isRefresh = Boolean(expansionUpdate);
+    if (
+      !isRefresh &&
+      (vendorRunInFlightRef.current === resolvedVendorId ||
+        vendorRunPaintedRef.current === resolvedVendorId)
+    ) {
+      return;
+    }
+    if (!isRefresh) {
+      vendorRunInFlightRef.current = resolvedVendorId;
+    }
+    const generation = ++vendorRunLoadGenerationRef.current;
     setLoading(true);
     setError(null);
     try {
       const result = await getVendorRunDeliveriesClient({ sessionToken: token });
-      const deliveries = await enrichVendorRunFulfillment(
-        result.deliveries,
-        token,
-      );
+      if (generation !== vendorRunLoadGenerationRef.current) return;
       setVendorId(resolvedVendorId);
       setSessionScope("vendor");
-      setVendorRunDeliveries(deliveries);
+      setVendorRunDeliveries(result.deliveries);
       setScannedCode(result.scannedStagingLocationCode);
       setExpandedDeliveryIds(() => {
         if (expansionUpdate) {
@@ -491,14 +469,32 @@ export function LocationScanPage() {
         return new Set();
       });
       setStep("vendor-list");
+      vendorRunPaintedRef.current = resolvedVendorId;
+      setLoading(false);
+
+      const deliveries = await enrichVendorRunFulfillment(
+        result.deliveries,
+        token,
+        getVendorReceiveDetailsClient,
+        vendorRunDetailsCacheRef.current,
+      );
+      if (generation !== vendorRunLoadGenerationRef.current) return;
+      setVendorRunDeliveries(deliveries);
     } catch (err) {
+      if (generation !== vendorRunLoadGenerationRef.current) return;
       setError(
         err instanceof Error ? err.message : "Could not load vendor deliveries.",
       );
+      vendorRunPaintedRef.current = null;
       clearVendorRunPinSession(resolvedVendorId);
       goToHistoryView({ kind: "pin" }, { replace: true });
     } finally {
-      setLoading(false);
+      if (vendorRunInFlightRef.current === resolvedVendorId) {
+        vendorRunInFlightRef.current = null;
+      }
+      if (generation === vendorRunLoadGenerationRef.current) {
+        setLoading(false);
+      }
     }
   }, [goToHistoryView]);
 
@@ -868,6 +864,10 @@ export function LocationScanPage() {
     setDeliveryDetails(null);
     setDeliveries([]);
     setVendorRunDeliveries([]);
+    vendorRunDetailsCacheRef.current = createVendorRunDetailsCache();
+    vendorRunInFlightRef.current = null;
+    vendorRunPaintedRef.current = null;
+    vendorRunLoadGenerationRef.current += 1;
     if (jobId) clearJobPinSession(jobId);
     if (vendorId) clearVendorRunPinSession(vendorId);
     if (vendorId) clearVendorUnplannedPinSession(vendorId);
@@ -1073,6 +1073,10 @@ export function LocationScanPage() {
     setSessionScope(null);
     setDeliveries([]);
     setVendorRunDeliveries([]);
+    vendorRunDetailsCacheRef.current = createVendorRunDetailsCache();
+    vendorRunInFlightRef.current = null;
+    vendorRunPaintedRef.current = null;
+    vendorRunLoadGenerationRef.current += 1;
     setExpandedDeliveryIds(new Set());
     setVendorRunIssueTarget(null);
     setVendorRunIssueReportedIds(new Set());
@@ -1488,7 +1492,9 @@ export function LocationScanPage() {
               items: row.items,
               deliveryStatus: row.status,
               vendorPhysicalDropoffConfirmed:
-                row.vendorPhysicalDropoffConfirmed,
+                vendorRunFulfillmentUsesPhysicalFallback(row.items)
+                  ? row.vendorPhysicalDropoffConfirmed
+                  : false,
             });
             const fulfillmentTone = vendorFulfillmentTone(fulfillmentLabel);
             const locationIdentity =
