@@ -73,6 +73,7 @@
 **Shipped (2026-08-10):** Delivery Details 2×2 Fulfillment/Status controls + Dispatcher Deliveries table column simplification (v0.0.281) — Status dropdown removed; row-click opens drawer; no desktop H-scroll; FE-only; D-80 / Will-Call derived category unchanged.
 **Shipped (2026-08-09):** Will-Call / Pickup pink Dispatcher category (v0.0.279 / PR #127) on D-80 staging release (v0.0.278) — derived category (not new status enum); reverse Drop-Off never restores prior spot; FE-only this PR.
 **Shipped (2026-08-09):** Delivery Details staging-needed card consistency (v0.0.277) — Vendor Drop-Off + no resolvable active staging always shows STAGING LOCATION NEEDED / Assign Location; FE-only.
+**Shipped (2026-08-23):** Staging Map status-color legend beside View − / 100% / + / Fit (v0.0.320) — FE-only relocate of existing `shop-map-legend`; labels/colors/zoom/assignment unchanged.
 **Shipped (2026-08-09):** Staging Map action buttons into map guide header (v0.0.276) — FE-only vertical relocate; zoom/canvas unchanged.
 **Shipped (2026-08-09):** Staging Map view zoom + logical canvas size (v0.0.273) — session View zoom + edit Canvas W×H; FE-only.
 **Shipped (2026-08-09):** Staging Map assign-mode auto-exit after successful Assign Location confirm — **v0.0.267** gh-pages FE-only; merge `804c74c8`; prod A–H PASS.
