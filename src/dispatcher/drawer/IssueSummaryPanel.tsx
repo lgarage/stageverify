@@ -6,20 +6,7 @@ import {
   ITEM_ISSUE_STATUS_COLOR,
   type ItemIssueDisplayStatus,
 } from "../deliveryDisplayHelpers";
-import { useVendorInvoicePdfViewer } from "../invoice/useVendorInvoicePdfViewer";
 import { DeliverToSitePanel } from "./DeliverToSitePanel";
-
-const VIEW_PDF_BTN = {
-  backgroundColor: "var(--admin-surface)",
-  color: "var(--admin-accent-soft)",
-  border: "1px solid var(--admin-accent)",
-  borderRadius: 6,
-  padding: "6px 12px",
-  fontWeight: 600,
-  fontSize: 12,
-  fontFamily: "inherit",
-  cursor: "pointer",
-} as const;
 
 const BACKORDERED_BADGE = {
   display: "inline-block",
@@ -56,15 +43,6 @@ export function IssueSummaryPanel({
   ) => Promise<void>;
 }) {
   const [receivedExpanded, setReceivedExpanded] = useState(false);
-  const vendorInvoiceImportId = details.delivery.vendorInvoiceImportId?.trim() ?? "";
-  const { viewPdf, isLoading: pdfLoading, unavailableMessage: pdfUnavailableMessage } =
-    useVendorInvoicePdfViewer();
-  const pdfUnavailable = vendorInvoiceImportId
-    ? pdfUnavailableMessage(vendorInvoiceImportId)
-    : null;
-  const pdfBusy = vendorInvoiceImportId
-    ? pdfLoading(vendorInvoiceImportId)
-    : false;
 
   const summary = useMemo(
     () =>
@@ -95,10 +73,6 @@ export function IssueSummaryPanel({
           color: "var(--admin-text-muted)",
           textTransform: "uppercase",
           letterSpacing: "0.10em",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
         }}
       >
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -114,58 +88,7 @@ export function IssueSummaryPanel({
           />
           Order Summary
         </span>
-        {vendorInvoiceImportId ? (
-          <button
-            type="button"
-            data-testid="delivery-drawer-view-original-pdf"
-            disabled={pdfBusy || Boolean(pdfUnavailable)}
-            title={
-              pdfUnavailable ??
-              "Open the vendor invoice PDF in a new browser tab"
-            }
-            onClick={() => void viewPdf(vendorInvoiceImportId)}
-            style={{
-              ...VIEW_PDF_BTN,
-              fontFamily: font,
-              cursor:
-                pdfBusy || pdfUnavailable ? "not-allowed" : "pointer",
-              opacity: pdfBusy || pdfUnavailable ? 0.55 : 1,
-              flexShrink: 0,
-            }}
-          >
-            {pdfBusy ? "Loading PDF…" : "View original PDF"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            data-testid="delivery-drawer-view-original-pdf"
-            disabled
-            title="No linked invoice import — PDF unavailable"
-            style={{
-              ...VIEW_PDF_BTN,
-              fontFamily: font,
-              cursor: "not-allowed",
-              opacity: 0.45,
-              flexShrink: 0,
-            }}
-          >
-            View original PDF
-          </button>
-        )}
       </h3>
-      {pdfUnavailable ? (
-        <p
-          data-testid="delivery-drawer-pdf-unavailable"
-          style={{
-            margin: "0 0 10px",
-            fontSize: 12,
-            color: "var(--admin-warning-text)",
-            lineHeight: 1.4,
-          }}
-        >
-          {pdfUnavailable}
-        </p>
-      ) : null}
 
       <div
         style={{

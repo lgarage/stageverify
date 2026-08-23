@@ -15,6 +15,7 @@ import { ISSUE_RESOLUTION_TYPE_LABEL, type IssueResolutionType } from "../models
 import type { DeliveryDetails, DeliveryStatus, StagingLocation } from "../index";
 import { useDispatcherPortal } from "../DispatcherPortalContext";
 import { DetailContent } from "./DeliveryDetailContent";
+import { ViewOriginalPdfButton } from "./ViewOriginalPdfButton";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -462,8 +463,9 @@ export function DeliveryDetailDrawer({
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "space-between",
+            gap: 16,
             padding: "15px 20px",
             borderBottom: "1px solid var(--admin-border)",
             position: "sticky",
@@ -495,25 +497,42 @@ export function DeliveryDetailDrawer({
               Click outside or press Esc to close
             </p>
           </div>
-          <button
-            type="button"
-            className="admin-btn"
-            onClick={onClose}
+          <div
             style={{
-              padding: "0 14px",
-              border: "1px solid var(--admin-border)",
-              borderRadius: "var(--admin-control-radius)",
-              backgroundColor: "var(--admin-surface-2)",
-              color: "var(--admin-text)",
-              fontWeight: 700,
-              fontSize: 12,
-              cursor: "pointer",
-              outline: "none",
-              fontFamily: FONT,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-end",
+              gap: 8,
+              flexShrink: 0,
             }}
           >
-            ✕ Close
-          </button>
+            <button
+              type="button"
+              className="admin-btn"
+              data-testid="delivery-drawer-close"
+              onClick={onClose}
+              style={{
+                padding: "0 14px",
+                border: "1px solid var(--admin-border)",
+                borderRadius: "var(--admin-control-radius)",
+                backgroundColor: "var(--admin-surface-2)",
+                color: "var(--admin-text)",
+                fontWeight: 700,
+                fontSize: 12,
+                cursor: "pointer",
+                outline: "none",
+                fontFamily: FONT,
+              }}
+            >
+              ✕ Close
+            </button>
+            <ViewOriginalPdfButton
+              vendorInvoiceImportId={
+                selectedDetails?.delivery.vendorInvoiceImportId
+              }
+              font={FONT}
+            />
+          </div>
         </div>
 
         <div style={{ padding: "var(--admin-space-5)", flex: 1 }}>

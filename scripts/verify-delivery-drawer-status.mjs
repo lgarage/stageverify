@@ -206,6 +206,46 @@ const ASSIGN_LOCATION_CONTRAST = {
   const basicsCard = page.getByTestId("delivery-basics-card");
   await basicsCard.waitFor({ timeout: 20_000 });
 
+  const pdfButtons = page.getByTestId("delivery-drawer-view-original-pdf");
+  const pdfCount = await pdfButtons.count();
+  if (pdfCount !== 1) {
+    throw new Error(
+      `FAIL: Expected exactly one View original PDF button, got ${pdfCount}`,
+    );
+  }
+  const closeBtn = page.getByTestId("delivery-drawer-close");
+  if ((await closeBtn.count()) !== 1) {
+    throw new Error("FAIL: Delivery drawer Close control missing");
+  }
+  const closeBox = await closeBtn.boundingBox();
+  const pdfBox = await pdfButtons.boundingBox();
+  const basicsBox = await basicsCard.boundingBox();
+  if (!closeBox || !pdfBox || !basicsBox) {
+    throw new Error("FAIL: Close / PDF / Delivery Basics boxes missing");
+  }
+  if (pdfBox.y < closeBox.y + closeBox.height) {
+    throw new Error(
+      `FAIL: View original PDF must sit below Close (close bottom=${Math.round(closeBox.y + closeBox.height)}, PDF y=${Math.round(pdfBox.y)})`,
+    );
+  }
+  if (pdfBox.y + pdfBox.height > basicsBox.y) {
+    throw new Error(
+      `FAIL: View original PDF must sit above Delivery Basics (PDF bottom=${Math.round(pdfBox.y + pdfBox.height)}, basics y=${Math.round(basicsBox.y)})`,
+    );
+  }
+  console.log("PASS: View original PDF is below Close and above Delivery Basics");
+  await assertReadableTextContrast(page, {
+    rootSelector: '[data-testid="delivery-detail-drawer"]',
+    elements: [
+      {
+        name: "View original PDF button",
+        selector: '[data-testid="delivery-drawer-view-original-pdf"]',
+        large: false,
+      },
+    ],
+  });
+  console.log("PASS: View original PDF readable contrast (D-42)");
+
   if ((await page.getByTestId("delivery-status-dropdown").count()) > 0) {
     throw new Error(
       "FAIL: Legacy Status dropdown should be removed — 2×2 Fulfillment/Status grid replaces it.",

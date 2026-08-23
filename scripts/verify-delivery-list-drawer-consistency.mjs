@@ -364,10 +364,56 @@ async function assertOrderSummaryWillCallUi(page, record) {
 
   const pdfBtn = page.getByTestId("delivery-drawer-view-original-pdf");
   record(
-    "ORD-002 — View original PDF button in Order Summary header",
-    (await pdfBtn.count()) > 0,
+    "ORD-002 — View original PDF button in sticky drawer header",
+    (await pdfBtn.count()) === 1,
   );
   if ((await pdfBtn.count()) > 0) {
+    const closeBtn = page.getByTestId("delivery-drawer-close");
+    const basicsCard = page.getByTestId("delivery-basics-card");
+    record(
+      "ORD-002 — drawer Close control present",
+      (await closeBtn.count()) === 1,
+    );
+    const closeBox = await closeBtn.boundingBox();
+    const pdfBox = await pdfBtn.boundingBox();
+    const basicsBox = await basicsCard.boundingBox();
+    record(
+      "ORD-002 — View original PDF is below Close",
+      Boolean(
+        closeBox &&
+          pdfBox &&
+          pdfBox.y >= closeBox.y + closeBox.height,
+      ),
+      `close bottom=${closeBox ? Math.round(closeBox.y + closeBox.height) : "?"}, PDF y=${pdfBox ? Math.round(pdfBox.y) : "?"}`,
+    );
+    record(
+      "ORD-002 — View original PDF is above Delivery Basics",
+      Boolean(
+        pdfBox &&
+          basicsBox &&
+          pdfBox.y + pdfBox.height <= basicsBox.y,
+      ),
+      `PDF bottom=${pdfBox ? Math.round(pdfBox.y + pdfBox.height) : "?"}, basics y=${basicsBox ? Math.round(basicsBox.y) : "?"}`,
+    );
+    try {
+      await assertReadableTextContrast(page, {
+        rootSelector: '[data-testid="delivery-detail-drawer"]',
+        elements: [
+          {
+            name: "View original PDF button",
+            selector: '[data-testid="delivery-drawer-view-original-pdf"]',
+            large: false,
+          },
+        ],
+      });
+      record("ORD-002 — View original PDF readable contrast (D-42)", true);
+    } catch (err) {
+      record(
+        "ORD-002 — View original PDF readable contrast (D-42)",
+        false,
+        err instanceof Error ? err.message : String(err),
+      );
+    }
     record(
       "ORD-002 — View original PDF disabled without import id",
       await pdfBtn.isDisabled(),
