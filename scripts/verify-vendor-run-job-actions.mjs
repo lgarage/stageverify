@@ -167,14 +167,22 @@ async function enterPin(page, digits) {
   });
   await page.route("**/getVendorReceiveDetails", async (route) => {
     const requestBody = JSON.parse(route.request().postData() ?? "{}");
-    vendorReceiveDetailsIds.push(requestBody.data?.deliveryId ?? "");
+    const deliveryId = requestBody.data?.deliveryId ?? "";
+    vendorReceiveDetailsIds.push(deliveryId);
+    const row = vendorRunRows.find((entry) => entry.deliveryId === deliveryId);
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 250));
     vendorReceiveDetailsFinished += 1;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        result: { items: [] },
+        result: {
+          items: (row?.items ?? []).map((item) => ({
+            ...item,
+            qtyReceived: item.qtyReceived ?? 0,
+            qtyBackordered: item.qtyBackordered ?? 0,
+          })),
+        },
       }),
     });
   });
