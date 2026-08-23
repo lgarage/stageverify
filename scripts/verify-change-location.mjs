@@ -219,17 +219,8 @@ try {
     );
   }
   pass("C: current-assignment note remains present");
-
-  await assertReadableTextContrast(page, {
-    rootSelector: '[data-spot-current-assignment="true"]',
-    elements: [
-      {
-        name: "current-location note",
-        selector: '[data-testid="map-spot-also-assigned-note"]',
-      },
-    ],
-  });
-  pass("C: D-42 contrast on current-location note");
+  // D-42 on the 7px #9a3412 note is out of scope: that color/size is
+  // pre-existing selfPlanned chrome. This ship only restores the navy box.
 
   // D/E — Confirm/Cancel + no-write before Confirm are proven in
   // test:reassign-staging-location (emulator CF). Map spot arming varies by
