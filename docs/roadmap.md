@@ -64,7 +64,7 @@
 
 **Shipped (2026-08-18):** Vendor location-scan Safari history (**v0.0.293**) — PIN → deliveries → order are real `#/s?loc=` history views; leftover `#/receive` recovery is collapsed on QR entry; hash canonicalize uses replaceState. FE-only.
 
-**In flight (2026-08-10):** **D-84–D-90 receiving/readiness** — Slice 1 exception-oriented vendor Delivered qty SoT on `cursor/receiving-readiness-d84-slice1-c86f` (**v0.0.287**); CF `markVendorDelivered` / bulk + hub exception panel; **CF/rules/gh-pages deploy NOT approved**. Next slices: Unplanned→CA (D-85), auto-Ready (D-84), manual Ready (D-87).
+**ACCEPTED (2026-08-23):** **D-84–D-90 Slice 1** exception-oriented vendor Delivered qty SoT — merge `8edb97b0`; CF `markVendorDelivered` + `markVendorDeliveriesBulk` hash `f290df0f…`; live FE tip **v0.0.299** `index-COJk17Xg.js`; manual acceptance PASS (8/2 exceptions, no-clobber retry, Ready not forced). Next slices (not started): Unplanned→CA (D-85), auto-Ready (D-84), manual Ready (D-87).
 
 **Shipped (2026-08-09):** Settings PIN visit-scoped green **PIN # updated** row badge (right of Deactivate; clears on leave Settings; toast `New PIN saved` kept) — **v0.0.271** gh-pages FE-only; no CF/rules.
 
