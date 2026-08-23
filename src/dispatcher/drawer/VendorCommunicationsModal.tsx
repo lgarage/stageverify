@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { DeliveryListRow, Vendor, VendorEmailEvent } from "../models";
+import type { DeliveryListRow, Vendor } from "../models";
 import { listVendorEmailEventsForDelivery } from "../firestoreService";
 import { formatVendorDisplayName } from "../vendorDisplayName";
 import {
@@ -9,6 +9,11 @@ import {
   primaryRecipientFromEvents,
   replySubjectFromInbound,
 } from "../email/vendorEmailComposeHelpers";
+import {
+  loadLinkedInvoiceSourceEmail,
+  mergeVendorConversationHistory,
+  type VendorConversationHistoryItem,
+} from "../email/vendorConversationHistory";
 import {
   DRAWER_MODAL_INPUT_STYLE,
   DRAWER_MODAL_LABEL_STYLE,
@@ -20,10 +25,9 @@ function isValidEmail(value: string): boolean {
   return trimmed.length > 0 && trimmed.length <= 254 && trimmed.includes("@");
 }
 
-function formatEventWhen(event: VendorEmailEvent): string {
-  const iso = event.sentAt ?? event.receivedAt ?? event.createdAt;
+function formatHistoryWhen(timestamp: string): string {
   try {
-    return new Date(iso).toLocaleString(undefined, {
+    return new Date(timestamp).toLocaleString(undefined, {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -31,7 +35,7 @@ function formatEventWhen(event: VendorEmailEvent): string {
       minute: "2-digit",
     });
   } catch {
-    return iso;
+    return timestamp;
   }
 }
 
@@ -102,7 +106,9 @@ export function VendorCommunicationsModal({
     references?: string[];
   }>({});
   const [eventsLoading, setEventsLoading] = useState(false);
-  const [historyEvents, setHistoryEvents] = useState<VendorEmailEvent[]>([]);
+  const [historyItems, setHistoryItems] = useState<VendorConversationHistoryItem[]>(
+    [],
+  );
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
 
@@ -293,22 +299,33 @@ export function VendorCommunicationsModal({
 
   useEffect(() => {
     if (!open || !deliveryOrderId) {
-      setHistoryEvents([]);
+      setHistoryItems([]);
       setHistoryError(null);
       setHistoryLoading(false);
       return;
     }
 
+    const vendorInvoiceImportId = sortedDeliveries.find(
+      (d) => d.deliveryId === deliveryOrderId,
+    )?.vendorInvoiceImportId;
+
     let cancelled = false;
     setHistoryLoading(true);
     setHistoryError(null);
-    void listVendorEmailEventsForDelivery(deliveryOrderId)
-      .then((events) => {
-        if (!cancelled) setHistoryEvents(events);
+    void Promise.all([
+      listVendorEmailEventsForDelivery(deliveryOrderId),
+      loadLinkedInvoiceSourceEmail(vendorInvoiceImportId),
+    ])
+      .then(([events, invoiceSourceEmail]) => {
+        if (!cancelled) {
+          setHistoryItems(
+            mergeVendorConversationHistory({ events, invoiceSourceEmail }),
+          );
+        }
       })
       .catch(() => {
         if (!cancelled) {
-          setHistoryEvents([]);
+          setHistoryItems([]);
           setHistoryError("Conversation history could not be loaded.");
         }
       })
@@ -319,7 +336,7 @@ export function VendorCommunicationsModal({
     return () => {
       cancelled = true;
     };
-  }, [open, deliveryOrderId]);
+  }, [open, deliveryOrderId, sortedDeliveries]);
 
   const parsedCc = useMemo(
     () =>
@@ -817,7 +834,7 @@ export function VendorCommunicationsModal({
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {historyEvents.length} message{historyEvents.length === 1 ? "" : "s"}
+                  {historyItems.length} message{historyItems.length === 1 ? "" : "s"}
                 </span>
               ) : null}
             </div>
@@ -846,7 +863,7 @@ export function VendorCommunicationsModal({
               <p style={{ color: "var(--admin-danger-text)", fontSize: 13 }}>
                 {historyError}
               </p>
-            ) : historyEvents.length === 0 ? (
+            ) : historyItems.length === 0 ? (
               <div
                 style={{
                   padding: "28px 18px",
@@ -872,16 +889,15 @@ export function VendorCommunicationsModal({
                   gap: 10,
                 }}
               >
-                {historyEvents.map((event) => {
-                  const outbound = event.direction === "outbound";
-                  const preview =
-                    event.bodyText?.trim() ||
-                    event.bodyExcerpt?.trim() ||
-                    event.snippet?.trim() ||
-                    "No message preview available.";
+                {historyItems.map((item) => {
+                  const outbound = item.direction === "outbound";
+                  const preview = item.preview;
+                  const addressLine = outbound
+                    ? item.recipientEmails
+                    : item.senderEmail;
                   return (
                     <li
-                      key={event.id}
+                      key={item.id}
                       style={{
                         padding: "12px 13px",
                         border: "1px solid var(--admin-border)",
@@ -922,9 +938,21 @@ export function VendorCommunicationsModal({
                             textAlign: "right",
                           }}
                         >
-                          {formatEventWhen(event)}
+                          {formatHistoryWhen(item.timestamp)}
                         </span>
                       </div>
+                      {addressLine ? (
+                        <div
+                          style={{
+                            marginBottom: 5,
+                            color: "var(--admin-text-muted)",
+                            fontSize: 11,
+                            lineHeight: 1.35,
+                          }}
+                        >
+                          {outbound ? `To: ${addressLine}` : `From: ${addressLine}`}
+                        </div>
+                      ) : null}
                       <div
                         style={{
                           marginBottom: 5,
@@ -934,7 +962,7 @@ export function VendorCommunicationsModal({
                           lineHeight: 1.35,
                         }}
                       >
-                        {event.subject || "(No subject)"}
+                        {item.subject}
                       </div>
                       <p
                         style={{

@@ -569,6 +569,7 @@ export class FirestoreDataService implements DispatcherDataService {
         creditReturnLinked,
         unplanned: delivery.unplanned === true,
         unplannedReviewFlag,
+        vendorInvoiceImportId: linkedImportId,
       });
     }
 
