@@ -4,6 +4,7 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 
 | Date | Task type (archetype) | Tier | Recommended model | confStart | confAfter | Outcome | Note |
 |------|----------------------|------|-------------------|-----------|-----------|---------|------|
+| 2026-08-23 | ui-component (simple — duplicate existing nav button) | T1 | Composer 2.5 Fast implement + Sol High visual (`gpt-5.6-sol-high`) | 98 | 99 | ok | Approved invoices top Back to review queue; v0.0.312 |
 | 2026-08-23 | ui-component / visual-judgment (Approved invoices column layout) | T1 | Composer 2.5 Fast implement + Sol High visual (`gpt-5.6-sol-high`) | 99 | 99 | ok | Full-width approved field grid; v0.0.310 |
 | 2026-08-23 | ui-component / visual-judgment (drawer Order Summary unified list) | T1 | Sol High Task (`gpt-5.6-sol-high`) | 98 | 99 | ok | Unified Order Summary unfinished-first/delivered-last; v0.0.308 |
 | 2026-08-23 | ui-component (simple display) | T0 | Composer 2.5 Fast | 99 | 99 | ok | Approved invoices `approvedAt` date+HH:mm; v0.0.307 PR #176 |
