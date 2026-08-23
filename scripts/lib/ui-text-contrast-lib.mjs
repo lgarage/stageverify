@@ -579,6 +579,22 @@ export const VENDOR_DELIVERED_COLLAPSED_CONTRAST_SPEC = {
   ],
 };
 
+export const VENDOR_RUN_PARTIAL_ROW_CONTRAST_SPEC = {
+  rootSelector: '[data-testid^="vendor-run-partial-summary-"]',
+  elements: [
+    {
+      name: "vendor-run partial job",
+      selector: '[data-testid^="vendor-run-location-"], [data-testid^="vendor-run-delivered-location-"]',
+      large: true,
+    },
+    {
+      name: "vendor-run partial status",
+      selector: '[data-testid^="vendor-run-partial-status-"]',
+      large: false,
+    },
+  ],
+};
+
 export const VENDOR_RUN_DELIVERED_ROW_CONTRAST_SPEC = {
   rootSelector: '[data-testid^="vendor-run-delivered-summary-"]',
   elements: [

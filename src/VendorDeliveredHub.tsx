@@ -8,6 +8,10 @@ import { VendorNeedMoreSpaceFlow } from "./VendorNeedMoreSpaceFlow";
 import { VendorIssueModal } from "./VendorIssueModal";
 import { VendorItemDisplayLines } from "./VendorItemDisplayLines";
 import { getVendorItemDisplay } from "./dispatcher/vendorItemDisplay";
+import {
+  deriveVendorItemLineStatus,
+  deriveVendorOrderFulfillmentLabel,
+} from "./dispatcher/vendorJobCardStatus";
 
 type DeliverCtaPhase = "idle" | "checkmark" | "delivered";
 
@@ -106,6 +110,12 @@ export function VendorDeliveredHub({
 
   const isDelivered =
     ctaPhase === "delivered" || isVendorDeliveryConfirmed(delivery);
+  const fulfillmentLabel = deriveVendorOrderFulfillmentLabel({
+    items,
+    deliveryStatus: delivery.status,
+    vendorPhysicalDropoffConfirmed: isVendorDeliveryConfirmed(delivery),
+  });
+  const orderIsPartial = fulfillmentLabel === "Partial";
   const cardExpanded = cardExpandedOverride ?? !isDelivered;
   const confirming = ctaPhase === "checkmark";
   const deliverDisabled =
@@ -303,7 +313,15 @@ export function VendorDeliveredHub({
                   className="mt-0.5 text-xs font-bold tracking-[0.14em] text-white"
                   data-testid="vendor-hub-delivered-label"
                 >
-                  DELIVERED
+                  {orderIsPartial ? "PARTIAL" : "DELIVERED"}
+                </p>
+              )}
+              {isDelivered && orderIsPartial && (
+                <p
+                  className="mt-0.5 text-[11px] font-semibold text-white/90"
+                  data-testid="vendor-hub-dropoff-label"
+                >
+                  Drop-off confirmed
                 </p>
               )}
             </div>
@@ -430,6 +448,7 @@ export function VendorDeliveredHub({
                           description={item.description}
                           sku={item.sku}
                           qtyOrdered={item.qtyOrdered}
+                          lineStatus={deriveVendorItemLineStatus(item)}
                         />
                       </div>
                     ))

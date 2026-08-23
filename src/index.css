@@ -700,6 +700,10 @@ button:active {
   border-color: #10b981;
 }
 
+.vendor-deliveries-landing .vendor-compact-card-partial {
+  border-color: var(--admin-purple-border);
+}
+
 .vendor-deliveries-landing .vendor-compact-card-toggle {
   min-height: 44px;
 }
@@ -712,6 +716,10 @@ button:active {
 
 .vendor-deliveries-landing .vendor-compact-card-face-delivered {
   background: rgb(5 150 105 / 0.12);
+}
+
+.vendor-deliveries-landing .vendor-compact-card-face-partial {
+  background: rgb(48 32 68 / 0.55);
 }
 
 .vendor-deliveries-landing .vendor-compact-card-heading {
@@ -742,6 +750,49 @@ button:active {
   font-weight: 800;
   line-height: 1.2;
   letter-spacing: 0.1em;
+}
+
+.vendor-deliveries-landing .vendor-compact-card-status-partial {
+  border-color: var(--admin-purple-border);
+  background: var(--admin-purple-bg);
+  color: var(--admin-purple-text);
+}
+
+.vendor-item-status-badge {
+  flex: none;
+  max-width: 46%;
+  overflow-wrap: anywhere;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: 0.06em;
+  text-align: right;
+}
+
+.vendor-item-status-backordered {
+  border: 1px solid var(--admin-warning-border);
+  background: var(--admin-warning-bg);
+  color: var(--admin-warning-text);
+}
+
+.vendor-item-status-not-delivered {
+  border: 1px solid var(--admin-danger-border);
+  background: var(--admin-danger-bg);
+  color: var(--admin-danger-text);
+}
+
+.vendor-item-status-partial {
+  border: 1px solid var(--admin-purple-border);
+  background: var(--admin-purple-bg);
+  color: var(--admin-purple-text);
+}
+
+.vendor-item-status-delivered {
+  border: 1px solid rgb(110 231 183 / 0.45);
+  background: rgb(6 95 70 / 0.45);
+  color: #d1fae5;
 }
 
 .vendor-deliveries-landing .vendor-compact-card-meta {

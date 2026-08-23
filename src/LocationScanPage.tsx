@@ -19,6 +19,7 @@ import {
 import {
   getJobVendorDeliveriesClient,
   getLocationPublicBrandingClient,
+  getVendorReceiveDetailsClient,
   getVendorRunDeliveriesClient,
   markVendorDeliveriesBulkClient,
   recordTechnicianJobOpenClient,
@@ -92,6 +93,12 @@ import { PublicNetworkErrorPanel } from "./PublicNetworkErrorPanel";
 import { isOutsideShopGeofence } from "./geofence";
 import { VendorDeliveriesLanding } from "./VendorDeliveriesLanding";
 import { VendorCompactDeliveryCard } from "./VendorCompactDeliveryCard";
+import {
+  deriveVendorItemLineStatus,
+  deriveVendorOrderFulfillmentLabel,
+  vendorFulfillmentTone,
+  vendorItemsHaveFulfillmentQty,
+} from "./dispatcher/vendorJobCardStatus";
 import { orderVendorJobsDeliveredLast } from "./dispatcher/vendorJobListOrder";
 
 type Step =
@@ -117,6 +124,45 @@ interface LocationBranding {
 interface VendorRunExpansionUpdate {
   preserveExpandedIds: Set<string>;
   collapseDeliveryIds: Set<string>;
+}
+
+async function enrichVendorRunFulfillment(
+  rows: VendorRunDeliverySummary[],
+  sessionToken: string,
+): Promise<VendorRunDeliverySummary[]> {
+  const missing = rows.filter(
+    (row) => !vendorItemsHaveFulfillmentQty(row.items),
+  );
+  if (missing.length === 0) return rows;
+  const byId = new Map<string, VendorRunDeliverySummary["items"]>();
+  await Promise.all(
+    missing.map(async (row) => {
+      try {
+        const details = await getVendorReceiveDetailsClient({
+          deliveryId: row.deliveryId,
+          sessionToken,
+        });
+        byId.set(
+          row.deliveryId,
+          details.items.map((item) => ({
+            id: item.id,
+            description: item.description,
+            qtyOrdered: item.qtyOrdered,
+            qtyReceived: item.qtyReceived,
+            qtyBackordered: item.qtyBackordered,
+            status: item.status,
+          })),
+        );
+      } catch {
+        // Keep list DTO when details are unavailable (legacy CF / mocks).
+      }
+    }),
+  );
+  if (byId.size === 0) return rows;
+  return rows.map((row) => {
+    const items = byId.get(row.deliveryId);
+    return items ? { ...row, items } : row;
+  });
 }
 
 export function LocationScanPage() {
@@ -417,9 +463,13 @@ export function LocationScanPage() {
     setError(null);
     try {
       const result = await getVendorRunDeliveriesClient({ sessionToken: token });
+      const deliveries = await enrichVendorRunFulfillment(
+        result.deliveries,
+        token,
+      );
       setVendorId(resolvedVendorId);
       setSessionScope("vendor");
-      setVendorRunDeliveries(result.deliveries);
+      setVendorRunDeliveries(deliveries);
       setScannedCode(result.scannedStagingLocationCode);
       setExpandedDeliveryIds(() => {
         if (expansionUpdate) {
@@ -1408,6 +1458,13 @@ export function LocationScanPage() {
             const canComplete = row.hasAssignableSpot;
             const expanded = expandedDeliveryIds.has(row.deliveryId);
             const delivered = row.vendorPhysicalDropoffConfirmed;
+            const fulfillmentLabel = deriveVendorOrderFulfillmentLabel({
+              items: row.items,
+              deliveryStatus: row.status,
+              vendorPhysicalDropoffConfirmed:
+                row.vendorPhysicalDropoffConfirmed,
+            });
+            const fulfillmentTone = vendorFulfillmentTone(fulfillmentLabel);
             const locationIdentity =
               row.stagingLocationCodes.length > 0
                 ? row.stagingLocationCodes.join(", ")
@@ -1416,10 +1473,15 @@ export function LocationScanPage() {
               <div
                 key={row.deliveryId}
                 className={`vendor-compact-card overflow-hidden rounded-2xl border bg-bg-secondary shadow-lg shadow-black/20 ${
-                  delivered ? "vendor-compact-card-delivered" : "border-white/10"
+                  fulfillmentTone === "delivered"
+                    ? "vendor-compact-card-delivered"
+                    : fulfillmentTone === "partial"
+                      ? "vendor-compact-card-partial"
+                      : "border-white/10"
                 }`}
                 data-testid={`vendor-run-row-${row.deliveryId}`}
                 data-delivered={delivered ? "true" : "false"}
+                data-fulfillment={fulfillmentTone}
               >
                 <div
                   className="vendor-compact-card-action-row"
@@ -1441,6 +1503,7 @@ export function LocationScanPage() {
                       poNumber={row.poNumber}
                       stagingLocationCodes={row.stagingLocationCodes}
                       delivered={delivered}
+                      fulfillment={fulfillmentTone}
                       expanded={expanded}
                       warning={
                         !delivered && !canComplete
@@ -1507,10 +1570,12 @@ export function LocationScanPage() {
                         <li
                           key={item.id}
                           className="rounded-lg border border-border bg-bg-primary px-3 py-2"
+                          data-testid={`vendor-run-item-${item.id}`}
                         >
                           <VendorItemDisplayLines
                             description={item.description}
                             qtyOrdered={item.qtyOrdered}
+                            lineStatus={deriveVendorItemLineStatus(item)}
                           />
                         </li>
                       ))}
@@ -1547,6 +1612,15 @@ export function LocationScanPage() {
                     )}
                     {delivered && (
                       <div className="space-y-3 border-t border-border bg-bg-surface p-3">
+                        {fulfillmentLabel === "Partial" && (
+                          <p
+                            className="text-center text-sm font-semibold"
+                            style={{ color: "var(--admin-purple-text)" }}
+                            data-testid={`vendor-run-order-status-${row.deliveryId}`}
+                          >
+                            Order status: Partial
+                          </p>
+                        )}
                         <p
                           className="text-center text-sm font-semibold text-[#6ee7b7]"
                           data-testid={`vendor-run-complete-status-${row.deliveryId}`}
@@ -1684,6 +1758,13 @@ export function LocationScanPage() {
       >
             <div className="vendor-deliveries-card-list-inner flex flex-col gap-4">
               {jobDeliveriesForList.map((row) => {
+                const fulfillmentTone = vendorFulfillmentTone(
+                  deriveVendorOrderFulfillmentLabel({
+                    deliveryStatus: row.status,
+                    vendorPhysicalDropoffConfirmed:
+                      row.vendorPhysicalDropoffConfirmed,
+                  }),
+                );
                 return (
                   <button
                     key={row.deliveryId}
@@ -1696,14 +1777,17 @@ export function LocationScanPage() {
                 });
               }}
                     className={`vendor-compact-card min-h-11 w-full overflow-hidden rounded-2xl border bg-bg-secondary text-left shadow-lg shadow-black/20 touch-manipulation transition active:scale-[0.99] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                      row.vendorPhysicalDropoffConfirmed
+                      fulfillmentTone === "delivered"
                         ? "vendor-compact-card-delivered"
-                        : "border-white/10"
+                        : fulfillmentTone === "partial"
+                          ? "vendor-compact-card-partial"
+                          : "border-white/10"
                     }`}
                     data-testid={`vendor-job-delivery-${row.deliveryId}`}
                     data-delivered={
                       row.vendorPhysicalDropoffConfirmed ? "true" : "false"
                     }
+                    data-fulfillment={fulfillmentTone}
                   >
                     <VendorCompactDeliveryCard
                       deliveryId={row.deliveryId}
@@ -1714,6 +1798,7 @@ export function LocationScanPage() {
                       poNumber={row.poNumber}
                       stagingLocationCodes={row.stagingLocationCodes}
                       delivered={row.vendorPhysicalDropoffConfirmed === true}
+                      fulfillment={fulfillmentTone}
                     />
                   </button>
                 );

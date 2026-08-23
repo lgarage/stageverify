@@ -91,10 +91,16 @@ exports.getVendorRunDeliveries = (0, https_1.onCall)({
                 : typeof item.name === "string" && item.name.trim()
                     ? item.name.trim()
                     : "Item";
+            const status = typeof item.status === "string" && item.status.trim()
+                ? item.status.trim()
+                : undefined;
             return {
                 id: itemDoc.id,
                 description,
                 qtyOrdered: typeof item.qtyOrdered === "number" ? item.qtyOrdered : 0,
+                qtyReceived: typeof item.qtyReceived === "number" ? item.qtyReceived : 0,
+                qtyBackordered: typeof item.qtyBackordered === "number" ? item.qtyBackordered : 0,
+                status,
             };
         });
         const vendorInvoiceNumber = typeof delivery.vendorInvoiceNumber === "string" &&
@@ -111,6 +117,7 @@ exports.getVendorRunDeliveries = (0, https_1.onCall)({
             stagingLocationCodes,
             hasAssignableSpot: (0, vendorDeliverySpotUtils_1.hasAssignableSpot)(delivery),
             vendorPhysicalDropoffConfirmed: delivery.vendorPhysicalDropoffConfirmed === true,
+            status: String(delivery.status ?? ""),
             items,
         });
     }

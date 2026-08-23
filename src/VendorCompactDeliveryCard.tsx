@@ -6,7 +6,10 @@ interface VendorCompactDeliveryCardProps {
   vendorInvoiceNumber?: string;
   poNumber?: string;
   stagingLocationCodes: string[];
+  /** Physical drop-off confirmation — used for PR #173 sort, not order status. */
   delivered: boolean;
+  /** Authoritative order-level fulfillment for the face badge/color. */
+  fulfillment?: "delivered" | "partial" | "incomplete";
   expanded?: boolean;
   warning?: string;
 }
@@ -25,6 +28,7 @@ export function VendorCompactDeliveryCard({
   poNumber,
   stagingLocationCodes,
   delivered,
+  fulfillment,
   expanded = false,
   warning,
 }: VendorCompactDeliveryCardProps) {
@@ -42,9 +46,12 @@ export function VendorCompactDeliveryCard({
     }) === 0;
   const locationIdentity =
     stagingLocationCodes.length > 0 ? stagingLocationCodes.join(", ") : "Not assigned";
+  const tone = fulfillment ?? (delivered ? "delivered" : "incomplete");
+  const showDeliveredBadge = tone === "delivered";
+  const showPartialBadge = tone === "partial";
   const primaryTestId =
     variant === "vendor-run"
-      ? delivered
+      ? showDeliveredBadge
         ? `vendor-run-delivered-location-${deliveryId}`
         : `vendor-run-location-${deliveryId}`
       : `vendor-job-name-${deliveryId}`;
@@ -52,13 +59,20 @@ export function VendorCompactDeliveryCard({
   return (
     <div
       className={`vendor-compact-card-face ${
-        delivered ? "vendor-compact-card-face-delivered" : ""
+        tone === "delivered"
+          ? "vendor-compact-card-face-delivered"
+          : tone === "partial"
+            ? "vendor-compact-card-face-partial"
+            : ""
       }`}
       data-testid={
-        variant === "vendor-run" && delivered
+        variant === "vendor-run" && showDeliveredBadge
           ? `vendor-run-delivered-summary-${deliveryId}`
-          : undefined
+          : variant === "vendor-run" && showPartialBadge
+            ? `vendor-run-partial-summary-${deliveryId}`
+            : undefined
       }
+      data-fulfillment={tone}
     >
       <div className="vendor-compact-card-heading">
         <p
@@ -67,7 +81,7 @@ export function VendorCompactDeliveryCard({
         >
           {primaryHeading}
         </p>
-        {delivered && (
+        {showDeliveredBadge && (
           <span
             className="vendor-compact-card-status"
             data-testid={
@@ -77,6 +91,18 @@ export function VendorCompactDeliveryCard({
             }
           >
             DELIVERED
+          </span>
+        )}
+        {showPartialBadge && (
+          <span
+            className="vendor-compact-card-status vendor-compact-card-status-partial"
+            data-testid={
+              variant === "vendor-run"
+                ? `vendor-run-partial-status-${deliveryId}`
+                : `vendor-job-partial-status-${deliveryId}`
+            }
+          >
+            PARTIAL
           </span>
         )}
       </div>
@@ -115,7 +141,7 @@ export function VendorCompactDeliveryCard({
         <span
           className="vendor-compact-card-location"
           data-testid={
-            variant === "vendor-run" && delivered
+            variant === "vendor-run" && showDeliveredBadge
               ? `vendor-run-delivered-location-tile-${deliveryId}`
               : undefined
           }

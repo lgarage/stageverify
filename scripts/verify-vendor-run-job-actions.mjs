@@ -14,6 +14,7 @@ import {
   assertReadableTextContrast,
   VENDOR_RUN_DELIVERED_ROW_CONTRAST_SPEC,
   VENDOR_RUN_LAYOUT_CONTRAST_SPEC,
+  VENDOR_RUN_PARTIAL_ROW_CONTRAST_SPEC,
 } from "./lib/ui-text-contrast-lib.mjs";
 
 const baseUrl = process.env.STAGEVERIFY_BASE_URL ?? "http://127.0.0.1:5173";
@@ -57,7 +58,15 @@ async function enterPin(page, digits) {
       stagingLocationCodes: ["S1-A"],
       hasAssignableSpot: true,
       vendorPhysicalDropoffConfirmed: true,
-      items: [{ id: "item-b", description: "Thermostat", qtyOrdered: 4 }],
+      items: [
+        {
+          id: "item-b",
+          description: "Thermostat",
+          qtyOrdered: 4,
+          qtyReceived: 4,
+          qtyBackordered: 0,
+        },
+      ],
     },
     {
       deliveryId: "verify-run-active-c",
@@ -70,6 +79,42 @@ async function enterPin(page, digits) {
       hasAssignableSpot: true,
       vendorPhysicalDropoffConfirmed: false,
       items: [{ id: "item-c", description: "Condensing unit", qtyOrdered: 1 }],
+    },
+    {
+      deliveryId: "verify-run-partial-d",
+      jobId: "job-d",
+      jobName: "Partial Backorder Shop",
+      orderNumber: "6168008",
+      vendorInvoiceNumber: "6168008",
+      poNumber: "PO-8008",
+      stagingLocationCodes: ["S2"],
+      hasAssignableSpot: true,
+      vendorPhysicalDropoffConfirmed: true,
+      status: "partial",
+      items: [
+        {
+          id: "item-d-ok",
+          description: "Air handler 3-ton",
+          qtyOrdered: 1,
+          qtyReceived: 1,
+          qtyBackordered: 0,
+        },
+        {
+          id: "item-d-bo",
+          description: "TXV 5/8 ODM long description that wraps on a phone",
+          qtyOrdered: 2,
+          qtyReceived: 0,
+          qtyBackordered: 2,
+          status: "backordered",
+        },
+        {
+          id: "item-d-missing",
+          description: "Filter MERV 13",
+          qtyOrdered: 8,
+          qtyReceived: 0,
+          qtyBackordered: 0,
+        },
+      ],
     },
   ];
   let lastVendorRunCompleteIds = [];
@@ -114,6 +159,15 @@ async function enterPin(page, digits) {
           sessionScope: "vendor",
           deliveryId: "verify-run-active-a",
         },
+      }),
+    });
+  });
+  await page.route("**/getVendorReceiveDetails", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        result: { items: [] },
       }),
     });
   });
@@ -191,6 +245,7 @@ async function enterPin(page, digits) {
     "verify-run-active-a",
     "verify-run-active-c",
     "verify-run-delivered-b",
+    "verify-run-partial-d",
   ];
   record(
     "PR #173 unfinished-first delivered-last",
@@ -254,6 +309,7 @@ async function enterPin(page, digits) {
     "verify-run-active-c",
     "verify-run-active-a",
     "verify-run-delivered-b",
+    "verify-run-partial-d",
   ];
   record(
     "completed job moves into delivered-last group",
@@ -282,6 +338,64 @@ async function enterPin(page, digits) {
   record("D-42 delivered face contrast", true);
   await page.screenshot({
     path: resolve(outDir, "delivered-complete-status.png"),
+    fullPage: false,
+  });
+
+  record(
+    "fully delivered job still shows DELIVERED",
+    ((await page
+      .getByTestId("vendor-run-delivered-status-verify-run-delivered-b")
+      .textContent()) ?? "").trim() === "DELIVERED",
+  );
+  record(
+    "partial+backorder card shows PARTIAL not DELIVERED",
+    ((await page
+      .getByTestId("vendor-run-partial-status-verify-run-partial-d")
+      .textContent()) ?? "").trim() === "PARTIAL" &&
+      (await page
+        .getByTestId("vendor-run-row-verify-run-partial-d")
+        .getAttribute("data-fulfillment")) === "partial" &&
+      (await page
+        .getByTestId("vendor-run-row-verify-run-partial-d")
+        .getAttribute("data-delivered")) === "true",
+  );
+
+  await page.getByTestId("vendor-run-toggle-verify-run-partial-d").click();
+  record(
+    "partial expanded keeps Delivery complete + Undo",
+    ((await page
+      .getByTestId("vendor-run-complete-status-verify-run-partial-d")
+      .textContent()) ?? "").trim() === "Delivery complete" &&
+      (await page.getByTestId("vendor-run-undo-verify-run-partial-d").isVisible()) &&
+      !(await page
+        .getByTestId("vendor-run-complete-verify-run-partial-d")
+        .isVisible()
+        .catch(() => false)),
+  );
+  record(
+    "partial expanded shows order-level Partial",
+    ((await page
+      .getByTestId("vendor-run-order-status-verify-run-partial-d")
+      .textContent()) ?? "").includes("Partial"),
+  );
+  const backorderBadges = page
+    .getByTestId("vendor-run-item-item-d-bo")
+    .getByTestId("vendor-item-line-status");
+  record(
+    "backordered line shows BACKORDERED",
+    ((await backorderBadges.textContent()) ?? "").trim() === "BACKORDERED",
+  );
+  record(
+    "not-delivered line remains visible",
+    ((await page
+      .getByTestId("vendor-run-item-item-d-missing")
+      .getByTestId("vendor-item-line-status")
+      .textContent()) ?? "").trim() === "NOT DELIVERED",
+  );
+  await assertReadableTextContrast(page, VENDOR_RUN_PARTIAL_ROW_CONTRAST_SPEC);
+  record("D-42 partial face contrast", true);
+  await page.screenshot({
+    path: resolve(outDir, "partial-backorder-status.png"),
     fullPage: false,
   });
 
