@@ -2576,6 +2576,9 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           }}
           data-testid={`shop-spot-${layoutSlot}`}
           data-spot-color={colorOf(layoutSlot)}
+          data-spot-current-assignment={
+            reassignMode && selfPlanned ? "true" : undefined
+          }
           data-map-offset-x={ox}
           data-map-offset-y={oy}
           data-map-width={width}
@@ -2600,7 +2603,7 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
                   boxShadow: "0 0 0 2px #fff7ed",
                 }
               : {}),
-            ...(spotFocused && !pendingAssign
+            ...((spotFocused || (reassignMode && selfPlanned)) && !pendingAssign
               ? {
                   outline: "3px solid #0a3161",
                   outlineOffset: 2,

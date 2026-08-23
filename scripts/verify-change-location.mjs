@@ -188,6 +188,49 @@ try {
   });
   pass("C: reassignment banner mode");
 
+  await page.waitForSelector('[data-testid="map-spot-also-assigned-note"]', {
+    timeout: 15000,
+  });
+  const currentAssignmentSpot = page
+    .locator('[data-spot-current-assignment="true"]')
+    .first();
+  await currentAssignmentSpot.waitFor({ state: "visible", timeout: 15000 });
+  const currentAssignmentOutline = await currentAssignmentSpot.evaluate(
+    (el) => getComputedStyle(el).outlineColor,
+  );
+  if (
+    !/rgb\(\s*10\s*,\s*49\s*,\s*97\s*\)/i.test(currentAssignmentOutline)
+  ) {
+    throw new Error(
+      `C: current assignment should have navy outline. got outlineColor=${currentAssignmentOutline}`,
+    );
+  }
+  pass("C: current assignment has existing navy focus box");
+
+  const currentAssignmentNote = currentAssignmentSpot.getByTestId(
+    "map-spot-also-assigned-note",
+  );
+  const currentAssignmentNoteText = (
+    await currentAssignmentNote.innerText()
+  ).trim();
+  if (!/Current assignment will move to the new spot/i.test(currentAssignmentNoteText)) {
+    throw new Error(
+      `C: current-assignment note missing. got="${currentAssignmentNoteText}"`,
+    );
+  }
+  pass("C: current-assignment note remains present");
+
+  await assertReadableTextContrast(page, {
+    rootSelector: '[data-spot-current-assignment="true"]',
+    elements: [
+      {
+        name: "current-location note",
+        selector: '[data-testid="map-spot-also-assigned-note"]',
+      },
+    ],
+  });
+  pass("C: D-42 contrast on current-location note");
+
   // D/E — Confirm/Cancel + no-write before Confirm are proven in
   // test:reassign-staging-location (emulator CF). Map spot arming varies by
   // occupancy paint; UI gate here is reassign banner + Confirm New Location label
