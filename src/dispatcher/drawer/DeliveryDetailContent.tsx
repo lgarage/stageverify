@@ -597,6 +597,7 @@ export function DetailContent({
     ).length,
     missingStagingAssignment: showStagingLocationBanner,
     stagingLocationListNotApplicable: willCallNoShopStaging,
+    vendorInvoiceImportId: delivery.vendorInvoiceImportId,
   };
 
   const showCreditReturnBanner =
