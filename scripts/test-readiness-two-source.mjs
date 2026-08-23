@@ -515,8 +515,9 @@ assert(
   "missing+BO headline uses mixed attention summary",
 );
 assert(
-  missingPlusBoBanner.whyBullets.length === 0,
-  "banner Why omits item-level lines (Order Summary owns items)",
+  missingPlusBoBanner.whyBullets.length === 1 &&
+    /still not delivered or backordered/i.test(missingPlusBoBanner.whyBullets[0]),
+  "banner Why is one compact mixed-item reason",
 );
 assert(
   !missingPlusBoBanner.whyBullets.some((b) => /BO WIDGET|on backorder/i.test(b)),
@@ -529,8 +530,9 @@ assert(
   "banner Why omits backorder + vendor-mismatch prose when items are summary-only",
 );
 assert(
-  missingPlusBoBanner.nextStepBullets.length === 0,
-  "banner Next Step empty when item issues are summary-only in headline",
+  missingPlusBoBanner.nextStepBullets.length === 1 &&
+    /Review the incomplete items/i.test(missingPlusBoBanner.nextStepBullets[0]),
+  "banner Next Step is one compact review action",
 );
 
 const boOnlyDelivery = {
@@ -562,13 +564,18 @@ assert(
   "BO-only delivery keeps attention banner mode",
 );
 assert(
-  /backordered/i.test(boOnlyBanner.attentionHeadline) &&
-    /Order Summary below/i.test(boOnlyBanner.attentionHeadline),
-  "BO-only headline names backordered count with Order Summary pointer",
+  boOnlyBanner.attentionHeadline === "1 item backordered",
+  "BO-only headline is a short backorder title",
 );
 assert(
-  boOnlyBanner.whyBullets.length === 0 && boOnlyBanner.nextStepBullets.length === 0,
-  "BO-only banner has empty Why/Next (Order Summary lists BO)",
+  boOnlyBanner.whyBullets.length === 1 &&
+    /still on backorder/i.test(boOnlyBanner.whyBullets[0]),
+  "BO-only Why is one compact backorder reason",
+);
+assert(
+  boOnlyBanner.nextStepBullets.length === 1 &&
+    /Review the incomplete items/i.test(boOnlyBanner.nextStepBullets[0]),
+  "BO-only Next Step is one compact review action",
 );
 assert(
   boOnlyBanner.showCallVendor === true && boOnlyBanner.showEmailVendor === true,
@@ -616,6 +623,163 @@ assert(
     liveOpenIssue,
   ).statusDisplayLabel === "Issue / Review Required",
   "computeDeliveryDisplayState passes live issues to label",
+);
+
+const stagingBanner = buildDrawerActionBannerContent(
+  {
+    ...baseDelivery,
+    stagingLocationId: "",
+    additionalStagingLocationIds: [],
+    vendorOrderComplete: true,
+    vendorPhysicalDropoffConfirmed: true,
+    status: "arrived",
+  },
+  completeItems,
+  [],
+);
+assert(
+  stagingBanner.bannerMode === "attention_required",
+  "staging-missing still triggers attention",
+);
+assert(
+  stagingBanner.attentionHeadline === "Staging location missing",
+  "staging-missing uses short title",
+);
+assert(
+  stagingBanner.whyBullets.length === 1 &&
+    stagingBanner.whyBullets[0] === "Received material has no staging location.",
+  "staging-missing Why is one short sentence",
+);
+assert(
+  stagingBanner.nextStepBullets.length === 1 &&
+    stagingBanner.nextStepBullets[0] === "Assign a staging location.",
+  "staging-missing Next Step is the assign action",
+);
+
+const physicalBanner = buildDrawerActionBannerContent(
+  {
+    ...baseDelivery,
+    vendorOrderComplete: false,
+    vendorPhysicalDropoffConfirmed: false,
+    status: "arrived",
+  },
+  completeItems,
+  [],
+  {},
+  { vendorDeliveryMode: "exception_only" },
+);
+assert(
+  physicalBanner.bannerMode === "attention_required",
+  "physical-incomplete still triggers attention",
+);
+assert(
+  physicalBanner.attentionHeadline === "Physical delivery incomplete",
+  "overlapping vendor+physical reasons collapse to physical title",
+);
+assert(
+  physicalBanner.whyBullets.length === 1 &&
+    physicalBanner.whyBullets[0] === "Vendor drop-off has not been confirmed.",
+  "physical Why does not repeat vendor-order sentence",
+);
+assert(
+  physicalBanner.nextStepBullets.length === 1 &&
+    physicalBanner.nextStepBullets[0] === "Confirm the physical delivery.",
+  "physical Next Step is one action",
+);
+
+const materialBanner = buildDrawerActionBannerContent(
+  {
+    ...baseDelivery,
+    vendorOrderComplete: true,
+    vendorPhysicalDropoffConfirmed: true,
+    status: "ready_for_pickup",
+  },
+  completeItems,
+  liveOpenIssue,
+);
+assert(
+  materialBanner.bannerMode === "attention_required",
+  "blocking material issue still triggers attention",
+);
+assert(
+  materialBanner.attentionHeadline === "Material issue open",
+  "material issue uses short title",
+);
+assert(
+  materialBanner.whyBullets.length === 1 &&
+    /blocking material issue/i.test(materialBanner.whyBullets[0]),
+  "material issue Why stays accurate without dumping description twice",
+);
+assert(
+  materialBanner.nextStepBullets[0] === "Review and resolve the issue.",
+  "material issue Next Step points at resolve",
+);
+assert(
+  materialBanner.showReviewIssues === true,
+  "material issue keeps Review Issues action",
+);
+
+assert(
+  partialBanner.attentionHeadline === "Partial delivery",
+  "partial delivery uses short title",
+);
+assert(
+  partialBanner.whyBullets.length === 1 &&
+    /still not delivered or backordered/i.test(partialBanner.whyBullets[0]),
+  "partial Why is compact and does not claim full delivery",
+);
+assert(
+  partialBanner.nextStepBullets[0] === "Review the incomplete items.",
+  "partial Next Step is review incomplete items",
+);
+
+const emailStagingBanner = buildDrawerActionBannerContent(
+  {
+    ...baseDelivery,
+    stagingLocationId: "",
+    additionalStagingLocationIds: [],
+    vendorOrderComplete: true,
+    vendorPhysicalDropoffConfirmed: true,
+    status: "arrived",
+  },
+  completeItems,
+  liveOpenIssue,
+  { emailReviewRequired: true, vendorPhone: "555-0101", vendorEmail: "v@example.com" },
+);
+assert(
+  emailStagingBanner.attentionHeadline === "Material issue open",
+  "independent blockers keep the most important title first",
+);
+assert(
+  emailStagingBanner.whyBullets.length === 2,
+  "two independent blockers keep two compact Why lines",
+);
+assert(
+  emailStagingBanner.showReviewVendorEmail === true,
+  "Review Vendor Email action remains available",
+);
+assert(
+  emailStagingBanner.showReviewIssues === true,
+  "Review Issues remains available with a blocking issue",
+);
+
+const readyBanner = buildDrawerActionBannerContent(
+  {
+    ...baseDelivery,
+    vendorOrderComplete: true,
+    vendorPhysicalDropoffConfirmed: true,
+    status: "ready_for_pickup",
+  },
+  completeItems,
+  [],
+);
+assert(
+  readyBanner.bannerMode === "all_clear",
+  "no-issue ready delivery does not create an attention alert",
+);
+assert(
+  readyBanner.whyBullets.length === 0 && readyBanner.nextStepBullets.length === 0,
+  "All Clear has no Why/Next attention copy",
 );
 
 if (failures.length) {
