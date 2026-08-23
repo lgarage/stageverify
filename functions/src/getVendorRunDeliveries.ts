@@ -20,9 +20,6 @@ export interface VendorRunDeliveryItem {
   id: string;
   description: string;
   qtyOrdered: number;
-  qtyReceived: number;
-  qtyBackordered: number;
-  status?: string;
 }
 
 export interface VendorRunDeliverySummary {
@@ -35,7 +32,6 @@ export interface VendorRunDeliverySummary {
   stagingLocationCodes: string[];
   hasAssignableSpot: boolean;
   vendorPhysicalDropoffConfirmed: boolean;
-  status: string;
   items: VendorRunDeliveryItem[];
 }
 
@@ -153,20 +149,11 @@ export const getVendorRunDeliveries = onCall(
             : typeof item.name === "string" && item.name.trim()
               ? item.name.trim()
               : "Item";
-        const status =
-          typeof item.status === "string" && item.status.trim()
-            ? item.status.trim()
-            : undefined;
         return {
           id: itemDoc.id,
           description,
           qtyOrdered:
             typeof item.qtyOrdered === "number" ? item.qtyOrdered : 0,
-          qtyReceived:
-            typeof item.qtyReceived === "number" ? item.qtyReceived : 0,
-          qtyBackordered:
-            typeof item.qtyBackordered === "number" ? item.qtyBackordered : 0,
-          status,
         };
       });
 
@@ -187,7 +174,6 @@ export const getVendorRunDeliveries = onCall(
         hasAssignableSpot: hasAssignableSpot(delivery),
         vendorPhysicalDropoffConfirmed:
           delivery.vendorPhysicalDropoffConfirmed === true,
-        status: String(delivery.status ?? ""),
         items,
       });
     }
