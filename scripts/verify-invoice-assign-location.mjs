@@ -20,6 +20,35 @@ import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
 
+function assertApproveConfirmRefreshWiring() {
+  const zone = readFileSync(resolve(process.cwd(), "src/ZoneManagementPage.tsx"), "utf8");
+  const start = zone.indexOf("if (approveFlow) {");
+  const end = zone.indexOf("const result = await setInvoiceReviewDraftStagingLocations");
+  if (start < 0 || end < 0 || end <= start) {
+    throw new Error("Could not locate approveFlow Confirm path in ZoneManagementPage.tsx");
+  }
+  const confirmChunk = zone.slice(start, end);
+  if (!confirmChunk.includes("await refreshPortalData()")) {
+    throw new Error(
+      "approveFlow Confirm must await refreshPortalData() before returning to Invoice Review",
+    );
+  }
+  if (!confirmChunk.includes("stashInvoiceApproveDismissedImportId")) {
+    throw new Error(
+      "approveFlow Confirm must stash the approved import id so pending cannot stay stale",
+    );
+  }
+  if (!/navigate\("\/dispatcher\?focus=needs-review"/.test(confirmChunk)) {
+    throw new Error("approveFlow Confirm must navigate back to Invoice Review");
+  }
+  const refreshAt = confirmChunk.indexOf("await refreshPortalData()");
+  const navigateAt = confirmChunk.indexOf('navigate("/dispatcher?focus=needs-review"');
+  if (refreshAt < 0 || navigateAt < 0 || refreshAt > navigateAt) {
+    throw new Error("refreshPortalData() must be awaited before navigate() on Confirm success");
+  }
+  console.log("PASS: approveFlow Confirm awaits portal refresh before Invoice Review navigate");
+}
+
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
 const baseUrlIdx = args.indexOf("--base-url");
@@ -95,6 +124,7 @@ async function openFirstPendingInspectModal(page) {
 }
 
 async function main() {
+  assertApproveConfirmRefreshWiring();
   mkdirSync(screenshotDir, { recursive: true });
 
   const browser = await chromium.launch({ headless: true });
