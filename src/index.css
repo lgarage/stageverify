@@ -700,14 +700,6 @@ button:active {
   border-color: #10b981;
 }
 
-.vendor-deliveries-landing .vendor-compact-card-action-row {
-  padding-left: 12px;
-}
-
-.vendor-deliveries-landing .vendor-compact-card-checkbox {
-  margin-top: 13px;
-}
-
 .vendor-deliveries-landing .vendor-compact-card-toggle {
   min-height: 44px;
 }
@@ -716,10 +708,6 @@ button:active {
   min-width: 0;
   padding: 12px;
   color: #f8fafc;
-}
-
-.vendor-deliveries-landing .vendor-compact-card-toggle .vendor-compact-card-face {
-  padding-left: 10px;
 }
 
 .vendor-deliveries-landing .vendor-compact-card-face-delivered {

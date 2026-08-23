@@ -16,6 +16,7 @@ import { resolveAppBase } from "./resolveAppBase.mjs";
 import {
   assertReadableTextContrast,
   VENDOR_RUN_DELIVERED_ROW_CONTRAST_SPEC,
+  VENDOR_RUN_LAYOUT_CONTRAST_SPEC,
 } from "./lib/ui-text-contrast-lib.mjs";
 
 const args = process.argv.slice(2);
@@ -123,21 +124,35 @@ async function enterPin(page, digits) {
   record("Multi-job checklist shows ORD-005", body.includes(job1Order));
   record("Multi-job checklist shows ORD-006", body.includes(otherJobOrder));
 
-  const initialOrder = await page
+  const initialState = await page
     .locator('[data-testid^="vendor-run-row-"]')
     .evaluateAll((rows) =>
-      rows.map((row) => row.getAttribute("data-testid") ?? ""),
+      rows.map((row) => ({
+        testId: row.getAttribute("data-testid") ?? "",
+        delivered: row.getAttribute("data-delivered") === "true",
+      })),
     );
   const selectedRow = page
     .locator('[data-testid^="vendor-run-row-"][data-delivered="false"]')
     .first();
   const selectedTestId = await selectedRow.getAttribute("data-testid");
-  const checkbox = selectedRow.locator('input[type="checkbox"]');
-  const disabled = await checkbox.isDisabled().catch(() => true);
+  const selectedDeliveryId = selectedTestId?.replace("vendor-run-row-", "") ?? "";
+  await selectedRow.locator('[data-testid^="vendor-run-toggle-"]').click();
+  const completeButton = page.getByTestId(
+    `vendor-run-complete-${selectedDeliveryId}`,
+  );
+  const disabled = await completeButton.isDisabled().catch(() => true);
+  record(
+    "Company checklist has no global bulk Delivered button",
+    !(await page
+      .getByTestId("vendor-run-bulk-deliver")
+      .isVisible()
+      .catch(() => false)),
+  );
+  await assertReadableTextContrast(page, VENDOR_RUN_LAYOUT_CONTRAST_SPEC);
+  record("Expanded single-job actions pass contrast", true);
   if (!disabled) {
-    await checkbox.check();
-    await page.getByTestId("vendor-run-bulk-deliver").click();
-    await page.getByRole("button", { name: "Confirm", exact: true }).click();
+    await completeButton.click();
     await page.waitForFunction(
       (testId) =>
         document
@@ -146,19 +161,37 @@ async function enterPin(page, digits) {
       selectedTestId,
       { timeout: 30_000 },
     );
-    const afterOrder = await page
+    const afterState = await page
       .locator('[data-testid^="vendor-run-row-"]')
       .evaluateAll((rows) =>
-        rows.map((row) => row.getAttribute("data-testid") ?? ""),
+        rows.map((row) => ({
+          testId: row.getAttribute("data-testid") ?? "",
+          delivered: row.getAttribute("data-delivered") === "true",
+        })),
       );
+    const initialById = new Map(
+      initialState.map((row) => [row.testId, row.delivered]),
+    );
     record(
-      "Bulk deliver keeps stable list order",
-      JSON.stringify(afterOrder) === JSON.stringify(initialOrder),
-      afterOrder.join(" → "),
+      "Complete delivery changes only the expanded job",
+      afterState.every((row) =>
+        row.testId === selectedTestId
+          ? row.delivered
+          : row.delivered === initialById.get(row.testId),
+      ),
+    );
+    const firstDeliveredIndex = afterState.findIndex((row) => row.delivered);
+    record(
+      "Completed job moves into delivered-last group",
+      firstDeliveredIndex >= 0 &&
+        afterState
+          .slice(firstDeliveredIndex)
+          .every((row) => row.delivered),
+      afterState.map((row) => row.testId).join(" → "),
     );
     const deliveredRow = page.getByTestId(selectedTestId);
     record(
-      "Bulk delivered row collapses",
+      "Completed row collapses",
       (await deliveredRow
         .locator('[data-testid^="vendor-run-details-"]')
         .isVisible()
@@ -170,13 +203,23 @@ async function enterPin(page, digits) {
     );
     await deliveredRow.locator('[data-testid^="vendor-run-toggle-"]').click();
     record(
-      "Delivered row expands independently",
-      await deliveredRow
+      "Delivered row expands with completion status and Undo",
+      (await deliveredRow
         .locator('[data-testid^="vendor-run-details-"]')
-        .isVisible(),
+        .isVisible()) &&
+        (await page
+          .getByTestId(`vendor-run-complete-status-${selectedDeliveryId}`)
+          .isVisible()) &&
+        (await page
+          .getByTestId(`vendor-run-undo-${selectedDeliveryId}`)
+          .isVisible()),
     );
   } else {
-    record("Bulk deliver confirm dialog completes", true, "skipped — no assignable spot row");
+    record(
+      "Single-job Complete delivery works",
+      true,
+      "skipped — no assignable spot row",
+    );
   }
 
   await page.screenshot({
