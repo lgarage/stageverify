@@ -916,11 +916,26 @@ export function InvoiceReviewPanel({
                   </div>
 
                   <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fill, minmax(88px, 1fr))",
-                      gap: "10px 14px",
-                    }}
+                    data-testid={
+                      filter === "approved" ? "invoice-review-approved-fields" : undefined
+                    }
+                    style={
+                      filter === "approved"
+                        ? {
+                            display: "grid",
+                            width: "100%",
+                            alignItems: "end",
+                            columnGap: 24,
+                            rowGap: 10,
+                            gridTemplateColumns:
+                              "minmax(108px, 1.1fr) minmax(108px, 1.1fr) minmax(128px, 1.4fr) minmax(168px, 2.2fr) minmax(176px, 1.7fr) minmax(88px, max-content)",
+                          }
+                        : {
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fill, minmax(88px, 1fr))",
+                            gap: "10px 14px",
+                          }
+                    }
                   >
                     <FieldCell
                       label="Invoice #"
