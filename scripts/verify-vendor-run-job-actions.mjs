@@ -119,6 +119,8 @@ async function enterPin(page, digits) {
   ];
   let lastVendorRunCompleteIds = [];
   const materialIssueRequests = [];
+  const vendorReceiveDetailsIds = [];
+  let vendorReceiveDetailsFinished = 0;
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -164,6 +166,10 @@ async function enterPin(page, digits) {
     });
   });
   await page.route("**/getVendorReceiveDetails", async (route) => {
+    const requestBody = JSON.parse(route.request().postData() ?? "{}");
+    vendorReceiveDetailsIds.push(requestBody.data?.deliveryId ?? "");
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 250));
+    vendorReceiveDetailsFinished += 1;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -250,6 +256,20 @@ async function enterPin(page, digits) {
 
   await page.getByTestId("vendor-run-layout").waitFor({ timeout: 45_000 });
   record("company-run list lands after PIN", true);
+  record(
+    "list paints before detail hydration settles",
+    vendorReceiveDetailsFinished < 2,
+    `finished=${vendorReceiveDetailsFinished} started=${vendorReceiveDetailsIds.length}`,
+  );
+  await page.waitForTimeout(400);
+  const uniqueDetailIds = [...new Set(vendorReceiveDetailsIds)];
+  record(
+    "getVendorReceiveDetails once per missing-qty job",
+    vendorReceiveDetailsIds.length === 2 &&
+      uniqueDetailIds.sort().join(",") ===
+        "verify-run-active-a,verify-run-active-c",
+    vendorReceiveDetailsIds.join(","),
+  );
   record(
     "helper is per-job review copy",
     ((await page.getByTestId("vendor-run-helper").textContent()) ?? "").includes(
@@ -573,6 +593,12 @@ async function enterPin(page, digits) {
       (await page
         .getByTestId("vendor-run-undo-verify-run-delivered-b")
         .isVisible()),
+  );
+
+  record(
+    "complete/refresh does not refetch cached details",
+    vendorReceiveDetailsIds.length === 2,
+    vendorReceiveDetailsIds.join(","),
   );
 
   await browser.close();
