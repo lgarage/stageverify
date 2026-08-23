@@ -1047,6 +1047,46 @@ async function main() {
     }
     console.log("PASS: Rejected invoices heading visible");
 
+    const rejectedTopBack = page.getByTestId("invoice-review-back-to-queue-top");
+    const rejectedBottomBack = page.getByTestId("invoice-review-back-to-queue");
+    await rejectedTopBack.waitFor({ timeout: 5_000 });
+    await rejectedBottomBack.waitFor({ timeout: 5_000 });
+    {
+      const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+      await assertReadableTextContrast(page, {
+        rootSelector: '[data-testid="invoice-review-panel"]',
+        elements: [
+          {
+            name: "Rejected top Back to review queue",
+            selector: '[data-testid="invoice-review-back-to-queue-top"]',
+          },
+          {
+            name: "Rejected bottom Back to review queue",
+            selector: '[data-testid="invoice-review-back-to-queue"]',
+          },
+        ],
+      });
+      console.log("PASS: Rejected Back to review queue buttons readable contrast");
+    }
+    const rejectedTopVisibleWithoutScroll = await rejectedTopBack.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.top >= 0 && rect.bottom <= window.innerHeight && rect.height > 0;
+    });
+    if (!rejectedTopVisibleWithoutScroll) {
+      throw new Error(
+        "Rejected top Back to review queue button is not visible without scrolling",
+      );
+    }
+    console.log("PASS: Rejected invoices has top and bottom Back to review queue buttons");
+
+    await rejectedTopBack.click();
+    await page.getByTestId("invoice-review-queue").waitFor({ timeout: 10_000 });
+    console.log("PASS: rejected top back to review queue navigation");
+
+    await page.getByTestId("invoice-review-rejected-link").click();
+    await page.getByTestId("invoice-review-rejected-list").waitFor({ timeout: 15_000 });
+    console.log("PASS: Rejected invoices re-entered after top back");
+
     await page.waitForFunction(
       () => {
         const list = document.querySelector('[data-testid="invoice-review-rejected-list"]');
