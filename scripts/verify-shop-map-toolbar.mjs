@@ -93,6 +93,42 @@ async function main() {
     await page.getByTestId("shop-map-zoom-percent").waitFor({ state: "visible" });
     console.log("PASS: H zoom controls still present");
 
+    const viewControls = page.getByTestId("shop-map-view-controls");
+    const legend = page.getByTestId("shop-map-legend");
+    await legend.waitFor({ state: "visible" });
+    if ((await viewControls.locator('[data-testid="shop-map-legend"]').count()) !== 1) {
+      throw new Error("shop-map-legend not inside shop-map-view-controls");
+    }
+    const legendText = await legend.innerText();
+    for (const label of [
+      "Available",
+      "Assigned / planned",
+      "Staged — Ready for pickup",
+      "Shop stock",
+    ]) {
+      if (!legendText.includes(label)) {
+        throw new Error(`Legend missing "${label}". Got: ${legendText}`);
+      }
+    }
+    if (/\bFree\b/i.test(legendText)) {
+      throw new Error(`Legend still says Free. Got: ${legendText}`);
+    }
+    const fitBtn = page.getByTestId("shop-map-zoom-fit");
+    const fitBox = await fitBtn.boundingBox();
+    const legendBox = await legend.boundingBox();
+    if (!fitBox || !legendBox) {
+      throw new Error("Missing geometry for Fit button or legend");
+    }
+    const fitCenterY = fitBox.y + fitBox.height / 2;
+    const legendCenterY = legendBox.y + legendBox.height / 2;
+    const yDelta = Math.abs(fitCenterY - legendCenterY);
+    if (yDelta > 20) {
+      throw new Error(
+        `Legend not aligned with Fit row (delta=${yDelta.toFixed(1)}px, fitY=${fitCenterY.toFixed(1)}, legendY=${legendCenterY.toFixed(1)})`,
+      );
+    }
+    console.log("PASS: legend in view-controls row aligned with Fit");
+
     // E — Vendor view toggles
     const vendorBtn = actions.getByTestId("shop-map-vendor-view-toggle");
     await vendorBtn.click();

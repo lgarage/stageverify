@@ -3296,6 +3296,55 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
             {canvasSizeError}
           </span>
         )}
+        <span
+          aria-hidden
+          style={{
+            width: 1,
+            alignSelf: "stretch",
+            backgroundColor: "var(--admin-border)",
+            margin: "0 4px",
+          }}
+        />
+        <div
+          className="shop-map-legend"
+          data-testid="shop-map-legend"
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 14,
+            fontSize: 12,
+            color: "var(--admin-text)",
+          }}
+        >
+          {(
+            [
+              ["green", "Available"],
+              ["orange", "Assigned / planned (yellow)"],
+              ["purple", "Staged — Ready for pickup"],
+              ["gray", "Shop stock"],
+            ] as const
+          ).map(([color, label]) => (
+            <div
+              key={color}
+              style={{ display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <span
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: 3,
+                  backgroundColor: SPOT_MAP_COLORS[color],
+                  border:
+                    color === "orange"
+                      ? "1px solid #ca8a04"
+                      : "1px solid rgba(0,0,0,0.12)",
+                  display: "inline-block",
+                }}
+              />
+              {label}
+            </div>
+          ))}
+        </div>
       </div>
 
       <div
@@ -4572,48 +4621,6 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
           <strong>Unplaced codes:</strong> {unplaced.join(", ")}
         </div>
       )}
-
-      <div
-        className="shop-map-legend"
-        data-testid="shop-map-legend"
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 14,
-          marginTop: 14,
-          fontSize: 12,
-          color: "var(--admin-text)",
-        }}
-      >
-        {(
-          [
-            ["green", "Available"],
-            ["orange", "Assigned / planned (yellow)"],
-            ["purple", "Staged — Ready for pickup"],
-            ["gray", "Shop stock"],
-          ] as const
-        ).map(([color, label]) => (
-          <div
-            key={color}
-            style={{ display: "flex", alignItems: "center", gap: 6 }}
-          >
-            <span
-              style={{
-                width: 14,
-                height: 14,
-                borderRadius: 3,
-                backgroundColor: SPOT_MAP_COLORS[color],
-                border:
-                  color === "orange"
-                    ? "1px solid #ca8a04"
-                    : "1px solid rgba(0,0,0,0.12)",
-                display: "inline-block",
-              }}
-            />
-            {label}
-          </div>
-        ))}
-      </div>
 
       <div
         className="shop-map-last-edited"
