@@ -176,6 +176,26 @@ async function main() {
     }
     console.log("PASS: no footer Assign Location");
 
+    const stagingPanel = page.getByTestId("invoice-parsed-inspect-staging-panel");
+    if (await stagingPanel.isVisible().catch(() => false)) {
+      throw new Error("Leftover staging panel visible before Approve");
+    }
+    console.log("PASS: no leftover staging panel before Approve");
+
+    const choiceBeforeApprove = page.getByTestId("invoice-approve-fulfillment-choice");
+    if (await choiceBeforeApprove.isVisible().catch(() => false)) {
+      throw new Error("Fulfillment choice visible before Approve");
+    }
+    console.log("PASS: fulfillment choice hidden before Approve");
+
+    const idleAssign = page.locator(
+      '[data-testid="invoice-parsed-inspect-staging-location-assign"]',
+    );
+    if (await idleAssign.isVisible().catch(() => false)) {
+      throw new Error("Assign Location visible before Approve");
+    }
+    console.log("PASS: no Assign Location before Approve");
+
     const approveBtn = page.getByTestId("invoice-parsed-inspect-approve");
     if (!(await approveBtn.isVisible().catch(() => false))) {
       console.log("SKIP: Approve not visible for this import");
@@ -193,36 +213,29 @@ async function main() {
     await choicePanel.waitFor({ timeout: 5000 });
     console.log("PASS: Approve opens fulfillment choice");
 
-    const fulfillmentLabel = (
-      await page.getByTestId("invoice-parsed-inspect-fulfillment-label").innerText()
-    ).trim();
-    const isWillCall = /Will-Call/i.test(fulfillmentLabel);
+    await page.getByTestId("invoice-approve-choice-willcall").click();
+    await page.getByTestId("invoice-approve-willcall-confirm").waitFor({ timeout: 5000 });
 
-    if (isWillCall) {
-      await page.getByTestId("invoice-approve-choice-willcall").click();
-      await page.getByTestId("invoice-approve-willcall-confirm").waitFor({ timeout: 5000 });
-
-      {
-        const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
-        await assertReadableTextContrast(page, {
-          rootSelector: '[data-testid="invoice-parsed-inspect-modal"]',
-          elements: [
-            {
-              name: "Will-Call confirm CTA",
-              selector: '[data-testid="invoice-approve-willcall-confirm"]',
-            },
-          ],
-        });
-        console.log("PASS: Will-Call confirm readable contrast");
-      }
-
-      await page.getByTestId("invoice-approve-fulfillment-cancel").click();
-      await page.getByTestId("invoice-approve-willcall-confirm").waitFor({
-        state: "hidden",
-        timeout: 5000,
+    {
+      const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+      await assertReadableTextContrast(page, {
+        rootSelector: '[data-testid="invoice-parsed-inspect-modal"]',
+        elements: [
+          {
+            name: "Will-Call confirm CTA",
+            selector: '[data-testid="invoice-approve-willcall-confirm"]',
+          },
+        ],
       });
-      console.log("PASS: Will-Call confirm Cancel returns to choice");
+      console.log("PASS: Will-Call confirm readable contrast");
     }
+
+    await page.getByTestId("invoice-approve-fulfillment-cancel").click();
+    await page.getByTestId("invoice-approve-willcall-confirm").waitFor({
+      state: "hidden",
+      timeout: 5000,
+    });
+    console.log("PASS: Will-Call confirm Cancel returns to choice");
 
     await page.getByTestId("invoice-approve-choice-dropoff").click();
     const wizardBanner = page.getByTestId("invoice-parsed-inspect-staging-needed");

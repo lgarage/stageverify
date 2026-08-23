@@ -270,13 +270,13 @@ try {
   report.advanced = "PASS";
   console.log("PASS: Advanced training collapsed (chat primary)");
 
-  // PR #64 staging panel still present
+  // Leftover PR #64 body staging panel must stay hidden before Approve
   const staging = page.getByTestId("invoice-parsed-inspect-staging-panel");
-  if (!(await staging.count())) {
-    throw new Error("PR #64 staging panel missing after C1 deploy");
+  if (await staging.isVisible().catch(() => false)) {
+    throw new Error("Leftover staging panel visible before Approve");
   }
   report.staging = "PASS";
-  console.log("PASS: PR #64 staging panel present");
+  console.log("PASS: no leftover staging panel before Approve");
 
   // Approve/Reject reachable
   const rejectBtn = page.getByTestId("invoice-parsed-inspect-reject");
