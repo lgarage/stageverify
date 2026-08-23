@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatcherPortal } from "./DispatcherPortalContext";
 import {
   notifyCatchAllCheckers,
   subscribeAppSettings,
   updateAppSettings,
 } from "./firestoreService";
+import { useLiveZoneOccupancy } from "./useLiveZoneOccupancy";
+import { countCatchAllAssignedDeliveries } from "./zoneOccupancyCompute";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -15,10 +17,18 @@ export function CatchAllDeliveryTopBarEntry() {
     null,
   );
   const [parcelIntakeEnabled, setParcelIntakeEnabled] = useState(false);
-  const [catchAllPendingCheckInCount, setCatchAllPendingCheckInCount] =
-    useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const liveOccupancy = useLiveZoneOccupancy(Boolean(catchAllLocationId));
+  const catchAllAssignedCount = useMemo(
+    () =>
+      countCatchAllAssignedDeliveries(
+        liveOccupancy.zones,
+        liveOccupancy.deliveries,
+        catchAllLocationId,
+      ),
+    [catchAllLocationId, liveOccupancy.deliveries, liveOccupancy.zones],
+  );
 
   useEffect(() => {
     let healInFlight = false;
@@ -28,7 +38,6 @@ export function CatchAllDeliveryTopBarEntry() {
       setParcelIntakeEnabled(
         settings.parcelIntakeEnabled === true && Boolean(catchAllId),
       );
-      setCatchAllPendingCheckInCount(settings.catchAllPendingCheckInCount ?? 0);
 
       if (
         catchAllId &&
@@ -135,7 +144,7 @@ export function CatchAllDeliveryTopBarEntry() {
         </button>
         <span
           data-testid="catch-all-delivery-count-badge"
-          aria-label={`${catchAllPendingCheckInCount} pending catch-all check-in${catchAllPendingCheckInCount === 1 ? "" : "s"}`}
+          aria-label={`${catchAllAssignedCount} ${catchAllAssignedCount === 1 ? "delivery" : "deliveries"} in Catch-all`}
           style={{
             position: "absolute",
             top: -6,
@@ -154,7 +163,7 @@ export function CatchAllDeliveryTopBarEntry() {
             pointerEvents: "none",
           }}
         >
-          {catchAllPendingCheckInCount}
+          {catchAllAssignedCount}
         </span>
       </div>
     </div>

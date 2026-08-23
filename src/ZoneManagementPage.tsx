@@ -54,7 +54,10 @@ import { ShopStockDirectoryPanel } from "./ShopStockDirectoryPanel";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
 import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
 import { useLiveZoneOccupancy } from "./dispatcher/useLiveZoneOccupancy";
-import type { ZoneOccupancySummaryWithReadiness } from "./dispatcher/zoneOccupancyCompute";
+import {
+  countCatchAllAssignedDeliveries,
+  type ZoneOccupancySummaryWithReadiness,
+} from "./dispatcher/zoneOccupancyCompute";
 import {
   SHOP_MAP_GROUND_CODES,
   SHOP_MAP_GROUND_SPOT_H,
@@ -361,9 +364,24 @@ export function ZoneManagementPage() {
   const [vendorView, setVendorView] = useState(false);
   const mapRef = useRef<ShopFloorMapHandle>(null);
   const [layoutExtras, setLayoutExtras] = useState<ShopMapLayoutExtras>({});
-  const [catchAllPendingCount, setCatchAllPendingCount] = useState(0);
+  const [catchAllStagingLocationId, setCatchAllStagingLocationId] = useState<
+    string | null
+  >(null);
   const [catchAllStatusOpen, setCatchAllStatusOpen] = useState(false);
   const liveOccupancy = useLiveZoneOccupancy(true);
+  const catchAllPendingCount = useMemo(
+    () =>
+      countCatchAllAssignedDeliveries(
+        liveOccupancy.zones,
+        liveOccupancy.deliveries,
+        catchAllStagingLocationId,
+      ),
+    [
+      catchAllStagingLocationId,
+      liveOccupancy.deliveries,
+      liveOccupancy.zones,
+    ],
+  );
   /** Once live occupancy has connected, never fall back to a stale one-shot paint. */
   const [preferLiveOccupancy, setPreferLiveOccupancy] = useState(false);
   useEffect(() => {
@@ -995,7 +1013,9 @@ export function ZoneManagementPage() {
         await pruneVerifyMapPollution(extras, repairedZones, occupancy);
       setZones(prunedZones);
       setLayoutExtras(prunedExtras);
-      setCatchAllPendingCount(settings.catchAllPendingCheckInCount ?? 0);
+      setCatchAllStagingLocationId(
+        settings.catchAllStagingLocationId?.trim() || null,
+      );
       setOccupancyByZoneCode(occupancy);
       setShopStockByCode(mapActiveShopStockReservationsByCode(mappings));
       setEslDrafts(
@@ -1013,7 +1033,9 @@ export function ZoneManagementPage() {
 
   useEffect(() => {
     return subscribeAppSettings((settings) => {
-      setCatchAllPendingCount(settings.catchAllPendingCheckInCount ?? 0);
+      setCatchAllStagingLocationId(
+        settings.catchAllStagingLocationId?.trim() || null,
+      );
       setLayoutExtras(settings.shopMapLayoutExtras ?? {});
     });
   }, []);

@@ -22,6 +22,7 @@ const LIVE_QUERY_LIMIT = 500;
 
 export type LiveZoneOccupancyState = {
   zones: StagingLocation[];
+  deliveries: DeliveryOrder[];
   occupancyByZoneCode: Record<string, ZoneOccupancySummaryWithReadiness>;
   shopStockByCode: Record<string, ShopStockLocationMapping>;
   ready: boolean;
@@ -30,6 +31,7 @@ export type LiveZoneOccupancyState = {
 
 const EMPTY: LiveZoneOccupancyState = {
   zones: [],
+  deliveries: [],
   occupancyByZoneCode: {},
   shopStockByCode: {},
   ready: false,
@@ -59,6 +61,7 @@ export function useLiveZoneOccupancy(enabled: boolean): LiveZoneOccupancyState {
     const publish = (error: string | null = null) => {
       setState({
         zones,
+        deliveries,
         occupancyByZoneCode: computeZoneOccupancyByCode(zones, deliveries),
         shopStockByCode: mapActiveShopStockReservationsByCode(mappings),
         ready: zonesReady && deliveriesReady && mappingsReady,
