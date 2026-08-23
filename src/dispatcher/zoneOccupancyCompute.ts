@@ -59,6 +59,44 @@ function locationIdsForMapColor(delivery: DeliveryOrder): string[] {
 }
 
 /**
+ * Count unique active deliveries assigned to the Catch-all map location.
+ * Uses the same delivery and staging exclusions as map occupancy painting.
+ */
+export function countCatchAllAssignedDeliveries(
+  locations: StagingLocation[],
+  deliveries: DeliveryOrder[],
+  catchAllStagingLocationId?: string | null,
+): number {
+  const configuredId = catchAllStagingLocationId?.trim() ?? "";
+  const catchAllLocationIds = new Set(
+    locations
+      .filter(
+        (location) =>
+          (configuredId !== "" && location.id === configuredId) ||
+          normalizeStagingCodeKey(location.code) === CATCH_ALL_KEY ||
+          normalizeStagingCodeKey(location.mapLayoutSlot ?? "") ===
+            CATCH_ALL_KEY,
+      )
+      .map((location) => location.id),
+  );
+  if (catchAllLocationIds.size === 0) return 0;
+
+  const assignedDeliveryIds = new Set<string>();
+  for (const delivery of filterDeliveriesForBoardStagingOccupancy(deliveries)) {
+    if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
+    if (skipsShopStaging(delivery)) continue;
+    if (
+      locationIdsForMapColor(delivery).some((locationId) =>
+        catchAllLocationIds.has(locationId),
+      )
+    ) {
+      assignedDeliveryIds.add(delivery.id);
+    }
+  }
+  return assignedDeliveryIds.size;
+}
+
+/**
  * Pure occupancy reducer — used by one-shot fetch and live onSnapshot paths.
  * Includes plannedStagingLocationIds so orange covers assigned OR planned.
  */

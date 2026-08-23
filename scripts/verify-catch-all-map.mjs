@@ -141,6 +141,15 @@ async function assertTopBarCatchAllBadge(page) {
   if (!/^\d+$/.test(text)) {
     throw new Error(`Expected numeric top-bar catch-all badge, got "${text}"`);
   }
+  const mapCount = page.getByTestId("catch-all-pending-count").first();
+  if (await mapCount.isVisible().catch(() => false)) {
+    const mapText = (await mapCount.innerText()).trim();
+    if (text !== mapText) {
+      throw new Error(
+        `Top-bar catch-all badge "${text}" !== map count "${mapText}"`,
+      );
+    }
+  }
   await assertReadableTextContrast(page, {
     rootSelector: '[data-testid="catch-all-delivery-topbar-slot"]',
     elements: [
@@ -154,7 +163,7 @@ async function assertTopBarCatchAllBadge(page) {
       },
     ],
   });
-  console.log(`PASS: top-bar catch-all badge shows ${text}`);
+  console.log(`PASS: top-bar catch-all badge agrees with map count ${text}`);
 }
 
 async function waitForZonesMap(page) {

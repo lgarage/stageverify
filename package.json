@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.303",
+  "version": "0.0.304",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -195,6 +195,7 @@
     "test:firestore-rules-field-lessons": "npx firebase-tools emulators:exec --only firestore \"node scripts/test-firestore-rules-field-lessons.mjs\"",
     "test:invoice-fulfillment-override": "cd functions && npm run build && cd .. && node scripts/test-invoice-fulfillment-override.mjs",
     "test:will-call-staging-clear": "npx tsx scripts/test-will-call-staging-clear.mjs",
+    "test:catch-all-assigned-count": "npx tsx scripts/test-catch-all-assigned-count.mjs",
     "test:invoice-review-truth-state": "cd functions && npm run build && cd .. && node scripts/test-invoice-review-truth-state.mjs",
     "test:c2-natural-confirmation": "cd functions && npm run build && cd .. && node scripts/test-c2-natural-confirmation.mjs",
     "test:firestore-rules-invoice-corrections": "firebase emulators:exec --only firestore \"node scripts/test-firestore-rules-invoice-corrections.mjs\"",

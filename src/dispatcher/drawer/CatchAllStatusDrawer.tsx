@@ -122,7 +122,7 @@ export function CatchAllStatusDrawer({ open, pendingCount, onClose }: Props) {
               color: "var(--admin-text)",
             }}
           >
-            Pending catch-all check-ins
+            Deliveries in Catch-all
           </p>
           <p
             data-testid="catch-all-status-drawer-count"
