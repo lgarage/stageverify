@@ -760,21 +760,21 @@ button:active {
 
 .vendor-item-status-badge {
   flex: none;
-  max-width: 46%;
+  max-width: 48%;
   overflow-wrap: anywhere;
   border-radius: 999px;
-  padding: 2px 7px;
-  font-size: 9px;
+  padding: 4px 8px;
+  font-size: 10px;
   font-weight: 800;
   line-height: 1.25;
   letter-spacing: 0.06em;
-  text-align: right;
+  text-align: center;
 }
 
 .vendor-item-status-backordered {
-  border: 1px solid var(--admin-warning-border);
-  background: var(--admin-warning-bg);
-  color: var(--admin-warning-text);
+  border: 1px solid #fbbf24;
+  background: #facc15;
+  color: #422006;
 }
 
 .vendor-item-status-not-delivered {

@@ -325,10 +325,10 @@ async function enterPin(page, digits) {
 
   await page.getByTestId("vendor-run-toggle-verify-run-active-a").click();
   record(
-    "delivered job shows Delivery complete and no Complete delivery",
+    "delivered job shows drop-off complete and no Complete delivery",
     ((await page
       .getByTestId("vendor-run-complete-status-verify-run-active-a")
-      .textContent()) ?? "").trim() === "Delivery complete" &&
+      .textContent()) ?? "").trim() === "Physical drop-off complete" &&
       !(await page
         .getByTestId("vendor-run-complete-verify-run-active-a")
         .isVisible()
@@ -362,11 +362,11 @@ async function enterPin(page, digits) {
 
   await page.getByTestId("vendor-run-toggle-verify-run-partial-d").click();
   record(
-    "partial expanded keeps Delivery complete + Undo",
+    "partial expanded keeps drop-off complete + Undo",
     ((await page
       .getByTestId("vendor-run-complete-status-verify-run-partial-d")
-      .textContent()) ?? "").trim() === "Delivery complete" &&
-      (await page.getByTestId("vendor-run-undo-verify-run-partial-d").isVisible()) &&
+      .textContent()) ?? "").trim() === "Physical drop-off complete" &&
+      ((await page.getByTestId("vendor-run-undo-verify-run-partial-d").textContent()) ?? "").includes("Undo drop-off") &&
       !(await page
         .getByTestId("vendor-run-complete-verify-run-partial-d")
         .isVisible()

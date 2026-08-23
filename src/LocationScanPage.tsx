@@ -1518,7 +1518,7 @@ export function LocationScanPage() {
                     className="border-t border-border bg-bg-surface"
                     data-testid={`vendor-run-details-${row.deliveryId}`}
                   >
-                    <div className="space-y-1.5 p-3">
+                    <div className="space-y-2.5 px-4 py-3.5">
                     {[
                       { label: "Job / Site", value: row.jobName, mono: false },
                       { label: "Order #", value: row.orderNumber, mono: true },
@@ -1557,7 +1557,7 @@ export function LocationScanPage() {
                       </div>
                     ))}
                     </div>
-                    <div className="border-t border-border px-3 py-2.5">
+                    <div className="border-t border-border px-4 py-3">
                       <div className="flex items-center justify-between gap-3 text-sm">
                         <span className="text-[#cbd5e1]">Expected items</span>
                         <span className="font-medium text-text-primary">
@@ -1565,7 +1565,7 @@ export function LocationScanPage() {
                         </span>
                       </div>
                     </div>
-                    <ul className="space-y-2 border-t border-border bg-bg-secondary/40 px-3 py-2.5">
+                    <ul className="space-y-2.5 border-t border-border bg-bg-secondary/40 px-4 py-3">
                       {row.items.map((item) => (
                         <li
                           key={item.id}
@@ -1625,7 +1625,7 @@ export function LocationScanPage() {
                           className="text-center text-sm font-semibold text-[#6ee7b7]"
                           data-testid={`vendor-run-complete-status-${row.deliveryId}`}
                         >
-                          Delivery complete
+                          Physical drop-off complete
                         </p>
                         <button
                           type="button"
@@ -1636,7 +1636,7 @@ export function LocationScanPage() {
                         >
                           {vendorRunRevertingId === row.deliveryId
                             ? "Reverting…"
-                            : "Undo Delivery"}
+                            : "Undo drop-off"}
                         </button>
                       </div>
                     )}

@@ -977,10 +977,10 @@ try {
     await detailsA.isVisible(),
   );
   record(
-    "expanded completed row shows Delivery complete",
+    "expanded completed row shows drop-off complete",
     (await page
       .getByTestId("vendor-run-complete-status-verify-run-active-a")
-      .textContent())?.trim() === "Delivery complete",
+      .textContent())?.trim() === "Physical drop-off complete",
   );
   record(
     "expanded delivered vendor-run row shows Undo Delivery",
