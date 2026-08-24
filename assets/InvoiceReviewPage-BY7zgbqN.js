@@ -1,0 +1,1 @@
+import{Xa as e,_r as t}from"./index-BDivHTuO.js";var n=t();function r(){return(0,n.jsx)(e,{to:`/dispatcher?focus=needs-review`,replace:!0})}export{r as InvoiceReviewPage};
