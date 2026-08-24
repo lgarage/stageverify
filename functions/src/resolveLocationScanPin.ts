@@ -28,6 +28,13 @@ const RATE_LIMIT_COLLECTION = "locationScanPinAttempts";
 
 type AccessTypeMatch = "technician" | "vendor" | "management";
 
+async function clearBothPinRateLimits(attemptKey: string): Promise<void> {
+  await Promise.all([
+    clearPinRateLimit(RATE_LIMIT_COLLECTION, attemptKey),
+    clearPinRateLimit(RATE_LIMIT_COLLECTION, "pin:location-scan:global"),
+  ]);
+}
+
 export const resolveLocationScanPin = onCall(
   {
     region: "us-central1",
@@ -54,32 +61,34 @@ export const resolveLocationScanPin = onCall(
     await checkPinRateLimit(RATE_LIMIT_COLLECTION, attemptKey);
     await checkPinRateLimit(RATE_LIMIT_COLLECTION, "pin:location-scan:global");
 
-    const typeMatches: AccessTypeMatch[] = [];
-
-    const techMatch = await findTechnicianByPin(pin);
-    if (techMatch) {
-      typeMatches.push("technician");
-    }
-
-    const jobMatch = await findJobByPin(pin);
-    if (jobMatch) {
-      typeMatches.push("vendor");
-    } else {
-      const vendorMatch = await findVendorByCompanyPin(pin);
-      if (vendorMatch) {
-        typeMatches.push("vendor");
-      }
-    }
+    const [techMatch, jobMatch, vendorMatch, catchAllConfig, location] =
+      await Promise.all([
+        findTechnicianByPin(pin),
+        findJobByPin(pin),
+        findVendorByCompanyPin(pin),
+        loadCatchAllConfig(),
+        resolveStagingLocation(stagingLocationCode),
+      ]);
 
     let managementMatch: Awaited<
       ReturnType<typeof resolveManagementPinMatch>
     > | null = null;
-    const catchAllConfig = await loadCatchAllConfig();
     if (catchAllConfig) {
       managementMatch = await resolveManagementPinMatch(pin);
-      if (managementMatch) {
-        typeMatches.push("management");
-      }
+    }
+
+    const typeMatches: AccessTypeMatch[] = [];
+
+    if (techMatch) {
+      typeMatches.push("technician");
+    }
+
+    if (jobMatch || vendorMatch) {
+      typeMatches.push("vendor");
+    }
+
+    if (catchAllConfig && managementMatch) {
+      typeMatches.push("management");
     }
 
     if (typeMatches.length === 0) {
@@ -91,7 +100,6 @@ export const resolveLocationScanPin = onCall(
     }
 
     const soleType = typeMatches[0];
-    const location = await resolveStagingLocation(stagingLocationCode);
 
     if (soleType === "management") {
       if (!managementMatch) {
@@ -116,11 +124,7 @@ export const resolveLocationScanPin = onCall(
         permissions: managementMatch.permissions,
       });
 
-      await clearPinRateLimit(RATE_LIMIT_COLLECTION, attemptKey);
-      await clearPinRateLimit(
-        RATE_LIMIT_COLLECTION,
-        "pin:location-scan:global",
-      );
+      await clearBothPinRateLimits(attemptKey);
 
       return {
         success: true,
@@ -146,11 +150,7 @@ export const resolveLocationScanPin = onCall(
         resolvedLocation: location,
       });
 
-      await clearPinRateLimit(RATE_LIMIT_COLLECTION, attemptKey);
-      await clearPinRateLimit(
-        RATE_LIMIT_COLLECTION,
-        "pin:location-scan:global",
-      );
+      await clearBothPinRateLimits(attemptKey);
 
       return {
         success: true,
@@ -189,11 +189,7 @@ export const resolveLocationScanPin = onCall(
         scannedStagingLocationCode: location?.code ?? stagingLocationCode,
       });
 
-      await clearPinRateLimit(RATE_LIMIT_COLLECTION, attemptKey);
-      await clearPinRateLimit(
-        RATE_LIMIT_COLLECTION,
-        "pin:location-scan:global",
-      );
+      await clearBothPinRateLimits(attemptKey);
 
       return {
         success: true,
@@ -209,7 +205,6 @@ export const resolveLocationScanPin = onCall(
       };
     }
 
-    const vendorMatch = await findVendorByCompanyPin(pin);
     if (!vendorMatch) {
       return { success: false, message: "Invalid code." };
     }
@@ -235,11 +230,7 @@ export const resolveLocationScanPin = onCall(
         unplannedEligible: true,
       });
 
-      await clearPinRateLimit(RATE_LIMIT_COLLECTION, attemptKey);
-      await clearPinRateLimit(
-        RATE_LIMIT_COLLECTION,
-        "pin:location-scan:global",
-      );
+      await clearBothPinRateLimits(attemptKey);
 
       return {
         success: true,
@@ -271,8 +262,7 @@ export const resolveLocationScanPin = onCall(
       scannedStagingLocationCode: location?.code ?? stagingLocationCode,
     });
 
-    await clearPinRateLimit(RATE_LIMIT_COLLECTION, attemptKey);
-    await clearPinRateLimit(RATE_LIMIT_COLLECTION, "pin:location-scan:global");
+    await clearBothPinRateLimits(attemptKey);
 
     return {
       success: true,

@@ -7,6 +7,12 @@ const managementSessionValidation_1 = require("./managementSessionValidation");
 const managementPinRegistry_1 = require("./managementPinRegistry");
 const locationScanPinShared_1 = require("./locationScanPinShared");
 const RATE_LIMIT_COLLECTION = "locationScanPinAttempts";
+async function clearBothPinRateLimits(attemptKey) {
+    await Promise.all([
+        (0, locationScanPinShared_1.clearPinRateLimit)(RATE_LIMIT_COLLECTION, attemptKey),
+        (0, locationScanPinShared_1.clearPinRateLimit)(RATE_LIMIT_COLLECTION, "pin:location-scan:global"),
+    ]);
+}
 exports.resolveLocationScanPin = (0, https_1.onCall)({
     region: "us-central1",
     secrets: [accessPinCrypto_1.accessPinEncryptionKey],
@@ -25,28 +31,26 @@ exports.resolveLocationScanPin = (0, https_1.onCall)({
     const attemptKey = `loc:${stagingLocationCode}`;
     await (0, locationScanPinShared_1.checkPinRateLimit)(RATE_LIMIT_COLLECTION, attemptKey);
     await (0, locationScanPinShared_1.checkPinRateLimit)(RATE_LIMIT_COLLECTION, "pin:location-scan:global");
+    const [techMatch, jobMatch, vendorMatch, catchAllConfig, location] = await Promise.all([
+        (0, locationScanPinShared_1.findTechnicianByPin)(pin),
+        (0, locationScanPinShared_1.findJobByPin)(pin),
+        (0, locationScanPinShared_1.findVendorByCompanyPin)(pin),
+        (0, managementSessionValidation_1.loadCatchAllConfig)(),
+        (0, locationScanPinShared_1.resolveStagingLocation)(stagingLocationCode),
+    ]);
+    let managementMatch = null;
+    if (catchAllConfig) {
+        managementMatch = await (0, managementPinRegistry_1.resolveManagementPinMatch)(pin);
+    }
     const typeMatches = [];
-    const techMatch = await (0, locationScanPinShared_1.findTechnicianByPin)(pin);
     if (techMatch) {
         typeMatches.push("technician");
     }
-    const jobMatch = await (0, locationScanPinShared_1.findJobByPin)(pin);
-    if (jobMatch) {
+    if (jobMatch || vendorMatch) {
         typeMatches.push("vendor");
     }
-    else {
-        const vendorMatch = await (0, locationScanPinShared_1.findVendorByCompanyPin)(pin);
-        if (vendorMatch) {
-            typeMatches.push("vendor");
-        }
-    }
-    let managementMatch = null;
-    const catchAllConfig = await (0, managementSessionValidation_1.loadCatchAllConfig)();
-    if (catchAllConfig) {
-        managementMatch = await (0, managementPinRegistry_1.resolveManagementPinMatch)(pin);
-        if (managementMatch) {
-            typeMatches.push("management");
-        }
+    if (catchAllConfig && managementMatch) {
+        typeMatches.push("management");
     }
     if (typeMatches.length === 0) {
         return { success: false, message: "Invalid code." };
@@ -55,7 +59,6 @@ exports.resolveLocationScanPin = (0, https_1.onCall)({
         return { success: false, message: "Invalid code." };
     }
     const soleType = typeMatches[0];
-    const location = await (0, locationScanPinShared_1.resolveStagingLocation)(stagingLocationCode);
     if (soleType === "management") {
         if (!managementMatch) {
             return { success: false, message: "Invalid code." };
@@ -74,8 +77,7 @@ exports.resolveLocationScanPin = (0, https_1.onCall)({
             pinId: managementMatch.id,
             permissions: managementMatch.permissions,
         });
-        await (0, locationScanPinShared_1.clearPinRateLimit)(RATE_LIMIT_COLLECTION, attemptKey);
-        await (0, locationScanPinShared_1.clearPinRateLimit)(RATE_LIMIT_COLLECTION, "pin:location-scan:global");
+        await clearBothPinRateLimits(attemptKey);
         return {
             success: true,
             accessType: "management",
@@ -97,8 +99,7 @@ exports.resolveLocationScanPin = (0, https_1.onCall)({
             stagingLocationCode,
             resolvedLocation: location,
         });
-        await (0, locationScanPinShared_1.clearPinRateLimit)(RATE_LIMIT_COLLECTION, attemptKey);
-        await (0, locationScanPinShared_1.clearPinRateLimit)(RATE_LIMIT_COLLECTION, "pin:location-scan:global");
+        await clearBothPinRateLimits(attemptKey);
         return {
             success: true,
             accessType: "technician",
@@ -132,8 +133,7 @@ exports.resolveLocationScanPin = (0, https_1.onCall)({
             scannedStagingLocationId: location?.id,
             scannedStagingLocationCode: location?.code ?? stagingLocationCode,
         });
-        await (0, locationScanPinShared_1.clearPinRateLimit)(RATE_LIMIT_COLLECTION, attemptKey);
-        await (0, locationScanPinShared_1.clearPinRateLimit)(RATE_LIMIT_COLLECTION, "pin:location-scan:global");
+        await clearBothPinRateLimits(attemptKey);
         return {
             success: true,
             accessType: "vendor",
@@ -147,7 +147,6 @@ exports.resolveLocationScanPin = (0, https_1.onCall)({
             expiresAt: session.expiresAt,
         };
     }
-    const vendorMatch = await (0, locationScanPinShared_1.findVendorByCompanyPin)(pin);
     if (!vendorMatch) {
         return { success: false, message: "Invalid code." };
     }
@@ -169,8 +168,7 @@ exports.resolveLocationScanPin = (0, https_1.onCall)({
             scannedStagingLocationCode: location?.code ?? stagingLocationCode,
             unplannedEligible: true,
         });
-        await (0, locationScanPinShared_1.clearPinRateLimit)(RATE_LIMIT_COLLECTION, attemptKey);
-        await (0, locationScanPinShared_1.clearPinRateLimit)(RATE_LIMIT_COLLECTION, "pin:location-scan:global");
+        await clearBothPinRateLimits(attemptKey);
         return {
             success: true,
             accessType: "vendor",
@@ -198,8 +196,7 @@ exports.resolveLocationScanPin = (0, https_1.onCall)({
         scannedStagingLocationId: location?.id,
         scannedStagingLocationCode: location?.code ?? stagingLocationCode,
     });
-    await (0, locationScanPinShared_1.clearPinRateLimit)(RATE_LIMIT_COLLECTION, attemptKey);
-    await (0, locationScanPinShared_1.clearPinRateLimit)(RATE_LIMIT_COLLECTION, "pin:location-scan:global");
+    await clearBothPinRateLimits(attemptKey);
     return {
         success: true,
         accessType: "vendor",
