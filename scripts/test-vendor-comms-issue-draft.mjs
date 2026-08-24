@@ -93,7 +93,7 @@ const body = buildVendorCommsIssueBody(boDetails);
 assert.match(body, /Hi Alex,/);
 assert.match(body, /6168008/);
 assert.match(body, /Oakwood Office Park/);
-assert.match(body, /BACKORDERED PART/);
+assert.match(body, /Backordered Part/);
 assert.match(body, /ETA or updated status/i);
 
 const willCallDetails = {
@@ -216,8 +216,8 @@ assert.equal(
   );
   const multiBody = buildVendorCommsIssueBody(details);
   assert.doesNotMatch(multiBody, /Staging location missing/i);
-  assert.match(multiBody, /PARTIAL LINE/);
-  assert.match(multiBody, /BACKORDERED WIDGET/);
+  assert.match(multiBody, /Partial Line/);
+  assert.match(multiBody, /Backordered Widget/);
 }
 
 // 3. True missing staging — received items, no BO/outstanding
@@ -502,7 +502,7 @@ assert.equal(
     ],
   });
   const coreBody = buildVendorCommsIssueBody(details);
-  assert.match(coreBody, /BACKORDERED PART C/);
+  assert.match(coreBody, /Backordered Part C/);
   assert.doesNotMatch(coreBody, /CORE CHARGE RETURN/);
 }
 
@@ -543,11 +543,11 @@ assert.equal(
   const bodyA = buildVendorCommsIssueBody(jobA);
   const bodyB = buildVendorCommsIssueBody(jobB);
   assert.match(bodyA, /ORDER-A/);
-  assert.match(bodyA, /PART FOR ORDER A/);
+  assert.match(bodyA, /Part For Order A/);
   assert.doesNotMatch(bodyA, /ORDER-B/);
-  assert.doesNotMatch(bodyA, /PART FOR ORDER B/);
+  assert.doesNotMatch(bodyA, /Part For Order B/);
   assert.match(bodyB, /ORDER-B/);
-  assert.match(bodyB, /PART FOR ORDER B/);
+  assert.match(bodyB, /Part For Order B/);
   assert.doesNotMatch(bodyB, /ORDER-A/);
 }
 
@@ -588,6 +588,159 @@ assert.equal(
     "1 item backordered",
     "6168008-shaped fixture: BO wins over staging-missing collision",
   );
+}
+
+// Human-readable display labels (getVendorItemDisplay)
+
+// 6168008-shaped live raw description + qtyBackordered 5 + staging G1
+{
+  const liveRaw =
+    "FILTER DRIER BIFLO 195.00 61.41 $61.41 N 3/8ODM 16CU ZOOMLOCK PARKER";
+  const details = boDeliveryDetails("6168008", {
+    delivery: {
+      stagingLocationId: "zone-g1",
+      status: "partial",
+    },
+    items: [
+      {
+        id: "item-bo-live",
+        deliveryOrderId: "delivery-bo-test",
+        description: liveRaw,
+        qtyOrdered: 5,
+        qtyReceived: 0,
+        qtyMissing: 0,
+        qtyDamaged: 0,
+        qtyBackordered: 5,
+        status: "backordered",
+      },
+    ],
+  });
+  assert.equal(
+    resolveVendorCommsIssueHeadline(details),
+    "1 item backordered",
+    "6168008 live fixture headline unchanged",
+  );
+  const liveBody = buildVendorCommsIssueBody(details);
+  assert.match(liveBody, /ETA or updated status/i);
+  assert.doesNotMatch(liveBody, /\$61\.41/);
+  assert.doesNotMatch(liveBody, /195\.00/);
+  assert.doesNotMatch(liveBody, /\b61\.41\b/);
+  assert.match(liveBody, /Filter Drier Biflo/);
+  assert.match(liveBody, /3\/8 ODM/);
+  assert.match(liveBody, /16 CU/);
+  assert.match(liveBody, /Parker|Zoomlock/);
+  assert.match(liveBody, /\(5 backordered\)/);
+  assert.doesNotMatch(liveBody, /Staging location missing/i);
+}
+
+// Already-clean mixed-case description preserved
+{
+  const cleanDesc = "Parker ZoomLock filter drier";
+  const details = boDeliveryDetails("ORD-CLEAN", {
+    items: [
+      {
+        id: "item-clean",
+        deliveryOrderId: "delivery-bo-test",
+        description: cleanDesc,
+        qtyOrdered: 1,
+        qtyReceived: 0,
+        qtyMissing: 0,
+        qtyDamaged: 0,
+        qtyBackordered: 1,
+        status: "backordered",
+      },
+    ],
+  });
+  const cleanBody = buildVendorCommsIssueBody(details);
+  assert.match(cleanBody, /Parker ZoomLock filter drier/);
+}
+
+// SKU present — appears in bullet spec
+{
+  const details = boDeliveryDetails("ORD-SKU", {
+    items: [
+      {
+        id: "item-sku",
+        deliveryOrderId: "delivery-bo-test",
+        sku: "NS12345678",
+        description: "FILTER DRIER BIFLO 195.00 $61.41 N 3/8ODM 16CU ZOOMLOCK PARKER",
+        qtyOrdered: 2,
+        qtyReceived: 0,
+        qtyMissing: 0,
+        qtyDamaged: 0,
+        qtyBackordered: 2,
+        status: "backordered",
+      },
+    ],
+  });
+  const skuBody = buildVendorCommsIssueBody(details);
+  assert.match(skuBody, /NS12345678/);
+}
+
+// Technical dimensions/model — identifiers remain; prices stripped
+{
+  const hexDetails = boDeliveryDetails("ORD-HEX", {
+    items: [
+      {
+        id: "item-hex",
+        deliveryOrderId: "delivery-bo-test",
+        description: "MSHC1 HEX DRIVER 5/16 3/8 2I",
+        qtyOrdered: 1,
+        qtyReceived: 0,
+        qtyMissing: 0,
+        qtyDamaged: 0,
+        qtyBackordered: 1,
+        status: "backordered",
+      },
+    ],
+  });
+  const hexBody = buildVendorCommsIssueBody(hexDetails);
+  assert.match(hexBody, /MSHC1/);
+  assert.match(hexBody, /5\/16/);
+  assert.match(hexBody, /3\/8/);
+  assert.doesNotMatch(hexBody, /\$\d/);
+
+  const thermoDetails = boDeliveryDetails("ORD-THERMO", {
+    items: [
+      {
+        id: "item-thermo",
+        deliveryOrderId: "delivery-bo-test",
+        description: "TH8320R1003/U THERMOSTAT PROGRAMMABLE REDLINK",
+        qtyOrdered: 1,
+        qtyReceived: 0,
+        qtyMissing: 0,
+        qtyDamaged: 0,
+        qtyBackordered: 1,
+        status: "backordered",
+      },
+    ],
+  });
+  const thermoBody = buildVendorCommsIssueBody(thermoDetails);
+  assert.match(thermoBody, /TH8320R1003\/U/);
+  assert.match(thermoBody, /Thermostat Programmable Redlink/);
+  assert.doesNotMatch(thermoBody, /\$\d/);
+}
+
+// Raw fallback when helper returns only "Item" with no spec
+{
+  const opaqueDesc = "195.00 $61.41";
+  const details = boDeliveryDetails("ORD-FALLBACK", {
+    items: [
+      {
+        id: "item-fallback",
+        deliveryOrderId: "delivery-bo-test",
+        description: opaqueDesc,
+        qtyOrdered: 1,
+        qtyReceived: 0,
+        qtyMissing: 0,
+        qtyDamaged: 0,
+        qtyBackordered: 1,
+        status: "backordered",
+      },
+    ],
+  });
+  const fallbackBody = buildVendorCommsIssueBody(details);
+  assert.match(fallbackBody, /195\.00 \$61\.41/);
 }
 
 console.log("test-vendor-comms-issue-draft PASS");

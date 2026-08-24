@@ -9,6 +9,7 @@ import {
 } from "../deliveryDisplayHelpers";
 import { skipsShopStaging } from "../invoice/invoiceShellDisplayHelpers";
 import { deliveryHasCurrentShopStagingAssignment } from "../readiness";
+import { getVendorItemDisplay } from "../vendorItemDisplay";
 
 /** Unicode em dash (U+2014) — Dan locked subject separator. */
 const EM_DASH = "\u2014";
@@ -134,6 +135,27 @@ export function buildVendorCommsIssueSubject(details: DeliveryDetails): string {
   return `${orderLabel} ${EM_DASH} ${headline}`;
 }
 
+function formatOutstandingItemLabel(item: Item, row: ItemIssueRow): string {
+  const display = getVendorItemDisplay({
+    description: item.description,
+    sku: item.sku,
+    qtyOrdered: item.qtyOrdered,
+  });
+  const hasSpec = Boolean(display.spec?.trim());
+  const titleIsFallback =
+    !display.title.trim() || display.title === "Item";
+
+  if (titleIsFallback && !hasSpec) {
+    return item.description?.trim() || row.description;
+  }
+
+  if (hasSpec) {
+    return `${display.title} — ${display.spec}`;
+  }
+
+  return display.title;
+}
+
 function buildOutstandingMaterialBullets(
   delivery: DeliveryOrder,
   items: Item[],
@@ -154,14 +176,14 @@ function buildOutstandingMaterialBullets(
       continue;
     }
 
+    const label = formatOutstandingItemLabel(item, row);
+
     if (row.status === "Backordered") {
-      bullets.push(`• ${row.description} (${row.qty} backordered)`);
+      bullets.push(`• ${label} (${row.qty} backordered)`);
     } else if (row.status === "Partial Delivery") {
-      bullets.push(`• ${row.description} (${row.qty} still outstanding)`);
+      bullets.push(`• ${label} (${row.qty} still outstanding)`);
     } else if (row.status === "Not Delivered") {
-      bullets.push(
-        `• ${row.description} (${row.qty} not delivered)`,
-      );
+      bullets.push(`• ${label} (${row.qty} not delivered)`);
     }
   }
 
