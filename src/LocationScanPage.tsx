@@ -257,17 +257,30 @@ export function LocationScanPage() {
         label: result.label,
         type: result.type,
       });
-      const settings = await getAppSettings().catch(() => null);
-      const intakeEnabled =
-        result.parcelIntakeEnabled === true ||
-        settings?.parcelIntakeEnabled === true;
       setIsCatchAllParcelIntake(result.isCatchAllParcelIntake === true);
-      if (intakeEnabled && isManagementPinSessionValid()) {
+      if (
+        result.parcelIntakeEnabled === true &&
+        isManagementPinSessionValid()
+      ) {
         setStep("mgmt-landing");
       } else {
         // PIN step: same-shop tech resume handled by effect when session exists.
         setStep("pin");
       }
+      void getAppSettings()
+        .then((settings) => {
+          if (
+            settings?.parcelIntakeEnabled === true &&
+            isManagementPinSessionValid()
+          ) {
+            setStep((current) =>
+              current === "pin" || current === "loading"
+                ? "mgmt-landing"
+                : current,
+            );
+          }
+        })
+        .catch(() => {});
     } catch {
       setError("Could not load location. Check your connection.");
       setStep("missing");
@@ -536,6 +549,7 @@ export function LocationScanPage() {
       if (payload.sessionScope === "vendor" && payload.vendorId) {
         setVendorId(payload.vendorId);
         setJobId(null);
+        void loadVendorRunDeliveries(payload.vendorId);
         goToHistoryView({ kind: "deliveries" });
         return;
       }
@@ -547,7 +561,7 @@ export function LocationScanPage() {
       setVendorId(null);
       goToHistoryView({ kind: "deliveries" });
     },
-    [goToHistoryView],
+    [goToHistoryView, loadVendorRunDeliveries],
   );
 
   const resolveUnplannedSessionToken = useCallback(
