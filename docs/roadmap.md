@@ -95,6 +95,7 @@
 
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
+**Shipped (2026-08-24):** Email Vendor draft reason selection (Partial + staging + backorder uses outstanding/backorder, not WNA "Staging location missing") — **v0.0.324** gh-pages FE-only; PR #192 helper + send/history unchanged; no CF/rules.
 **Shipped (2026-08-23):** Company-PIN vendor list active/completed visibility (Partial → open → `<24h` completed; collapsed **Completed deliveries** 24–72h; `>72h` vendor-hidden) — **v0.0.323** gh-pages FE-only; `vendorPhysicalDropoffConfirmedAt`; no CF/rules.
 **Shipped (2026-08-23):** Catch-all count uses unique active deliveries assigned to CA (top-bar badge + map spot + status drawer share `countCatchAllAssignedDeliveries`) — **v0.0.304** gh-pages FE-only; Change Location navy chrome unchanged; no CF/rules.
 **Shipped (2026-08-23):** Delivery Details Order Summary is one list (unfinished first, delivered last, green delivered) — **v0.0.308** gh-pages FE-only; Items Received accordion removed; View original PDF under Close unchanged; no CF/rules.
