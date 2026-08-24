@@ -139,14 +139,11 @@ export function LocationScanPinGate({
           return;
         }
 
-        // vendor
-        const settings = await getAppSettings().catch(() => ({
-          vendorSessionMinutes: 15,
-        }));
+        // vendor — TTL is CF expiresAt; sessionMinutes is informational only.
         const vendorSessionOpts = {
           sessionToken: result.sessionToken,
           expiresAt: result.expiresAt,
-          sessionMinutes: settings.vendorSessionMinutes ?? 15,
+          sessionMinutes,
           scannedStagingLocationCode: result.scannedStagingLocationCode,
         };
 
@@ -176,6 +173,50 @@ export function LocationScanPinGate({
         }
 
         onVerified(result);
+        void getAppSettings()
+          .then((settings) => {
+            const configured = settings.vendorSessionMinutes ?? 15;
+            const refreshSession = (
+              writer: (
+                vendorId: string,
+                vendorName: string,
+                opts: typeof vendorSessionOpts,
+              ) => void,
+            ) => {
+              writer(result.vendorId, result.vendorName, {
+                sessionToken: result.sessionToken,
+                expiresAt: result.expiresAt,
+                sessionMinutes: configured,
+                scannedStagingLocationCode: result.scannedStagingLocationCode,
+              });
+            };
+            if (
+              result.sessionScope === "vendor_unplanned" ||
+              result.noExpectedDelivery
+            ) {
+              refreshSession(setVendorUnplannedPinSession);
+            } else if (result.sessionScope === "job" && result.jobId) {
+              setJobPinSession(result.jobId, result.vendorId, result.vendorName, {
+                sessionToken: result.sessionToken,
+                expiresAt: result.expiresAt,
+                sessionMinutes: configured,
+                scannedStagingLocationCode: result.scannedStagingLocationCode,
+              });
+            } else if (result.sessionScope === "vendor" && result.deliveryId) {
+              setVendorRunPinSession(
+                result.vendorId,
+                result.vendorName,
+                result.deliveryId,
+                {
+                  sessionToken: result.sessionToken,
+                  expiresAt: result.expiresAt,
+                  sessionMinutes: configured,
+                  scannedStagingLocationCode: result.scannedStagingLocationCode,
+                },
+              );
+            }
+          })
+          .catch(() => {});
       } catch (err) {
         setDigits([]);
         setError(pinVerifyErrorMessage(err));

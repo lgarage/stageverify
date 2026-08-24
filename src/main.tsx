@@ -14,15 +14,14 @@ import { seedFirestore } from "./dispatcher/seedFirestore";
 // while HashRouter has already committed #/vendors. Reload "fixes" it because
 // the import runs again; client-side nav reuses the rejected module promise.
 import { VendorsPage } from "./VendorsPage";
+// Eager: #/s vendor PIN → job list must not wait on a lazy chunk after submit.
+import { LocationScanPage } from "./LocationScanPage";
 
 const ReceivingPage = lazy(() => import("./ReceivingPage").then(m => ({ default: m.ReceivingPage })));
 const CheckinToReceiveRedirect = lazy(() =>
   import("./VendorCheckinRedirect").then((m) => ({
     default: m.CheckinToReceiveRedirect,
   })),
-);
-const LocationScanPage = lazy(() =>
-  import("./LocationScanPage").then((m) => ({ default: m.LocationScanPage })),
 );
 const EntryDisplayPage = lazy(() =>
   import("./EntryDisplayPage").then((m) => ({ default: m.EntryDisplayPage })),

@@ -239,7 +239,10 @@ async function enterPin(page, digits) {
       }),
     });
   });
+  let vendorRunDeliveriesFulfilled = false;
   await page.route("**/getVendorRunDeliveries", async (route) => {
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 700));
+    vendorRunDeliveriesFulfilled = true;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -326,6 +329,35 @@ async function enterPin(page, digits) {
 
   await page.getByTestId("vendor-run-layout").waitFor({ timeout: 45_000 });
   record("company-run list lands after PIN", true);
+  const headingDuringLoad =
+    (await page.getByTestId("vendor-deliveries-heading").textContent()) ?? "";
+  record(
+    "vendor heading visible before list fetch completes",
+    headingDuringLoad.includes("JOHNSTONE SUPPLY DELIVERIES") &&
+      !vendorRunDeliveriesFulfilled,
+    headingDuringLoad.trim(),
+  );
+  record(
+    "skeleton visible during initial list load",
+    await page.getByTestId("vendor-run-list-skeleton").isVisible(),
+  );
+  record(
+    "empty-state CTA hidden during initial list load",
+    !(await page
+      .getByTestId("vendor-unplanned-empty-state")
+      .isVisible()
+      .catch(() => false)),
+  );
+  await page.getByTestId("vendor-run-row-verify-run-active-a").waitFor({
+    timeout: 20_000,
+  });
+  record(
+    "skeleton hidden after list paints",
+    !(await page
+      .getByTestId("vendor-run-list-skeleton")
+      .isVisible()
+      .catch(() => false)),
+  );
   record(
     "list paints before detail hydration settles",
     vendorReceiveDetailsFinished < 2,

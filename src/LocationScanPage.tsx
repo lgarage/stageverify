@@ -257,17 +257,25 @@ export function LocationScanPage() {
         label: result.label,
         type: result.type,
       });
-      const settings = await getAppSettings().catch(() => null);
-      const intakeEnabled =
-        result.parcelIntakeEnabled === true ||
-        settings?.parcelIntakeEnabled === true;
+      const intakeFromBranding = result.parcelIntakeEnabled === true;
       setIsCatchAllParcelIntake(result.isCatchAllParcelIntake === true);
-      if (intakeEnabled && isManagementPinSessionValid()) {
+      if (intakeFromBranding && isManagementPinSessionValid()) {
         setStep("mgmt-landing");
       } else {
         // PIN step: same-shop tech resume handled by effect when session exists.
         setStep("pin");
       }
+      void getAppSettings()
+        .then((settings) => {
+          const intakeEnabled =
+            intakeFromBranding || settings.parcelIntakeEnabled === true;
+          if (intakeEnabled && isManagementPinSessionValid()) {
+            setStep((current) =>
+              current === "pin" || current === "loading" ? "mgmt-landing" : current,
+            );
+          }
+        })
+        .catch(() => {});
     } catch {
       setError("Could not load location. Check your connection.");
       setStep("missing");
@@ -536,6 +544,9 @@ export function LocationScanPage() {
       if (payload.sessionScope === "vendor" && payload.vendorId) {
         setVendorId(payload.vendorId);
         setJobId(null);
+        setSessionScope("vendor");
+        setStep("vendor-list");
+        void loadVendorRunDeliveries(payload.vendorId);
         goToHistoryView({ kind: "deliveries" });
         return;
       }
@@ -547,7 +558,7 @@ export function LocationScanPage() {
       setVendorId(null);
       goToHistoryView({ kind: "deliveries" });
     },
-    [goToHistoryView],
+    [goToHistoryView, loadVendorRunDeliveries],
   );
 
   const resolveUnplannedSessionToken = useCallback(
@@ -1736,6 +1747,24 @@ export function LocationScanPage() {
             className="flex flex-col gap-4"
             data-testid="vendor-run-card-list"
           >
+            {loading && vendorRunDeliveries.length === 0 ? (
+              <div
+                data-testid="vendor-run-list-skeleton"
+                className="flex flex-col gap-4"
+              >
+                {[0, 1, 2].map((index) => (
+                  <div
+                    key={index}
+                    className="min-h-[136px] w-full animate-pulse rounded-2xl border border-white/10 bg-bg-secondary"
+                    aria-hidden
+                  />
+                ))}
+                <p className="mt-3 text-center text-sm text-text-secondary">
+                  Loading your deliveries…
+                </p>
+              </div>
+            ) : (
+              <>
             {vendorRunListPartition.mainList.map(renderVendorRunCard)}
             {vendorRunListPartition.completedDeliveries.length > 0 && (
               <div
@@ -1849,6 +1878,8 @@ export function LocationScanPage() {
               </button>
             </div>
           )}
+              </>
+            )}
           </div>
       </VendorDeliveriesLanding>
     );
