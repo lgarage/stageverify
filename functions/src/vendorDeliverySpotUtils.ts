@@ -62,3 +62,44 @@ export async function resolveLocationCodes(
   }
   return codes;
 }
+
+/** Batch-fetch staging location codes by id (additive helper for parallel enrichment). */
+export async function resolveLocationCodesById(
+  db: admin.firestore.Firestore,
+  ids: string[],
+): Promise<Map<string, string>> {
+  const uniqueIds = [
+    ...new Set(
+      ids.filter((id) => typeof id === "string" && id.trim().length > 0),
+    ),
+  ];
+  const map = new Map<string, string>();
+  if (uniqueIds.length === 0) return map;
+
+  const refs = uniqueIds.map((id) =>
+    db.collection("stagingLocations").doc(id),
+  );
+  const snaps = await db.getAll(...refs);
+  for (const snap of snaps) {
+    if (snap.exists) {
+      const code = snap.data()?.code;
+      if (typeof code === "string" && code.trim()) {
+        map.set(snap.id, code.trim());
+      }
+    }
+  }
+  return map;
+}
+
+/** Resolve ordered codes from a pre-fetched id→code map (same filter as resolveLocationCodes). */
+export function locationCodesFromMap(
+  locationIds: string[],
+  codeById: Map<string, string>,
+): string[] {
+  const codes: string[] = [];
+  for (const id of locationIds) {
+    const code = codeById.get(id);
+    if (code) codes.push(code);
+  }
+  return codes;
+}

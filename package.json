@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.324",
+  "version": "0.0.325",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -173,6 +173,7 @@
     "test:admin-bootstrap-identity": "npm run build:functions && firebase emulators:exec --only firestore \"node scripts/test-admin-bootstrap-identity.mjs\"",
     "test:migrate-access-pins": "node scripts/test-migrate-access-pins.mjs",
     "test:resolve-location-scan-pin": "npm run build:functions && npx firebase-tools emulators:exec --only firestore,functions \"node scripts/test-resolve-location-scan-pin.mjs\"",
+    "test:get-vendor-run-deliveries": "cd functions && npm run build && cd .. && npx firebase-tools emulators:exec --only firestore,functions \"node scripts/test-get-vendor-run-deliveries.mjs\"",
     "test:access-pin-rules": "firebase emulators:exec --only firestore \"node scripts/test-access-pin-rules.mjs\"",
     "test:pickup-authority": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-pickup-authority.mjs\"",
     "test:technician-job-open": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-technician-job-open.mjs\"",

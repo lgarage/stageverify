@@ -413,6 +413,70 @@ try {
   } catch (err) {
     fail("companyWide gate should return failure object", err);
   }
+
+  // Job PIN wins over different vendor company PIN (same PIN value — no false collision)
+  await seed(async (db) => {
+    await setDoc(doc(db, "technicians", "tech-resolve-1"), {
+      id: "tech-resolve-1",
+      pinCode: "0000",
+      active: true,
+    });
+    await setDoc(doc(db, "jobs", "job-resolve-1"), {
+      id: "job-resolve-1",
+      name: "Job Priority",
+      pinCode: "5555",
+    });
+    await setDoc(doc(db, "vendors", "vendor-resolve-1"), {
+      id: "vendor-resolve-1",
+      name: "Job Vendor",
+      active: true,
+      companyWideSessionEnabled: true,
+      pinCode: "9999",
+    });
+    await setDoc(doc(db, "vendors", "vendor-other-co"), {
+      id: "vendor-other-co",
+      name: "Other Company Vendor",
+      active: true,
+      companyWideSessionEnabled: true,
+      pinCode: "5555",
+      pinConfigured: true,
+    });
+    await setDoc(doc(db, "deliveries", "del-resolve-1"), {
+      id: "del-resolve-1",
+      vendorId: "vendor-resolve-1",
+      jobId: "job-resolve-1",
+      orderNumber: "ORD-JOB-WIN",
+    });
+    await setDoc(doc(db, "managementPins", "mgmt-resolve-full"), {
+      pinHash: hashPinForStorage("0000"),
+    });
+  });
+
+  await sleep(800);
+  try {
+    const { data } = await resolvePin({
+      pin: "5555",
+      stagingLocationCode: STAGING_CODE,
+    });
+    if (
+      data?.success === true &&
+      data.accessType === "vendor" &&
+      data.sessionScope === "job" &&
+      data.jobId === "job-resolve-1" &&
+      data.vendorId === "vendor-resolve-1"
+    ) {
+      pass(
+        "job PIN + different vendor company PIN (same value) → job-scoped session, not collision",
+      );
+    } else {
+      fail(
+        "job PIN priority over company PIN",
+        new Error(JSON.stringify(data)),
+      );
+    }
+  } catch (err) {
+    fail("job PIN priority should succeed", err);
+  }
 } catch (err) {
   fail("unexpected test harness error", err);
 } finally {

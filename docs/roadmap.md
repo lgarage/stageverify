@@ -95,6 +95,7 @@
 
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
+**Shipped (2026-08-24):** Vendor company-PIN login CF path parallelized — **v0.0.325**; `getVendorRunDeliveries` batched enrichment + `resolveLocationScanPin` parallel lookups after sequential rate limits; response contract / PIN semantics unchanged; no FE/rules; deploy only those two CFs.
 **Shipped (2026-08-24):** Email Vendor draft reason selection (Partial + staging + backorder uses outstanding/backorder, not WNA "Staging location missing") — **v0.0.324** gh-pages FE-only; PR #192 helper + send/history unchanged; no CF/rules.
 **Shipped (2026-08-23):** Company-PIN vendor list active/completed visibility (Partial → open → `<24h` completed; collapsed **Completed deliveries** 24–72h; `>72h` vendor-hidden) — **v0.0.323** gh-pages FE-only; `vendorPhysicalDropoffConfirmedAt`; no CF/rules.
 **Shipped (2026-08-23):** Catch-all count uses unique active deliveries assigned to CA (top-bar badge + map spot + status drawer share `countCatchAllAssignedDeliveries`) — **v0.0.304** gh-pages FE-only; Change Location navy chrome unchanged; no CF/rules.
@@ -229,7 +230,7 @@ Phase 2 gate passed 2026-06-08. **Phase 4 gate closed 2026-06-20** (pickup resol
 | Legacy zone URLs | ✅ `#/receive?zone=` / `#/r?z=` → `#/s?loc=` |
 | Exception-only hub | ✅ `appSettings.vendorDeliveryMode`; Delivered / Need More Space / Report a Problem |
 | Company-run job-card issue | ✅ Per-job **Report an issue** on expanded vendor-run cards (`v0.0.317`; reuses `VendorIssueModal` + `createMaterialIssue`) |
-| Company-run list load | ✅ `v0.0.319` paints list after `getVendorRunDeliveries`; background qty hydrate + session cache; no duplicate initial load |
+| Company-run list load | ✅ `v0.0.319` paints list after `getVendorRunDeliveries`; background qty hydrate + session cache; no duplicate initial load. **v0.0.325** CF enrichment batched / PIN lookups parallelized (security-gated) |
 | Legacy full check-in | ✅ Same page when `vendorDeliveryMode = full_checkin` |
 | Verify | ✅ `verify:vendor-delivered` + `node scripts/verify-receive-legacy-entry.mjs` |
 
