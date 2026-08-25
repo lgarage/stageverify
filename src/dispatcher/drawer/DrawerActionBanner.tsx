@@ -280,6 +280,46 @@ export function DrawerActionBanner({
             data-testid="drawer-action-banner-buttons"
             style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}
           >
+            {bannerContent.showEmailVendor && onEmailVendor && (
+              <button
+                type="button"
+                data-testid="drawer-action-email-vendor"
+                onClick={() => onEmailVendor()}
+                style={{
+                  padding: "7px 12px",
+                  borderRadius: 6,
+                  border: `1.5px solid ${navy}`,
+                  backgroundColor: "var(--admin-surface)",
+                  color: "var(--admin-accent-soft)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: font,
+                }}
+              >
+                Email Vendor
+              </button>
+            )}
+            {bannerContent.showCallVendor && (
+              <button
+                type="button"
+                data-testid="drawer-action-call-vendor"
+                onClick={() => setCallVendorOpen(true)}
+                style={{
+                  padding: "7px 12px",
+                  borderRadius: 6,
+                  border: `1.5px solid ${navy}`,
+                  backgroundColor: "var(--admin-surface)",
+                  color: "var(--admin-accent-soft)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: font,
+                }}
+              >
+                Call Vendor
+              </button>
+            )}
             {bannerContent.showReviewVendorEmail && onReviewVendorEmail && (
               <button
                 type="button"
@@ -300,28 +340,6 @@ export function DrawerActionBanner({
                 Review Vendor Email
               </button>
             )}
-            <button
-              type="button"
-              data-testid="drawer-action-resolve-issue"
-              disabled={!canResolve}
-              title={canResolve ? bannerContent.resolveDisabledReason : bannerContent.resolveDisabledReason}
-              aria-describedby="drawer-action-resolve-hint"
-              onClick={() => onResolveBlockingIssue?.()}
-              style={{
-                padding: "7px 12px",
-                borderRadius: 6,
-                border: `1.5px solid ${navy}`,
-                backgroundColor: canResolve ? navy : "var(--admin-surface)",
-                color: canResolve ? "var(--admin-on-navy)" : "var(--admin-text-muted)",
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: canResolve ? "pointer" : "not-allowed",
-                fontFamily: font,
-                opacity: canResolve ? 1 : 0.7,
-              }}
-            >
-              Resolve Issue
-            </button>
             {bannerContent.showReviewIssues && onReviewIssues && (
               <button
                 type="button"
@@ -332,7 +350,7 @@ export function DrawerActionBanner({
                   borderRadius: 6,
                   border: `1.5px solid ${navy}`,
                   backgroundColor: "var(--admin-surface)",
-                color: "var(--admin-accent-soft)",
+                  color: "var(--admin-accent-soft)",
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: "pointer",
@@ -342,50 +360,32 @@ export function DrawerActionBanner({
                 Review Issues
               </button>
             )}
-            {bannerContent.showCallVendor && (
+            {canResolve && (
               <button
                 type="button"
-                data-testid="drawer-action-call-vendor"
-                onClick={() => setCallVendorOpen(true)}
+                data-testid="drawer-action-resolve-issue"
+                title={bannerContent.resolveDisabledReason}
+                aria-describedby="drawer-action-resolve-hint"
+                onClick={() => onResolveBlockingIssue?.()}
                 style={{
                   padding: "7px 12px",
                   borderRadius: 6,
                   border: `1.5px solid ${navy}`,
-                  backgroundColor: "var(--admin-surface)",
-                color: "var(--admin-accent-soft)",
+                  backgroundColor: navy,
+                  color: "var(--admin-on-navy)",
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: "pointer",
                   fontFamily: font,
                 }}
               >
-                Call Vendor
-              </button>
-            )}
-            {bannerContent.showEmailVendor && onEmailVendor && (
-              <button
-                type="button"
-                data-testid="drawer-action-email-vendor"
-                onClick={() => onEmailVendor()}
-                style={{
-                  padding: "7px 12px",
-                  borderRadius: 6,
-                  border: `1.5px solid ${navy}`,
-                  backgroundColor: "var(--admin-surface)",
-                color: "var(--admin-accent-soft)",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  fontFamily: font,
-                }}
-              >
-                Email Vendor
+                Resolve Issue
               </button>
             )}
           </div>
         )}
 
-        {attentionRequired && !canResolve && (
+        {attentionRequired && canResolve && (
           <p
             id="drawer-action-resolve-hint"
             data-testid="drawer-action-resolve-hint"

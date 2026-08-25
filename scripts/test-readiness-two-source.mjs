@@ -20,6 +20,11 @@ import {
   deliveryReadinessDisplayLabel,
   UNPLANNED_STATUS_LABEL,
 } from "../src/dispatcher/jobReadinessDisplay.ts";
+import {
+  buildMaterialIssuesEvidenceSnapshot,
+  buildPhysicalDeliveryEvidenceSnapshot,
+  buildStagingEvidenceSnapshot,
+} from "../src/dispatcher/email/readinessEvidenceSnapshots.ts";
 
 const failures = [];
 
@@ -567,18 +572,18 @@ assert(
   "BO-only delivery keeps attention banner mode",
 );
 assert(
-  boOnlyBanner.attentionHeadline === "1 item backordered",
+  boOnlyBanner.attentionHeadline === "1 item is still backordered",
   "BO-only headline is a short backorder title",
 );
 assert(
   boOnlyBanner.whyBullets.length === 1 &&
-    /still on backorder/i.test(boOnlyBanner.whyBullets[0]),
+    /incomplete and the remaining item has not been confirmed/i.test(boOnlyBanner.whyBullets[0]),
   "BO-only Why is one compact backorder reason",
 );
 assert(
   boOnlyBanner.nextStepBullets.length === 1 &&
-    /Review the incomplete items/i.test(boOnlyBanner.nextStepBullets[0]),
-  "BO-only Next Step is one compact review action",
+    /Follow up with the vendor for an ETA or updated status/i.test(boOnlyBanner.nextStepBullets[0]),
+  "BO-only Next Step is vendor follow-up",
 );
 assert(
   boOnlyBanner.showCallVendor === true && boOnlyBanner.showEmailVendor === true,
@@ -939,6 +944,128 @@ assert(
 assert(
   fixture6167419Banner.attentionHeadline !== "Staging location missing",
   "6167419-shaped fixture → no Staging location missing headline",
+);
+
+// 6168008-shaped: email review + 1 backordered + 1 delivered + planned G1 + vendor complete
+const fixture6168008Items = [
+  {
+    id: "item-6168008-delivered",
+    deliveryOrderId: "delivery-6168008",
+    description: "Delivered part",
+    qtyOrdered: 1,
+    qtyReceived: 1,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+    qtyBackordered: 0,
+    status: "received",
+  },
+  {
+    id: "item-6168008-bo",
+    deliveryOrderId: "delivery-6168008",
+    description: "Filter Drier Biflo",
+    qtyOrdered: 5,
+    qtyReceived: 0,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+    qtyBackordered: 5,
+    status: "backordered",
+  },
+];
+const fixture6168008Delivery = {
+  ...baseDelivery,
+  id: "delivery-6168008",
+  orderNumber: "6168008",
+  stagingLocationId: "",
+  additionalStagingLocationIds: [],
+  plannedStagingLocationIds: ["loc-g1"],
+  vendorOrderComplete: true,
+  vendorPhysicalDropoffConfirmed: true,
+  status: "partial",
+};
+const fixture6168008Banner = buildDrawerActionBannerContent(
+  fixture6168008Delivery,
+  fixture6168008Items,
+  [],
+  {
+    emailReviewRequired: true,
+    vendorPhone: "555-0101",
+    vendorEmail: "vendor@example.com",
+  },
+);
+assert(
+  fixture6168008Banner.bannerMode === "attention_required",
+  "6168008-shaped fixture → attention banner",
+);
+assert(
+  fixture6168008Banner.attentionHeadline === "1 item is still backordered",
+  "6168008-shaped fixture → backorder headline beats email review",
+);
+assert(
+  fixture6168008Banner.whyBullets.length === 1,
+  "6168008-shaped fixture → single Why (operational only, no email prose)",
+);
+assert(
+  !fixture6168008Banner.whyBullets.some((b) => /vendor email proposal/i.test(b)),
+  "6168008-shaped fixture → why excludes email review prose",
+);
+assert(
+  fixture6168008Banner.nextStepBullets.length === 1,
+  "6168008-shaped fixture → single Next Step",
+);
+assert(
+  /incomplete and the remaining item has not been confirmed/i.test(
+    fixture6168008Banner.whyBullets[0],
+  ),
+  "6168008-shaped fixture → why is backorder incomplete remaining item",
+);
+assert(
+  /follow up with the vendor for an ETA or updated status/i.test(
+    fixture6168008Banner.nextStepBullets[0],
+  ),
+  "6168008-shaped fixture → next is vendor ETA follow-up",
+);
+assert(
+  fixture6168008Banner.showReviewVendorEmail === true,
+  "6168008-shaped fixture → Review Vendor Email still available",
+);
+assert(
+  fixture6168008Banner.showEmailVendor === true &&
+    fixture6168008Banner.showCallVendor === true,
+  "6168008-shaped fixture → Email/Call vendor when contact info set",
+);
+assert(
+  countOpenBlockingIssues(fixture6168008Delivery, []) === 0,
+  "6168008-shaped fixture → no open blocking material issues",
+);
+
+const stagingLocationsFixture = [
+  { id: "loc-g1", code: "G1", label: "G1", zoneId: "zone-1", active: true },
+];
+const staging6168008Snapshot = buildStagingEvidenceSnapshot({
+  delivery: fixture6168008Delivery,
+  stagingLocation: null,
+  stagingLocations: stagingLocationsFixture,
+});
+assert(
+  staging6168008Snapshot.label === "Planned at G1",
+  "6168008-shaped staging snapshot → Planned at G1",
+);
+const material6168008Snapshot = buildMaterialIssuesEvidenceSnapshot({
+  materialIssues: [],
+  itemConflicts: fixture6168008Items.filter((item) => item.qtyBackordered > 0),
+});
+assert(
+  material6168008Snapshot.label === "1 backordered item",
+  "6168008-shaped material snapshot → 1 backordered item",
+);
+const physical6168008Snapshot = buildPhysicalDeliveryEvidenceSnapshot({
+  physicalDropoffComplete: false,
+  vendorPhysicalDropoffConfirmed: true,
+  itemConflicts: fixture6168008Items.filter((item) => item.qtyBackordered > 0),
+});
+assert(
+  physical6168008Snapshot.label === "Vendor Marked Delivered — incomplete",
+  "6168008-shaped physical snapshot → Vendor Marked Delivered — incomplete",
 );
 
 if (failures.length) {
