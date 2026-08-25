@@ -95,6 +95,8 @@
 
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
+**Shipped (2026-08-25):** Vendor company-PIN list paints list-DTO cards before detail hydration (after-paint, concurrency 3) — **v0.0.328** gh-pages FE-only; merge `ef48c5fb` / PR #200; live `index-CIiJqL62.js`. Chromium cold last-digit→first card 1952ms (was 4482ms on 327). Real iPhone 12–13s still unproven.
+**Shipped (2026-08-25):** Vendor company-PIN Submit paints `{VENDOR} DELIVERIES` shell immediately (PinGate no longer awaits settings; list fetch on PIN success; `#/s` eager) — **v0.0.327** gh-pages FE-only; merge `be7dad20` / PR #198.
 **Shipped (2026-08-24):** Vendor company-PIN login CF path parallelized — **v0.0.325**; `getVendorRunDeliveries` batched enrichment + `resolveLocationScanPin` parallel lookups after sequential rate limits; response contract / PIN semantics unchanged; no FE/rules; deploy only those two CFs.
 **Shipped (2026-08-24):** Email Vendor outstanding-item bullets use `getVendorItemDisplay` (human-readable title/spec; stored description unchanged) — **v0.0.326** gh-pages FE-only; PR #195 reason selection unchanged; no CF/rules.
 **Shipped (2026-08-24):** Email Vendor draft reason selection (Partial + staging + backorder uses outstanding/backorder, not WNA "Staging location missing") — **v0.0.324** gh-pages FE-only; PR #192 helper + send/history unchanged; no CF/rules.
