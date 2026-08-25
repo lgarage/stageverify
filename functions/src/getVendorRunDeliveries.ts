@@ -21,6 +21,9 @@ export interface VendorRunDeliveryItem {
   id: string;
   description: string;
   qtyOrdered: number;
+  qtyReceived?: number;
+  qtyBackordered?: number;
+  status?: string;
 }
 
 export interface VendorRunDeliverySummary {
@@ -30,6 +33,7 @@ export interface VendorRunDeliverySummary {
   orderNumber: string;
   vendorInvoiceNumber?: string;
   poNumber?: string;
+  status?: string;
   stagingLocationCodes: string[];
   hasAssignableSpot: boolean;
   vendorPhysicalDropoffConfirmed: boolean;
@@ -93,6 +97,13 @@ function mapItems(
       id: itemDoc.id,
       description,
       qtyOrdered: typeof item.qtyOrdered === "number" ? item.qtyOrdered : 0,
+      ...(typeof item.qtyReceived === "number"
+        ? { qtyReceived: item.qtyReceived }
+        : {}),
+      ...(typeof item.qtyBackordered === "number"
+        ? { qtyBackordered: item.qtyBackordered }
+        : {}),
+      ...(typeof item.status === "string" ? { status: item.status } : {}),
     };
   });
 }
@@ -223,6 +234,9 @@ export const getVendorRunDeliveries = onCall(
           orderNumber: String(delivery.orderNumber ?? deliveryId),
           vendorInvoiceNumber,
           poNumber,
+          ...(typeof delivery.status === "string"
+            ? { status: delivery.status }
+            : {}),
           stagingLocationCodes,
           hasAssignableSpot: hasAssignableSpot(delivery),
           vendorPhysicalDropoffConfirmed:

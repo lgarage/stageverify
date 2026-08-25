@@ -70,6 +70,7 @@ export function LocationScanPinGate({
       if (pin.length < MIN_PIN_LENGTH || pin.length > MAX_PIN_LENGTH) return;
       setSubmitting(true);
       setError(null);
+      void getAppSettings().catch(() => {});
       try {
         const result = await resolveLocationScanPin({
           pin,

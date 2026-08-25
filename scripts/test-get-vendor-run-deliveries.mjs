@@ -162,6 +162,9 @@ try {
       deliveryOrderId: "del-run-alpha",
       description: "Alpha Widget",
       qtyOrdered: 3,
+      qtyReceived: 3,
+      qtyBackordered: 0,
+      status: "received",
     });
     await setDoc(doc(db, "items", "item-run-a2"), {
       id: "item-run-a2",
@@ -252,6 +255,26 @@ try {
     const alphaItemIds = alpha.items.map((i) => i.id).sort();
     if (alphaItemIds.join(",") !== "item-run-a1,item-run-a2") {
       throw new Error("bad alpha items");
+    }
+
+    const alphaItemA1 = alpha.items.find((i) => i.id === "item-run-a1");
+    const alphaItemA2 = alpha.items.find((i) => i.id === "item-run-a2");
+    if (!alphaItemA1 || !alphaItemA2) {
+      throw new Error("missing alpha item fixtures");
+    }
+    if (alphaItemA1.qtyReceived !== 3) {
+      throw new Error(`bad item-run-a1 qtyReceived ${alphaItemA1.qtyReceived}`);
+    }
+    if (alphaItemA1.status !== "received") {
+      throw new Error(`bad item-run-a1 status ${alphaItemA1.status}`);
+    }
+    if (alphaItemA2.qtyReceived !== undefined) {
+      throw new Error(
+        `item-run-a2 qtyReceived should be omitted, got ${alphaItemA2.qtyReceived}`,
+      );
+    }
+    if (alpha.status !== "shipped") {
+      throw new Error(`bad alpha delivery status ${alpha.status}`);
     }
 
     // Sort: jobName then orderNumber — Alpha before Beta

@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
 
 interface VendorDeliveriesLandingProps {
-  rootTestId: "vendor-run-layout" | "vendor-job-deliveries";
+  rootTestId:
+    | "vendor-run-layout"
+    | "vendor-job-deliveries"
+    | "vendor-run-loading"
+    | "vendor-job-loading";
   vendorName?: string;
   scannedContext: ReactNode;
   helper: ReactNode;

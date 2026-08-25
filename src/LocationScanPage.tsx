@@ -454,11 +454,11 @@ export function LocationScanPage() {
       return;
     }
     const isRefresh = Boolean(expansionUpdate);
-    if (
-      !isRefresh &&
-      (vendorRunInFlightRef.current === resolvedVendorId ||
-        vendorRunPaintedRef.current === resolvedVendorId)
-    ) {
+    if (!isRefresh && vendorRunInFlightRef.current === resolvedVendorId) {
+      return;
+    }
+    if (!isRefresh && vendorRunPaintedRef.current === resolvedVendorId) {
+      setStep("vendor-list");
       return;
     }
     if (!isRefresh) {
@@ -1880,6 +1880,84 @@ export function LocationScanPage() {
         <p className="text-sm text-text-secondary">Opening delivery…</p>
       </div>
     );
+  }
+
+  if (
+    historyView.kind === "deliveries" &&
+    branding &&
+    loading === true &&
+    step !== "vendor-list" &&
+    step !== "list" &&
+    step !== "hub" &&
+    step !== "done"
+  ) {
+    const resolvedVendorId =
+      vendorId ?? getActiveVendorRunSession()?.vendorId ?? null;
+    const resolvedJobId = jobId ?? getActiveJobPinSession()?.jobId ?? null;
+    if (resolvedVendorId || resolvedJobId) {
+      const runSession = resolvedVendorId
+        ? getVendorRunPinSession(resolvedVendorId)
+        : null;
+      const jobSession = resolvedJobId ? getJobPinSession(resolvedJobId) : null;
+      const isVendorRun =
+        resolvedVendorId !== null &&
+        isVendorRunPinSessionValid(resolvedVendorId);
+      const isJob =
+        resolvedJobId !== null && isJobPinSessionValid(resolvedJobId);
+      if (isVendorRun || isJob) {
+        const vendorName = runSession?.vendorName ?? jobSession?.vendorName;
+        return (
+          <VendorDeliveriesLanding
+            rootTestId={isVendorRun ? "vendor-run-loading" : "vendor-job-loading"}
+            vendorName={vendorName}
+            scannedContext={
+              isVendorRun ? (
+                <>
+                  Scanned {branding.code}
+                  {runSession?.vendorName ? ` · ${runSession.vendorName}` : ""}
+                </>
+              ) : (
+                <>
+                  Scanned {branding.code}
+                  {scannedCode && scannedCode !== branding.code
+                    ? ` · PIN job spots below`
+                    : ""}
+                </>
+              )
+            }
+            helper={
+              isVendorRun
+                ? "Loading your deliveries…"
+                : "Loading job deliveries…"
+            }
+            footer={
+              isVendorRun ? (
+                <div data-testid="vendor-run-footer">
+                  <button
+                    type="button"
+                    onClick={resetFlow}
+                    className="action-btn action-btn-secondary w-full"
+                    data-testid="vendor-run-back"
+                  >
+                    ← Back
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={resetFlow}
+                  className="action-btn action-btn-secondary w-full"
+                >
+                  ← Back
+                </button>
+              )
+            }
+          >
+            {null}
+          </VendorDeliveriesLanding>
+        );
+      }
+    }
   }
 
   if (step === "list" && branding && historyView.kind === "deliveries") {
