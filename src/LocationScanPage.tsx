@@ -106,6 +106,7 @@ import {
   vendorRunFulfillmentUsesPhysicalFallback,
   yieldToNextPaint,
 } from "./dispatcher/vendorRunFulfillmentHydration";
+import { warmupGetVendorRunDeliveries } from "./warmupGetVendorRunDeliveries";
 import { warmupResolveLocationScanPin } from "./warmupResolveLocationScanPin";
 
 const LazyVendorIssueModal = lazy(() =>
@@ -282,6 +283,7 @@ export function LocationScanPage() {
       return;
     }
     warmupResolveLocationScanPin();
+    warmupGetVendorRunDeliveries();
     setStep("loading");
     try {
       const result = await getLocationPublicBrandingClient(locationCode);
