@@ -285,7 +285,7 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 
 **Settings Gmail mailbox UI (2026-07-03)** ? When Gmail OAuth is connected, Settings Email Monitoring shows one **Gmail Mailbox** section: connected account (read-only), status, monitoring enabled/disabled, Disconnect, and a processing toggle (does not change mailbox address). `monitoringInboxEmail` auto-syncs from `connectedAccountEmail` on connect/load. Disconnected state keeps editable inbox + Connect Gmail. Verify: `verify:email-oauth-connect`, `verify:settings-staging`.
 
-**Drawer email review CTA (2026-07-03)** ? When vendor email proposal needs dispatcher review (e.g. ORD-006), **What Needs Attention** shows primary **Review Vendor Email** button; scrolls to Readiness Evidence and expands matched email proposal cards (not Vendor Communications). Verify: `verify:delivery-consistency` ORD-006 assertions + `verify:phase5-email`.
+**Drawer email review CTA (2026-07-03 / v0.0.333)** ? When vendor email proposal needs dispatcher review (e.g. ORD-006), **What Needs Attention** shows primary **Review Vendor Email** button. v0.0.333: invoice-source modal shows stored From/Date/Subject + honest empty body (not PDF OCR). Verify: `verify:review-vendor-email-source` + `verify:delivery-drawer-status`.
 
 **Dispatcher staging-action rows (2026-07-03, tightened)** ? Display-only: any delivery with missing staging (regardless of received qty or status; `installed` exempt) gets dark-orange `dispatcher-action-required` table row + Issue Summary **Assign staging location** first. Drawer readiness unchanged. Verify: offline gate + live Staging Loc. column in `verify:delivery-consistency`.
 

@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.332",
+  "version": "0.0.333",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -90,6 +90,8 @@
     "verify:admin-appearance": "node scripts/run-verify-with-learning.mjs --script verify:admin-appearance scripts/verify-admin-appearance.mjs",
     "verify:delivery-drawer-status": "node scripts/run-verify-with-learning.mjs --script verify:delivery-drawer-status scripts/verify-delivery-drawer-status.mjs",
     "verify:delivery-drawer-status:prod": "node scripts/run-verify-with-learning.mjs --script verify:delivery-drawer-status:prod scripts/verify-delivery-drawer-status.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:review-vendor-email-source": "node scripts/run-verify-with-learning.mjs --script verify:review-vendor-email-source scripts/verify-review-vendor-email-source.mjs",
+    "verify:review-vendor-email-source:prod": "node scripts/run-verify-with-learning.mjs --script verify:review-vendor-email-source:prod scripts/verify-review-vendor-email-source.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:e2e-smoke": "node scripts/verify-e2e-smoke.mjs",
     "verify:e2e-pickup-leg": "node scripts/verify-e2e-pickup-leg.mjs",
     "verify:phase5-email": "node scripts/verify-phase5-email.mjs",
@@ -165,6 +167,7 @@
     "test:app-settings-cache": "npx tsx scripts/test-app-settings-cache.mjs",
     "test:delivery-list-paging": "npx tsx scripts/test-delivery-list-paging.mjs",
     "test:invoice-shell-backfill-defer": "npx tsx scripts/test-invoice-shell-backfill-defer.mjs",
+    "test:review-vendor-email-source": "npx tsx scripts/test-review-vendor-email-source.mjs",
     "test:vendor-conversation-history": "npx tsx scripts/test-vendor-conversation-history.mjs",
     "test:vendor-pin-bootstrap-client": "npx tsx scripts/test-vendor-pin-bootstrap-client.mjs",
     "test:vendor-pin-bootstrap": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-vendor-pin-bootstrap.mjs\"",

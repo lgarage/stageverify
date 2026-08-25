@@ -158,6 +158,30 @@ const REVIEW_VENDOR_EMAIL_MODAL_CONTRAST = {
       selector: '[data-testid="review-vendor-email-modal-close"]',
       large: false,
     },
+    {
+      name: "invoice source from",
+      selector: '[data-testid="review-vendor-email-from"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "invoice source subject",
+      selector: '[data-testid="review-vendor-email-subject"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "invoice source empty body",
+      selector: '[data-testid="review-vendor-email-empty-body"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "invoice source view original pdf",
+      selector: '[data-testid="review-vendor-email-view-original-pdf"]',
+      large: false,
+      optional: true,
+    },
   ],
 };
 
