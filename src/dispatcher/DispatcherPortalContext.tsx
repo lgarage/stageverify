@@ -12,16 +12,6 @@ import type {
   Vendor,
   VendorInvoiceImportReview,
 } from "./models";
-import {
-  getEmailProviderConnection,
-  triggerInboundGmailSync,
-  listVendorInvoiceImports,
-  scheduleInvoiceShellBackfill,
-  listVendors,
-  listAllZones,
-  mapActiveZoneOccupancyByCode,
-  listShopStockMappings,
-} from "./firestoreService";
 import { formatGmailSyncMessage } from "./formatGmailSyncMessage";
 import { mapActiveShopStockReservationsByCode } from "./shopStockMapping";
 import type { ZoneOccupancySummaryWithReadiness } from "./zoneOccupancyCompute";
@@ -51,12 +41,18 @@ const DispatcherPortalContext =
   createContext<DispatcherPortalContextValue | null>(null);
 
 async function fetchInvoiceImports(): Promise<VendorInvoiceImportReview[]> {
+  const { listVendorInvoiceImports } = await import("./firestoreService");
   const items = await listVendorInvoiceImports({ limit: 50 });
   items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return items;
 }
 
 async function fetchZonesSnapshot(): Promise<DispatcherZonesSnapshot> {
+  const {
+    listAllZones,
+    mapActiveZoneOccupancyByCode,
+    listShopStockMappings,
+  } = await import("./firestoreService");
   const [zones, occupancy, mappings] = await Promise.all([
     listAllZones(),
     mapActiveZoneOccupancyByCode(),
@@ -85,7 +81,8 @@ export function DispatcherPortalProvider({ children }: { children: ReactNode }) 
     useState<DispatcherZonesSnapshot | null>(null);
 
   useEffect(() => {
-    void getEmailProviderConnection()
+    void import("./firestoreService")
+      .then(({ getEmailProviderConnection }) => getEmailProviderConnection())
       .then((connection) => {
         setEmailProviderConnected(connection.status === "connected");
       })
@@ -93,6 +90,9 @@ export function DispatcherPortalProvider({ children }: { children: ReactNode }) 
   }, []);
 
   const refreshSharedData = useCallback(async () => {
+    const { listVendors, scheduleInvoiceShellBackfill } = await import(
+      "./firestoreService"
+    );
     const [items, vendorList, zones] = await Promise.all([
       fetchInvoiceImports(),
       listVendors(),
@@ -129,6 +129,7 @@ export function DispatcherPortalProvider({ children }: { children: ReactNode }) 
     setGmailSyncMessage("Syncing mailbox…");
     try {
       if (emailProviderConnected) {
+        const { triggerInboundGmailSync } = await import("./firestoreService");
         const syncResult = await triggerInboundGmailSync();
         setGmailSyncMessage(formatGmailSyncMessage(syncResult));
       } else {

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { getAppSettings } from "./dispatcher/firestoreService";
 import type { ResolveLocationScanPinResult } from "./dispatcher/models";
 import { resolveLocationScanPin } from "./resolveLocationScanPinClient";
 import {
@@ -109,7 +108,8 @@ export function LocationScanPinGate({
             sessionOpts,
           );
           onVerified(result);
-          void getAppSettings()
+          void import("./dispatcher/firestoreService")
+            .then(({ getAppSettings }) => getAppSettings())
             .then((settings) => {
               const configured = settings.technicianSessionMinutes ?? 15;
               const existing = getTechnicianPinSession(result.technicianId);
@@ -131,6 +131,7 @@ export function LocationScanPinGate({
         }
 
         if (result.accessType === "management") {
+          const { getAppSettings } = await import("./dispatcher/firestoreService");
           const settings = await getAppSettings().catch(() => ({
             managementSessionMinutes: 30,
           }));
@@ -180,7 +181,8 @@ export function LocationScanPinGate({
         }
 
         onVerified(result);
-        void getAppSettings()
+        void import("./dispatcher/firestoreService")
+          .then(({ getAppSettings }) => getAppSettings())
           .then((settings) => {
             const configured = settings.vendorSessionMinutes ?? 15;
             const refreshSession = (

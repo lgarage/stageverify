@@ -5,14 +5,11 @@ import {
   useMemo,
   useRef,
   useState,
+  lazy,
+  Suspense,
 } from "react";
 import { flushSync } from "react-dom";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import {
-  firestoreDataService,
-  getAppSettings,
-  getDeliveryDetailsPublicForVendorReceive,
-} from "./dispatcher/firestoreService";
 import {
   normalizeLocationScanHash,
   readLocationScanParams,
@@ -60,16 +57,9 @@ import {
   writeVendorRunDeliveriesCache,
 } from "./vendorRunDeliveriesCache";
 import { stashTechnicianJobShell } from "./technicianJobShell";
-import { VendorDeliveredHub } from "./VendorDeliveredHub";
-import {
-  VendorIssueModal,
-  type VendorIssueTarget,
-} from "./VendorIssueModal";
+import type { VendorIssueTarget } from "./VendorIssueModal";
 import { VendorItemDisplayLines } from "./VendorItemDisplayLines";
-import {
-  VendorUnplannedDeliveryFlow,
-  type VendorUnplannedCompletePayload,
-} from "./VendorUnplannedDeliveryFlow";
+import type { VendorUnplannedCompletePayload } from "./VendorUnplannedDeliveryFlow";
 import { deliveryDetailsFromVendorPinBootstrap } from "./dispatcher/vendorPinBootstrap";
 import {
   bridgeJobSessionToDelivery,
@@ -117,6 +107,18 @@ import {
   yieldToNextPaint,
 } from "./dispatcher/vendorRunFulfillmentHydration";
 
+const LazyVendorIssueModal = lazy(() =>
+  import("./VendorIssueModal").then((m) => ({ default: m.VendorIssueModal })),
+);
+const LazyVendorUnplannedDeliveryFlow = lazy(() =>
+  import("./VendorUnplannedDeliveryFlow").then((m) => ({
+    default: m.VendorUnplannedDeliveryFlow,
+  })),
+);
+const LazyVendorDeliveredHub = lazy(() =>
+  import("./VendorDeliveredHub").then((m) => ({ default: m.VendorDeliveredHub })),
+);
+
 type Step =
   | "loading"
   | "missing"
@@ -140,6 +142,28 @@ interface LocationBranding {
 interface VendorRunExpansionUpdate {
   preserveExpandedIds: Set<string>;
   collapseDeliveryIds: Set<string>;
+}
+
+type VendorScanFirestoreModule = typeof import("./dispatcher/firestoreService");
+
+let vendorScanFirestorePromise: Promise<VendorScanFirestoreModule> | null = null;
+
+function loadVendorScanFirestore(): Promise<VendorScanFirestoreModule> {
+  vendorScanFirestorePromise ??= import("./dispatcher/firestoreService");
+  return vendorScanFirestorePromise;
+}
+
+function isPostPinStep(step: Step): boolean {
+  return (
+    step === "list" ||
+    step === "vendor-list" ||
+    step === "hub" ||
+    step === "done" ||
+    step === "tech-list" ||
+    step === "unplanned" ||
+    step === "mgmt-landing" ||
+    step === "mgmt-hub"
+  );
 }
 
 export function LocationScanPage() {
@@ -276,17 +300,22 @@ export function LocationScanPage() {
         // PIN step: same-shop tech resume handled by effect when session exists.
         setStep("pin");
       }
-      void getAppSettings()
-        .then((settings) => {
-          const intakeEnabled =
-            intakeFromBranding || settings.parcelIntakeEnabled === true;
-          if (intakeEnabled && isManagementPinSessionValid()) {
-            setStep((current) =>
-              current === "pin" || current === "loading" ? "mgmt-landing" : current,
-            );
-          }
-        })
-        .catch(() => {});
+      if (isManagementPinSessionValid()) {
+        void loadVendorScanFirestore()
+          .then(({ getAppSettings }) => getAppSettings())
+          .then((settings) => {
+            const intakeEnabled =
+              intakeFromBranding || settings.parcelIntakeEnabled === true;
+            if (intakeEnabled) {
+              setStep((current) =>
+                current === "pin" || current === "loading"
+                  ? "mgmt-landing"
+                  : current,
+              );
+            }
+          })
+          .catch(() => {});
+      }
     } catch {
       setError("Could not load location. Check your connection.");
       setStep("missing");
@@ -302,39 +331,53 @@ export function LocationScanPage() {
   }, [locationCode]);
 
   useEffect(() => {
-    void getAppSettings().then((settings) => {
-      setVendorGeofenceEnforce(settings.vendorGeofenceEnforce === true);
-      setRevertWindowMinutes(settings.vendorRevertWindowMinutes);
-      const lat = settings.shopLatitude;
-      const lng = settings.shopLongitude;
-      const radius = settings.shopGeofenceRadiusMeters;
-      if (
-        typeof lat !== "number" ||
-        typeof lng !== "number" ||
-        typeof radius !== "number" ||
-        radius <= 0 ||
-        !navigator.geolocation
-      ) {
-        setOutsideGeofence(null);
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setOutsideGeofence(
-            isOutsideShopGeofence(
-              pos.coords.latitude,
-              pos.coords.longitude,
-              lat,
-              lng,
-              radius,
-            ),
-          );
-        },
-        () => setOutsideGeofence(null),
-        { enableHighAccuracy: false, timeout: 12_000, maximumAge: 60_000 },
-      );
-    });
-  }, []);
+    if (!isPostPinStep(step)) return;
+
+    let cancelled = false;
+    void loadVendorScanFirestore()
+      .then(({ getAppSettings }) => getAppSettings())
+      .then((settings) => {
+        if (cancelled) return;
+        setVendorGeofenceEnforce(settings.vendorGeofenceEnforce === true);
+        setRevertWindowMinutes(settings.vendorRevertWindowMinutes);
+        const lat = settings.shopLatitude;
+        const lng = settings.shopLongitude;
+        const radius = settings.shopGeofenceRadiusMeters;
+        if (
+          typeof lat !== "number" ||
+          typeof lng !== "number" ||
+          typeof radius !== "number" ||
+          radius <= 0 ||
+          !navigator.geolocation
+        ) {
+          setOutsideGeofence(null);
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            if (cancelled) return;
+            setOutsideGeofence(
+              isOutsideShopGeofence(
+                pos.coords.latitude,
+                pos.coords.longitude,
+                lat,
+                lng,
+                radius,
+              ),
+            );
+          },
+          () => {
+            if (!cancelled) setOutsideGeofence(null);
+          },
+          { enableHighAccuracy: false, timeout: 12_000, maximumAge: 60_000 },
+        );
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [step]);
 
   const openDelivery = useCallback(
     async (resolvedJobId: string, deliveryId: string) => {
@@ -349,6 +392,8 @@ export function LocationScanPage() {
             sessionToken: token,
           });
         }
+        const { getDeliveryDetailsPublicForVendorReceive } =
+          await loadVendorScanFirestore();
         const details = await getDeliveryDetailsPublicForVendorReceive(deliveryId);
         if (!details) {
           setError("Could not open delivery.");
@@ -424,6 +469,8 @@ export function LocationScanPage() {
           goToHistoryView({ kind: "pin" }, { replace: true });
           return;
         }
+        const { getDeliveryDetailsPublicForVendorReceive } =
+          await loadVendorScanFirestore();
         const details =
           await getDeliveryDetailsPublicForVendorReceive(deliveryId);
         if (!details) {
@@ -696,13 +743,17 @@ export function LocationScanPage() {
             kind: "delivery",
             deliveryId: payload.deliveryId,
           });
-          void getDeliveryDetailsPublicForVendorReceive(payload.deliveryId).then(
-            (full) => {
+          void loadVendorScanFirestore()
+            .then(({ getDeliveryDetailsPublicForVendorReceive }) =>
+              getDeliveryDetailsPublicForVendorReceive(payload.deliveryId),
+            )
+            .then((full) => {
               if (full) setDeliveryDetails(full);
-            },
-          );
+            });
           return;
         }
+        const { getDeliveryDetailsPublicForVendorReceive } =
+          await loadVendorScanFirestore();
         const details = await getDeliveryDetailsPublicForVendorReceive(
           payload.deliveryId,
         );
@@ -1101,6 +1152,7 @@ export function LocationScanPage() {
     setVendorRunRevertingId(deliveryId);
     setError(null);
     try {
+      const { firestoreDataService } = await loadVendorScanFirestore();
       const updated = await firestoreDataService.revertDeliveryStatus(
         deliveryId,
         "vendor",
@@ -1151,6 +1203,7 @@ export function LocationScanPage() {
     setLoading(true);
     setError(null);
     try {
+      const { firestoreDataService } = await loadVendorScanFirestore();
       const updated = await firestoreDataService.markVendorDelivered(
         deliveryDetails.delivery.id,
         "Vendor Driver",
@@ -1180,6 +1233,7 @@ export function LocationScanPage() {
     setReverting(true);
     setError(null);
     try {
+      const { firestoreDataService } = await loadVendorScanFirestore();
       const updated = await firestoreDataService.revertDeliveryStatus(
         deliveryDetails.delivery.id,
         "vendor",
@@ -1557,21 +1611,29 @@ export function LocationScanPage() {
     }
     return (
       <div className="app-container h-screen h-dvh overflow-hidden bg-bg-primary">
-        <VendorUnplannedDeliveryFlow
-          vendorId={vendorId}
-          vendorName={vendorName}
-          sessionToken={sessionToken}
-          locationCode={branding.code}
-          onComplete={(payload) => void handleUnplannedComplete(payload)}
-          onSessionExpired={handlePinSessionExpired}
-          onCancel={() => {
-            if (sessionScope === "vendor_unplanned" && !runSession) {
-              resetFlow();
-              return;
-            }
-            goToHistoryView({ kind: "deliveries" }, { replace: true });
-          }}
-        />
+        <Suspense
+          fallback={
+            <div className="flex min-h-screen items-center justify-center p-4">
+              <p className="text-sm text-text-secondary">Loading…</p>
+            </div>
+          }
+        >
+          <LazyVendorUnplannedDeliveryFlow
+            vendorId={vendorId}
+            vendorName={vendorName}
+            sessionToken={sessionToken}
+            locationCode={branding.code}
+            onComplete={(payload) => void handleUnplannedComplete(payload)}
+            onSessionExpired={handlePinSessionExpired}
+            onCancel={() => {
+              if (sessionScope === "vendor_unplanned" && !runSession) {
+                resetFlow();
+                return;
+              }
+              goToHistoryView({ kind: "deliveries" }, { replace: true });
+            }}
+          />
+        </Suspense>
       </div>
     );
   }
@@ -1867,17 +1929,19 @@ export function LocationScanPage() {
               </p>
             )}
             {vendorRunIssueTarget && (
-              <VendorIssueModal
-                target={vendorRunIssueTarget}
-                onClose={() => setVendorRunIssueTarget(null)}
-                onSubmitted={() =>
-                  setVendorRunIssueReportedIds((previous) => {
-                    const next = new Set(previous);
-                    next.add(vendorRunIssueTarget.deliveryId);
-                    return next;
-                  })
-                }
-              />
+              <Suspense fallback={null}>
+                <LazyVendorIssueModal
+                  target={vendorRunIssueTarget}
+                  onClose={() => setVendorRunIssueTarget(null)}
+                  onSubmitted={() =>
+                    setVendorRunIssueReportedIds((previous) => {
+                      const next = new Set(previous);
+                      next.add(vendorRunIssueTarget.deliveryId);
+                      return next;
+                    })
+                  }
+                />
+              </Suspense>
             )}
           </>
         }
@@ -2195,34 +2259,42 @@ export function LocationScanPage() {
           </div>
         )}
         <div className="flex flex-1 min-h-0 flex-col">
-          <VendorDeliveredHub
-            deliveryDetails={deliveryDetails}
-            loading={loading}
-            error={error}
-            reverting={reverting}
-            geofenceOutside={outsideGeofence === true}
-            geofenceEnforce={vendorGeofenceEnforce}
-            onDeliveryUpdated={(updated) => {
-              setDeliveryDetails((prev) =>
-                prev ? { ...prev, delivery: updated } : prev,
-              );
-            }}
-            onDelivered={(lineExceptions) =>
-              handleMarkDelivered(lineExceptions)
+          <Suspense
+            fallback={
+              <div className="flex flex-1 items-center justify-center p-4">
+                <p className="text-sm text-text-secondary">Loading…</p>
+              </div>
             }
-            onUndoDelivered={() => handleRevertDelivered()}
-            onBack={() => {
-              if (sessionScope === "vendor" && vendorId) {
-                goToHistoryView({ kind: "deliveries" }, { replace: true });
-                return;
+          >
+            <LazyVendorDeliveredHub
+              deliveryDetails={deliveryDetails}
+              loading={loading}
+              error={error}
+              reverting={reverting}
+              geofenceOutside={outsideGeofence === true}
+              geofenceEnforce={vendorGeofenceEnforce}
+              onDeliveryUpdated={(updated) => {
+                setDeliveryDetails((prev) =>
+                  prev ? { ...prev, delivery: updated } : prev,
+                );
+              }}
+              onDelivered={(lineExceptions) =>
+                handleMarkDelivered(lineExceptions)
               }
-              if (deliveries.length > 1) {
-                goToHistoryView({ kind: "deliveries" }, { replace: true });
-                return;
-              }
-              resetFlow();
-            }}
-          />
+              onUndoDelivered={() => handleRevertDelivered()}
+              onBack={() => {
+                if (sessionScope === "vendor" && vendorId) {
+                  goToHistoryView({ kind: "deliveries" }, { replace: true });
+                  return;
+                }
+                if (deliveries.length > 1) {
+                  goToHistoryView({ kind: "deliveries" }, { replace: true });
+                  return;
+                }
+                resetFlow();
+              }}
+            />
+          </Suspense>
         </div>
       </div>
     );

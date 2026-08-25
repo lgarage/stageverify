@@ -6,7 +6,7 @@ import {
   query,
   type Unsubscribe,
 } from "firebase/firestore";
-import { db } from "../firebase";
+import { db } from "../firebaseDb";
 import {
   parseStagingLocation,
   type DeliveryOrder,

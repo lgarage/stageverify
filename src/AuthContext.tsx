@@ -8,7 +8,6 @@ import {
 } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "./firebase";
-import { getMyDispatcherRole } from "./dispatcher/firestoreService";
 
 interface AuthContextValue {
   user: User | null;
@@ -42,7 +41,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false;
     setRoleLoading(true);
-    void getMyDispatcherRole()
+    void import("./dispatcher/firestoreService")
+      .then(({ getMyDispatcherRole }) => getMyDispatcherRole())
       .then((role) => {
         if (cancelled) return;
         setHasDispatcherAccess(Boolean(role && role.active !== false));

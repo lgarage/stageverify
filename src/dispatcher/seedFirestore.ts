@@ -1,5 +1,5 @@
 import { collection, getDocs, writeBatch, doc } from "firebase/firestore";
-import { db } from "../firebase";
+import { db } from "../firebaseDb";
 import type {
   DeliveryOrder,
   Item,

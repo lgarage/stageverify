@@ -9,7 +9,6 @@ import { LoginPage } from "./LoginPage";
 import { NoAccessPage } from "./NoAccessPage";
 import { normalizeLegacyAppHash, normalizeLocationScanHash, normalizePickupHash, normalizeReceiveHash } from "./receiveQrUrls";
 import { applyPendingLeftoverReceiveCollapse } from "./locationScanHistoryCollapse";
-import { seedFirestore } from "./dispatcher/seedFirestore";
 // Eager: a failed React.lazy() of VendorsPage empties #root (blank dark screen)
 // while HashRouter has already committed #/vendors. Reload "fixes" it because
 // the import runs again; client-side nav reuses the rejected module promise.
@@ -137,7 +136,9 @@ window.addEventListener("popstate", () => {
 });
 renderApp();
 if (import.meta.env.DEV) {
-  seedFirestore().catch((err) => {
-    console.error("Firestore seed failed:", err);
-  });
+  void import("./dispatcher/seedFirestore").then(({ seedFirestore }) =>
+    seedFirestore().catch((err) => {
+      console.error("Firestore seed failed:", err);
+    }),
+  );
 }
