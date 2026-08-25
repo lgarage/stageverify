@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.329",
+  "version": "0.0.330",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -61,6 +61,8 @@
     "verify:portal-layout": "node scripts/verify-portal-layout.mjs",
     "verify:dispatcher-nav": "node scripts/run-verify-with-learning.mjs --script verify:dispatcher-nav --runner tsx scripts/verify-dispatcher-nav.mjs",
     "verify:dispatcher-nav:prod": "node scripts/run-verify-with-learning.mjs --script verify:dispatcher-nav:prod --runner tsx scripts/verify-dispatcher-nav.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:dispatcher-deliveries-page-size": "node scripts/run-verify-with-learning.mjs --script verify:dispatcher-deliveries-page-size scripts/verify-dispatcher-deliveries-page-size.mjs",
+    "verify:dispatcher-deliveries-page-size:prod": "node scripts/run-verify-with-learning.mjs --script verify:dispatcher-deliveries-page-size:prod scripts/verify-dispatcher-deliveries-page-size.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:shop-map": "node scripts/run-verify-with-learning.mjs --script verify:shop-map scripts/verify-shop-map.mjs",
     "verify:shop-map:prod": "node scripts/run-verify-with-learning.mjs --script verify:shop-map:prod scripts/verify-shop-map.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:shop-map-zoom": "node scripts/run-verify-with-learning.mjs --script verify:shop-map-zoom scripts/verify-shop-map-zoom.mjs",
@@ -161,6 +163,7 @@
     "enable:vendor-companywide-pin": "node scripts/enable-vendor-companywide-pin.mjs",
     "cleanup:vendor-unplanned-verify": "node scripts/cleanup-vendor-unplanned-verify-fixtures.mjs",
     "test:app-settings-cache": "npx tsx scripts/test-app-settings-cache.mjs",
+    "test:delivery-list-paging": "npx tsx scripts/test-delivery-list-paging.mjs",
     "test:invoice-shell-backfill-defer": "npx tsx scripts/test-invoice-shell-backfill-defer.mjs",
     "test:vendor-conversation-history": "npx tsx scripts/test-vendor-conversation-history.mjs",
     "test:vendor-pin-bootstrap-client": "npx tsx scripts/test-vendor-pin-bootstrap-client.mjs",

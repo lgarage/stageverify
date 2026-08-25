@@ -43,6 +43,7 @@ import {
   scheduleInvoiceShellBackfill as scheduleInvoiceShellBackfillCore,
 } from "./invoiceShellBackfillSchedule";
 import { buildWillCallActiveStagingClearPatch } from "./willCallStagingRelease";
+import { asPagedResult } from "./deliveryListPaging";
 import type {
   DeliveryDetails,
   DeliveryListRow,
@@ -358,28 +359,6 @@ const sortRows = (
     }
   });
   return sorted;
-};
-
-const asPagedResult = <T>(
-  allItems: T[],
-  page: number,
-  pageSize: number,
-): PagedResult<T> => {
-  const safePage = Math.max(DEFAULT_PAGE, page);
-  const safePageSize = Math.max(1, pageSize);
-  const totalItems = allItems.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / safePageSize));
-  const boundedPage = Math.min(safePage, totalPages);
-  const start = (boundedPage - 1) * safePageSize;
-  const end = start + safePageSize;
-
-  return {
-    items: allItems.slice(start, end),
-    page: boundedPage,
-    pageSize: safePageSize,
-    totalItems,
-    totalPages,
-  };
 };
 
 const includesSearch = (row: DeliveryListRow, search: string): boolean => {

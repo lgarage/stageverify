@@ -43,6 +43,11 @@ import {
 } from "./dispatcher/jobReadinessDisplay";
 import { DeliveryListStagingChips } from "./dispatcher/DeliveryListStagingChips";
 import { DeliveryDetailDrawer } from "./dispatcher/drawer/DeliveryDetailDrawer";
+import {
+  DEFAULT_DELIVERY_LIST_PAGE_SIZE,
+  DELIVERY_LIST_PAGE_SIZE_OPTIONS,
+  type DeliveryListPageSize,
+} from "./dispatcher/deliveryListPaging";
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
@@ -171,13 +176,13 @@ type ListQueryState = {
   sortBy: DeliverySortField;
   sortDirection: SortDirection;
   page: number;
-  pageSize: number;
+  pageSize: DeliveryListPageSize;
 };
 
 const INITIAL_PAGED: PagedResult<DeliveryListRow> = {
   items: [],
   page: 1,
-  pageSize: 20,
+  pageSize: DEFAULT_DELIVERY_LIST_PAGE_SIZE,
   totalItems: 0,
   totalPages: 1,
 };
@@ -196,7 +201,7 @@ export function DispatcherDashboardPage() {
     sortBy: "deliveryDate",
     sortDirection: "desc",
     page: 1,
-    pageSize: 20,
+    pageSize: DEFAULT_DELIVERY_LIST_PAGE_SIZE,
   });
   const [paged, setPaged] =
     useState<PagedResult<DeliveryListRow>>(INITIAL_PAGED);
@@ -383,11 +388,15 @@ export function DispatcherDashboardPage() {
   };
 
   const pageNumbers = useMemo(() => {
+    if (paged.pageSize === "all") return [];
     return Array.from({ length: paged.totalPages }, (_, i) => i + 1).slice(
       Math.max(0, paged.page - 3),
       Math.max(5, paged.page + 2),
     );
-  }, [paged.page, paged.totalPages]);
+  }, [paged.page, paged.pageSize, paged.totalPages]);
+
+  const showPagination =
+    query.pageSize !== "all" && paged.pageSize !== "all";
 
   /* ── Render ── */
   return (
@@ -1481,49 +1490,119 @@ export function DispatcherDashboardPage() {
                 backgroundColor: "var(--admin-surface-2)",
               }}
             >
-              <span style={{ fontSize: 13, color: "var(--admin-text-muted)" }}>
-                Showing{" "}
-                <strong style={{ color: "var(--admin-text)" }}>{paged.items.length}</strong>{" "}
-                of <strong style={{ color: "var(--admin-text)" }}>{paged.totalItems}</strong>{" "}
-                deliveries
-              </span>
-
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <PagBtn
-                  onClick={() =>
-                    setQuery((p) => ({ ...p, page: Math.max(1, p.page - 1) }))
-                  }
-                  disabled={paged.page <= 1 || listLoading}
-                  label="← Prev"
-                  navy={NAVY}
-                  font={FONT}
-                />
-
-                {pageNumbers.map((n) => (
-                  <PagBtn
-                    key={n}
-                    onClick={() => setQuery((p) => ({ ...p, page: n }))}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 12,
+                }}
+              >
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--admin-text-muted)",
+                    fontFamily: FONT,
+                  }}
+                >
+                  Per page
+                  <select
+                    data-testid="deliveries-page-size"
+                    value={
+                      query.pageSize === "all"
+                        ? "all"
+                        : String(query.pageSize)
+                    }
                     disabled={listLoading}
-                    label={String(n)}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const pageSize: DeliveryListPageSize =
+                        raw === "all"
+                          ? "all"
+                          : (Number(raw) as DeliveryListPageSize);
+                      setQuery((p) => ({ ...p, pageSize, page: 1 }));
+                    }}
+                    style={{
+                      padding: "5px 8px",
+                      borderRadius: "var(--admin-control-radius)",
+                      border: "1px solid var(--admin-border)",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      fontFamily: FONT,
+                      color: "#333",
+                      backgroundColor: "#fff",
+                      cursor: listLoading ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {DELIVERY_LIST_PAGE_SIZE_OPTIONS.map((opt) => (
+                      <option
+                        key={String(opt)}
+                        value={String(opt)}
+                        data-testid={`deliveries-page-size-${opt}`}
+                      >
+                        {opt === "all" ? "All" : opt}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <span style={{ fontSize: 13, color: "var(--admin-text-muted)" }}>
+                  Showing{" "}
+                  <strong style={{ color: "var(--admin-text)" }}>
+                    {paged.items.length}
+                  </strong>{" "}
+                  of{" "}
+                  <strong style={{ color: "var(--admin-text)" }}>
+                    {paged.totalItems}
+                  </strong>{" "}
+                  deliveries
+                </span>
+              </div>
+
+              {showPagination ? (
+                <div
+                  data-testid="deliveries-pagination"
+                  style={{ display: "flex", alignItems: "center", gap: 4 }}
+                >
+                  <PagBtn
+                    onClick={() =>
+                      setQuery((p) => ({ ...p, page: Math.max(1, p.page - 1) }))
+                    }
+                    disabled={paged.page <= 1 || listLoading}
+                    label="← Prev"
                     navy={NAVY}
                     font={FONT}
-                    active={n === paged.page}
                   />
-                ))}
 
-                <PagBtn
-                  onClick={() =>
-                    setQuery((p) => ({
-                      ...p,
-                      page: Math.min(paged.totalPages, p.page + 1),
-                    }))
-                  }
-                  disabled={paged.page >= paged.totalPages || listLoading}
-                  label="Next →"
-                  navy={NAVY}
-                  font={FONT}
-                />
-              </div>
+                  {pageNumbers.map((n) => (
+                    <PagBtn
+                      key={n}
+                      onClick={() => setQuery((p) => ({ ...p, page: n }))}
+                      disabled={listLoading}
+                      label={String(n)}
+                      navy={NAVY}
+                      font={FONT}
+                      active={n === paged.page}
+                    />
+                  ))}
+
+                  <PagBtn
+                    onClick={() =>
+                      setQuery((p) => ({
+                        ...p,
+                        page: Math.min(paged.totalPages, p.page + 1),
+                      }))
+                    }
+                    disabled={paged.page >= paged.totalPages || listLoading}
+                    label="Next →"
+                    navy={NAVY}
+                    font={FONT}
+                  />
+                </div>
+              ) : null}
             </div>
             </div>
           </div>

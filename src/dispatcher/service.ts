@@ -70,13 +70,13 @@ export interface DeliveryQuery {
   sortBy?: DeliverySortField;
   sortDirection?: SortDirection;
   page?: number;
-  pageSize?: number;
+  pageSize?: number | "all";
 }
 
 export interface PagedResult<T> {
   items: T[];
   page: number;
-  pageSize: number;
+  pageSize: number | "all";
   totalItems: number;
   totalPages: number;
 }
