@@ -60,6 +60,23 @@ assert.equal(
   }),
 );
 assert.equal(canonicalLocationScanHash("#/receive?zone=G2"), null);
+assert.equal(
+  canonicalLocationScanHash("#/s?loc=G1&svdebug=1"),
+  "#/s?loc=G1&svdebug=1",
+);
+assert.equal(
+  canonicalLocationScanHash("#/s?loc=G1&foo=bar&svdebug=1"),
+  "#/s?loc=G1&svdebug=1",
+);
+assert.equal(canonicalLocationScanHash("#/s?loc=G1&svdebug=0"), "#/s?loc=G1");
+assert.equal(
+  locationScanHistoryPath(
+    "G1",
+    pin,
+    new URLSearchParams("loc=G1&svdebug=1"),
+  ),
+  "/s?loc=G1&svdebug=1",
+);
 
 assert.equal(isLeftoverReceiveHash("#/receive"), true);
 assert.equal(isLeftoverReceiveHash("#/receive?"), true);
@@ -138,5 +155,9 @@ assert.equal(assignedHash, 0, "zone redirect must replace, not assign location.h
 currentHash = "#/s?l=G1&view=deliveries";
 normalizeLocationScanHash();
 assert.equal(currentHash, "#/s?loc=G1&view=deliveries");
+
+currentHash = "#/s?loc=G1&svdebug=1";
+normalizeLocationScanHash();
+assert.equal(currentHash, "#/s?loc=G1&svdebug=1");
 
 console.log("test-location-scan-history: PASS");

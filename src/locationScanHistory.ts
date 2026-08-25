@@ -14,6 +14,17 @@ export type LocationScanHistoryView =
   | { kind: "mgmt" }
   | { kind: "mgmt-hub" };
 
+/** Copy `svdebug` from a source query (diagnostic-only; not arbitrary params). */
+function appendSvdebugFromSource(
+  target: URLSearchParams,
+  source?: URLSearchParams,
+): void {
+  if (!source?.has("svdebug")) return;
+  const value = source.get("svdebug");
+  if (value === "0") return;
+  target.set("svdebug", value ?? "1");
+}
+
 export function readLocationScanHistoryView(
   searchParams: URLSearchParams,
 ): LocationScanHistoryView {
@@ -37,6 +48,7 @@ export function readLocationScanHistoryView(
 export function locationScanHistoryPath(
   locationCode: string,
   view: LocationScanHistoryView,
+  preserveFrom?: URLSearchParams,
 ): string {
   const params = new URLSearchParams();
   params.set("loc", locationCode.trim());
@@ -63,14 +75,16 @@ export function locationScanHistoryPath(
       params.set("view", "mgmt-hub");
       break;
   }
+  appendSvdebugFromSource(params, preserveFrom);
   return `/s?${params.toString()}`;
 }
 
 export function locationScanHistoryHash(
   locationCode: string,
   view: LocationScanHistoryView,
+  preserveFrom?: URLSearchParams,
 ): string {
-  return `#${locationScanHistoryPath(locationCode, view)}`;
+  return `#${locationScanHistoryPath(locationCode, view, preserveFrom)}`;
 }
 
 export function locationScanHistoryViewsEqual(
@@ -120,5 +134,9 @@ export function canonicalLocationScanHash(hash: string): string | null {
       : new URLSearchParams(hash.slice(qsStart + 1));
   const loc = (params.get("loc") ?? params.get("l") ?? "").trim();
   if (!loc) return null;
-  return locationScanHistoryHash(loc, readLocationScanHistoryView(params));
+  return locationScanHistoryHash(
+    loc,
+    readLocationScanHistoryView(params),
+    params,
+  );
 }

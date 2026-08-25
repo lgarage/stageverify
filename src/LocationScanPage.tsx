@@ -284,10 +284,14 @@ function LocationScanPageInner() {
   const goToHistoryView = useCallback(
     (view: LocationScanHistoryView, options?: { replace?: boolean }) => {
       if (!locationCode) return;
-      let path = locationScanHistoryPath(locationCode, view);
-      if (isVendorPinDebugEnabled() && !path.includes("svdebug=")) {
-        path += path.includes("?") ? "&svdebug=1" : "?svdebug=1";
-      }
+      const hashQueryStart = hashSearch.indexOf("?");
+      const preserveFrom =
+        hashQueryStart >= 0
+          ? new URLSearchParams(hashSearch.slice(hashQueryStart + 1))
+          : location.search.startsWith("?")
+            ? new URLSearchParams(location.search.slice(1))
+            : undefined;
+      const path = locationScanHistoryPath(locationCode, view, preserveFrom);
       const current = `${location.pathname}${location.search}`;
       if (current === path && historyViewKey === (
         view.kind === "delivery" ? `delivery:${view.deliveryId}` : view.kind
@@ -299,7 +303,7 @@ function LocationScanPageInner() {
         path.startsWith("#") ? path : `#${path.startsWith("/") ? path : `/${path}`}`,
       );
     },
-    [historyViewKey, location.pathname, location.search, locationCode, navigate],
+    [historyViewKey, hashSearch, location.pathname, location.search, locationCode, navigate],
   );
 
   const loadBranding = useCallback(async () => {
