@@ -4,7 +4,9 @@ import {
   createVendorRunDetailsCache,
   enrichVendorRunFulfillment,
   invalidateVendorRunDetailsCache,
+  VENDOR_RUN_DETAILS_CONCURRENCY,
   vendorRunFulfillmentUsesPhysicalFallback,
+  yieldToNextPaint,
 } from "../src/dispatcher/vendorRunFulfillmentHydration.ts";
 
 const listOnly = {
@@ -179,4 +181,53 @@ assert.equal(
   "hydrated backorder remains Partial",
 );
 
-console.log("PASS: test-vendor-run-fulfillment-hydration (12 cases)");
+assert.equal(
+  VENDOR_RUN_DETAILS_CONCURRENCY,
+  3,
+  "default detail concurrency cap is 3",
+);
+
+let yieldResolved = false;
+const yieldPromise = yieldToNextPaint().then(() => {
+  yieldResolved = true;
+});
+assert.equal(yieldResolved, false, "yieldToNextPaint is async");
+await yieldPromise;
+assert.equal(yieldResolved, true, "yieldToNextPaint resolves after paint");
+
+const fiveMissingRows = ["d5", "d6", "d7", "d8", "d9"].map((deliveryId) => ({
+  ...listOnly,
+  deliveryId,
+  items: [{ id: `i-${deliveryId}`, description: "Unit", qtyOrdered: 1 }],
+}));
+let inFlight = 0;
+let maxInFlight = 0;
+const completedIds = [];
+await enrichVendorRunFulfillment(
+  fiveMissingRows,
+  "token-concurrency",
+  async ({ deliveryId }) => {
+    inFlight += 1;
+    maxInFlight = Math.max(maxInFlight, inFlight);
+    await new Promise((r) => setTimeout(r, 10));
+    inFlight -= 1;
+    completedIds.push(deliveryId);
+    return {
+      items: [
+        {
+          id: `i-${deliveryId}`,
+          description: "Unit",
+          qtyOrdered: 1,
+          qtyReceived: 1,
+        },
+      ],
+    };
+  },
+);
+assert.ok(
+  maxInFlight <= VENDOR_RUN_DETAILS_CONCURRENCY,
+  `max in-flight ${maxInFlight} must be <= ${VENDOR_RUN_DETAILS_CONCURRENCY}`,
+);
+assert.equal(completedIds.length, 5, "all 5 missing rows still complete");
+
+console.log("PASS: test-vendor-run-fulfillment-hydration (15 cases)");

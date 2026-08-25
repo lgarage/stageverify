@@ -1,6 +1,48 @@
 import type { VendorRunDeliverySummary } from "./models";
 import { vendorItemsHaveFulfillmentQty } from "./vendorJobCardStatus";
 
+/** Max parallel getVendorReceiveDetails calls during company-run hydration. */
+export const VENDOR_RUN_DETAILS_CONCURRENCY = 3;
+
+/**
+ * Yield until after the next paint so list DTO can commit before detail fetches.
+ * Uses double rAF; falls back to setTimeout(0) when rAF is unavailable.
+ */
+export function yieldToNextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    const win =
+      typeof globalThis !== "undefined"
+        ? (globalThis as { requestAnimationFrame?: typeof requestAnimationFrame })
+        : undefined;
+    if (typeof win?.requestAnimationFrame === "function") {
+      win.requestAnimationFrame(() => {
+        win.requestAnimationFrame!(() => resolve());
+      });
+    } else {
+      setTimeout(() => resolve(), 0);
+    }
+  });
+}
+
+async function mapWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<void>,
+): Promise<void> {
+  if (items.length === 0) return;
+  let nextIndex = 0;
+  const workerCount = Math.min(concurrency, items.length);
+
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      await fn(items[index]!);
+    }
+  }
+
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+}
+
 export type VendorRunHydratedItems = VendorRunDeliverySummary["items"];
 
 export type VendorRunDetailsCacheEntry = {
@@ -133,8 +175,10 @@ export async function enrichVendorRunFulfillment(
     return !byId.has(row.deliveryId);
   });
 
-  await Promise.all(
-    missing.map(async (row) => {
+  await mapWithConcurrency(
+    missing,
+    VENDOR_RUN_DETAILS_CONCURRENCY,
+    async (row) => {
       try {
         const details = await fetchDetails({
           deliveryId: row.deliveryId,
@@ -160,7 +204,7 @@ export async function enrichVendorRunFulfillment(
       } catch {
         // Keep list DTO when details are unavailable (legacy CF / mocks).
       }
-    }),
+    },
   );
 
   return mergeVendorRunHydratedItems(rows, byId);

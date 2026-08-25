@@ -108,6 +108,7 @@ import {
   enrichVendorRunFulfillment,
   invalidateVendorRunDetailsCache,
   vendorRunFulfillmentUsesPhysicalFallback,
+  yieldToNextPaint,
 } from "./dispatcher/vendorRunFulfillmentHydration";
 
 type Step =
@@ -482,6 +483,8 @@ export function LocationScanPage() {
       setStep("vendor-list");
       vendorRunPaintedRef.current = resolvedVendorId;
       setLoading(false);
+
+      await yieldToNextPaint();
 
       const deliveries = await enrichVendorRunFulfillment(
         result.deliveries,
