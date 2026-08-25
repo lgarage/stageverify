@@ -503,7 +503,6 @@ export function LocationScanPage() {
       const result = await getVendorRunDeliveriesClient({ sessionToken: token });
       if (generation !== vendorRunLoadGenerationRef.current) return;
       const runSession = getVendorRunPinSession(resolvedVendorId);
-      const partition = partitionVendorRunDeliveries(result.deliveries);
       const resolveExpandedDeliveryIds = (): Set<string> => {
         if (expansionUpdate) {
           const next = new Set(expansionUpdate.preserveExpandedIds);
@@ -525,23 +524,10 @@ export function LocationScanPage() {
         setLoading(false);
       };
 
-      if (
-        !isRefresh &&
-        partition.mainList[0] &&
-        result.deliveries.length > 1
-      ) {
-        flushSync(() => {
-          applyVendorRunListState([partition.mainList[0]]);
-        });
-        await yieldToNextPaint();
-        setVendorRunDeliveries(result.deliveries);
-        await yieldToNextPaint();
-      } else {
-        flushSync(() => {
-          applyVendorRunListState(result.deliveries);
-        });
-        await yieldToNextPaint();
-      }
+      flushSync(() => {
+        applyVendorRunListState(result.deliveries);
+      });
+      await yieldToNextPaint();
 
       writeVendorRunDeliveriesCache(resolvedVendorId, {
         deliveries: result.deliveries,
