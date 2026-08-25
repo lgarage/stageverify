@@ -95,6 +95,7 @@
 
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
+**Shipping (2026-08-25):** Company-run list paints list-DTO cards before writing the localStorage cache — **v0.0.333** gh-pages FE-only. Real iPhone still unproven.
 **Shipped (2026-08-25):** Vendor list display cache uses **localStorage** (24h) and paints cached cards on PIN success before the list CF, including a new tab — **v0.0.332** gh-pages FE-only. Real iPhone still unproven.
 **Shipped (2026-08-25):** Vendor company-run list keeps one landing tree + display-only list cache after PIN — **v0.0.331** gh-pages FE-only; warm re-login paints cached cards before list CF. Real iPhone still unproven.
 **Shipped (2026-08-25):** Dispatcher Deliveries Per page 25 / 50 / 100 / All — **v0.0.330** gh-pages FE-only; All uses already-loaded filtered/sorted rows; no CF/rules.
@@ -350,7 +351,7 @@ Phases 5–9 are sequenced below for prioritization. **Queue override:** `away-l
 - **Stage 1 tracked vendor email (2026-07-06, v0.0.15):** ✅ Shipped dark — outbound tracking tokens + reply router behind `emailReplyIngestEnabled`; Needs Review live query; enable flag + Pub/Sub for end-to-end
 - **Outbound send (away-068):** ✅ Shipped — `sendVendorEmail` CF (Gmail API); Email Vendor enabled in Resolve Issue when `emailProviderConnected`; outbound `vendorEmailEvents` audit
 - **Drawer/readiness UX (away-072, away-073, clarity correction):** ✅ Shipped — Issue Summary item table only (no Open Issues accordion); calm **Waiting on Delivery** banner for normal pending; **What Needs Attention** only for true exceptions; exception-only issue counts; `verify:delivery-consistency` + `test:demo-matrix`
-- **Review Vendor Email modal (v0.0.318 / v0.0.333):** ✅ LIVE — centered read-only overlay; v0.0.333 shows stored source-email headers + honest empty body (no PDF OCR dump); View Original PDF + Email Vendor compose unchanged
+- **Review Vendor Email modal (v0.0.318 / v0.0.334):** ✅ LIVE — centered read-only overlay; v0.0.334 shows stored source-email headers + honest empty body (no PDF OCR dump); View Original PDF + Email Vendor compose unchanged
 - **Vendor Communications history (v0.0.322):** Conversation history joins linked invoice-source inbound email with tracked `vendorEmailEvents` (dedupe on Gmail message id / vendorEmailEventId); compose-send unchanged
 - **Demo drawer uniformity (2026-06-24):** ✅ Shipped — ORD-005 layout/rules on all seed orders (ORD-001..006); hidden lower sections global; verify loop per demo order
 - **Firestore doc id + prod demo hide (2026-07-05, v0.0.14):** ✅ Shipped — `fetchAll`/`fetchWhere` merge doc id; seed demo ORD rows hidden on prod gh-pages list; drawer opens via correct `deliveryId`
