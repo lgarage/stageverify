@@ -1,6 +1,6 @@
 /**
  * Unit tests for vendor run deliveries localStorage cache (display-only).
- * Run: npm run test:vendor-run-deliveries-cache
+ * Run: npx tsx scripts/test-vendor-run-deliveries-cache.mjs
  */
 import assert from "node:assert/strict";
 import {
