@@ -2,6 +2,7 @@
 /** Server-side two-source readiness (mirrors src/dispatcher/readiness.ts). */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.computePhysicalDropoffComplete = computePhysicalDropoffComplete;
+exports.deliveryHasCurrentShopStagingAssignment = deliveryHasCurrentShopStagingAssignment;
 exports.computeStagingAssignmentComplete = computeStagingAssignmentComplete;
 exports.computeDeliveryReadiness = computeDeliveryReadiness;
 exports.isPickupEligible = isPickupEligible;
@@ -39,12 +40,29 @@ function computePhysicalDropoffComplete(delivery, items, vendorDeliveryMode) {
     }
     return computeQtyBasedPhysicalDropoffComplete(items);
 }
+/**
+ * Shop staging assignment present on the delivery document (display SoT parity).
+ * Counts stagingLocationId, additionalStagingLocationIds, and plannedStagingLocationIds.
+ * plannedStagingLocationIds is the Invoice Review / Assign Location write until a later
+ * path promotes to stagingLocationId — compatibility fallback so readiness matches UI.
+ */
+function deliveryHasCurrentShopStagingAssignment(delivery) {
+    if (delivery.stagingLocationId?.trim())
+        return true;
+    if ((delivery.additionalStagingLocationIds ?? []).some((id) => typeof id === "string" && id.trim().length > 0)) {
+        return true;
+    }
+    if ((delivery.plannedStagingLocationIds ?? []).some((id) => typeof id === "string" && id.trim().length > 0)) {
+        return true;
+    }
+    return false;
+}
 function computeStagingAssignmentComplete(delivery, items) {
     const anyReceived = items.some((item) => item.qtyReceived > 0);
     const vendorConfirmedDropoff = delivery.vendorPhysicalDropoffConfirmed === true;
     if (!anyReceived && !vendorConfirmedDropoff)
         return true;
-    return Boolean(delivery.stagingLocationId?.trim());
+    return deliveryHasCurrentShopStagingAssignment(delivery);
 }
 function computeDeliveryReadiness(delivery, items, now, vendorDeliveryMode) {
     const physicalDropoffComplete = computePhysicalDropoffComplete(delivery, items, vendorDeliveryMode);
