@@ -34,6 +34,8 @@ export type LocationScanPinVerifiedPayload = Extract<
 interface LocationScanPinGateProps {
   stagingLocationCode: string;
   onVerified: (payload: LocationScanPinVerifiedPayload) => void;
+  onSubmitStart?: () => void;
+  onSubmitError?: (message?: string) => void;
 }
 
 function sessionMinutesFromExpiresAt(expiresAt: string, fallback = 15): number {
@@ -59,6 +61,8 @@ function pinVerifyErrorMessage(err: unknown): string {
 export function LocationScanPinGate({
   stagingLocationCode,
   onVerified,
+  onSubmitStart,
+  onSubmitError,
 }: LocationScanPinGateProps) {
   const [digits, setDigits] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +72,7 @@ export function LocationScanPinGate({
   const submitPin = useCallback(
     async (pin: string) => {
       if (pin.length < MIN_PIN_LENGTH || pin.length > MAX_PIN_LENGTH) return;
+      onSubmitStart?.();
       setSubmitting(true);
       setError(null);
       try {
@@ -78,11 +83,13 @@ export function LocationScanPinGate({
         if (!result.success) {
           setDigits([]);
           setError(result.message ?? "Invalid code.");
+          onSubmitError?.(result.message ?? "Invalid code.");
           return;
         }
         if (!result.sessionToken || !result.expiresAt) {
           setDigits([]);
           setError("Invalid code.");
+          onSubmitError?.("Invalid code.");
           return;
         }
 
@@ -218,13 +225,15 @@ export function LocationScanPinGate({
           })
           .catch(() => {});
       } catch (err) {
+        const message = pinVerifyErrorMessage(err);
         setDigits([]);
-        setError(pinVerifyErrorMessage(err));
+        setError(message);
+        onSubmitError?.(message);
       } finally {
         setSubmitting(false);
       }
     },
-    [stagingLocationCode, onVerified],
+    [stagingLocationCode, onVerified, onSubmitStart, onSubmitError],
   );
 
   useEffect(() => {
