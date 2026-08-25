@@ -1,0 +1,1 @@
+import{ya as e,yr as t}from"./index-3FAGJSoB.js";var n=t();function r(){return(0,n.jsx)(e,{to:`/dispatcher?focus=needs-review`,replace:!0})}export{r as InvoiceReviewPage};
