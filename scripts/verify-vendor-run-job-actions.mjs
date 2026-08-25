@@ -244,7 +244,7 @@ async function enterPin(page, digits) {
   });
   let vendorRunDeliveriesFulfilled = false;
   await page.route("**/getVendorRunDeliveries", async (route) => {
-    await new Promise((resolveDelay) => setTimeout(resolveDelay, 700));
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 800));
     vendorRunDeliveriesFulfilled = true;
     await route.fulfill({
       status: 200,
@@ -385,6 +385,25 @@ async function enterPin(page, digits) {
       pinResolveFulfilled ? "PIN resolved before shell" : "timeout",
     );
   }
+
+  const pinHeadingDeadline = Date.now() + 5000;
+  let headingFromPinBeforeList = false;
+  while (Date.now() < pinHeadingDeadline && !vendorRunDeliveriesFulfilled) {
+    if (pinResolveFulfilled) {
+      const headingText =
+        (await page.getByTestId("vendor-deliveries-heading").textContent()) ??
+        "";
+      if (headingText.includes("JOHNSTONE SUPPLY DELIVERIES")) {
+        headingFromPinBeforeList = true;
+        break;
+      }
+    }
+    await page.waitForTimeout(25);
+  }
+  record(
+    "vendor heading from PIN before list CF returns (cold)",
+    headingFromPinBeforeList,
+  );
 
   await page.getByTestId("vendor-run-layout").waitFor({ timeout: 45_000 });
   record("company-run list lands after PIN", true);
@@ -858,6 +877,57 @@ async function enterPin(page, digits) {
         "verify-run-active-a,verify-run-active-c",
     vendorReceiveDetailsIds.join(","),
   );
+
+  vendorRunDeliveriesFulfilled = false;
+  pinResolveFulfilled = false;
+  await page.getByTestId("vendor-run-back").click();
+  await page.getByRole("heading", { name: "Enter PIN" }).waitFor({
+    timeout: 30_000,
+  });
+  record("warm login returns to PIN after Back", true);
+  await enterPin(page, "9876");
+  if (await verifyBtn.isVisible().catch(() => false)) {
+    await verifyBtn.click();
+  }
+
+  const warmHeadingDeadline = Date.now() + 5000;
+  let warmHeadingBeforeList = false;
+  while (Date.now() < warmHeadingDeadline && !vendorRunDeliveriesFulfilled) {
+    if (pinResolveFulfilled) {
+      const warmHeading =
+        (await page.getByTestId("vendor-deliveries-heading").textContent()) ??
+        "";
+      if (warmHeading.includes("JOHNSTONE SUPPLY DELIVERIES")) {
+        warmHeadingBeforeList = true;
+        break;
+      }
+    }
+    await page.waitForTimeout(25);
+  }
+  record(
+    "vendor heading from PIN before list CF returns (warm cache)",
+    warmHeadingBeforeList,
+  );
+
+  const warmRowDeadline = Date.now() + 5000;
+  let warmRowBeforeList = false;
+  const warmFirstRow = page.getByTestId("vendor-run-row-verify-run-active-a");
+  while (Date.now() < warmRowDeadline && !vendorRunDeliveriesFulfilled) {
+    if (await warmFirstRow.isVisible().catch(() => false)) {
+      warmRowBeforeList = true;
+      break;
+    }
+    await page.waitForTimeout(25);
+  }
+  record(
+    "cached first row visible before list CF returns (warm login)",
+    warmRowBeforeList,
+  );
+  await warmFirstRow.waitFor({ timeout: 20_000 });
+  await page.screenshot({
+    path: resolve(process.cwd(), "screenshots", "vendor-run-job-actions", "instant-cards-from-cache.png"),
+    fullPage: false,
+  });
 
   await browser.close();
 

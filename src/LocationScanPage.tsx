@@ -53,6 +53,11 @@ import {
   readReleasedJobsCache,
   writeReleasedJobsCache,
 } from "./technicianReleasedJobsCache";
+import {
+  clearVendorRunDeliveriesCache,
+  readVendorRunDeliveriesCache,
+  writeVendorRunDeliveriesCache,
+} from "./vendorRunDeliveriesCache";
 import { stashTechnicianJobShell } from "./technicianJobShell";
 import { VendorDeliveredHub } from "./VendorDeliveredHub";
 import {
@@ -199,6 +204,9 @@ export function LocationScanPage() {
   const [jobsRevalidating, setJobsRevalidating] = useState(false);
   const [isCatchAllParcelIntake, setIsCatchAllParcelIntake] = useState(false);
   const [pinOpeningList, setPinOpeningList] = useState(false);
+  const [openingVendorName, setOpeningVendorName] = useState<string | null>(
+    null,
+  );
 
   const jobDeliveriesForList = useMemo(
     () => orderVendorJobsDeliveredLast(deliveries),
@@ -451,22 +459,46 @@ export function LocationScanPage() {
       return;
     }
     const isRefresh = Boolean(expansionUpdate);
+    if (!isRefresh && vendorRunInFlightRef.current === resolvedVendorId) {
+      return;
+    }
+
+    const cached = !isRefresh
+      ? readVendorRunDeliveriesCache(resolvedVendorId)
+      : null;
+    const cacheHasRows = cached !== null && cached.deliveries.length > 0;
+
     if (
       !isRefresh &&
-      (vendorRunInFlightRef.current === resolvedVendorId ||
-        vendorRunPaintedRef.current === resolvedVendorId)
+      !cacheHasRows &&
+      vendorRunPaintedRef.current === resolvedVendorId
     ) {
       return;
     }
+
     if (!isRefresh) {
       vendorRunInFlightRef.current = resolvedVendorId;
     }
-    const generation = ++vendorRunLoadGenerationRef.current;
-    setLoading(true);
+
+    if (cacheHasRows && cached && !isRefresh) {
+      setVendorId(resolvedVendorId);
+      setSessionScope("vendor");
+      setVendorRunDeliveries(cached.deliveries);
+      setScannedCode(cached.scannedStagingLocationCode);
+      if (cached.vendorName) {
+        setOpeningVendorName(cached.vendorName);
+      }
+      setStep("vendor-list");
+      setLoading(false);
+    } else if (!isRefresh) {
+      setLoading(true);
+    }
     setError(null);
+    const generation = ++vendorRunLoadGenerationRef.current;
     try {
       const result = await getVendorRunDeliveriesClient({ sessionToken: token });
       if (generation !== vendorRunLoadGenerationRef.current) return;
+      const runSession = getVendorRunPinSession(resolvedVendorId);
       setVendorId(resolvedVendorId);
       setSessionScope("vendor");
       setVendorRunDeliveries(result.deliveries);
@@ -485,6 +517,14 @@ export function LocationScanPage() {
       vendorRunPaintedRef.current = resolvedVendorId;
       setLoading(false);
 
+      writeVendorRunDeliveriesCache(resolvedVendorId, {
+        deliveries: result.deliveries,
+        scannedStagingLocationCode:
+          result.scannedStagingLocationCode ?? scannedCode ?? "",
+        vendorName:
+          runSession?.vendorName ?? cached?.vendorName ?? undefined,
+      });
+
       await yieldToNextPaint();
 
       const deliveries = await enrichVendorRunFulfillment(
@@ -495,14 +535,30 @@ export function LocationScanPage() {
       );
       if (generation !== vendorRunLoadGenerationRef.current) return;
       setVendorRunDeliveries(deliveries);
+      writeVendorRunDeliveriesCache(resolvedVendorId, {
+        deliveries,
+        scannedStagingLocationCode:
+          result.scannedStagingLocationCode ?? scannedCode ?? "",
+        vendorName:
+          runSession?.vendorName ?? cached?.vendorName ?? undefined,
+      });
     } catch (err) {
       if (generation !== vendorRunLoadGenerationRef.current) return;
-      setError(
-        err instanceof Error ? err.message : "Could not load vendor deliveries.",
-      );
-      vendorRunPaintedRef.current = null;
-      clearVendorRunPinSession(resolvedVendorId);
-      goToHistoryView({ kind: "pin" }, { replace: true });
+      if (cacheHasRows) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Could not refresh vendor deliveries — showing cached list.",
+        );
+      } else {
+        setError(
+          err instanceof Error ? err.message : "Could not load vendor deliveries.",
+        );
+        vendorRunPaintedRef.current = null;
+        clearVendorRunDeliveriesCache(resolvedVendorId);
+        clearVendorRunPinSession(resolvedVendorId);
+        goToHistoryView({ kind: "pin" }, { replace: true });
+      }
     } finally {
       if (vendorRunInFlightRef.current === resolvedVendorId) {
         vendorRunInFlightRef.current = null;
@@ -546,6 +602,9 @@ export function LocationScanPage() {
         return;
       }
       if (payload.sessionScope === "vendor" && payload.vendorId) {
+        if (payload.vendorName) {
+          setOpeningVendorName(payload.vendorName);
+        }
         setVendorId(payload.vendorId);
         setJobId(null);
         setSessionScope("vendor");
@@ -751,7 +810,9 @@ export function LocationScanPage() {
 
     if (historyView.kind === "pin") {
       appliedDeliveryIdRef.current = null;
-      setStep("pin");
+      if (!pinOpeningList) {
+        setStep("pin");
+      }
       return;
     }
 
@@ -849,7 +910,14 @@ export function LocationScanPage() {
     openVendorRunDelivery,
     technicianId,
     vendorId,
+    pinOpeningList,
   ]);
+
+  useEffect(() => {
+    if (historyView.kind === "deliveries" && step === "vendor-list") {
+      setPinOpeningList(false);
+    }
+  }, [historyView.kind, step]);
 
   const handlePinSubmitStart = useCallback(() => {
     setPinOpeningList(true);
@@ -858,13 +926,14 @@ export function LocationScanPage() {
 
   const handlePinSubmitError = useCallback(() => {
     setPinOpeningList(false);
+    setOpeningVendorName(null);
     setLoading(false);
   }, []);
 
   const handleLocationScanPinVerified = useCallback(
     (payload: LocationScanPinVerifiedPayload) => {
-      setPinOpeningList(false);
       if (payload.accessType === "technician") {
+        setPinOpeningList(false);
         handleTechnicianPinVerified({
           technicianId: payload.technicianId,
           technicianName: payload.technicianName,
@@ -872,8 +941,15 @@ export function LocationScanPage() {
         return;
       }
       if (payload.accessType === "management") {
+        setPinOpeningList(false);
         goToHistoryView({ kind: "mgmt" });
         return;
+      }
+      if (
+        payload.sessionScope === "vendor" &&
+        payload.vendorName
+      ) {
+        setOpeningVendorName(payload.vendorName);
       }
       handlePinVerified({
         jobId: payload.jobId,
@@ -899,6 +975,7 @@ export function LocationScanPage() {
     vendorRunLoadGenerationRef.current += 1;
     if (jobId) clearJobPinSession(jobId);
     if (vendorId) clearVendorRunPinSession(vendorId);
+    if (vendorId) clearVendorRunDeliveriesCache(vendorId);
     if (vendorId) clearVendorUnplannedPinSession(vendorId);
     if (technicianId) clearTechnicianPinSession(technicianId);
     clearManagementPinSession();
@@ -908,6 +985,7 @@ export function LocationScanPage() {
     setTechnicianName(null);
     setReleasedJobs([]);
     setSessionScope(null);
+    setOpeningVendorName(null);
     goToHistoryView({ kind: "pin" }, { replace: true });
   }, [goToHistoryView, jobId, technicianId, vendorId]);
 
@@ -1126,6 +1204,7 @@ export function LocationScanPage() {
     setVendorRunIssueReportedIds(new Set());
     setDeliveryDetails(null);
     setError(null);
+    setOpeningVendorName(null);
     goToHistoryView({ kind: "pin" }, { replace: true });
   };
 
@@ -1155,82 +1234,46 @@ export function LocationScanPage() {
     );
   }
 
+  // Single company-run landing tree — no remount pin → deliveries.
+  const showCompanyRunLanding = Boolean(
+    branding &&
+      locationCode &&
+      (pinOpeningList ||
+        (step === "vendor-list" && historyView.kind === "deliveries")),
+  );
+
   // URL is SoT: Safari Back to `#/s?loc=` must paint PIN immediately.
   // Do not wait for step===pin — list/hub step stays stale across popstate.
-  if (historyView.kind === "pin" && branding && locationCode) {
+  if (historyView.kind === "pin" && branding && locationCode && !showCompanyRunLanding) {
     return (
-      <div
-        className={
-          pinOpeningList
-            ? "relative min-h-[100svh] min-h-[100dvh]"
-            : "app-container flex h-[100svh] max-h-[100dvh] min-h-[100svh] flex-col bg-bg-primary"
-        }
-      >
-        {pinOpeningList && (
-          <VendorDeliveriesLanding
-            rootTestId="vendor-run-layout"
-            scannedContext={<>Scanned {branding.code}</>}
-            helper="Opening your deliveries…"
-            helperTestId="vendor-run-helper"
-            footer={
-              <div data-testid="vendor-run-footer" aria-hidden="true" />
-            }
-          >
-            <div
-              data-testid="vendor-run-list-skeleton"
-              className="flex flex-col gap-4"
-            >
-              {[0, 1, 2].map((index) => (
-                <div
-                  key={index}
-                  className="min-h-[136px] w-full animate-pulse rounded-2xl border border-white/10 bg-bg-secondary"
-                  aria-hidden
-                />
-              ))}
-              <p className="mt-3 text-center text-sm text-text-secondary">
-                Opening your deliveries…
-              </p>
-            </div>
-          </VendorDeliveriesLanding>
-        )}
+      <div className="app-container flex h-[100svh] max-h-[100dvh] min-h-[100svh] flex-col bg-bg-primary">
         <div
-          className={
-            pinOpeningList
-              ? "sr-only"
-              : "flex min-h-0 flex-1 flex-col"
-          }
-          aria-hidden={pinOpeningList ? true : undefined}
+          className="shrink-0 border-b border-border bg-bg-surface px-3 text-center"
+          style={{ paddingBlock: "clamp(0.25rem, 0.9svh, 0.5rem)" }}
+          data-testid="location-scan-pin-header"
         >
-          {!pinOpeningList && (
-            <div
-              className="shrink-0 border-b border-border bg-bg-surface px-3 text-center"
-              style={{ paddingBlock: "clamp(0.25rem, 0.9svh, 0.5rem)" }}
-              data-testid="location-scan-pin-header"
-            >
-              <p className="text-[10px] font-semibold uppercase leading-3 tracking-[0.18em] text-text-secondary [@media(max-height:600px)]:hidden">
-                Staging location
-              </p>
-              <p
-                className="font-mono text-2xl font-bold leading-none text-text-primary"
-                style={{ marginTop: "clamp(2px, 0.4svh, 4px)" }}
-              >
-                {branding.code}
-              </p>
-              <p
-                className="text-xs leading-4 text-text-secondary"
-                style={{ marginTop: "clamp(2px, 0.4svh, 4px)" }}
-              >
-                {branding.label}
-              </p>
-            </div>
-          )}
-          <LocationScanPinGate
-            stagingLocationCode={locationCode}
-            onVerified={handleLocationScanPinVerified}
-            onSubmitStart={handlePinSubmitStart}
-            onSubmitError={handlePinSubmitError}
-          />
+          <p className="text-[10px] font-semibold uppercase leading-3 tracking-[0.18em] text-text-secondary [@media(max-height:600px)]:hidden">
+            Staging location
+          </p>
+          <p
+            className="font-mono text-2xl font-bold leading-none text-text-primary"
+            style={{ marginTop: "clamp(2px, 0.4svh, 4px)" }}
+          >
+            {branding.code}
+          </p>
+          <p
+            className="text-xs leading-4 text-text-secondary"
+            style={{ marginTop: "clamp(2px, 0.4svh, 4px)" }}
+          >
+            {branding.label}
+          </p>
         </div>
+        <LocationScanPinGate
+          stagingLocationCode={locationCode}
+          onVerified={handleLocationScanPinVerified}
+          onSubmitStart={handlePinSubmitStart}
+          onSubmitError={handlePinSubmitError}
+        />
       </div>
     );
   }
@@ -1512,8 +1555,16 @@ export function LocationScanPage() {
     );
   }
 
-  if (step === "vendor-list" && branding && historyView.kind === "deliveries") {
+  if (showCompanyRunLanding && branding && locationCode) {
     const runSession = vendorId ? getVendorRunPinSession(vendorId) : null;
+    const headingVendorName =
+      openingVendorName ?? runSession?.vendorName ?? undefined;
+    const isPendingPinShell =
+      pinOpeningList &&
+      historyView.kind === "pin" &&
+      vendorRunDeliveries.length === 0;
+    const showListSkeleton =
+      vendorRunDeliveries.length === 0 && (isPendingPinShell || loading);
     const renderVendorRunCard = (row: VendorRunDeliverySummary) => {
       const canComplete = row.hasAssignableSpot;
       const expanded = expandedDeliveryIds.has(row.deliveryId);
@@ -1749,28 +1800,43 @@ export function LocationScanPage() {
       );
     };
     return (
+      <div
+        className={
+          historyView.kind === "pin"
+            ? "relative min-h-[100svh] min-h-[100dvh]"
+            : undefined
+        }
+      >
       <VendorDeliveriesLanding
         rootTestId="vendor-run-layout"
-        vendorName={runSession?.vendorName}
+        vendorName={headingVendorName}
         scannedContext={
           <>
             Scanned {branding.code}
             {runSession?.vendorName ? ` · ${runSession.vendorName}` : ""}
           </>
         }
-        helper="Tap a job to review and complete delivery."
+        helper={
+          isPendingPinShell
+            ? "Opening your deliveries…"
+            : "Tap a job to review and complete delivery."
+        }
         helperTestId="vendor-run-helper"
         footer={
-          <div data-testid="vendor-run-footer">
-            <button
-              type="button"
-              onClick={resetFlow}
-              className="action-btn action-btn-secondary w-full"
-              data-testid="vendor-run-back"
-            >
-              ← Back
-            </button>
-          </div>
+          isPendingPinShell ? (
+            <div data-testid="vendor-run-footer" aria-hidden="true" />
+          ) : (
+            <div data-testid="vendor-run-footer">
+              <button
+                type="button"
+                onClick={resetFlow}
+                className="action-btn action-btn-secondary w-full"
+                data-testid="vendor-run-back"
+              >
+                ← Back
+              </button>
+            </div>
+          )
         }
         overlay={
           <>
@@ -1808,7 +1874,7 @@ export function LocationScanPage() {
             className="flex flex-col gap-4"
             data-testid="vendor-run-card-list"
           >
-            {loading && vendorRunDeliveries.length === 0 ? (
+            {showListSkeleton ? (
               <div
                 data-testid="vendor-run-list-skeleton"
                 className="flex flex-col gap-4"
@@ -1821,7 +1887,9 @@ export function LocationScanPage() {
                   />
                 ))}
                 <p className="mt-3 text-center text-sm text-text-secondary">
-                  Loading your deliveries…
+                  {isPendingPinShell
+                    ? "Opening your deliveries…"
+                    : "Loading your deliveries…"}
                 </p>
               </div>
             ) : (
@@ -1943,6 +2011,47 @@ export function LocationScanPage() {
             )}
           </div>
       </VendorDeliveriesLanding>
+      {historyView.kind === "pin" && (
+        <div
+          className={
+            pinOpeningList
+              ? "sr-only"
+              : "flex min-h-0 flex-1 flex-col"
+          }
+          aria-hidden={pinOpeningList ? true : undefined}
+        >
+          {!pinOpeningList && (
+            <div
+              className="shrink-0 border-b border-border bg-bg-surface px-3 text-center"
+              style={{ paddingBlock: "clamp(0.25rem, 0.9svh, 0.5rem)" }}
+              data-testid="location-scan-pin-header"
+            >
+              <p className="text-[10px] font-semibold uppercase leading-3 tracking-[0.18em] text-text-secondary [@media(max-height:600px)]:hidden">
+                Staging location
+              </p>
+              <p
+                className="font-mono text-2xl font-bold leading-none text-text-primary"
+                style={{ marginTop: "clamp(2px, 0.4svh, 4px)" }}
+              >
+                {branding.code}
+              </p>
+              <p
+                className="text-xs leading-4 text-text-secondary"
+                style={{ marginTop: "clamp(2px, 0.4svh, 4px)" }}
+              >
+                {branding.label}
+              </p>
+            </div>
+          )}
+          <LocationScanPinGate
+            stagingLocationCode={locationCode}
+            onVerified={handleLocationScanPinVerified}
+            onSubmitStart={handlePinSubmitStart}
+            onSubmitError={handlePinSubmitError}
+          />
+        </div>
+      )}
+      </div>
     );
   }
 
