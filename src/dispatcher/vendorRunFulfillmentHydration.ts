@@ -1,5 +1,6 @@
 import type { VendorRunDeliverySummary } from "./models";
 import { vendorItemsHaveFulfillmentQty } from "./vendorJobCardStatus";
+import { markVendorPinDebug } from "../vendorPinDebugTimeline";
 
 /** Max parallel getVendorReceiveDetails calls during company-run hydration. */
 export const VENDOR_RUN_DETAILS_CONCURRENCY = 3;
@@ -175,6 +176,13 @@ export async function enrichVendorRunFulfillment(
     return !byId.has(row.deliveryId);
   });
 
+  if (missing.length > 0) {
+    markVendorPinDebug(
+      "DETAIL_HYDRATION_START",
+      `${missing.length} deliveries need details`,
+    );
+  }
+
   await mapWithConcurrency(
     missing,
     VENDOR_RUN_DETAILS_CONCURRENCY,
@@ -206,6 +214,10 @@ export async function enrichVendorRunFulfillment(
       }
     },
   );
+
+  if (missing.length > 0) {
+    markVendorPinDebug("DETAIL_HYDRATION_DONE");
+  }
 
   return mergeVendorRunHydratedItems(rows, byId);
 }

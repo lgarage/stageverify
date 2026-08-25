@@ -1,6 +1,7 @@
 import type { DeliveryDetails, StagingLocation } from "./dispatcher/models";
 import type { StagingLocationOccupant } from "./dispatcher/firestoreService";
 import { auth } from "./firebase";
+import { markVendorPinDebug } from "./vendorPinDebugTimeline";
 
 const CF_BASE =
   "https://us-central1-stageverify-db.cloudfunctions.net";
@@ -350,7 +351,23 @@ export async function getVendorRunDeliveriesClient(input: {
   scannedStagingLocationCode: string | null;
   deliveries: import("./dispatcher/models").VendorRunDeliverySummary[];
 }> {
-  return callCallable("getVendorRunDeliveries", input);
+  markVendorPinDebug("LIST_REQUEST_START");
+  try {
+    const result = await callCallable<{
+      vendorId: string;
+      scannedStagingLocationCode: string | null;
+      deliveries: import("./dispatcher/models").VendorRunDeliverySummary[];
+    }>("getVendorRunDeliveries", input);
+    markVendorPinDebug(
+      "LIST_REQUEST_DONE",
+      `${result.deliveries.length} deliveries`,
+    );
+    return result;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "list request failed";
+    markVendorPinDebug("ERROR:LIST_REQUEST", message);
+    throw err;
+  }
 }
 
 export async function markVendorDeliveriesBulkClient(input: {
