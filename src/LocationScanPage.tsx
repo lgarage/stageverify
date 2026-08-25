@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   firestoreDataService,
@@ -502,11 +503,8 @@ export function LocationScanPage() {
       const result = await getVendorRunDeliveriesClient({ sessionToken: token });
       if (generation !== vendorRunLoadGenerationRef.current) return;
       const runSession = getVendorRunPinSession(resolvedVendorId);
-      setVendorId(resolvedVendorId);
-      setSessionScope("vendor");
-      setVendorRunDeliveries(result.deliveries);
-      setScannedCode(result.scannedStagingLocationCode);
-      setExpandedDeliveryIds(() => {
+      const partition = partitionVendorRunDeliveries(result.deliveries);
+      const resolveExpandedDeliveryIds = (): Set<string> => {
         if (expansionUpdate) {
           const next = new Set(expansionUpdate.preserveExpandedIds);
           for (const deliveryId of expansionUpdate.collapseDeliveryIds) {
@@ -515,12 +513,35 @@ export function LocationScanPage() {
           return next;
         }
         return new Set();
-      });
-      setStep("vendor-list");
-      vendorRunPaintedRef.current = resolvedVendorId;
-      setLoading(false);
+      };
+      const applyVendorRunListState = (deliveries: VendorRunDeliverySummary[]) => {
+        setVendorId(resolvedVendorId);
+        setSessionScope("vendor");
+        setVendorRunDeliveries(deliveries);
+        setScannedCode(result.scannedStagingLocationCode);
+        setExpandedDeliveryIds(resolveExpandedDeliveryIds);
+        setStep("vendor-list");
+        vendorRunPaintedRef.current = resolvedVendorId;
+        setLoading(false);
+      };
 
-      await yieldToNextPaint();
+      if (
+        !isRefresh &&
+        partition.mainList[0] &&
+        result.deliveries.length > 1
+      ) {
+        flushSync(() => {
+          applyVendorRunListState([partition.mainList[0]]);
+        });
+        await yieldToNextPaint();
+        setVendorRunDeliveries(result.deliveries);
+        await yieldToNextPaint();
+      } else {
+        flushSync(() => {
+          applyVendorRunListState(result.deliveries);
+        });
+        await yieldToNextPaint();
+      }
 
       writeVendorRunDeliveriesCache(resolvedVendorId, {
         deliveries: result.deliveries,
