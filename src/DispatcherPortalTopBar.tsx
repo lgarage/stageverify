@@ -1,10 +1,19 @@
 import { useNavigate } from "react-router-dom";
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { auth } from "./firebase";
 import { signOutWithConfirm } from "./signOutWithConfirm";
-import { VendorCommunicationsTopBarEntry } from "./dispatcher/VendorCommunicationsTopBarEntry";
-import { CatchAllDeliveryTopBarEntry } from "./dispatcher/CatchAllDeliveryTopBarEntry";
 import { PORTAL_TOPBAR_CLASS } from "./dispatcherPortalLayout";
+
+const LazyVendorCommunicationsTopBarEntry = lazy(() =>
+  import("./dispatcher/VendorCommunicationsTopBarEntry").then((m) => ({
+    default: m.VendorCommunicationsTopBarEntry,
+  })),
+);
+const LazyCatchAllDeliveryTopBarEntry = lazy(() =>
+  import("./dispatcher/CatchAllDeliveryTopBarEntry").then((m) => ({
+    default: m.CatchAllDeliveryTopBarEntry,
+  })),
+);
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -87,7 +96,9 @@ export function DispatcherPortalTopBar({
           flexShrink: 0,
         }}
       >
-        <VendorCommunicationsTopBarEntry />
+        <Suspense fallback={null}>
+          <LazyVendorCommunicationsTopBarEntry />
+        </Suspense>
         {headerExtra}
       </div>
       <div aria-hidden="true" style={{ minWidth: 0 }} />
@@ -102,7 +113,9 @@ export function DispatcherPortalTopBar({
           flexWrap: "nowrap",
         }}
       >
-        <CatchAllDeliveryTopBarEntry />
+        <Suspense fallback={null}>
+          <LazyCatchAllDeliveryTopBarEntry />
+        </Suspense>
         {showNewDelivery ? (
           <button
             type="button"

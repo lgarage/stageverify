@@ -16,7 +16,7 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
-import { db } from "../firebase";
+import { db } from "../firebaseDb";
 import { functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
 import { getVendorSessionToken } from "../vendorPinSession";

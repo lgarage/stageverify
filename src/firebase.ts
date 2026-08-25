@@ -1,8 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { initializeFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
-import { isIOS } from "./deviceDetect";
 
 const firebaseConfig = {
   apiKey: "AIzaSyALKllET2wQoAm7-3RiHrRJjMsVq315WaE",
@@ -15,9 +13,5 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-
-/** iOS Safari often hangs on Firestore WebChannel — long polling is more reliable. */
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: isIOS(),
-});
+/** Firestore lives in `firebaseDb.ts` so `#/s` PIN does not start long-polling on iOS. */
 export const functions = getFunctions(app, "us-central1");

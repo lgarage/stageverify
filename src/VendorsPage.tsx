@@ -1,5 +1,5 @@
+import { lazy, Suspense } from "react";
 import { PortalSidebar } from "./PortalSidebar";
-import { VendorsManagementPanel } from "./VendorsManagementPanel";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
 import { useDispatcherPortal } from "./dispatcher/DispatcherPortalContext";
 import { PortalShell } from "./PortalShell";
@@ -7,6 +7,12 @@ import {
   PORTAL_MAIN_CLASS,
   PORTAL_SCROLL_CLASS,
 } from "./dispatcherPortalLayout";
+
+const VendorsManagementPanel = lazy(() =>
+  import("./VendorsManagementPanel").then((m) => ({
+    default: m.VendorsManagementPanel,
+  })),
+);
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
@@ -69,10 +75,18 @@ export function VendorsPage() {
               </p>
             </div>
 
-            <VendorsManagementPanel
-              syncedVendors={vendors}
-              refreshGeneration={refreshGeneration}
-            />
+            <Suspense
+              fallback={
+                <p style={{ fontSize: 13, color: "var(--admin-text-muted)" }}>
+                  Loading vendors…
+                </p>
+              }
+            >
+              <VendorsManagementPanel
+                syncedVendors={vendors}
+                refreshGeneration={refreshGeneration}
+              />
+            </Suspense>
           </div>
         </div>
       </div>
