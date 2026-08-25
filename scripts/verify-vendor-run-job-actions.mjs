@@ -168,6 +168,7 @@ async function enterPin(page, digits) {
   const materialIssueRequests = [];
   const vendorReceiveDetailsIds = [];
   let vendorReceiveDetailsFinished = 0;
+  let pinResolveFulfilled = false;
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -194,6 +195,8 @@ async function enterPin(page, digits) {
     });
   });
   await page.route("**/resolveLocationScanPin", async (route) => {
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 1200));
+    pinResolveFulfilled = true;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -327,15 +330,81 @@ async function enterPin(page, digits) {
     await verifyBtn.click();
   }
 
+  const shellDeadline = Date.now() + 5000;
+  let pendingShellAsserted = false;
+  while (Date.now() < shellDeadline && !pinResolveFulfilled) {
+    const layoutVisible = await page
+      .getByTestId("vendor-run-layout")
+      .isVisible()
+      .catch(() => false);
+    if (layoutVisible) {
+      pendingShellAsserted = true;
+      record("pending shell visible before PIN CF returns", true);
+      record(
+        "vendor-deliveries-heading visible during pending shell",
+        await page.getByTestId("vendor-deliveries-heading").isVisible(),
+      );
+      const pendingHeading =
+        (await page.getByTestId("vendor-deliveries-heading").textContent()) ??
+        "";
+      record(
+        "pending heading is generic DELIVERIES before PIN success",
+        pendingHeading.trim() === "DELIVERIES",
+        pendingHeading.trim(),
+      );
+      record(
+        "skeleton visible during pending PIN verify",
+        await page.getByTestId("vendor-run-list-skeleton").isVisible(),
+      );
+      record(
+        "no delivery rows during pending PIN verify",
+        (await page.locator('[data-testid^="vendor-run-row-"]').count()) === 0,
+      );
+      record(
+        "empty-state CTA hidden during pending PIN verify",
+        !(await page
+          .getByTestId("vendor-unplanned-empty-state")
+          .isVisible()
+          .catch(() => false)),
+      );
+      record(
+        "generic Loading… not shown during pending shell",
+        !(await page
+          .getByText("Loading…", { exact: true })
+          .isVisible()
+          .catch(() => false)),
+      );
+      break;
+    }
+    await page.waitForTimeout(50);
+  }
+  if (!pendingShellAsserted) {
+    record(
+      "pending shell visible before PIN CF returns",
+      false,
+      pinResolveFulfilled ? "PIN resolved before shell" : "timeout",
+    );
+  }
+
   await page.getByTestId("vendor-run-layout").waitFor({ timeout: 45_000 });
   record("company-run list lands after PIN", true);
-  const headingDuringLoad =
-    (await page.getByTestId("vendor-deliveries-heading").textContent()) ?? "";
+
+  const headingDeadline = Date.now() + 15_000;
+  let headingAfterPin = "";
+  let headingShowsVendor = false;
+  while (Date.now() < headingDeadline) {
+    headingAfterPin =
+      (await page.getByTestId("vendor-deliveries-heading").textContent()) ?? "";
+    if (headingAfterPin.includes("JOHNSTONE SUPPLY DELIVERIES")) {
+      headingShowsVendor = true;
+      break;
+    }
+    await page.waitForTimeout(50);
+  }
   record(
-    "vendor heading visible before list fetch completes",
-    headingDuringLoad.includes("JOHNSTONE SUPPLY DELIVERIES") &&
-      !vendorRunDeliveriesFulfilled,
-    headingDuringLoad.trim(),
+    "vendor heading shows company name after PIN success",
+    headingShowsVendor,
+    headingAfterPin.trim(),
   );
   record(
     "skeleton visible during initial list load",

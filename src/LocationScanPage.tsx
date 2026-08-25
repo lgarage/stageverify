@@ -198,6 +198,7 @@ export function LocationScanPage() {
   );
   const [jobsRevalidating, setJobsRevalidating] = useState(false);
   const [isCatchAllParcelIntake, setIsCatchAllParcelIntake] = useState(false);
+  const [pinOpeningList, setPinOpeningList] = useState(false);
 
   const jobDeliveriesForList = useMemo(
     () => orderVendorJobsDeliveredLast(deliveries),
@@ -850,8 +851,19 @@ export function LocationScanPage() {
     vendorId,
   ]);
 
+  const handlePinSubmitStart = useCallback(() => {
+    setPinOpeningList(true);
+    setLoading(true);
+  }, []);
+
+  const handlePinSubmitError = useCallback(() => {
+    setPinOpeningList(false);
+    setLoading(false);
+  }, []);
+
   const handleLocationScanPinVerified = useCallback(
     (payload: LocationScanPinVerifiedPayload) => {
+      setPinOpeningList(false);
       if (payload.accessType === "technician") {
         handleTechnicianPinVerified({
           technicianId: payload.technicianId,
@@ -1147,32 +1159,78 @@ export function LocationScanPage() {
   // Do not wait for step===pin — list/hub step stays stale across popstate.
   if (historyView.kind === "pin" && branding && locationCode) {
     return (
-      <div className="app-container flex h-[100svh] max-h-[100dvh] min-h-[100svh] flex-col bg-bg-primary">
+      <div
+        className={
+          pinOpeningList
+            ? "relative min-h-[100svh] min-h-[100dvh]"
+            : "app-container flex h-[100svh] max-h-[100dvh] min-h-[100svh] flex-col bg-bg-primary"
+        }
+      >
+        {pinOpeningList && (
+          <VendorDeliveriesLanding
+            rootTestId="vendor-run-layout"
+            scannedContext={<>Scanned {branding.code}</>}
+            helper="Opening your deliveries…"
+            helperTestId="vendor-run-helper"
+            footer={
+              <div data-testid="vendor-run-footer" aria-hidden="true" />
+            }
+          >
+            <div
+              data-testid="vendor-run-list-skeleton"
+              className="flex flex-col gap-4"
+            >
+              {[0, 1, 2].map((index) => (
+                <div
+                  key={index}
+                  className="min-h-[136px] w-full animate-pulse rounded-2xl border border-white/10 bg-bg-secondary"
+                  aria-hidden
+                />
+              ))}
+              <p className="mt-3 text-center text-sm text-text-secondary">
+                Opening your deliveries…
+              </p>
+            </div>
+          </VendorDeliveriesLanding>
+        )}
         <div
-          className="shrink-0 border-b border-border bg-bg-surface px-3 text-center"
-          style={{ paddingBlock: "clamp(0.25rem, 0.9svh, 0.5rem)" }}
-          data-testid="location-scan-pin-header"
+          className={
+            pinOpeningList
+              ? "sr-only"
+              : "flex min-h-0 flex-1 flex-col"
+          }
+          aria-hidden={pinOpeningList ? true : undefined}
         >
-          <p className="text-[10px] font-semibold uppercase leading-3 tracking-[0.18em] text-text-secondary [@media(max-height:600px)]:hidden">
-            Staging location
-          </p>
-          <p
-            className="font-mono text-2xl font-bold leading-none text-text-primary"
-            style={{ marginTop: "clamp(2px, 0.4svh, 4px)" }}
-          >
-            {branding.code}
-          </p>
-          <p
-            className="text-xs leading-4 text-text-secondary"
-            style={{ marginTop: "clamp(2px, 0.4svh, 4px)" }}
-          >
-            {branding.label}
-          </p>
+          {!pinOpeningList && (
+            <div
+              className="shrink-0 border-b border-border bg-bg-surface px-3 text-center"
+              style={{ paddingBlock: "clamp(0.25rem, 0.9svh, 0.5rem)" }}
+              data-testid="location-scan-pin-header"
+            >
+              <p className="text-[10px] font-semibold uppercase leading-3 tracking-[0.18em] text-text-secondary [@media(max-height:600px)]:hidden">
+                Staging location
+              </p>
+              <p
+                className="font-mono text-2xl font-bold leading-none text-text-primary"
+                style={{ marginTop: "clamp(2px, 0.4svh, 4px)" }}
+              >
+                {branding.code}
+              </p>
+              <p
+                className="text-xs leading-4 text-text-secondary"
+                style={{ marginTop: "clamp(2px, 0.4svh, 4px)" }}
+              >
+                {branding.label}
+              </p>
+            </div>
+          )}
+          <LocationScanPinGate
+            stagingLocationCode={locationCode}
+            onVerified={handleLocationScanPinVerified}
+            onSubmitStart={handlePinSubmitStart}
+            onSubmitError={handlePinSubmitError}
+          />
         </div>
-        <LocationScanPinGate
-          stagingLocationCode={locationCode}
-          onVerified={handleLocationScanPinVerified}
-        />
       </div>
     );
   }
