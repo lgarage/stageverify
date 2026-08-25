@@ -11,6 +11,7 @@ import {
   setVendorRunPinSession,
   setVendorUnplannedPinSession,
 } from "./vendorPinSession";
+import { markVendorPinDebug } from "./vendorPinDebugTimeline";
 
 const KEYPAD = [
   ["1", "2", "3"],
@@ -71,6 +72,7 @@ export function LocationScanPinGate({
   const submitPin = useCallback(
     async (pin: string) => {
       if (pin.length < MIN_PIN_LENGTH || pin.length > MAX_PIN_LENGTH) return;
+      markVendorPinDebug("PIN_SUBMIT");
       onSubmitStart?.();
       setSubmitting(true);
       setError(null);
@@ -81,18 +83,22 @@ export function LocationScanPinGate({
         });
         if (!result.success) {
           setDigits([]);
-          setError(result.message ?? "Invalid code.");
-          onSubmitError?.(result.message ?? "Invalid code.");
+          const failMessage = result.message ?? "Invalid code.";
+          setError(failMessage);
+          markVendorPinDebug("ERROR:PIN_RESOLVE", failMessage);
+          onSubmitError?.(failMessage);
           return;
         }
         if (!result.sessionToken || !result.expiresAt) {
           setDigits([]);
           setError("Invalid code.");
+          markVendorPinDebug("ERROR:PIN_RESOLVE", "missing session fields");
           onSubmitError?.("Invalid code.");
           return;
         }
 
         setVerified(true);
+        markVendorPinDebug("SESSION_READY");
         const sessionMinutes = sessionMinutesFromExpiresAt(result.expiresAt);
         const sessionOpts = {
           sessionToken: result.sessionToken,
@@ -108,9 +114,11 @@ export function LocationScanPinGate({
             sessionOpts,
           );
           onVerified(result);
+          markVendorPinDebug("APP_SETTINGS_START");
           void import("./dispatcher/firestoreService")
             .then(({ getAppSettings }) => getAppSettings())
             .then((settings) => {
+              markVendorPinDebug("APP_SETTINGS_DONE");
               const configured = settings.technicianSessionMinutes ?? 15;
               const existing = getTechnicianPinSession(result.technicianId);
               if (!existing) return;
@@ -126,15 +134,19 @@ export function LocationScanPinGate({
                 },
               );
             })
-            .catch(() => {});
+            .catch(() => {
+              markVendorPinDebug("APP_SETTINGS_DONE", "technician settings failed");
+            });
           return;
         }
 
         if (result.accessType === "management") {
+          markVendorPinDebug("APP_SETTINGS_START");
           const { getAppSettings } = await import("./dispatcher/firestoreService");
           const settings = await getAppSettings().catch(() => ({
             managementSessionMinutes: 30,
           }));
+          markVendorPinDebug("APP_SETTINGS_DONE");
           setManagementPinSession({
             sessionToken: result.sessionToken,
             expiresAt: result.expiresAt,
@@ -181,9 +193,11 @@ export function LocationScanPinGate({
         }
 
         onVerified(result);
+        markVendorPinDebug("APP_SETTINGS_START");
         void import("./dispatcher/firestoreService")
           .then(({ getAppSettings }) => getAppSettings())
           .then((settings) => {
+            markVendorPinDebug("APP_SETTINGS_DONE");
             const configured = settings.vendorSessionMinutes ?? 15;
             const refreshSession = (
               writer: (
@@ -225,11 +239,14 @@ export function LocationScanPinGate({
               );
             }
           })
-          .catch(() => {});
+          .catch(() => {
+            markVendorPinDebug("APP_SETTINGS_DONE", "vendor settings failed");
+          });
       } catch (err) {
         const message = pinVerifyErrorMessage(err);
         setDigits([]);
         setError(message);
+        markVendorPinDebug("ERROR:PIN_RESOLVE", message);
         onSubmitError?.(message);
       } finally {
         setSubmitting(false);

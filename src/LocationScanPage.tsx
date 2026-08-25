@@ -108,6 +108,12 @@ import {
 } from "./dispatcher/vendorRunFulfillmentHydration";
 import { warmupGetVendorRunDeliveries } from "./warmupGetVendorRunDeliveries";
 import { warmupResolveLocationScanPin } from "./warmupResolveLocationScanPin";
+import { VendorPinDebugOverlay } from "./VendorPinDebugOverlay";
+import {
+  initVendorPinDebug,
+  isVendorPinDebugEnabled,
+  markVendorPinDebug,
+} from "./vendorPinDebugTimeline";
 
 const LazyVendorIssueModal = lazy(() =>
   import("./VendorIssueModal").then((m) => ({ default: m.VendorIssueModal })),
@@ -169,6 +175,21 @@ function isPostPinStep(step: Step): boolean {
 }
 
 export function LocationScanPage() {
+  useEffect(() => {
+    if (isVendorPinDebugEnabled()) {
+      initVendorPinDebug();
+    }
+  }, []);
+
+  return (
+    <>
+      <VendorPinDebugOverlay />
+      <LocationScanPageInner />
+    </>
+  );
+}
+
+function LocationScanPageInner() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -191,6 +212,8 @@ export function LocationScanPage() {
   const vendorRunInFlightRef = useRef<string | null>(null);
   const vendorRunPaintedRef = useRef<string | null>(null);
   const vendorRunLoadGenerationRef = useRef(0);
+  const firstCardRenderMarkedRef = useRef(false);
+  const lastUiScreenRef = useRef<string | null>(null);
 
   const [step, setStep] = useState<Step>("loading");
   const [branding, setBranding] = useState<LocationBranding | null>(null);
@@ -262,7 +285,14 @@ export function LocationScanPage() {
   const goToHistoryView = useCallback(
     (view: LocationScanHistoryView, options?: { replace?: boolean }) => {
       if (!locationCode) return;
-      const path = locationScanHistoryPath(locationCode, view);
+      const hashQueryStart = hashSearch.indexOf("?");
+      const preserveFrom =
+        hashQueryStart >= 0
+          ? new URLSearchParams(hashSearch.slice(hashQueryStart + 1))
+          : location.search.startsWith("?")
+            ? new URLSearchParams(location.search.slice(1))
+            : undefined;
+      const path = locationScanHistoryPath(locationCode, view, preserveFrom);
       const current = `${location.pathname}${location.search}`;
       if (current === path && historyViewKey === (
         view.kind === "delivery" ? `delivery:${view.deliveryId}` : view.kind
@@ -274,7 +304,7 @@ export function LocationScanPage() {
         path.startsWith("#") ? path : `#${path.startsWith("/") ? path : `/${path}`}`,
       );
     },
-    [historyViewKey, location.pathname, location.search, locationCode, navigate],
+    [historyViewKey, hashSearch, location.pathname, location.search, locationCode, navigate],
   );
 
   const loadBranding = useCallback(async () => {
@@ -285,8 +315,10 @@ export function LocationScanPage() {
     warmupResolveLocationScanPin();
     warmupGetVendorRunDeliveries();
     setStep("loading");
+    markVendorPinDebug("BRANDING_START");
     try {
       const result = await getLocationPublicBrandingClient(locationCode);
+      markVendorPinDebug("BRANDING_DONE", result.found ? "found" : "not found");
       if (!result.found) {
         setStep("missing");
         return;
@@ -305,9 +337,11 @@ export function LocationScanPage() {
         setStep("pin");
       }
       if (isManagementPinSessionValid()) {
+        markVendorPinDebug("APP_SETTINGS_START");
         void loadVendorScanFirestore()
           .then(({ getAppSettings }) => getAppSettings())
           .then((settings) => {
+            markVendorPinDebug("APP_SETTINGS_DONE");
             const intakeEnabled =
               intakeFromBranding || settings.parcelIntakeEnabled === true;
             if (intakeEnabled) {
@@ -318,9 +352,12 @@ export function LocationScanPage() {
               );
             }
           })
-          .catch(() => {});
+          .catch(() => {
+            markVendorPinDebug("APP_SETTINGS_DONE", "mgmt branding settings failed");
+          });
       }
     } catch {
+      markVendorPinDebug("ERROR:BRANDING", "branding load failed");
       setError("Could not load location. Check your connection.");
       setStep("missing");
     }
@@ -338,10 +375,12 @@ export function LocationScanPage() {
     if (!isPostPinStep(step)) return;
 
     let cancelled = false;
+    markVendorPinDebug("APP_SETTINGS_START");
     void loadVendorScanFirestore()
       .then(({ getAppSettings }) => getAppSettings())
       .then((settings) => {
         if (cancelled) return;
+        markVendorPinDebug("APP_SETTINGS_DONE");
         setVendorGeofenceEnforce(settings.vendorGeofenceEnforce === true);
         setRevertWindowMinutes(settings.vendorRevertWindowMinutes);
         const lat = settings.shopLatitude;
@@ -376,7 +415,11 @@ export function LocationScanPage() {
           { enableHighAccuracy: false, timeout: 12_000, maximumAge: 60_000 },
         );
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) {
+          markVendorPinDebug("APP_SETTINGS_DONE", "post-pin settings failed");
+        }
+      });
 
     return () => {
       cancelled = true;
@@ -507,6 +550,7 @@ export function LocationScanPage() {
   ) => {
     const token = getVendorRunSessionToken(resolvedVendorId);
     if (!token) {
+      markVendorPinDebug("ERROR:NO_SESSION");
       goToHistoryView({ kind: "pin" }, { replace: true });
       return;
     }
@@ -578,6 +622,10 @@ export function LocationScanPage() {
       flushSync(() => {
         applyVendorRunListState(result.deliveries);
       });
+      markVendorPinDebug(
+        "LIST_STATE_COMMIT",
+        `${result.deliveries.length} rows`,
+      );
       await yieldToNextPaint();
 
       writeVendorRunDeliveriesCache(resolvedVendorId, {
@@ -996,9 +1044,58 @@ export function LocationScanPage() {
   }, [historyView.kind, step]);
 
   const handlePinSubmitStart = useCallback(() => {
+    markVendorPinDebug("UI_LANDING_OPEN");
     setPinOpeningList(true);
     setLoading(true);
   }, []);
+
+  useEffect(() => {
+    if (!isVendorPinDebugEnabled()) return;
+
+    let screen: string | null = null;
+    if (step === "loading") {
+      screen = "loading-location";
+    } else if (step === "missing") {
+      screen = error ? "error" : "missing";
+    } else if (
+      pinOpeningList &&
+      vendorRunDeliveries.length === 0
+    ) {
+      screen = "landing-skeleton";
+    } else if (step === "vendor-list" && vendorRunDeliveries.length > 0) {
+      screen = "cards";
+    } else if (
+      step === "vendor-list" &&
+      vendorRunDeliveries.length === 0 &&
+      loading
+    ) {
+      screen = "landing-skeleton";
+    } else if (historyView.kind === "pin" || step === "pin") {
+      screen = "keypad";
+    } else if (error) {
+      screen = "error";
+    }
+
+    if (!screen) return;
+    const uiStage = `UI_SCREEN:${screen}`;
+    if (lastUiScreenRef.current === uiStage) return;
+    lastUiScreenRef.current = uiStage;
+    markVendorPinDebug(uiStage);
+  }, [
+    step,
+    historyView.kind,
+    pinOpeningList,
+    vendorRunDeliveries.length,
+    loading,
+    error,
+  ]);
+
+  useEffect(() => {
+    if (vendorRunDeliveries.length > 0 && !firstCardRenderMarkedRef.current) {
+      firstCardRenderMarkedRef.current = true;
+      markVendorPinDebug("FIRST_CARD_RENDER");
+    }
+  }, [vendorRunDeliveries.length]);
 
   const handlePinSubmitError = useCallback(() => {
     setPinOpeningList(false);
