@@ -459,14 +459,27 @@ export function LocationScanPage() {
       return;
     }
     const isRefresh = Boolean(expansionUpdate);
-    if (!isRefresh && vendorRunInFlightRef.current === resolvedVendorId) {
-      return;
-    }
 
     const cached = !isRefresh
       ? readVendorRunDeliveriesCache(resolvedVendorId)
       : null;
     const cacheHasRows = cached !== null && cached.deliveries.length > 0;
+
+    if (cacheHasRows && cached && !isRefresh) {
+      setVendorId(resolvedVendorId);
+      setSessionScope("vendor");
+      setVendorRunDeliveries(cached.deliveries);
+      setScannedCode(cached.scannedStagingLocationCode);
+      if (cached.vendorName) {
+        setOpeningVendorName(cached.vendorName);
+      }
+      setStep("vendor-list");
+      setLoading(false);
+    }
+
+    if (!isRefresh && vendorRunInFlightRef.current === resolvedVendorId) {
+      return;
+    }
 
     if (
       !isRefresh &&
@@ -480,17 +493,7 @@ export function LocationScanPage() {
       vendorRunInFlightRef.current = resolvedVendorId;
     }
 
-    if (cacheHasRows && cached && !isRefresh) {
-      setVendorId(resolvedVendorId);
-      setSessionScope("vendor");
-      setVendorRunDeliveries(cached.deliveries);
-      setScannedCode(cached.scannedStagingLocationCode);
-      if (cached.vendorName) {
-        setOpeningVendorName(cached.vendorName);
-      }
-      setStep("vendor-list");
-      setLoading(false);
-    } else if (!isRefresh) {
+    if (!cacheHasRows && !isRefresh) {
       setLoading(true);
     }
     setError(null);
@@ -608,7 +611,18 @@ export function LocationScanPage() {
         setVendorId(payload.vendorId);
         setJobId(null);
         setSessionScope("vendor");
-        setStep("vendor-list");
+        const pinCache = readVendorRunDeliveriesCache(payload.vendorId);
+        if (pinCache && pinCache.deliveries.length > 0) {
+          setVendorRunDeliveries(pinCache.deliveries);
+          setScannedCode(pinCache.scannedStagingLocationCode);
+          if (pinCache.vendorName) {
+            setOpeningVendorName(pinCache.vendorName);
+          }
+          setStep("vendor-list");
+          setLoading(false);
+        } else {
+          setStep("vendor-list");
+        }
         void loadVendorRunDeliveries(payload.vendorId);
         goToHistoryView({ kind: "deliveries" });
         return;

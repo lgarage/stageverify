@@ -95,6 +95,7 @@
 
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
+**Shipping (2026-08-25):** Vendor list display cache uses **localStorage** (24h) and paints cached cards on PIN success before the list CF, including a new tab — **v0.0.332** gh-pages FE-only. Real iPhone still unproven.
 **Shipped (2026-08-25):** Vendor company-run list keeps one landing tree + display-only list cache after PIN — **v0.0.331** gh-pages FE-only; warm re-login paints cached cards before list CF. Real iPhone still unproven.
 **Shipped (2026-08-25):** Dispatcher Deliveries Per page 25 / 50 / 100 / All — **v0.0.330** gh-pages FE-only; All uses already-loaded filtered/sorted rows; no CF/rules.
 **Shipped (2026-08-25):** Vendor company-PIN Submit paints list landing chrome + skeletons before PIN CF returns — **v0.0.329** gh-pages FE-only; heading `DELIVERIES` until PIN success; no rows until then. Real iPhone 12–13s still unproven.

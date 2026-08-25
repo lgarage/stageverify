@@ -479,6 +479,92 @@ async function enterPin(page, digits) {
         "verify-run-active-a,verify-run-active-c",
     vendorReceiveDetailsIds.join(","),
   );
+
+  vendorRunDeliveriesFulfilled = false;
+  pinResolveFulfilled = false;
+  const page2 = await context.newPage();
+  await page2.route("**/getLocationPublicBranding", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        result: {
+          found: true,
+          locationId: "staging-g2",
+          code: "G2",
+          label: "Ground 2",
+          type: "ground",
+        },
+      }),
+    });
+  });
+  await page2.route("**/resolveLocationScanPin", async (route) => {
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 1200));
+    pinResolveFulfilled = true;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        result: {
+          success: true,
+          accessType: "vendor",
+          vendorId: "vendor-verify-run",
+          vendorName: "Johnstone Supply",
+          sessionToken: "verify-run-session-tab2",
+          expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+          scannedStagingLocationCode: "G2",
+          sessionScope: "vendor",
+          deliveryId: "verify-run-active-a",
+        },
+      }),
+    });
+  });
+  await page2.route("**/getVendorRunDeliveries", async (route) => {
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 800));
+    vendorRunDeliveriesFulfilled = true;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        result: {
+          vendorId: "vendor-verify-run",
+          scannedStagingLocationCode: "G2",
+          deliveries: vendorRunRows,
+        },
+      }),
+    });
+  });
+  await page2.goto(`${appBase}/#/s?loc=G2`, {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
+  });
+  await page2.getByRole("heading", { name: "Enter PIN" }).waitFor({
+    timeout: 30_000,
+  });
+  await enterPin(page2, "9876");
+  const verifyBtn2 = page2.getByTestId("location-scan-pin-verify");
+  if (await verifyBtn2.isVisible().catch(() => false)) {
+    await verifyBtn2.click();
+  }
+  const crossTabRowDeadline = Date.now() + 5000;
+  let crossTabRowBeforeList = false;
+  const crossTabFirstRow = page2.getByTestId(
+    "vendor-run-row-verify-run-active-a",
+  );
+  while (Date.now() < crossTabRowDeadline && !vendorRunDeliveriesFulfilled) {
+    if (await crossTabFirstRow.isVisible().catch(() => false)) {
+      crossTabRowBeforeList = true;
+      break;
+    }
+    await page2.waitForTimeout(25);
+  }
+  record(
+    "cached first row visible before list CF returns (new tab / localStorage)",
+    crossTabRowBeforeList,
+  );
+  await crossTabFirstRow.waitFor({ timeout: 20_000 });
+  await page2.close();
+
   record(
     "helper is per-job review copy",
     ((await page.getByTestId("vendor-run-helper").textContent()) ?? "").includes(
