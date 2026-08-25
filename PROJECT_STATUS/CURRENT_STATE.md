@@ -143,6 +143,7 @@
 2. **GCP Pub/Sub push path** — optional; poll/Refresh Now proven.
 
 ## Immediate Next Step
+- **Vendor login iPhone (v0.0.329):** hard-refresh `https://lgarage.github.io/stageverify/#/s?loc=G1` → PIN **9876**. List page (`DELIVERIES` + skeletons) must appear immediately on Submit — do not wait on PIN CF. Heading becomes `JOHNSTONE SUPPLY DELIVERIES` when PIN succeeds; cards follow. Broken = 12–13s generic Loading or keypad stuck until list. KEEP until Dan reports. Do not use `#/demo/vendor-scan`.
 - **Change Location current-spot box (v0.0.300):** hard-refresh → Vendor Drop-Off with staging → yellow **Change Location** → current assigned spot still has the move-note text **and** the navy box/outline; other spots stay selectable; Cancel keeps the old spot. KEEP until Dan accepts.
 - **Phone check after v0.0.292:** hard-refresh → location QR → job PIN → heading `{VENDOR} DELIVERIES` (not “This job’s deliveries”). Settings → Access vendor row: **Current company PIN** + helper that job PINs are separate. Company PIN still opens **Your deliveries**. KEEP until Dan accepts.
 - **Invoice Review after v0.0.291:** hard-refresh → Invoice imports → pending **6167419** (Johnstone / Michell olson): no **Credit/return — reject manually**; CORE-16 still qty −1 / return-from-invoice; purchased lines normal; **Approve** available. Rejected **3316448A** still credit/return blocked. KEEP until Dan accepts.
