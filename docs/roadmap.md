@@ -95,7 +95,7 @@
 
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
-**Shipping (2026-08-25):** Company-run first-load paints the first main-list card before the full list commit — **v0.0.335** gh-pages FE-only. Real iPhone still unproven.
+**Shipping (2026-08-25):** Company-run list flushSyncs the full list DTO before the cache write — **v0.0.336** (reverts 335 1-card preview). Real iPhone still unproven.
 **Shipped (2026-08-25):** Company-run list paints list-DTO cards before writing the localStorage cache — **v0.0.333** gh-pages FE-only. Cloud Chromium cold first card 1832ms. Real iPhone still unproven.
 **Shipped (2026-08-25):** Vendor list display cache uses **localStorage** (24h) and paints cached cards on PIN success before the list CF, including a new tab — **v0.0.332** gh-pages FE-only. Real iPhone still unproven.
 **Shipped (2026-08-25):** Vendor company-run list keeps one landing tree + display-only list cache after PIN — **v0.0.331** gh-pages FE-only; warm re-login paints cached cards before list CF. Real iPhone still unproven.
