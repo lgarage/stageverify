@@ -520,6 +520,8 @@ export function LocationScanPage() {
       vendorRunPaintedRef.current = resolvedVendorId;
       setLoading(false);
 
+      await yieldToNextPaint();
+
       writeVendorRunDeliveriesCache(resolvedVendorId, {
         deliveries: result.deliveries,
         scannedStagingLocationCode:
@@ -527,8 +529,6 @@ export function LocationScanPage() {
         vendorName:
           runSession?.vendorName ?? cached?.vendorName ?? undefined,
       });
-
-      await yieldToNextPaint();
 
       const deliveries = await enrichVendorRunFulfillment(
         result.deliveries,
