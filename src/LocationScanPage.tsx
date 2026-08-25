@@ -106,6 +106,7 @@ import {
   vendorRunFulfillmentUsesPhysicalFallback,
   yieldToNextPaint,
 } from "./dispatcher/vendorRunFulfillmentHydration";
+import { warmupGetVendorRunDeliveries } from "./warmupGetVendorRunDeliveries";
 import { warmupResolveLocationScanPin } from "./warmupResolveLocationScanPin";
 import { VendorPinDebugOverlay } from "./VendorPinDebugOverlay";
 import {
@@ -312,6 +313,7 @@ function LocationScanPageInner() {
       return;
     }
     warmupResolveLocationScanPin();
+    warmupGetVendorRunDeliveries();
     setStep("loading");
     markVendorPinDebug("BRANDING_START");
     try {
