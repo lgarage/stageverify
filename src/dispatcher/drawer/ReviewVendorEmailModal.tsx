@@ -3,9 +3,170 @@ import type { DeliveryDetails, InboundEmailProcessing, VendorEmailEvent } from "
 import type { ProposedEmailUpdate } from "../email/getProposedEmailUpdates";
 import {
   EmailEvidenceCard,
-  InvoiceSourceEmailCard,
   VendorEmailEventCard,
 } from "../email/emailEvidenceCards";
+import { sourceEmailReviewFromInbound } from "../email/sourceEmailReview";
+import { useVendorInvoicePdfViewer } from "../invoice/useVendorInvoicePdfViewer";
+
+const EMPTY_BODY_COPY = "No message body was included with this email.";
+
+function InvoiceSourceEmailReview({
+  inbound,
+  vendorInvoiceImportId,
+  font,
+}: {
+  inbound: InboundEmailProcessing;
+  vendorInvoiceImportId?: string;
+  font: string;
+}) {
+  const review = sourceEmailReviewFromInbound(inbound);
+  const importId = vendorInvoiceImportId?.trim() ?? "";
+  const { viewPdf, isLoading, unavailableMessage } = useVendorInvoicePdfViewer();
+  const pdfUnavailable = importId ? unavailableMessage(importId) : null;
+  const pdfLoading = importId ? isLoading(importId) : false;
+  const pdfDisabled = !importId || pdfLoading || Boolean(pdfUnavailable);
+
+  const fieldRow = (label: string, value: string, testId: string) => (
+    <div style={{ marginBottom: 6 }}>
+      <span style={{ color: "var(--admin-text-muted)", fontWeight: 600 }}>{label}: </span>
+      <span data-testid={testId} style={{ color: "var(--admin-text-secondary)" }}>
+        {value}
+      </span>
+    </div>
+  );
+
+  return (
+    <div
+      style={{
+        backgroundColor: "var(--admin-surface)",
+        border: "1px solid var(--admin-border)",
+        borderRadius: 6,
+        padding: "14px 16px",
+      }}
+    >
+      {fieldRow("From", review.from, "review-vendor-email-from")}
+      {review.to ? fieldRow("To", review.to, "review-vendor-email-to") : null}
+      {review.cc ? fieldRow("CC", review.cc, "review-vendor-email-cc") : null}
+      {fieldRow("Date", review.dateLabel, "review-vendor-email-date")}
+      {fieldRow("Subject", review.subject, "review-vendor-email-subject")}
+
+      <div style={{ marginTop: 14, marginBottom: 8 }}>
+        <p
+          style={{
+            margin: "0 0 8px",
+            fontSize: 12,
+            fontWeight: 700,
+            color: "var(--admin-text-muted)",
+            letterSpacing: "0.02em",
+          }}
+        >
+          Message
+        </p>
+        {review.bodyText ? (
+          <p
+            data-testid="review-vendor-email-message"
+            style={{
+              margin: 0,
+              fontSize: 13,
+              color: "var(--admin-text-data)",
+              lineHeight: 1.5,
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {review.bodyText}
+          </p>
+        ) : (
+          <p
+            data-testid="review-vendor-email-empty-body"
+            style={{
+              margin: 0,
+              fontSize: 13,
+              color: "var(--admin-text-muted)",
+              fontStyle: "italic",
+              lineHeight: 1.5,
+            }}
+          >
+            {EMPTY_BODY_COPY}
+          </p>
+        )}
+      </div>
+
+      {review.attachments.length > 0 || importId ? (
+        <div style={{ marginTop: 14 }}>
+          <p
+            style={{
+              margin: "0 0 8px",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "var(--admin-text-muted)",
+              letterSpacing: "0.02em",
+            }}
+          >
+            Attachments
+          </p>
+          {review.attachments.length > 0 ? (
+            <ul
+              data-testid="review-vendor-email-attachments"
+              style={{
+                margin: "0 0 10px",
+                paddingLeft: 20,
+                fontSize: 13,
+                color: "var(--admin-text-secondary)",
+              }}
+            >
+              {review.attachments.map((att) => (
+                <li key={att.filename}>{att.filename}</li>
+              ))}
+            </ul>
+          ) : null}
+          {importId ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <button
+                type="button"
+                data-testid="review-vendor-email-view-original-pdf"
+                disabled={pdfDisabled}
+                title={
+                  pdfUnavailable ??
+                  "Open the vendor invoice PDF in a new browser tab"
+                }
+                onClick={() => {
+                  void viewPdf(importId);
+                }}
+                style={{
+                  alignSelf: "flex-start",
+                  padding: "6px 12px",
+                  borderRadius: 6,
+                  border: "1px solid var(--admin-accent)",
+                  backgroundColor: "var(--admin-surface)",
+                  color: "var(--admin-accent-soft)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  fontFamily: font,
+                  cursor: pdfDisabled ? "not-allowed" : "pointer",
+                  opacity: pdfDisabled ? 0.55 : 1,
+                }}
+              >
+                {pdfLoading ? "Loading PDF…" : "View Original PDF"}
+              </button>
+              {pdfUnavailable ? (
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 11,
+                    color: "var(--admin-warning-text)",
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {pdfUnavailable}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function ReviewVendorEmailModal({
   open,
@@ -174,7 +335,11 @@ export function ReviewVendorEmailModal({
           ) : (
             <>
               {showInvoiceSourceEmail && invoiceSourceEmail ? (
-                <InvoiceSourceEmailCard inbound={invoiceSourceEmail} defaultShowOriginal />
+                <InvoiceSourceEmailReview
+                  inbound={invoiceSourceEmail}
+                  vendorInvoiceImportId={delivery.vendorInvoiceImportId}
+                  font={font}
+                />
               ) : null}
               {vendorEmailEvents.map((event) => (
                 <VendorEmailEventCard key={event.id} event={event} defaultShowOriginal />
