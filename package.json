@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.331",
+  "version": "0.0.332",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -167,6 +167,7 @@
     "test:invoice-shell-backfill-defer": "npx tsx scripts/test-invoice-shell-backfill-defer.mjs",
     "test:vendor-conversation-history": "npx tsx scripts/test-vendor-conversation-history.mjs",
     "test:vendor-pin-bootstrap-client": "npx tsx scripts/test-vendor-pin-bootstrap-client.mjs",
+    "test:vendor-run-deliveries-cache": "npx tsx scripts/test-vendor-run-deliveries-cache.mjs",
     "test:vendor-pin-bootstrap": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-vendor-pin-bootstrap.mjs\"",
     "test:upsert-management-pin-secrets": "npm run build:functions && firebase emulators:exec --only firestore \"node scripts/test-upsert-management-pin-secrets.mjs\"",
     "test:management-pin-write-auth": "npm run build:functions && firebase emulators:exec --only firestore \"node scripts/test-management-pin-write-auth.mjs\"",
