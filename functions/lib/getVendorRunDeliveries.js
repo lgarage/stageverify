@@ -40,6 +40,13 @@ function mapItems(itemsSnap) {
             id: itemDoc.id,
             description,
             qtyOrdered: typeof item.qtyOrdered === "number" ? item.qtyOrdered : 0,
+            ...(typeof item.qtyReceived === "number"
+                ? { qtyReceived: item.qtyReceived }
+                : {}),
+            ...(typeof item.qtyBackordered === "number"
+                ? { qtyBackordered: item.qtyBackordered }
+                : {}),
+            ...(typeof item.status === "string" ? { status: item.status } : {}),
         };
     });
 }
@@ -140,6 +147,9 @@ exports.getVendorRunDeliveries = (0, https_1.onCall)({
             orderNumber: String(delivery.orderNumber ?? deliveryId),
             vendorInvoiceNumber,
             poNumber,
+            ...(typeof delivery.status === "string"
+                ? { status: delivery.status }
+                : {}),
             stagingLocationCodes,
             hasAssignableSpot: (0, vendorDeliverySpotUtils_1.hasAssignableSpot)(delivery),
             vendorPhysicalDropoffConfirmed: delivery.vendorPhysicalDropoffConfirmed === true,

@@ -162,6 +162,9 @@ try {
       deliveryOrderId: "del-run-alpha",
       description: "Alpha Widget",
       qtyOrdered: 3,
+      qtyReceived: 3,
+      qtyBackordered: 0,
+      status: "received",
     });
     await setDoc(doc(db, "items", "item-run-a2"), {
       id: "item-run-a2",
@@ -264,6 +267,24 @@ try {
 
     if (data.scannedStagingLocationCode !== STAGING_CODE) {
       throw new Error("bad scannedStagingLocationCode");
+    }
+
+    if (alpha.status !== "shipped") {
+      throw new Error(`bad alpha delivery status ${alpha.status}`);
+    }
+
+    const a1 = alpha.items.find((i) => i.id === "item-run-a1");
+    const a2 = alpha.items.find((i) => i.id === "item-run-a2");
+    if (!a1 || !a2) throw new Error("missing alpha items for DTO assert");
+
+    if (a1.qtyReceived !== 3) {
+      throw new Error(`bad a1 qtyReceived ${a1.qtyReceived}`);
+    }
+    if (a1.status !== "received") {
+      throw new Error(`bad a1 status ${a1.status}`);
+    }
+    if (a2.qtyReceived !== undefined) {
+      throw new Error(`a2 qtyReceived should be undefined, got ${a2.qtyReceived}`);
     }
 
     pass("getVendorRunDeliveries returns enriched, sorted, filtered deliveries");
