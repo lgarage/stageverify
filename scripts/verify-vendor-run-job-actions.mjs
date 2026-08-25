@@ -348,9 +348,27 @@ async function enterPin(page, digits) {
       .isVisible()
       .catch(() => false)),
   );
-  await page.getByTestId("vendor-run-row-verify-run-active-a").waitFor({
-    timeout: 20_000,
-  });
+  const firstRow = page.getByTestId("vendor-run-row-verify-run-active-a");
+  const pollDeadline = Date.now() + 20_000;
+  let hydrationAfterFirstCard = false;
+  let firstRowSeen = false;
+  while (Date.now() < pollDeadline) {
+    const visible = await firstRow.isVisible().catch(() => false);
+    if (visible) {
+      firstRowSeen = true;
+      hydrationAfterFirstCard = vendorReceiveDetailsIds.length === 0;
+      break;
+    }
+    await page.waitForTimeout(5);
+  }
+  if (!firstRowSeen) {
+    await firstRow.waitFor({ timeout: pollDeadline - Date.now() });
+  }
+  record(
+    "no detail fetches before first row paints (after-paint yield)",
+    hydrationAfterFirstCard,
+    `started=${vendorReceiveDetailsIds.length}`,
+  );
   record(
     "skeleton hidden after list paints",
     !(await page
@@ -360,7 +378,8 @@ async function enterPin(page, digits) {
   );
   record(
     "list paints before detail hydration settles",
-    vendorReceiveDetailsFinished < 2,
+    vendorReceiveDetailsFinished < vendorReceiveDetailsIds.length ||
+      vendorReceiveDetailsFinished === 0,
     `finished=${vendorReceiveDetailsFinished} started=${vendorReceiveDetailsIds.length}`,
   );
   await page.waitForTimeout(400);
