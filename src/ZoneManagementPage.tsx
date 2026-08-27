@@ -20,6 +20,10 @@ import {
 } from "./dispatcher/resolveStagingLocationForSlot";
 import { isMapSlotPlaceholderStagingLocation } from "./dispatcher/stagingMapSync";
 import {
+  clearPendingManualItemReceive,
+  readPendingManualItemReceive,
+} from "./dispatcher/manualItemReceiveStaging";
+import {
   listAllZones,
   createZone,
   updateZone,
@@ -311,6 +315,11 @@ export function ZoneManagementPage() {
     return params.get("reassign") === "1";
   }, [location.search]);
 
+  const pendingItemReceiveId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("pendingItemReceive")?.trim() || null;
+  }, [location.search]);
+
   useEffect(() => {
     if (!assignInvoiceImportId || !assignDeliveryId) return;
     const params = new URLSearchParams(location.search);
@@ -486,6 +495,10 @@ export function ZoneManagementPage() {
     params.delete("assignDelivery");
     params.delete("assignInvoiceImport");
     params.delete("reassign");
+    if (params.get("pendingItemReceive")?.trim()) {
+      clearPendingManualItemReceive();
+    }
+    params.delete("pendingItemReceive");
     const search = params.toString();
     navigate(
       { pathname: "/zones", search: search ? `?${search}` : "" },
@@ -1286,17 +1299,90 @@ export function ZoneManagementPage() {
       return;
     }
     setAssignSaving(true);
+    const pendingReceive = readPendingManualItemReceive(assignDeliveryId);
+    const pendingReceiveMatches = Boolean(
+      pendingReceive &&
+        pendingItemReceiveId &&
+        pendingReceive.itemId === pendingItemReceiveId,
+    );
     try {
       if (reassignMode) {
         const result = await firestoreDataService.reassignStagingLocation(
           assignDeliveryId,
           pendingAssignSpot.zoneId,
         );
-        showAssignToast(
-          result.unchanged
-            ? `${result.toLocationCode} already assigned`
-            : `Changed location to ${result.toLocationCode}`,
+        if (pendingReceiveMatches && pendingReceive) {
+          try {
+            await firestoreDataService.updateItemQty(
+              pendingReceive.deliveryId,
+              pendingReceive.itemId,
+              pendingReceive.qtyOrdered,
+              pendingReceive.qtyReceived,
+              pendingReceive.qtyMissing,
+            );
+            clearPendingManualItemReceive();
+            showAssignToast(
+              result.unchanged
+                ? `${result.toLocationCode} — item marked received`
+                : `Item marked received at ${result.toLocationCode}`,
+            );
+          } catch (receiveErr) {
+            const receiveMessage =
+              receiveErr &&
+              typeof receiveErr === "object" &&
+              "message" in receiveErr
+                ? String((receiveErr as { message?: unknown }).message ?? "")
+                : "";
+            showAssignToast(
+              receiveMessage.trim() ||
+                "Location saved but marking the item received failed — reopen the delivery and try again.",
+              "error",
+            );
+          }
+        } else {
+          showAssignToast(
+            result.unchanged
+              ? `${result.toLocationCode} already assigned`
+              : `Changed location to ${result.toLocationCode}`,
+          );
+        }
+        setPendingAssignSpot(null);
+        await loadZones();
+        exitAssignMode();
+      } else if (pendingReceiveMatches && pendingReceive) {
+        const updated = await firestoreDataService.updateStagingLocation(
+          assignDeliveryId,
+          pendingAssignSpot.zoneId,
         );
+        if (!updated) {
+          showAssignToast("Failed to save staging location.", "error");
+          return;
+        }
+        const spotCode =
+          updated.stagingLocation?.code?.trim() || pendingAssignSpot.code;
+        try {
+          await firestoreDataService.updateItemQty(
+            pendingReceive.deliveryId,
+            pendingReceive.itemId,
+            pendingReceive.qtyOrdered,
+            pendingReceive.qtyReceived,
+            pendingReceive.qtyMissing,
+          );
+          clearPendingManualItemReceive();
+          showAssignToast(`Item marked received at ${spotCode}`);
+        } catch (receiveErr) {
+          const receiveMessage =
+            receiveErr &&
+            typeof receiveErr === "object" &&
+            "message" in receiveErr
+              ? String((receiveErr as { message?: unknown }).message ?? "")
+              : "";
+          showAssignToast(
+            receiveMessage.trim() ||
+              "Location saved but marking the item received failed — reopen the delivery and try again.",
+            "error",
+          );
+        }
         setPendingAssignSpot(null);
         await loadZones();
         exitAssignMode();
@@ -1366,6 +1452,7 @@ export function ZoneManagementPage() {
     refreshPortalData,
     reassignMode,
     showAssignToast,
+    pendingItemReceiveId,
     loadZones,
   ]);
 
@@ -1406,9 +1493,11 @@ export function ZoneManagementPage() {
     ? approveFlow
       ? "Confirm approves this invoice and assigns the selected staging spot."
       : "Selection is saved as a draft after Confirm. Shop occupancy starts only on Approve."
-    : reassignMode
-      ? "Confirm required — Cancel keeps the current location. Reassignment releases the old spot."
-      : null;
+    : pendingItemReceiveId
+      ? "Select where received material was physically placed. The line item is marked Delivered only after Confirm — planned spots are suggestions, not automatic confirmation."
+      : reassignMode
+        ? "Confirm required — Cancel keeps the current location. Reassignment releases the old spot."
+        : null;
 
   const pendingAssignLayoutSlot = pendingAssignSpot?.layoutSlot ?? null;
 

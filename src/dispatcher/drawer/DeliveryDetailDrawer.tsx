@@ -14,6 +14,13 @@ import { newPickupClientOperationId } from "../pickupClientOperationId";
 import { ISSUE_RESOLUTION_TYPE_LABEL, type IssueResolutionType } from "../models";
 import type { DeliveryDetails, DeliveryStatus, StagingLocation } from "../index";
 import { useDispatcherPortal } from "../DispatcherPortalContext";
+import {
+  buildManualReceiveStagingNavigateUrl,
+  clearPendingManualItemReceive,
+  deliveryHasAnyStagingRefs,
+  manualDeliveredRequiresPhysicalStagingGate,
+  writePendingManualItemReceive,
+} from "../manualItemReceiveStaging";
 import { DetailContent } from "./DeliveryDetailContent";
 import { ViewOriginalPdfButton } from "./ViewOriginalPdfButton";
 
@@ -338,6 +345,32 @@ export function DeliveryDetailDrawer({
     const qtyOrdered = item.qtyOrdered;
     const qtyReceived = status === "Delivered" ? qtyOrdered : 0;
     const qtyMissing = Math.max(0, qtyOrdered - qtyReceived);
+
+    if (status === "Not Delivered") {
+      clearPendingManualItemReceive();
+    }
+
+    if (
+      manualDeliveredRequiresPhysicalStagingGate(selectedDetails.delivery, status)
+    ) {
+      writePendingManualItemReceive({
+        deliveryId,
+        itemId,
+        qtyOrdered,
+        qtyReceived,
+        qtyMissing,
+        createdAt: new Date().toISOString(),
+      });
+      setMutationError(null);
+      onClose();
+      navigate(
+        buildManualReceiveStagingNavigateUrl(deliveryId, itemId, {
+          reassign: deliveryHasAnyStagingRefs(selectedDetails.delivery),
+        }),
+      );
+      return;
+    }
+
     setMutationLoading(true);
     setMutationError(null);
     try {
@@ -348,6 +381,7 @@ export function DeliveryDetailDrawer({
         qtyReceived,
         qtyMissing,
       );
+      clearPendingManualItemReceive();
       const updatedDetails =
         await firestoreDataService.getDeliveryDetails(deliveryId);
       if (updatedDetails) await refreshAfter(updatedDetails);
