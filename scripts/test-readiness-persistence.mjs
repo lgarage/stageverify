@@ -217,6 +217,76 @@ try {
     fail("openBlockingIssueCount incremented on delivery");
   }
 
+  console.log("\n=== Planned-only staging → recalc ready_for_pickup (stagingLocationId stays empty) ===\n");
+
+  const plannedId = "del-rp-planned-only";
+  await seed(async (db) => {
+    await setDoc(doc(db, "appSettings", "config"), {
+      vendorDeliveryMode: "full_checkin",
+    });
+    await setDoc(doc(db, "jobs", "job-rp"), {
+      id: "job-rp",
+      jobNumber: "JOB-RP",
+      customerName: "Test",
+      materialOwnerId: "owner-1",
+      materialOwnerName: "Owner",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+    await setDoc(doc(db, "deliveries", plannedId), {
+      id: plannedId,
+      orderNumber: "ORD-RP-PLANNED",
+      jobId: "job-rp",
+      vendorId: "vendor-rp",
+      purchaseOrderId: "po-rp",
+      deliveryDate: "2026-06-12",
+      status: "partial",
+      vendorOrderComplete: true,
+      vendorPhysicalDropoffConfirmed: true,
+      stagingLocationId: "",
+      plannedStagingLocationIds: ["loc-g12"],
+      openIssueCount: 0,
+      openBlockingIssueCount: 0,
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+    await setDoc(doc(db, "items", `${plannedId}-item`), {
+      id: `${plannedId}-item`,
+      deliveryOrderId: plannedId,
+      description: "Coil",
+      qtyOrdered: 2,
+      qtyReceived: 2,
+      qtyMissing: 0,
+      qtyDamaged: 0,
+      qtyBackordered: 0,
+      status: "received",
+    });
+    await seedVendorSession(db, plannedId);
+  });
+
+  const plannedRecalc = await recalculateReadiness(recalcPayload(plannedId));
+  const plannedDoc = await readDelivery(plannedId);
+
+  if (plannedRecalc.data?.readyForPickup === true) {
+    pass("planned-only recalc returns readyForPickup true");
+  } else {
+    fail("planned-only recalc returns readyForPickup true");
+  }
+  if (plannedDoc?.readinessStatus === "ready_for_pickup") {
+    pass("planned-only persisted readinessStatus is ready_for_pickup");
+  } else {
+    fail(
+      `planned-only persisted readinessStatus is ready_for_pickup (got ${plannedDoc?.readinessStatus})`,
+    );
+  }
+  if (plannedDoc?.stagingLocationId === "" || plannedDoc?.stagingLocationId == null) {
+    pass("planned-only recalc does not promote stagingLocationId");
+  } else {
+    fail(
+      `planned-only recalc must not promote stagingLocationId (got ${plannedDoc?.stagingLocationId})`,
+    );
+  }
+
   console.log("\n=== Non-blocking issue leaves readiness unchanged ===\n");
 
   const nonBlockId = "del-rp-nonblock";
