@@ -14,6 +14,12 @@ import {
   VendorEmailEventCard,
 } from "./emailEvidenceCards";
 import { ReviewVendorEmailModal } from "../drawer/ReviewVendorEmailModal";
+import {
+  buildMaterialIssuesEvidenceSnapshot,
+  buildPhysicalDeliveryEvidenceSnapshot,
+  buildStagingEvidenceSnapshot,
+  computeItemConflicts,
+} from "./readinessEvidenceSnapshots";
 
 const BLOCK_LABEL: Record<string, string> = READINESS_BLOCK_LABEL;
 
@@ -195,7 +201,6 @@ export function ReadinessEvidencePanel({
   const openIssues = materialIssues.filter(
     (i) => i.status === "open" || i.status === "assigned",
   );
-  const blockingIssues = openIssues.filter((i) => i.blocking);
 
   const additionalSpots = (delivery.additionalStagingLocationIds ?? [])
     .map((id) => stagingLocations.find((loc) => loc.id === id))
@@ -206,14 +211,11 @@ export function ReadinessEvidencePanel({
     delivery.vendorPhysicalDropoffConfirmed === true ||
     delivery.vendorOrderComplete === true;
 
-  const itemConflicts = items.filter((item) => {
-    if (item.qtyDamaged > 0 || item.qtyBackordered > 0) return true;
-    if (item.qtyMissing > 0) {
-      if (itemsReceivedCount === 0 && !vendorClaimsDelivered) return false;
-      return true;
-    }
-    return false;
-  });
+  const itemConflicts = computeItemConflicts(
+    items,
+    itemsReceivedCount,
+    vendorClaimsDelivered,
+  );
 
   const blockReasons = readiness.evidence.readinessBlockReasons;
 
@@ -267,51 +269,22 @@ export function ReadinessEvidencePanel({
     return { label: "Not Confirmed", tone: "neutral" as SnapshotTone };
   })();
 
-  const physicalSnapshot = (() => {
-    if (readiness.evidence.physicalDropoffComplete) {
-      return { label: "Confirmed", tone: "ok" as SnapshotTone };
-    }
-    if (delivery.vendorPhysicalDropoffConfirmed) {
-      return { label: "Vendor Marked Delivered", tone: "attention" as SnapshotTone };
-    }
-    return { label: "Not Confirmed", tone: "neutral" as SnapshotTone };
-  })();
+  const physicalSnapshot = buildPhysicalDeliveryEvidenceSnapshot({
+    physicalDropoffComplete: readiness.evidence.physicalDropoffComplete,
+    vendorPhysicalDropoffConfirmed: delivery.vendorPhysicalDropoffConfirmed === true,
+    itemConflicts,
+  });
 
-  const stagingSnapshot = (() => {
-    if (details.stagingLocation) {
-      const loc = details.stagingLocation;
-      const locationLabel =
-        loc.label && loc.label !== loc.code
-          ? `${loc.code} — ${loc.label}`
-          : loc.code;
-      return {
-        label: `Assigned to ${locationLabel}`,
-        tone: "ok" as SnapshotTone,
-      };
-    }
-    return { label: "Not Assigned", tone: "neutral" as SnapshotTone };
-  })();
+  const stagingSnapshot = buildStagingEvidenceSnapshot({
+    delivery,
+    stagingLocation: details.stagingLocation,
+    stagingLocations,
+  });
 
-  const materialSnapshot = (() => {
-    if (openIssues.length > 0) {
-      const suffix =
-        blockingIssues.length > 0
-          ? ` (${blockingIssues.length} blocking)`
-          : "";
-      return {
-        label: `Open Issues${suffix}`,
-        tone: "attention" as SnapshotTone,
-      };
-    }
-    const missingItems = itemConflicts.filter((item) => item.qtyMissing > 0);
-    if (missingItems.length > 0) {
-      return { label: "Items Missing", tone: "attention" as SnapshotTone };
-    }
-    if (itemConflicts.length > 0) {
-      return { label: "Open Issues", tone: "attention" as SnapshotTone };
-    }
-    return { label: "None", tone: "neutral" as SnapshotTone };
-  })();
+  const materialSnapshot = buildMaterialIssuesEvidenceSnapshot({
+    materialIssues,
+    itemConflicts,
+  });
 
   const emailSnapshot = (() => {
     if (emailEvidenceLoading) {

@@ -528,6 +528,7 @@ function compactDrawerAttentionCopy(input: {
   backorderCount: number;
 }): { attentionHeadline: string; whyBullets: string[]; nextStepBullets: string[] } {
   const lines: AttentionCopyLine[] = [];
+  let hasOperationalAttentionLine = false;
   const hasPhysical = input.includedBlockReasons.includes(
     "physical_dropoff_incomplete",
   );
@@ -542,52 +543,61 @@ function compactDrawerAttentionCopy(input: {
   ].filter(Boolean).length;
 
   if (input.blockingIssueCount > 0) {
+    hasOperationalAttentionLine = true;
     lines.push({
       title: "Material issue open",
       why: "A blocking material issue still needs resolution.",
       next: "Review and resolve the issue.",
     });
   }
-  if (input.emailReviewRequired) {
-    lines.push({
-      title: "Vendor email needs review",
-      why: "Vendor email proposal needs dispatcher review.",
-      next: "Review the vendor email.",
-    });
-  }
-  if (input.stagingMissing) {
-    lines.push({
-      title: "Staging location missing",
-      why: "Received material has no staging location.",
-      next: "Assign a staging location.",
-    });
-  }
   if (itemCategoryCount >= 2) {
+    hasOperationalAttentionLine = true;
     lines.push({
       title: "Items still need attention",
       why: "Some required items are still not delivered or backordered.",
       next: "Review the incomplete items.",
     });
   } else if (input.partialCount > 0) {
+    hasOperationalAttentionLine = true;
     lines.push({
       title: "Partial delivery",
       why: "Some required items are still not delivered or backordered.",
       next: "Review the incomplete items.",
     });
   } else if (input.missingCount > 0) {
+    hasOperationalAttentionLine = true;
     lines.push({
       title: "Items not delivered",
       why: "Required items have not been received.",
       next: "Review the incomplete items.",
     });
   } else if (input.backorderCount > 0) {
+    hasOperationalAttentionLine = true;
     lines.push({
       title:
         input.backorderCount === 1
-          ? "1 item backordered"
-          : `${input.backorderCount} items backordered`,
-      why: "Some items are still on backorder.",
-      next: "Review the incomplete items.",
+          ? "1 item is still backordered"
+          : `${input.backorderCount} items are still backordered`,
+      why:
+        input.backorderCount === 1
+          ? "The order is incomplete and the remaining item has not been confirmed."
+          : "The order is incomplete and remaining items have not been confirmed.",
+      next: "Follow up with the vendor for an ETA or updated status.",
+    });
+  }
+  if (input.stagingMissing) {
+    hasOperationalAttentionLine = true;
+    lines.push({
+      title: "Staging location missing",
+      why: "Received material has no staging location.",
+      next: "Assign a staging location.",
+    });
+  }
+  if (input.emailReviewRequired && !hasOperationalAttentionLine) {
+    lines.push({
+      title: "Vendor email needs review",
+      why: "Vendor email proposal needs dispatcher review.",
+      next: "Review the vendor email.",
     });
   }
   if (input.deliverToSitePending) {
