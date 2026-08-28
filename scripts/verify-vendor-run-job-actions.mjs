@@ -347,6 +347,120 @@ async function fulfillCallableWarmupInvalidArgument(route) {
     });
   });
 
+  const legacyCachePayload = JSON.stringify({
+    deliveries: [vendorRunRows[0]],
+    scannedStagingLocationCode: "G2",
+    vendorName: "Johnstone Supply",
+    cachedAt: Date.now(),
+  });
+  const legacyContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+    deviceScaleFactor: 2,
+  });
+  const pageLegacy = await legacyContext.newPage();
+  await pageLegacy.addInitScript(
+    ({ cacheKey, payload }) => {
+      localStorage.setItem(cacheKey, payload);
+    },
+    {
+      cacheKey: "stageverify_vendor_run_list_vendor-verify-run",
+      payload: legacyCachePayload,
+    },
+  );
+  await pageLegacy.route("**/getLocationPublicBranding", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        result: {
+          found: true,
+          locationId: "staging-g2",
+          code: "G2",
+          label: "Ground 2",
+          type: "ground",
+        },
+      }),
+    });
+  });
+  let legacyPinResolveFulfilled = false;
+  await pageLegacy.route("**/resolveLocationScanPin", async (route) => {
+    const requestBody = parseCallablePostData(route);
+    if (!requestBody.data?.pin) {
+      await fulfillCallableWarmupInvalidArgument(route);
+      return;
+    }
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 1200));
+    legacyPinResolveFulfilled = true;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        result: {
+          success: true,
+          accessType: "vendor",
+          vendorId: "vendor-verify-run",
+          vendorName: "Johnstone Supply",
+          sessionToken: "verify-run-session-legacy",
+          expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+          scannedStagingLocationCode: "G2",
+          sessionScope: "vendor",
+          deliveryId: "verify-run-active-a",
+        },
+      }),
+    });
+  });
+  await pageLegacy.route("**/getVendorRunDeliveries", async (route) => {
+    const requestBody = parseCallablePostData(route);
+    if (!requestBody.data?.sessionToken) {
+      await fulfillCallableWarmupInvalidArgument(route);
+      return;
+    }
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 800));
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        result: {
+          vendorId: "vendor-verify-run",
+          scannedStagingLocationCode: "G2",
+          deliveries: vendorRunRows,
+        },
+      }),
+    });
+  });
+  await pageLegacy.goto(`${appBase}/#/s?loc=G2`, {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
+  });
+  await pageLegacy.getByRole("heading", { name: "Enter PIN" }).waitFor({
+    timeout: 30_000,
+  });
+  await enterPin(pageLegacy, "9876");
+  const verifyBtnLegacy = pageLegacy.getByTestId("location-scan-pin-verify");
+  if (await verifyBtnLegacy.isVisible().catch(() => false)) {
+    await verifyBtnLegacy.click();
+  }
+  const legacyRowDeadline = Date.now() + 5000;
+  let legacyRowBeforePinResolve = false;
+  const legacyFirstRow = pageLegacy.getByTestId(
+    "vendor-run-row-verify-run-active-a",
+  );
+  while (Date.now() < legacyRowDeadline && !legacyPinResolveFulfilled) {
+    if (await legacyFirstRow.isVisible().catch(() => false)) {
+      legacyRowBeforePinResolve = true;
+      break;
+    }
+    await pageLegacy.waitForTimeout(25);
+  }
+  record(
+    "legacy list cache row visible before PIN CF returns (no last-vendor key)",
+    legacyRowBeforePinResolve,
+  );
+  await pageLegacy.close();
+  await legacyContext.close();
+
   await page.goto(`${appBase}/#/s?loc=G2`, {
     waitUntil: "domcontentloaded",
     timeout: 60_000,
