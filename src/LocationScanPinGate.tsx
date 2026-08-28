@@ -34,7 +34,7 @@ export type LocationScanPinVerifiedPayload = Extract<
 interface LocationScanPinGateProps {
   stagingLocationCode: string;
   onVerified: (payload: LocationScanPinVerifiedPayload) => void;
-  onSubmitStart?: () => void;
+  onSubmitStart?: (pin: string) => void;
   onSubmitError?: (message?: string) => void;
 }
 
@@ -73,7 +73,7 @@ export function LocationScanPinGate({
     async (pin: string) => {
       if (pin.length < MIN_PIN_LENGTH || pin.length > MAX_PIN_LENGTH) return;
       markVendorPinDebug("PIN_SUBMIT");
-      onSubmitStart?.();
+      onSubmitStart?.(pin);
       setSubmitting(true);
       setError(null);
       try {

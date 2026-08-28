@@ -5,9 +5,15 @@
 import assert from "node:assert/strict";
 import {
   clearVendorRunDeliveriesCache,
+  fingerprintVendorRunPin,
+  LAST_VENDOR_KEY,
+  linkVendorRunDeliveriesCachePin,
+  readLastVendorRunDeliveriesCache,
   readVendorRunDeliveriesCache,
+  readVendorRunDeliveriesCacheForSubmit,
   VENDOR_RUN_DELIVERIES_CACHE_STORAGE,
   VENDOR_RUN_DELIVERIES_CACHE_TTL_MS,
+  VENDOR_RUN_DELIVERIES_PIN_ALIAS_PREFIX,
   writeVendorRunDeliveriesCache,
 } from "../src/vendorRunDeliveriesCache.ts";
 
@@ -77,6 +83,9 @@ const sampleDelivery = {
 };
 
 const vendorId = "vendor-cache-test";
+const vendorIdB = "vendor-cache-test-b";
+const stagingCode = "G2";
+const pin = "9876";
 
 store.clear();
 assert.equal(VENDOR_RUN_DELIVERIES_CACHE_STORAGE, "localStorage");
@@ -86,18 +95,19 @@ assert.equal(readVendorRunDeliveriesCache(vendorId), null);
 
 const wrote = writeVendorRunDeliveriesCache(vendorId, {
   deliveries: [sampleDelivery],
-  scannedStagingLocationCode: "G2",
+  scannedStagingLocationCode: stagingCode,
   vendorName: "Johnstone Supply",
 });
 assert.equal(wrote, true);
 
 const key = `stageverify_vendor_run_list_${vendorId}`;
 assert.ok(store.has(key), "cache written to localStorage");
+assert.equal(store.get(LAST_VENDOR_KEY), vendorId, "last-vendor key updated");
 assert.equal(sessionStorage.length, 0, "sessionStorage not used");
 
 const roundTrip = readVendorRunDeliveriesCache(vendorId);
 assert.ok(roundTrip);
-assert.equal(roundTrip.scannedStagingLocationCode, "G2");
+assert.equal(roundTrip.scannedStagingLocationCode, stagingCode);
 assert.equal(roundTrip.vendorName, "Johnstone Supply");
 assert.equal(roundTrip.deliveries.length, 1);
 assert.equal(roundTrip.deliveries[0].deliveryId, "d-cache-1");
@@ -107,6 +117,57 @@ assert.equal(
   roundTrip.deliveries[0].extraUnknownField,
   undefined,
   "unknown delivery fields stripped on write",
+);
+
+const lastVendor = readLastVendorRunDeliveriesCache();
+assert.ok(lastVendor);
+assert.equal(lastVendor.vendorId, vendorId);
+assert.equal(lastVendor.deliveries.length, 1);
+
+const fingerprint = await fingerprintVendorRunPin(pin, stagingCode);
+assert.match(fingerprint, /^[0-9a-f]{64}$/, "pin fingerprint is SHA-256 hex");
+
+linkVendorRunDeliveriesCachePin(fingerprint, vendorId);
+assert.equal(
+  store.get(`${VENDOR_RUN_DELIVERIES_PIN_ALIAS_PREFIX}${fingerprint}`),
+  vendorId,
+);
+
+writeVendorRunDeliveriesCache(vendorIdB, {
+  deliveries: [
+    {
+      ...sampleDelivery,
+      deliveryId: "d-cache-b",
+      jobName: "Other Vendor Job",
+    },
+  ],
+  scannedStagingLocationCode: stagingCode,
+  vendorName: "Other Vendor",
+});
+assert.equal(store.get(LAST_VENDOR_KEY), vendorIdB, "last-vendor follows latest write");
+
+const forSubmitPinAlias = await readVendorRunDeliveriesCacheForSubmit({
+  pin,
+  stagingLocationCode: stagingCode,
+});
+assert.ok(forSubmitPinAlias);
+assert.equal(
+  forSubmitPinAlias.vendorId,
+  vendorId,
+  "ForSubmit prefers pin alias over last vendor",
+);
+assert.equal(forSubmitPinAlias.deliveries[0].deliveryId, "d-cache-1");
+
+store.delete(`${VENDOR_RUN_DELIVERIES_PIN_ALIAS_PREFIX}${fingerprint}`);
+const forSubmitLastVendor = await readVendorRunDeliveriesCacheForSubmit({
+  pin: "0000",
+  stagingLocationCode: stagingCode,
+});
+assert.ok(forSubmitLastVendor);
+assert.equal(
+  forSubmitLastVendor.vendorId,
+  vendorIdB,
+  "ForSubmit falls back to last vendor when pin alias missing",
 );
 
 const rawPayload = JSON.parse(store.get(key) ?? "{}");
@@ -138,17 +199,18 @@ store.set(
   key,
   JSON.stringify({
     deliveries: [sampleDelivery],
-    scannedStagingLocationCode: "G2",
+    scannedStagingLocationCode: stagingCode,
     cachedAt: Date.now() - VENDOR_RUN_DELIVERIES_CACHE_TTL_MS - 1,
   }),
 );
 assert.equal(readVendorRunDeliveriesCache(vendorId), null, "TTL expiry");
 assert.equal(store.has(key), false, "expired entry removed");
+assert.equal(readLastVendorRunDeliveriesCache()?.vendorId, vendorIdB);
 
 clearVendorRunDeliveriesCache(vendorId);
 writeVendorRunDeliveriesCache(vendorId, {
   deliveries: [sampleDelivery],
-  scannedStagingLocationCode: "G2",
+  scannedStagingLocationCode: stagingCode,
 });
 assert.ok(readVendorRunDeliveriesCache(vendorId));
 clearVendorRunDeliveriesCache(vendorId);
@@ -158,17 +220,17 @@ let setCalls = 0;
 const originalSetItem = localStorage.setItem.bind(localStorage);
 localStorage.setItem = (k, v) => {
   setCalls += 1;
-  if (setCalls === 1) {
+  if (k.startsWith("stageverify_vendor_run_list_") && setCalls === 2) {
     throw new Error("QuotaExceededError");
   }
   originalSetItem(k, v);
 };
 const retried = writeVendorRunDeliveriesCache("vendor-retry", {
   deliveries: [sampleDelivery],
-  scannedStagingLocationCode: "G2",
+  scannedStagingLocationCode: stagingCode,
 });
 assert.equal(retried, true);
-assert.equal(setCalls, 2, "write retries once with empty items");
+assert.equal(setCalls, 3, "write retries once with empty items after last-vendor key");
 const retryRead = readVendorRunDeliveriesCache("vendor-retry");
 assert.ok(retryRead);
 assert.deepEqual(retryRead.deliveries[0].items, []);
