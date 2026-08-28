@@ -55,6 +55,7 @@ import {
   clearVendorRunDeliveriesCache,
   fingerprintVendorRunPin,
   linkVendorRunDeliveriesCachePin,
+  readLastVendorRunDeliveriesCache,
   readVendorRunDeliveriesCache,
   readVendorRunDeliveriesCacheForSubmit,
   writeVendorRunDeliveriesCache,
@@ -1129,21 +1130,42 @@ function LocationScanPageInner() {
       stopKeepaliveRef.current?.();
       stopKeepaliveRef.current = null;
       markVendorPinDebug("UI_LANDING_OPEN");
+      firstCardRenderMarkedRef.current = false;
       setPinOpeningList(true);
       setLoading(true);
 
+      const syncCache = readLastVendorRunDeliveriesCache();
+      const syncPainted =
+        syncCache !== null && syncCache.deliveries.length > 0;
+      if (syncPainted) {
+        flushSync(() => {
+          setVendorId(syncCache.vendorId);
+          if (syncCache.vendorName) {
+            setOpeningVendorName(syncCache.vendorName);
+          }
+          setScannedCode(syncCache.scannedStagingLocationCode);
+          setVendorRunDeliveries(syncCache.deliveries);
+          setStep("vendor-list");
+        });
+      }
+
       void (async () => {
         if (!locationCode) return;
+
+        pendingPinFingerprintRef.current = await fingerprintVendorRunPin(
+          pin,
+          locationCode,
+        );
+
         const submitCache = await readVendorRunDeliveriesCacheForSubmit({
           pin,
           stagingLocationCode: locationCode,
         });
         if (!submitCache || submitCache.deliveries.length === 0) return;
 
-        pendingPinFingerprintRef.current = await fingerprintVendorRunPin(
-          pin,
-          locationCode,
-        );
+        if (syncPainted && submitCache.vendorId === syncCache.vendorId) {
+          return;
+        }
 
         flushSync(() => {
           setVendorId(submitCache.vendorId);
