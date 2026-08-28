@@ -53,7 +53,10 @@ import {
 } from "./technicianReleasedJobsCache";
 import {
   clearVendorRunDeliveriesCache,
+  fingerprintVendorRunPin,
+  linkVendorRunDeliveriesCachePin,
   readVendorRunDeliveriesCache,
+  readVendorRunDeliveriesCacheForSubmit,
   writeVendorRunDeliveriesCache,
 } from "./vendorRunDeliveriesCache";
 import { stashTechnicianJobShell } from "./technicianJobShell";
@@ -219,6 +222,8 @@ function LocationScanPageInner() {
   const vendorRunPaintedRef = useRef<string | null>(null);
   const vendorRunLoadGenerationRef = useRef(0);
   const firstCardRenderMarkedRef = useRef(false);
+  const pendingPinFingerprintRef = useRef<string | null>(null);
+  const vendorIdRef = useRef<string | null>(null);
   const lastUiScreenRef = useRef<string | null>(null);
   const stopKeepaliveRef = useRef<(() => void) | null>(null);
 
@@ -226,6 +231,9 @@ function LocationScanPageInner() {
   const [branding, setBranding] = useState<LocationBranding | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [vendorId, setVendorId] = useState<string | null>(null);
+  useEffect(() => {
+    vendorIdRef.current = vendorId;
+  }, [vendorId]);
   const [sessionScope, setSessionScope] = useState<SessionScope>(null);
   const [deliveries, setDeliveries] = useState<JobVendorDeliverySummary[]>([]);
   const [vendorRunDeliveries, setVendorRunDeliveries] = useState<
@@ -718,6 +726,28 @@ function LocationScanPageInner() {
     }
   }, [goToHistoryView]);
 
+  const clearOptimisticVendorRunPaint = useCallback(
+    (options?: { keepStep?: boolean }) => {
+      setVendorRunDeliveries([]);
+      setOpeningVendorName(null);
+      setPinOpeningList(false);
+      pendingPinFingerprintRef.current = null;
+      firstCardRenderMarkedRef.current = false;
+
+      const currentVendorId = vendorIdRef.current;
+      const hasVendorRunSession = currentVendorId
+        ? getVendorRunPinSession(currentVendorId) !== null
+        : false;
+      if (!hasVendorRunSession) {
+        setVendorId(null);
+        if (!options?.keepStep) {
+          setStep("pin");
+        }
+      }
+    },
+    [],
+  );
+
   const handlePinVerified = useCallback(
     (payload: {
       jobId?: string;
@@ -737,6 +767,7 @@ function LocationScanPageInner() {
           setError("Invalid session.");
           return;
         }
+        clearOptimisticVendorRunPaint({ keepStep: true });
         setVendorId(payload.vendorId);
         setJobId(null);
         setSessionScope("vendor_unplanned");
@@ -751,6 +782,13 @@ function LocationScanPageInner() {
         return;
       }
       if (payload.sessionScope === "vendor" && payload.vendorId) {
+        if (pendingPinFingerprintRef.current) {
+          linkVendorRunDeliveriesCachePin(
+            pendingPinFingerprintRef.current,
+            payload.vendorId,
+          );
+          pendingPinFingerprintRef.current = null;
+        }
         if (payload.vendorName) {
           setOpeningVendorName(payload.vendorName);
         }
@@ -779,11 +817,12 @@ function LocationScanPageInner() {
         setError("Invalid session.");
         return;
       }
+      clearOptimisticVendorRunPaint({ keepStep: true });
       setJobId(payload.jobId);
       setVendorId(null);
       goToHistoryView({ kind: "deliveries" });
     },
-    [goToHistoryView, loadVendorRunDeliveries],
+    [clearOptimisticVendorRunPaint, goToHistoryView, loadVendorRunDeliveries],
   );
 
   const resolveUnplannedSessionToken = useCallback(
@@ -1085,13 +1124,40 @@ function LocationScanPageInner() {
     }
   }, [historyView.kind, step]);
 
-  const handlePinSubmitStart = useCallback(() => {
-    stopKeepaliveRef.current?.();
-    stopKeepaliveRef.current = null;
-    markVendorPinDebug("UI_LANDING_OPEN");
-    setPinOpeningList(true);
-    setLoading(true);
-  }, []);
+  const handlePinSubmitStart = useCallback(
+    (pin: string) => {
+      stopKeepaliveRef.current?.();
+      stopKeepaliveRef.current = null;
+      markVendorPinDebug("UI_LANDING_OPEN");
+      setPinOpeningList(true);
+      setLoading(true);
+
+      void (async () => {
+        if (!locationCode) return;
+        const submitCache = await readVendorRunDeliveriesCacheForSubmit({
+          pin,
+          stagingLocationCode: locationCode,
+        });
+        if (!submitCache || submitCache.deliveries.length === 0) return;
+
+        pendingPinFingerprintRef.current = await fingerprintVendorRunPin(
+          pin,
+          locationCode,
+        );
+
+        flushSync(() => {
+          setVendorId(submitCache.vendorId);
+          if (submitCache.vendorName) {
+            setOpeningVendorName(submitCache.vendorName);
+          }
+          setScannedCode(submitCache.scannedStagingLocationCode);
+          setVendorRunDeliveries(submitCache.deliveries);
+          setStep("vendor-list");
+        });
+      })();
+    },
+    [locationCode],
+  );
 
   useEffect(() => {
     if (!isVendorPinDebugEnabled()) return;
@@ -1142,15 +1208,14 @@ function LocationScanPageInner() {
   }, [vendorRunDeliveries.length]);
 
   const handlePinSubmitError = useCallback(() => {
-    setPinOpeningList(false);
-    setOpeningVendorName(null);
     setLoading(false);
-  }, []);
+    clearOptimisticVendorRunPaint();
+  }, [clearOptimisticVendorRunPaint]);
 
   const handleLocationScanPinVerified = useCallback(
     (payload: LocationScanPinVerifiedPayload) => {
       if (payload.accessType === "technician") {
-        setPinOpeningList(false);
+        clearOptimisticVendorRunPaint({ keepStep: true });
         handleTechnicianPinVerified({
           technicianId: payload.technicianId,
           technicianName: payload.technicianName,
@@ -1158,7 +1223,7 @@ function LocationScanPageInner() {
         return;
       }
       if (payload.accessType === "management") {
-        setPinOpeningList(false);
+        clearOptimisticVendorRunPaint({ keepStep: true });
         goToHistoryView({ kind: "mgmt" });
         return;
       }
@@ -1179,7 +1244,7 @@ function LocationScanPageInner() {
         scannedStagingLocationCode: payload.scannedStagingLocationCode,
       });
     },
-    [goToHistoryView, handlePinVerified, handleTechnicianPinVerified],
+    [clearOptimisticVendorRunPaint, goToHistoryView, handlePinVerified, handleTechnicianPinVerified],
   );
 
   const handlePinSessionExpired = useCallback(() => {
@@ -1785,6 +1850,7 @@ function LocationScanPageInner() {
 
   if (showCompanyRunLanding && branding && locationCode) {
     const runSession = vendorId ? getVendorRunPinSession(vendorId) : null;
+    const hasVendorRunSession = Boolean(runSession);
     const headingVendorName =
       openingVendorName ?? runSession?.vendorName ?? undefined;
     const isPendingPinShell =
@@ -1938,7 +2004,7 @@ function LocationScanPageInner() {
                   <div className="flex gap-3">
                     <button
                       type="button"
-                      disabled={loading}
+                      disabled={loading || !hasVendorRunSession}
                       onClick={() => setExpandedDeliveryIds(new Set())}
                       className="action-btn action-btn-secondary flex-1 disabled:opacity-50"
                       data-testid={`vendor-run-cancel-${row.deliveryId}`}
@@ -1947,7 +2013,7 @@ function LocationScanPageInner() {
                     </button>
                     <button
                       type="button"
-                      disabled={!canComplete || loading}
+                      disabled={!canComplete || loading || !hasVendorRunSession}
                       onClick={() =>
                         void handleVendorRunComplete(row.deliveryId)
                       }
@@ -1960,7 +2026,7 @@ function LocationScanPageInner() {
                   </div>
                   <button
                     type="button"
-                    disabled={loading}
+                    disabled={loading || !hasVendorRunSession}
                     onClick={() =>
                       setVendorRunIssueTarget({
                         deliveryId: row.deliveryId,
@@ -1995,7 +2061,7 @@ function LocationScanPageInner() {
                   </p>
                   <button
                     type="button"
-                    disabled={vendorRunRevertingId !== null}
+                    disabled={vendorRunRevertingId !== null || !hasVendorRunSession}
                     onClick={() =>
                       setVendorRunIssueTarget({
                         deliveryId: row.deliveryId,
@@ -2011,7 +2077,7 @@ function LocationScanPageInner() {
                   </button>
                   <button
                     type="button"
-                    disabled={vendorRunRevertingId !== null}
+                    disabled={vendorRunRevertingId !== null || !hasVendorRunSession}
                     onClick={() => void handleVendorRunUndo(row.deliveryId)}
                     className="action-btn action-btn-secondary w-full disabled:opacity-50"
                     data-testid={`vendor-run-undo-${row.deliveryId}`}

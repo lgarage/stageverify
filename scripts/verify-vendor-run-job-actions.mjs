@@ -588,10 +588,22 @@ async function fulfillCallableWarmupInvalidArgument(route) {
     await verifyBtn2.click();
   }
   const crossTabRowDeadline = Date.now() + 5000;
-  let crossTabRowBeforeList = false;
+  let crossTabRowBeforePinResolve = false;
   const crossTabFirstRow = page2.getByTestId(
     "vendor-run-row-verify-run-active-a",
   );
+  while (Date.now() < crossTabRowDeadline && !pinResolveFulfilled) {
+    if (await crossTabFirstRow.isVisible().catch(() => false)) {
+      crossTabRowBeforePinResolve = true;
+      break;
+    }
+    await page2.waitForTimeout(25);
+  }
+  record(
+    "cached first row visible before PIN CF returns (submit paint)",
+    crossTabRowBeforePinResolve,
+  );
+  let crossTabRowBeforeList = false;
   while (Date.now() < crossTabRowDeadline && !vendorRunDeliveriesFulfilled) {
     if (await crossTabFirstRow.isVisible().catch(() => false)) {
       crossTabRowBeforeList = true;
@@ -1017,6 +1029,21 @@ async function fulfillCallableWarmupInvalidArgument(route) {
     await verifyBtn.click();
   }
 
+  const warmRowDeadline = Date.now() + 5000;
+  let warmRowBeforePinResolve = false;
+  const warmFirstRow = page.getByTestId("vendor-run-row-verify-run-active-a");
+  while (Date.now() < warmRowDeadline && !pinResolveFulfilled) {
+    if (await warmFirstRow.isVisible().catch(() => false)) {
+      warmRowBeforePinResolve = true;
+      break;
+    }
+    await page.waitForTimeout(25);
+  }
+  record(
+    "cached first row visible before PIN CF returns (warm submit paint)",
+    warmRowBeforePinResolve,
+  );
+
   const warmHeadingDeadline = Date.now() + 5000;
   let warmHeadingBeforeList = false;
   while (Date.now() < warmHeadingDeadline && !vendorRunDeliveriesFulfilled) {
@@ -1036,10 +1063,9 @@ async function fulfillCallableWarmupInvalidArgument(route) {
     warmHeadingBeforeList,
   );
 
-  const warmRowDeadline = Date.now() + 5000;
+  const warmRowBeforeListDeadline = Date.now() + 5000;
   let warmRowBeforeList = false;
-  const warmFirstRow = page.getByTestId("vendor-run-row-verify-run-active-a");
-  while (Date.now() < warmRowDeadline && !vendorRunDeliveriesFulfilled) {
+  while (Date.now() < warmRowBeforeListDeadline && !vendorRunDeliveriesFulfilled) {
     if (await warmFirstRow.isVisible().catch(() => false)) {
       warmRowBeforeList = true;
       break;
@@ -1055,6 +1081,59 @@ async function fulfillCallableWarmupInvalidArgument(route) {
     path: resolve(process.cwd(), "screenshots", "vendor-run-job-actions", "instant-cards-from-cache.png"),
     fullPage: false,
   });
+
+  pinResolveFulfilled = false;
+  await page.unroute("**/resolveLocationScanPin");
+  await page.route("**/resolveLocationScanPin", async (route) => {
+    const requestBody = parseCallablePostData(route);
+    if (!requestBody.data?.pin) {
+      await fulfillCallableWarmupInvalidArgument(route);
+      return;
+    }
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 1200));
+    pinResolveFulfilled = true;
+    if (requestBody.data.pin === "0000") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          result: { success: false, message: "Invalid code." },
+        }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        result: {
+          success: true,
+          accessType: "vendor",
+          vendorId: "vendor-verify-run",
+          vendorName: "Johnstone Supply",
+          sessionToken: "verify-run-session-wrong-pin-test",
+          expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+          scannedStagingLocationCode: "G2",
+          sessionScope: "vendor",
+          deliveryId: "verify-run-active-a",
+        },
+      }),
+    });
+  });
+  await page.getByTestId("vendor-run-back").click();
+  await page.getByRole("heading", { name: "Enter PIN" }).waitFor({
+    timeout: 30_000,
+  });
+  await enterPin(page, "0000");
+  if (await verifyBtn.isVisible().catch(() => false)) {
+    await verifyBtn.click();
+  }
+  await page.waitForTimeout(1500);
+  record(
+    "wrong PIN clears optimistic cached rows back to keypad",
+    (await page.locator('[data-testid^="vendor-run-row-"]').count()) === 0 &&
+      (await page.getByRole("heading", { name: "Enter PIN" }).isVisible()),
+  );
 
   await browser.close();
 
