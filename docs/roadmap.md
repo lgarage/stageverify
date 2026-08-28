@@ -63,6 +63,7 @@
 ## NOW (Phase 5 prototype)
 
 **Shipped (2026-08-28):** Vendor PIN staged loading UX (**v0.0.356**) — Checking PIN… → Loading deliveries… → Still loading… / Connection may be slow.; list-load retry; FE-only; minInstances 1 kept; no cpuIdle/Scheduler. Real-iPhone PERFORMANCE + LOADING-UX TEST still required.
+**Shipped (2026-08-28):** Internal mobile **collapsed accordion** (**v0.0.358**) — delivery/job + Invoice Review default collapsed on phone; expand reveals full details/actions; desktop table preserved. Continues DISPATCHER phone usable scope after v0.0.357 overflow repair. FE-only; no Google auth / PIN / CF.
 **Shipped (2026-08-28):** Internal mobile **content** overflow repair (**v0.0.357**) — single-column top-bar actions; invoice/settings/vendors fluid; map pan contained; Dark/Light in drawer on phone. PR #233 hamburger shell kept. FE-only; no Google auth / PIN / CF.
 
 **Shipped (2026-08-28):** Internal mobile shell/nav (**v0.0.355**) — hamburger drawer reuses `PORTAL_NAV_ITEMS`; 390px top-bar wrap; desktop ≥768 sidebar unchanged. FE-only; no Google auth / PIN / CF.

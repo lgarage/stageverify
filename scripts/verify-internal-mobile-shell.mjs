@@ -270,6 +270,131 @@ async function assertContentScrolls(page) {
   }
 }
 
+async function assertCollapsedMobileLists(page, width) {
+  const list = page.getByTestId("dispatcher-deliveries-mobile-list");
+  await list.waitFor({ state: "visible", timeout: 30_000 });
+
+  if (await page.getByTestId("dispatcher-deliveries-table").isVisible().catch(() => false)) {
+    throw new Error(`${width}: desktop deliveries table must not show on phone`);
+  }
+
+  // Wait for deliveries list to settle (cards or empty) after auth/data load.
+  await page
+    .locator(
+      '[data-testid^="dispatcher-delivery-mobile-card-"], [data-testid="dispatcher-deliveries-mobile-empty"]',
+    )
+    .first()
+    .waitFor({ state: "visible", timeout: 45_000 })
+    .catch(() => {});
+
+  const cards = page.locator('[data-testid^="dispatcher-delivery-mobile-card-"]');
+  const cardCount = await cards.count();
+  if (cardCount === 0) {
+    console.log(`${width}: no delivery cards (empty filters) — skip expand/collapse`);
+  } else {
+    for (let i = 0; i < Math.min(cardCount, 3); i += 1) {
+      const card = cards.nth(i);
+      const expanded = await card.getAttribute("data-expanded");
+      if (expanded !== "false") {
+        throw new Error(`${width}: delivery card ${i} should default collapsed`);
+      }
+    }
+    const firstToggle = page.locator('[data-testid^="dispatcher-delivery-mobile-toggle-"]').first();
+    await firstToggle.scrollIntoViewIfNeeded();
+    await firstToggle.click();
+    const firstCard = cards.first();
+    if ((await firstCard.getAttribute("data-expanded")) !== "true") {
+      throw new Error(`${width}: delivery card did not expand`);
+    }
+    const details = page.locator('[data-testid^="dispatcher-delivery-mobile-details-"]').first();
+    await details.waitFor({ state: "visible", timeout: 5_000 });
+    await firstToggle.click();
+    if ((await firstCard.getAttribute("data-expanded")) !== "false") {
+      throw new Error(`${width}: delivery card did not collapse again`);
+    }
+    // Expand a second card when present.
+    if (cardCount > 1) {
+      const secondToggle = page.locator('[data-testid^="dispatcher-delivery-mobile-toggle-"]').nth(1);
+      await secondToggle.scrollIntoViewIfNeeded();
+      await secondToggle.click();
+      if ((await cards.nth(1).getAttribute("data-expanded")) !== "true") {
+        throw new Error(`${width}: second delivery card did not expand`);
+      }
+      await secondToggle.click();
+    }
+  }
+
+  await page.getByTestId("invoice-review-panel").waitFor({ state: "visible", timeout: 30_000 });
+  await page
+    .locator(
+      '[data-testid^="invoice-review-queue-row-"], [data-testid="invoice-review-empty"]',
+    )
+    .first()
+    .waitFor({ state: "visible", timeout: 45_000 })
+    .catch(() => {});
+  const invoiceRows = page.locator('[data-testid^="invoice-review-queue-row-"]');
+  const invoiceCount = await invoiceRows.count();
+  if (invoiceCount === 0) {
+    console.log(`${width}: no invoice review rows — skip invoice collapse`);
+  } else {
+    for (let i = 0; i < Math.min(invoiceCount, 3); i += 1) {
+      const row = invoiceRows.nth(i);
+      const expanded = await row.getAttribute("data-expanded");
+      if (expanded !== "false") {
+        throw new Error(`${width}: invoice row ${i} should default collapsed`);
+      }
+      if (
+        await row
+          .locator('[data-testid^="invoice-review-mobile-details-"]')
+          .isVisible()
+          .catch(() => false)
+      ) {
+        throw new Error(`${width}: invoice details visible while collapsed`);
+      }
+    }
+    const invToggle = page.locator('[data-testid^="invoice-review-mobile-toggle-"]').first();
+    await invToggle.scrollIntoViewIfNeeded();
+    await invToggle.click();
+    const firstInv = invoiceRows.first();
+    if ((await firstInv.getAttribute("data-expanded")) !== "true") {
+      throw new Error(`${width}: invoice row did not expand`);
+    }
+    await firstInv
+      .locator('[data-testid^="invoice-review-mobile-details-"]')
+      .waitFor({ state: "visible", timeout: 5_000 });
+    await invToggle.click();
+    if ((await firstInv.getAttribute("data-expanded")) !== "false") {
+      throw new Error(`${width}: invoice row did not collapse again`);
+    }
+  }
+
+  // Character-by-character wrap heuristic: no element with width < 28 and text length > 8
+  // in the mobile delivery list (narrow columns force per-char wrap).
+  const wrapOffenders = await page.evaluate(() => {
+    const root = document.querySelector('[data-testid="dispatcher-deliveries-mobile-list"]');
+    if (!root) return [{ reason: "missing-mobile-list" }];
+    const bad = [];
+    for (const el of root.querySelectorAll("span, div, button, td, th")) {
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) continue;
+      const text = (el.textContent || "").replace(/\s+/g, " ").trim();
+      if (text.length < 10) continue;
+      if (rect.width < 36 && text.length > 12) {
+        bad.push({
+          w: Math.round(rect.width),
+          text: text.slice(0, 40),
+        });
+      }
+    }
+    return bad.slice(0, 5);
+  });
+  if (wrapOffenders.length > 0) {
+    throw new Error(
+      `${width}: suspected ultra-narrow wrap: ${JSON.stringify(wrapOffenders)}`,
+    );
+  }
+}
+
 async function verifyMobileAtWidth(browser, width) {
   const context = await browser.newContext({
     viewport: { width, height: 844 },
@@ -279,6 +404,8 @@ async function verifyMobileAtWidth(browser, width) {
   console.log(`Mobile ${width} auth: ${authOutcome}`);
 
   await waitForRoute(page, ROUTES.dispatcher);
+  await assertCollapsedMobileLists(page, width);
+  await assertNoMobileShellOverflow(page, "Dispatcher collapsed lists");
   await openAndAssertMobileDrawer(page, ROUTES.dispatcher);
   await navigateFromDrawer(page, "portal-mobile-nav-zones", ROUTES.zones);
 
@@ -345,6 +472,14 @@ async function verifyDesktop(browser) {
     throw new Error(`Desktop: sidebar display expected flex, got ${display}`);
   }
 
+  // Desktop: table visible, mobile accordion hidden
+  if (await page.getByTestId("dispatcher-deliveries-mobile-list").isVisible().catch(() => false)) {
+    throw new Error("Desktop: mobile deliveries list must be hidden");
+  }
+  if (!(await page.getByTestId("dispatcher-deliveries-table").isVisible())) {
+    throw new Error("Desktop: deliveries table must remain visible");
+  }
+
   for (const [label, route] of [
     ["Staging Map", ROUTES.zones],
     ["Vendors", ROUTES.vendors],
@@ -354,7 +489,7 @@ async function verifyDesktop(browser) {
     await sidebar.getByRole("link", { name: label, exact: true }).click();
     await waitForRoute(page, route);
   }
-  console.log("PASS: desktop 1280 — sidebar visible, hamburger hidden, all links work.");
+  console.log("PASS: desktop 1280 — sidebar visible, hamburger hidden, table preserved, all links work.");
   await context.close();
 }
 

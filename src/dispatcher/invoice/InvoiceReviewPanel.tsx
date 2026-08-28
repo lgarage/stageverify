@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useIsPhonePortal } from "../../useIsPhonePortal";
 import type {
   InvoiceMatchResult,
   VendorInvoiceImportReview,
@@ -365,6 +366,10 @@ export function InvoiceReviewPanel({
   const [filter, setFilter] = useState<QueueFilter>("pending");
   const [inspectImport, setInspectImport] =
     useState<VendorInvoiceImportReview | null>(null);
+  const [expandedMobileInvoiceIds, setExpandedMobileInvoiceIds] = useState<
+    Set<string>
+  >(() => new Set());
+  const isPhonePortal = useIsPhonePortal();
   const lastAppliedGeneration = useRef(0);
   const inspectDeepLinkHandled = useRef<string | null>(null);
   const dismissedApprovedImportIdRef = useRef<string | null>(
@@ -888,6 +893,344 @@ export function InvoiceReviewPanel({
           const lineCount = queueRowLineCount(row);
           const rowActionLoading = actionLoadingId === row.id;
           const codContext = codPaymentContext(row);
+          const mobileExpanded = expandedMobileInvoiceIds.has(row.id);
+          const invoiceNum = formatInvoiceHeaderField(
+            readInvoiceHeaderField(header, "vendorInvoiceNumber"),
+          );
+          const poNum = formatInvoiceHeaderField(
+            readInvoiceHeaderField(header, "customerPoOrReference"),
+          );
+          const toggleMobile = () => {
+            setExpandedMobileInvoiceIds((prev) => {
+              const next = new Set(prev);
+              if (next.has(row.id)) next.delete(row.id);
+              else next.add(row.id);
+              return next;
+            });
+          };
+
+          const statusBlock = (
+            <>
+              <StatusChip
+                importStatus={row.importStatus}
+                reviewStatus={row.reviewStatus}
+                orderNotes={row.orderNotes}
+                skipReason={row.skipReason}
+                rejectedBy={row.rejectedBy}
+                creditAdvisory={creditReturnAdvisoryLabel(row)}
+                ignoreSuppressedAdvisory={ignoreRuleSuppressedAdvisoryLabel(row)}
+              />
+              <AutoImportSuggestionBadge importRow={row} compact />
+              {codContext && <CodPaymentChip label={codContext.chipLabel} />}
+            </>
+          );
+
+          const fieldsBlock = (
+            <>
+              <div
+                data-invoice-fields="true"
+                data-testid={
+                  filter === "approved"
+                    ? "invoice-review-approved-fields"
+                    : "invoice-review-pending-fields"
+                }
+                style={
+                  filter === "approved"
+                    ? {
+                        display: "grid",
+                        width: "100%",
+                        maxWidth: "100%",
+                        minWidth: 0,
+                        alignItems: "end",
+                        columnGap: 24,
+                        rowGap: 10,
+                        gridTemplateColumns: isPhonePortal
+                          ? "1fr"
+                          : "minmax(108px, 1.1fr) minmax(108px, 1.1fr) minmax(128px, 1.4fr) minmax(168px, 2.2fr) minmax(176px, 1.7fr) minmax(88px, max-content)",
+                      }
+                    : {
+                        display: "grid",
+                        width: "100%",
+                        maxWidth: "100%",
+                        minWidth: 0,
+                        gridTemplateColumns: isPhonePortal
+                          ? "1fr"
+                          : "repeat(auto-fill, minmax(88px, 1fr))",
+                        gap: "10px 14px",
+                      }
+                }
+              >
+                <FieldCell
+                  label="Invoice #"
+                  value={invoiceNum}
+                />
+                <FieldCell
+                  label="S/O #"
+                  value={formatInvoiceHeaderField(
+                    readInvoiceHeaderField(header, "vendorOrderNumber"),
+                  )}
+                />
+                <FieldCell
+                  label="P/O #"
+                  value={poNum}
+                />
+                <FieldCell
+                  label="Buyer"
+                  value={formatInvoiceHeaderField(
+                    readInvoiceHeaderField(header, "buyerName"),
+                  )}
+                />
+                {filter === "approved" ? (
+                  <>
+                    <FieldCell
+                      label="Approved"
+                      value={formatApprovedAtDisplay(row.approvedAt, row.updatedAt)}
+                      testId="invoice-review-approved-at"
+                      minWidth={isPhonePortal ? undefined : 158}
+                      showFullValue
+                    />
+                    <div style={{ minWidth: 0, display: "flex", alignItems: "flex-end" }}>
+                      <LinkedDeliveryBadge
+                        linkedDeliveryOrderId={row.linkedDeliveryOrderId}
+                      />
+                    </div>
+                  </>
+                ) : filter === "rejected" ? (
+                  <>
+                    <FieldCell
+                      label="Rejected"
+                      value={formatReviewDate(row.rejectedAt, row.updatedAt)}
+                    />
+                    <div style={{ minWidth: 0, display: "flex", alignItems: "flex-end" }}>
+                      <LinkedDeliveryBadge
+                        linkedDeliveryOrderId={row.linkedDeliveryOrderId}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <FieldCell
+                      label="Branch"
+                      value={formatInvoiceHeaderField(
+                        readInvoiceHeaderField(header, "vendorBranchName"),
+                      )}
+                    />
+                    <FieldCell
+                      label="Order date"
+                      value={formatInvoiceHeaderField(
+                        readInvoiceHeaderField(header, "orderDate"),
+                      )}
+                    />
+                    <FieldCell label="Lines" value={String(lineCount)} />
+                  </>
+                )}
+              </div>
+
+              {issueSummary ? (
+                <div
+                  data-testid="invoice-review-row-issue"
+                  style={{
+                    marginTop: 10,
+                    fontSize: 12,
+                    color: "var(--admin-warning-text)",
+                    lineHeight: 1.4,
+                    overflowWrap: "break-word",
+                    wordBreak: "normal",
+                  }}
+                >
+                  {issueSummary}
+                </div>
+              ) : (
+                !isArchiveFilter(filter) &&
+                row.reviewStatus !== "pending_review" &&
+                row.linkedDeliveryOrderId && (
+                  <div style={{ marginTop: 10, fontSize: 12, color: "var(--admin-success-text)" }}>
+                    Linked delivery: {row.linkedDeliveryOrderId}
+                  </div>
+                )
+              )}
+            </>
+          );
+
+          const reopenBlock =
+            filter === "rejected" &&
+            row.reviewStatus === "rejected" &&
+            isSystemAutoRejectedImport(row) ? (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: isPhonePortal ? "stretch" : "flex-end",
+                  gap: 4,
+                  flexShrink: 0,
+                }}
+              >
+                <button
+                  type="button"
+                  className="admin-btn"
+                  data-testid={`invoice-review-reopen-${row.id}`}
+                  disabled={rowActionLoading}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleReopen(row);
+                  }}
+                  style={{
+                    backgroundColor: "var(--admin-surface)",
+                    color: "var(--admin-text-label)",
+                    border: "1px solid var(--admin-border)",
+                    borderRadius: "var(--admin-control-radius)",
+                    padding: "6px 10px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: rowActionLoading ? "not-allowed" : "pointer",
+                    opacity: rowActionLoading ? 0.6 : 1,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Re-open
+                </button>
+              </div>
+            ) : null;
+
+          if (isPhonePortal) {
+            return (
+              <div
+                key={row.id}
+                data-testid={`invoice-review-queue-row-${row.id}`}
+                data-expanded={mobileExpanded ? "true" : "false"}
+                style={{
+                  borderBottom: "1px solid var(--admin-border)",
+                  backgroundColor: "var(--admin-surface)",
+                  padding: "10px 12px",
+                  maxWidth: "100%",
+                  boxSizing: "border-box",
+                }}
+              >
+                <button
+                  type="button"
+                  data-testid={`invoice-review-mobile-toggle-${row.id}`}
+                  aria-expanded={mobileExpanded}
+                  onClick={toggleMobile}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10,
+                    padding: "4px 0",
+                    border: "none",
+                    background: "transparent",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    fontFamily: FONT,
+                    color: "var(--admin-text)",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      flexShrink: 0,
+                      marginTop: 2,
+                      fontSize: 16,
+                      color: "var(--admin-text-muted)",
+                      transform: mobileExpanded ? "rotate(90deg)" : "none",
+                      transition: "transform 0.12s",
+                    }}
+                  >
+                    ▸
+                  </span>
+                  <span
+                    style={{
+                      flex: "1 1 auto",
+                      minWidth: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        color: "var(--admin-text-label)",
+                        fontSize: 14,
+                        overflowWrap: "break-word",
+                        wordBreak: "normal",
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {queueRowTitle(row)}
+                      <span
+                        style={{
+                          fontWeight: 400,
+                          color: "var(--admin-text-muted)",
+                          fontSize: 12,
+                        }}
+                      >
+                        {" "}
+                        · {row.pageId}
+                      </span>
+                    </span>
+                    <span style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                      {statusBlock}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: "var(--admin-text-muted)",
+                        overflowWrap: "break-word",
+                        wordBreak: "normal",
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      Inv {invoiceNum || "—"}
+                      {" · "}
+                      PO {poNum || "—"}
+                      {!isArchiveFilter(filter) ? ` · ${lineCount} lines` : ""}
+                    </span>
+                  </span>
+                </button>
+
+                {mobileExpanded ? (
+                  <div
+                    data-testid={`invoice-review-mobile-details-${row.id}`}
+                    style={{
+                      marginTop: 10,
+                      paddingTop: 10,
+                      paddingLeft: 26,
+                      borderTop: "1px solid var(--admin-border)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 12,
+                      maxWidth: "100%",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    {fieldsBlock}
+                    <button
+                      type="button"
+                      data-testid={`invoice-review-mobile-open-${row.id}`}
+                      onClick={() => setInspectImport(row)}
+                      style={{
+                        alignSelf: "stretch",
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        border: `1px solid ${NAVY}`,
+                        backgroundColor: NAVY,
+                        color: "#fff",
+                        fontWeight: 700,
+                        fontSize: 13,
+                        fontFamily: FONT,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Open review details
+                    </button>
+                    {reopenBlock}
+                  </div>
+                ) : null}
+              </div>
+            );
+          }
 
           return (
             <div
@@ -941,180 +1284,11 @@ export function InvoiceReviewPanel({
                         · {row.pageId}
                       </span>
                     </div>
-                    <StatusChip
-                      importStatus={row.importStatus}
-                      reviewStatus={row.reviewStatus}
-                      orderNotes={row.orderNotes}
-                      skipReason={row.skipReason}
-                      rejectedBy={row.rejectedBy}
-                      creditAdvisory={creditReturnAdvisoryLabel(row)}
-                      ignoreSuppressedAdvisory={ignoreRuleSuppressedAdvisoryLabel(row)}
-                    />
-                    <AutoImportSuggestionBadge importRow={row} compact />
-                    {codContext && <CodPaymentChip label={codContext.chipLabel} />}
+                    {statusBlock}
                   </div>
-
-                  <div
-                    data-invoice-fields="true"
-                    data-testid={
-                      filter === "approved"
-                        ? "invoice-review-approved-fields"
-                        : "invoice-review-pending-fields"
-                    }
-                    style={
-                      filter === "approved"
-                        ? {
-                            display: "grid",
-                            width: "100%",
-                            maxWidth: "100%",
-                            minWidth: 0,
-                            alignItems: "end",
-                            columnGap: 24,
-                            rowGap: 10,
-                            gridTemplateColumns:
-                              "minmax(108px, 1.1fr) minmax(108px, 1.1fr) minmax(128px, 1.4fr) minmax(168px, 2.2fr) minmax(176px, 1.7fr) minmax(88px, max-content)",
-                          }
-                        : {
-                            display: "grid",
-                            width: "100%",
-                            maxWidth: "100%",
-                            minWidth: 0,
-                            gridTemplateColumns: "repeat(auto-fill, minmax(88px, 1fr))",
-                            gap: "10px 14px",
-                          }
-                    }
-                  >
-                    <FieldCell
-                      label="Invoice #"
-                      value={formatInvoiceHeaderField(
-                        readInvoiceHeaderField(header, "vendorInvoiceNumber"),
-                      )}
-                    />
-                    <FieldCell
-                      label="S/O #"
-                      value={formatInvoiceHeaderField(
-                        readInvoiceHeaderField(header, "vendorOrderNumber"),
-                      )}
-                    />
-                    <FieldCell
-                      label="P/O #"
-                      value={formatInvoiceHeaderField(
-                        readInvoiceHeaderField(header, "customerPoOrReference"),
-                      )}
-                    />
-                    <FieldCell
-                      label="Buyer"
-                      value={formatInvoiceHeaderField(
-                        readInvoiceHeaderField(header, "buyerName"),
-                      )}
-                    />
-                    {filter === "approved" ? (
-                      <>
-                        <FieldCell
-                          label="Approved"
-                          value={formatApprovedAtDisplay(row.approvedAt, row.updatedAt)}
-                          testId="invoice-review-approved-at"
-                          minWidth={158}
-                          showFullValue
-                        />
-                        <div style={{ minWidth: 0, display: "flex", alignItems: "flex-end" }}>
-                          <LinkedDeliveryBadge
-                            linkedDeliveryOrderId={row.linkedDeliveryOrderId}
-                          />
-                        </div>
-                      </>
-                    ) : filter === "rejected" ? (
-                      <>
-                        <FieldCell
-                          label="Rejected"
-                          value={formatReviewDate(row.rejectedAt, row.updatedAt)}
-                        />
-                        <div style={{ minWidth: 0, display: "flex", alignItems: "flex-end" }}>
-                          <LinkedDeliveryBadge
-                            linkedDeliveryOrderId={row.linkedDeliveryOrderId}
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <FieldCell
-                          label="Branch"
-                          value={formatInvoiceHeaderField(
-                            readInvoiceHeaderField(header, "vendorBranchName"),
-                          )}
-                        />
-                        <FieldCell
-                          label="Order date"
-                          value={formatInvoiceHeaderField(
-                            readInvoiceHeaderField(header, "orderDate"),
-                          )}
-                        />
-                        <FieldCell label="Lines" value={String(lineCount)} />
-                      </>
-                    )}
-                  </div>
-
-                  {issueSummary ? (
-                    <div
-                      data-testid="invoice-review-row-issue"
-                      style={{
-                        marginTop: 10,
-                        fontSize: 12,
-                        color: "var(--admin-warning-text)",
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {issueSummary}
-                    </div>
-                  ) : (
-                    !isArchiveFilter(filter) &&
-                    row.reviewStatus !== "pending_review" &&
-                    row.linkedDeliveryOrderId && (
-                      <div style={{ marginTop: 10, fontSize: 12, color: "var(--admin-success-text)" }}>
-                        Linked delivery: {row.linkedDeliveryOrderId}
-                      </div>
-                    )
-                  )}
+                  {fieldsBlock}
                 </div>
-
-                {filter === "rejected" &&
-                  row.reviewStatus === "rejected" &&
-                  isSystemAutoRejectedImport(row) && (
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "flex-end",
-                      gap: 4,
-                      flexShrink: 0,
-                    }}
-                  >
-                    <button
-                      type="button"
-                      className="admin-btn"
-                      data-testid={`invoice-review-reopen-${row.id}`}
-                      disabled={rowActionLoading}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void handleReopen(row);
-                      }}
-                      style={{
-                        backgroundColor: "var(--admin-surface)",
-                        color: "var(--admin-text-label)",
-                        border: "1px solid var(--admin-border)",
-                        borderRadius: "var(--admin-control-radius)",
-                        padding: "6px 10px",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: rowActionLoading ? "not-allowed" : "pointer",
-                        opacity: rowActionLoading ? 0.6 : 1,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      Re-open
-                    </button>
-                  </div>
-                )}
+                {reopenBlock}
               </div>
             </div>
           );
