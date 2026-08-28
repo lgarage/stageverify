@@ -15,6 +15,7 @@ async function clearBothPinRateLimits(attemptKey) {
 }
 exports.resolveLocationScanPin = (0, https_1.onCall)({
     region: "us-central1",
+    minInstances: 1,
     secrets: [accessPinCrypto_1.accessPinEncryptionKey],
     cors: [
         "http://localhost:5173",

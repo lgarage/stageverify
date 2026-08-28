@@ -112,6 +112,7 @@ function mapItems(
 export const getVendorRunDeliveries = onCall(
   {
     region: "us-central1",
+    minInstances: 1,
     cors: [
       "http://localhost:5173",
       "http://127.0.0.1:5173",

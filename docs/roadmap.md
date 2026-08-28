@@ -95,6 +95,7 @@
 
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
+**Shipped (2026-08-28):** `minInstances: 1` on `resolveLocationScanPin` + `getVendorRunDeliveries` only — no body/DTO/PIN/session/FE/rules change. Cold-start keep-alive failed on unused 3.4–3.7s T0→T4; warm already ~2.0s. Deploy only those two CFs. Real iPhone idle &lt;2s still requires Dan acceptance.
 **Shipped (2026-08-28):** unused/bfcache PIN re-submit resets svdebug overlay clock + FIRST_CARD at sync cache paint — **v0.0.354** gh-pages FE-only; no `minInstances`. Real iPhone idle &lt;2s still requires Dan acceptance.
 **Shipped (2026-08-28):** last-vendor/legacy list cache paints sync at Verify (no SHA-256 wait) — **v0.0.353** gh-pages FE-only; no `minInstances`. Real iPhone idle &lt;2s still requires Dan acceptance.
 **Shipped (2026-08-28):** first unused login scans pre-351 `stageverify_vendor_run_list_*` cache — **v0.0.352** gh-pages FE-only; no `minInstances`. Real iPhone idle &lt;2s still requires Dan acceptance.
