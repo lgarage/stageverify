@@ -91,8 +91,11 @@ export function markVendorPinDebug(stage: string, message?: string): void {
     initVendorPinDebug();
   }
 
-  if (stage === "PIN_SUBMIT" && pinSubmitMs === null) {
+  if (stage === "PIN_SUBMIT") {
     pinSubmitMs = Date.now();
+    events.length = 0;
+    pushEvent(stage, message);
+    return;
   }
 
   pushEvent(stage, message);
