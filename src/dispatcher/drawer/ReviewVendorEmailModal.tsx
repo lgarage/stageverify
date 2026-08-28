@@ -14,10 +14,12 @@ function InvoiceSourceEmailReview({
   inbound,
   vendorInvoiceImportId,
   font,
+  testIdPrefix = "review-vendor-email",
 }: {
   inbound: InboundEmailProcessing;
   vendorInvoiceImportId?: string;
   font: string;
+  testIdPrefix?: string;
 }) {
   const review = sourceEmailReviewFromInbound(inbound);
   const importId = vendorInvoiceImportId?.trim() ?? "";
@@ -44,11 +46,11 @@ function InvoiceSourceEmailReview({
         padding: "14px 16px",
       }}
     >
-      {fieldRow("From", review.from, "review-vendor-email-from")}
-      {review.to ? fieldRow("To", review.to, "review-vendor-email-to") : null}
-      {review.cc ? fieldRow("CC", review.cc, "review-vendor-email-cc") : null}
-      {fieldRow("Date", review.dateLabel, "review-vendor-email-date")}
-      {fieldRow("Subject", review.subject, "review-vendor-email-subject")}
+      {fieldRow("From", review.from, `${testIdPrefix}-from`)}
+      {review.to ? fieldRow("To", review.to, `${testIdPrefix}-to`) : null}
+      {review.cc ? fieldRow("CC", review.cc, `${testIdPrefix}-cc`) : null}
+      {fieldRow("Date", review.dateLabel, `${testIdPrefix}-date`)}
+      {fieldRow("Subject", review.subject, `${testIdPrefix}-subject`)}
 
       <div style={{ marginTop: 14, marginBottom: 8 }}>
         <p
@@ -64,7 +66,7 @@ function InvoiceSourceEmailReview({
         </p>
         {review.bodyText ? (
           <p
-            data-testid="review-vendor-email-message"
+            data-testid={`${testIdPrefix}-message`}
             style={{
               margin: 0,
               fontSize: 13,
@@ -77,7 +79,7 @@ function InvoiceSourceEmailReview({
           </p>
         ) : (
           <p
-            data-testid="review-vendor-email-empty-body"
+            data-testid={`${testIdPrefix}-empty-body`}
             style={{
               margin: 0,
               fontSize: 13,
@@ -106,7 +108,7 @@ function InvoiceSourceEmailReview({
           </p>
           {review.attachments.length > 0 ? (
             <ul
-              data-testid="review-vendor-email-attachments"
+              data-testid={`${testIdPrefix}-attachments`}
               style={{
                 margin: "0 0 10px",
                 paddingLeft: 20,
@@ -123,7 +125,7 @@ function InvoiceSourceEmailReview({
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <button
                 type="button"
-                data-testid="review-vendor-email-view-original-pdf"
+                data-testid={`${testIdPrefix}-view-original-pdf`}
                 disabled={pdfDisabled}
                 title={
                   pdfUnavailable ??
@@ -179,6 +181,10 @@ export function ReviewVendorEmailModal({
   vendorEmailEvents,
   proposals,
   onClose,
+  title = "Review Vendor Email",
+  testIdPrefix = "review-vendor-email",
+  panelWidth = "min(880px, 92vw)",
+  panelMaxHeight = "86vh",
 }: {
   open: boolean;
   details: DeliveryDetails;
@@ -190,6 +196,10 @@ export function ReviewVendorEmailModal({
   vendorEmailEvents: VendorEmailEvent[];
   proposals: ProposedEmailUpdate[];
   onClose: () => void;
+  title?: string;
+  testIdPrefix?: string;
+  panelWidth?: string;
+  panelMaxHeight?: string;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -215,10 +225,10 @@ export function ReviewVendorEmailModal({
 
   return (
     <div
-      data-testid="review-vendor-email-modal"
+      data-testid={`${testIdPrefix}-modal`}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="review-vendor-email-modal-title"
+      aria-labelledby={`${testIdPrefix}-modal-title`}
       style={{
         position: "fixed",
         inset: 0,
@@ -232,11 +242,11 @@ export function ReviewVendorEmailModal({
       onClick={onClose}
     >
       <div
-        data-testid="review-vendor-email-modal-panel"
+        data-testid={`${testIdPrefix}-modal-panel`}
         className="admin-card"
         style={{
-          width: "min(880px, 92vw)",
-          maxHeight: "86vh",
+          width: panelWidth,
+          maxHeight: panelMaxHeight,
           backgroundColor: "var(--admin-surface)",
           borderRadius: "var(--admin-radius-lg)",
           boxShadow: "var(--admin-shadow-card)",
@@ -261,8 +271,8 @@ export function ReviewVendorEmailModal({
         >
           <div style={{ minWidth: 0 }}>
             <h2
-              id="review-vendor-email-modal-title"
-              data-testid="review-vendor-email-modal-title"
+              id={`${testIdPrefix}-modal-title`}
+              data-testid={`${testIdPrefix}-modal-title`}
               style={{
                 margin: "0 0 4px",
                 fontSize: 20,
@@ -270,10 +280,10 @@ export function ReviewVendorEmailModal({
                 color: "var(--admin-text-data)",
               }}
             >
-              Review Vendor Email
+              {title}
             </h2>
             <p
-              data-testid="review-vendor-email-modal-context"
+              data-testid={`${testIdPrefix}-modal-context`}
               style={{
                 margin: 0,
                 fontSize: 13,
@@ -286,7 +296,7 @@ export function ReviewVendorEmailModal({
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <button
               type="button"
-              data-testid="review-vendor-email-modal-close-x"
+              data-testid={`${testIdPrefix}-modal-close-x`}
               aria-label="Close"
               onClick={onClose}
               style={{
@@ -307,7 +317,7 @@ export function ReviewVendorEmailModal({
         </header>
 
         <div
-          data-testid="review-vendor-email-modal-body"
+          data-testid={`${testIdPrefix}-modal-body`}
           style={{
             flex: 1,
             minHeight: 0,
@@ -320,14 +330,14 @@ export function ReviewVendorEmailModal({
         >
           {loading ? (
             <p
-              data-testid="review-vendor-email-modal-loading"
+              data-testid={`${testIdPrefix}-modal-loading`}
               style={{ margin: 0, fontSize: 13, color: "var(--admin-text-muted)" }}
             >
               Loading vendor emails…
             </p>
           ) : emailCount === 0 ? (
             <p
-              data-testid="review-vendor-email-modal-empty"
+              data-testid={`${testIdPrefix}-modal-empty`}
               style={{ margin: 0, fontSize: 13, color: "var(--admin-text-muted)" }}
             >
               No matched email evidence for this delivery.
@@ -339,6 +349,7 @@ export function ReviewVendorEmailModal({
                   inbound={invoiceSourceEmail}
                   vendorInvoiceImportId={delivery.vendorInvoiceImportId}
                   font={font}
+                  testIdPrefix={testIdPrefix}
                 />
               ) : null}
               {vendorEmailEvents.map((event) => (
@@ -362,7 +373,7 @@ export function ReviewVendorEmailModal({
         >
           <button
             type="button"
-            data-testid="review-vendor-email-modal-close"
+            data-testid={`${testIdPrefix}-modal-close`}
             onClick={onClose}
             style={{
               padding: "8px 16px",

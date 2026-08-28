@@ -117,6 +117,7 @@ export function ReadinessEvidencePanel({
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [emailEvidenceOpen, setEmailEvidenceOpen] = useState(false);
+  const [fullEmailChainOpen, setFullEmailChainOpen] = useState(false);
   const [vendorEmailEvents, setVendorEmailEvents] = useState<VendorEmailEvent[]>([]);
   const [vendorEmailEventsLoading, setVendorEmailEventsLoading] = useState(false);
   const [invoiceSourceEmail, setInvoiceSourceEmail] = useState<InboundEmailProcessing | null>(
@@ -140,6 +141,10 @@ export function ReadinessEvidencePanel({
       setEmailEvidenceOpen(true);
     }
   }, [emailEvidenceExpandSignal]);
+
+  useEffect(() => {
+    setFullEmailChainOpen(false);
+  }, [delivery.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -327,8 +332,7 @@ export function ReadinessEvidencePanel({
   const hasEmailChain = emailEvidenceCount > 0;
 
   const handleViewFullEmailChain = () => {
-    setDetailsOpen(true);
-    setEmailEvidenceOpen(true);
+    setFullEmailChainOpen(true);
   };
 
   return (
@@ -732,6 +736,22 @@ export function ReadinessEvidencePanel({
         vendorEmailEvents={vendorEmailEvents}
         proposals={proposals}
         onClose={() => onCloseReviewVendorEmail?.()}
+      />
+      <ReviewVendorEmailModal
+        open={fullEmailChainOpen}
+        details={details}
+        navy={navy}
+        font={font}
+        loading={emailEvidenceLoading}
+        invoiceSourceEmail={invoiceSourceEmail}
+        showInvoiceSourceEmail={showInvoiceSourceEmail}
+        vendorEmailEvents={vendorEmailEvents}
+        proposals={proposals}
+        onClose={() => setFullEmailChainOpen(false)}
+        title="Full Email Chain"
+        testIdPrefix="full-email-chain"
+        panelWidth="min(1100px, 96vw)"
+        panelMaxHeight="90vh"
       />
     </div>
   );
