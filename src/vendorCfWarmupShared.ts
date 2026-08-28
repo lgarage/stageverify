@@ -35,9 +35,17 @@ export function shouldSkipVendorCfWarmup(moduleLastStartedAt: number): boolean {
   return Date.now() - effective < VENDOR_CF_WARMUP_REARM_MS;
 }
 
+const keepaliveInFlight = new Set<AbortController>();
+
 /** Fire-and-forget empty POST warmup (no PIN, no session). Ignores re-arm skip. */
-export function pingVendorCf(url: string): void {
+export function pingVendorCf(
+  url: string,
+  options?: { trackForKeepalive?: boolean },
+): void {
   const controller = new AbortController();
+  if (options?.trackForKeepalive) {
+    keepaliveInFlight.add(controller);
+  }
   const timeoutId = setTimeout(
     () => controller.abort(),
     VENDOR_CF_WARMUP_ABORT_MS,
@@ -50,13 +58,25 @@ export function pingVendorCf(url: string): void {
     signal: controller.signal,
   })
     .catch(() => {})
-    .finally(() => clearTimeout(timeoutId));
+    .finally(() => {
+      clearTimeout(timeoutId);
+      if (options?.trackForKeepalive) {
+        keepaliveInFlight.delete(controller);
+      }
+    });
+}
+
+function abortKeepaliveInFlight(): void {
+  for (const controller of keepaliveInFlight) {
+    controller.abort();
+  }
+  keepaliveInFlight.clear();
 }
 
 /** Ping both vendor login CFs immediately (no re-arm skip). */
 export function pingVendorLoginCloudFunctions(): void {
-  pingVendorCf(RESOLVE_LOCATION_SCAN_PIN_URL);
-  pingVendorCf(GET_VENDOR_RUN_DELIVERIES_URL);
+  pingVendorCf(RESOLVE_LOCATION_SCAN_PIN_URL, { trackForKeepalive: true });
+  pingVendorCf(GET_VENDOR_RUN_DELIVERIES_URL, { trackForKeepalive: true });
 }
 
 /**
@@ -69,5 +89,8 @@ export function startVendorLoginCfKeepalive(): () => void {
     pingVendorLoginCloudFunctions,
     VENDOR_LOGIN_CF_KEEPALIVE_MS,
   );
-  return () => clearInterval(intervalId);
+  return () => {
+    clearInterval(intervalId);
+    abortKeepaliveInFlight();
+  };
 }
