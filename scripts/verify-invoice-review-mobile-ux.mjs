@@ -52,6 +52,12 @@ async function runViewport(browser, viewport) {
     timeout: 45_000,
   });
   await page.getByTestId("invoice-review-panel").waitFor({ timeout: 30_000 });
+  await page
+    .locator(
+      '[data-testid^="invoice-review-queue-row-"], [data-testid="invoice-review-empty"]',
+    )
+    .first()
+    .waitFor({ state: "visible", timeout: 45_000 });
   const rows = page.locator('[data-testid^="invoice-review-queue-row-"]');
   const count = await rows.count();
   if (count === 0) {

@@ -810,6 +810,13 @@ async function main() {
             .getByTestId("invoice-parsed-inspect-staging-needed")
             .waitFor({ state: "hidden", timeout: 5000 });
           console.log("PASS: Drop-Off staging Cancel returns to choice");
+          await page.getByTestId("invoice-approve-fulfillment-cancel").click();
+          await page.getByTestId("invoice-approve-fulfillment-choice").waitFor({
+            state: "hidden",
+            timeout: 5000,
+          });
+          await page.getByTestId("invoice-parsed-inspect-cancel").waitFor({ timeout: 5000 });
+          console.log("PASS: fulfillment Back returns to idle inspect with footer Cancel");
         } else {
           console.log(
             `SKIP: modal Approve wizard (${approvalEligibleText}, disabled=${modalApproveDisabled})`,
@@ -1141,6 +1148,9 @@ async function main() {
     console.log("PASS: Rejected invoices navigation clicked");
 
     await page.getByTestId("invoice-review-rejected-list").waitFor({ timeout: 15_000 });
+    await page.getByTestId("invoice-review-rejected-list").evaluate((el) => {
+      el.scrollIntoView({ block: "start" });
+    });
     console.log("PASS: rejected invoices list visible");
 
     const rejectedHeading = page.getByText("Rejected invoices", { exact: true });
