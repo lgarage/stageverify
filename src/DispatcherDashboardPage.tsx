@@ -564,6 +564,8 @@ export function DispatcherDashboardPage() {
                   Filter by Status
                 </label>
                 <div
+                  className="dispatcher-status-filter-grid"
+                  data-testid="dispatcher-status-filter-grid"
                   style={{
                     display: "flex",
                     flexWrap: "wrap",
@@ -620,6 +622,7 @@ export function DispatcherDashboardPage() {
                       return (
                         <div
                           key={status}
+                          className="dispatcher-status-filter-item"
                           style={{
                             position: "relative",
                             display: "inline-flex",
@@ -655,12 +658,17 @@ export function DispatcherDashboardPage() {
                       );
                     }
                     return (
-                      <span key={status} style={{ display: "inline-flex" }}>
+                      <span
+                        key={status}
+                        className={`dispatcher-status-filter-item${status === "ready_for_pickup" ? " dispatcher-status-filter-item--wide" : ""}`}
+                        style={{ display: "inline-flex" }}
+                      >
                         {chipButton}
                       </span>
                     );
                   })}
                   <div
+                    className="dispatcher-status-filter-item"
                     style={{
                       position: "relative",
                       display: "inline-flex",

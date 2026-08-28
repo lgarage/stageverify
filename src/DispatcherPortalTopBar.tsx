@@ -120,32 +120,33 @@ export function DispatcherPortalTopBar({
           <span style={{ color: "var(--admin-text-muted)", fontSize: 13 }}> / {subtitle}</span>
         ) : null}
       </div>
-      <div
-        data-testid="dispatcher-topbar-middle"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          flexShrink: 0,
-        }}
-      >
-        <Suspense fallback={null}>
-          <LazyVendorCommunicationsTopBarEntry />
-        </Suspense>
-        {headerExtra}
-      </div>
-      <div aria-hidden="true" style={{ minWidth: 0 }} />
-      <div
-        data-testid="dispatcher-topbar-actions"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          gap: 8,
-          flexShrink: 0,
-          flexWrap: "nowrap",
-        }}
-      >
+      <div className="portal-topbar-action-cluster">
+        <div
+          data-testid="dispatcher-topbar-middle"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexShrink: 0,
+          }}
+        >
+          <Suspense fallback={null}>
+            <LazyVendorCommunicationsTopBarEntry />
+          </Suspense>
+          {headerExtra}
+        </div>
+        <div aria-hidden="true" style={{ minWidth: 0 }} />
+        <div
+          data-testid="dispatcher-topbar-actions"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 8,
+            flexShrink: 0,
+            flexWrap: "nowrap",
+          }}
+        >
         <Suspense fallback={null}>
           <LazyCatchAllDeliveryTopBarEntry />
         </Suspense>
@@ -249,23 +250,24 @@ export function DispatcherPortalTopBar({
         >
           Sign Out
         </button>
-        <div
-          className="dispatcher-desktop-only"
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: "50%",
-            backgroundColor: "var(--admin-navy)",
-            color: "var(--admin-on-navy)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontWeight: 700,
-            fontSize: 13,
-            flexShrink: 0,
-          }}
-        >
-          D
+          <div
+            className="dispatcher-desktop-only"
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: "50%",
+              backgroundColor: "var(--admin-navy)",
+              color: "var(--admin-on-navy)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 700,
+              fontSize: 13,
+              flexShrink: 0,
+            }}
+          >
+            D
+          </div>
         </div>
       </div>
       {mobileNavOpen ? (
