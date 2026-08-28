@@ -58,6 +58,28 @@ const MOBILE_NAV_TEST_IDS = [
   "portal-mobile-nav-settings",
 ];
 
+const DISPATCHER_STATUS_FILTER_CONTRAST_SPEC = {
+  rootSelector: '[data-testid="dispatcher-status-filter-grid"]',
+  elements: [
+    {
+      name: "Ordered status filter",
+      selector: '[data-testid="deliveries-status-filter-pending"]',
+    },
+    {
+      name: "Staged status filter",
+      selector: '[data-testid="deliveries-status-filter-ready_for_pickup"]',
+    },
+    {
+      name: "Will-Call status filter",
+      selector: '[data-testid="deliveries-will-call-filter"]',
+    },
+    {
+      name: "Unplanned status filter",
+      selector: '[data-testid="deliveries-unplanned-filter"]',
+    },
+  ],
+};
+
 async function waitForRoute(page, route) {
   await page.waitForURL((url) => url.hash.startsWith(route.hash), {
     timeout: 30_000,
@@ -103,6 +125,8 @@ async function assertNoMobileShellOverflow(page, label) {
           testId: element.getAttribute("data-testid"),
           left: rect.left,
           right: rect.right,
+          top: rect.top,
+          height: rect.height,
         };
       });
     const escaped = visibleControls.filter(
@@ -152,20 +176,22 @@ async function assertNoMobileShellOverflow(page, label) {
     return {
       viewportWidth,
       documentWidth: document.documentElement.scrollWidth,
+      bodyWidth: document.body.scrollWidth,
       topbarLeft: topbarRect?.left ?? null,
       topbarRight: topbarRect?.right ?? null,
+      topbarHeight: topbarRect?.height ?? null,
+      visibleControls,
       escaped,
       contentOffenders: contentOffenders.slice(0, 8),
-      actionsGridColumns: getComputedStyle(
-        document.querySelector('[data-testid="dispatcher-topbar-actions"]') ||
-          document.body,
-      ).gridTemplateColumns,
     };
   });
 
-  if (result.documentWidth > result.viewportWidth + 1) {
+  if (
+    result.documentWidth > result.viewportWidth + 1 ||
+    result.bodyWidth > result.viewportWidth + 1
+  ) {
     throw new Error(
-      `${label}: document overflow (${result.documentWidth}px > ${result.viewportWidth}px)`,
+      `${label}: document overflow (html ${result.documentWidth}px, body ${result.bodyWidth}px > ${result.viewportWidth}px)`,
     );
   }
   if (
@@ -181,18 +207,112 @@ async function assertNoMobileShellOverflow(page, label) {
       `${label}: top bar controls escaped viewport: ${JSON.stringify(result.escaped)}`,
     );
   }
+  const interactiveTopbarIds = new Set([
+    "portal-mobile-nav-toggle",
+    "vendor-communications-entry",
+    "catch-all-delivery-btn",
+    "dispatcher-new-delivery",
+    "dispatcher-refresh-now",
+  ]);
+  const shortTapTarget = result.visibleControls.find(
+    ({ testId, height }) => interactiveTopbarIds.has(testId) && height < 44,
+  );
+  if (shortTapTarget) {
+    throw new Error(
+      `${label}: top bar control under 44px: ${JSON.stringify(shortTapTarget)}`,
+    );
+  }
   if (result.contentOffenders.length > 0) {
     throw new Error(
       `${label}: content overflow: ${JSON.stringify(result.contentOffenders)}`,
     );
   }
-  const trackCount = (result.actionsGridColumns || "")
+  if (
+    result.viewportWidth <= 767 &&
+    (result.topbarHeight == null || result.topbarHeight > 180)
+  ) {
+    throw new Error(
+      `${label}: compact top bar must be at most 180px tall (got ${result.topbarHeight}px)`,
+    );
+  }
+  const mobileActionRows = new Map(
+    result.visibleControls.map(({ testId, top }) => [testId, top]),
+  );
+  const vendorTop = mobileActionRows.get("vendor-communications-entry");
+  const catchAllTop = mobileActionRows.get("catch-all-delivery-btn");
+  const newDeliveryTop = mobileActionRows.get("dispatcher-new-delivery");
+  const refreshTop = mobileActionRows.get("dispatcher-refresh-now");
+  if (
+    [vendorTop, catchAllTop, newDeliveryTop, refreshTop].every(
+      (value) => value != null,
+    ) &&
+    (Math.abs(vendorTop - catchAllTop) > 1 ||
+      Math.abs(newDeliveryTop - refreshTop) > 1 ||
+      newDeliveryTop <= vendorTop)
+  ) {
+    throw new Error(`${label}: top bar actions are not arranged as two compact rows`);
+  }
+}
+
+async function assertCompactStatusFilters(page, width) {
+  const filters = page.getByTestId("dispatcher-status-filter-grid");
+  await filters.waitFor({ state: "visible", timeout: 30_000 });
+  const result = await filters.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const styles = getComputedStyle(element);
+    const readyButton = element.querySelector(
+      '[data-testid="deliveries-status-filter-ready_for_pickup"]',
+    );
+    const readyItem = readyButton?.parentElement;
+    const buttonOverflow = [];
+    for (const button of element.querySelectorAll("button")) {
+      const buttonRect = button.getBoundingClientRect();
+      if (
+        buttonRect.left < rect.left - 1 ||
+        buttonRect.right > rect.right + 1 ||
+        button.scrollWidth > button.clientWidth + 1
+      ) {
+        buttonOverflow.push({
+          testId: button.getAttribute("data-testid"),
+          left: Math.round(buttonRect.left),
+          right: Math.round(buttonRect.right),
+          clientWidth: button.clientWidth,
+          scrollWidth: button.scrollWidth,
+        });
+      }
+    }
+    return {
+      display: styles.display,
+      columns: styles.gridTemplateColumns,
+      left: rect.left,
+      right: rect.right,
+      viewportWidth: window.innerWidth,
+      readyWidth: readyItem?.getBoundingClientRect().width ?? 0,
+      gridWidth: rect.width,
+      buttonOverflow,
+    };
+  });
+
+  const trackCount = result.columns
     .trim()
     .split(/\s+/)
     .filter(Boolean).length;
-  if (result.viewportWidth <= 767 && trackCount > 1) {
+  if (result.display !== "grid" || trackCount !== 2) {
     throw new Error(
-      `${label}: top bar actions should be single-column on phone (got ${result.actionsGridColumns})`,
+      `${width}: status filters must use a 2-column grid (got ${result.display} / ${result.columns})`,
+    );
+  }
+  if (result.left < -1 || result.right > result.viewportWidth + 1) {
+    throw new Error(`${width}: status filter grid extends outside viewport`);
+  }
+  if (result.readyWidth < result.gridWidth * 0.95) {
+    throw new Error(
+      `${width}: Staged — Ready for Pickup must span both filter columns`,
+    );
+  }
+  if (result.buttonOverflow.length > 0) {
+    throw new Error(
+      `${width}: status filter chip overflow: ${JSON.stringify(result.buttonOverflow)}`,
     );
   }
 }
@@ -225,6 +345,38 @@ async function openAndAssertMobileDrawer(page, route) {
   await toggle.click();
   const drawer = page.getByTestId("portal-mobile-nav-drawer");
   await drawer.waitFor({ state: "visible", timeout: 10_000 });
+  const drawerMetrics = await drawer.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const tapTargetOffenders = [];
+    for (const target of element.querySelectorAll("a, button")) {
+      const targetRect = target.getBoundingClientRect();
+      if (targetRect.height < 44) {
+        tapTargetOffenders.push({
+          testId: target.getAttribute("data-testid"),
+          height: Math.round(targetRect.height),
+        });
+      }
+    }
+    return {
+      width: rect.width,
+      viewportWidth: window.innerWidth,
+      ratio: rect.width / window.innerWidth,
+      tapTargetOffenders,
+    };
+  });
+  if (drawerMetrics.ratio > 0.75) {
+    throw new Error(
+      `${route.title}: drawer too wide (${drawerMetrics.width}px / ${drawerMetrics.viewportWidth}px = ${(drawerMetrics.ratio * 100).toFixed(1)}%)`,
+    );
+  }
+  if (drawerMetrics.tapTargetOffenders.length > 0) {
+    throw new Error(
+      `${route.title}: drawer tap targets under 44px: ${JSON.stringify(drawerMetrics.tapTargetOffenders)}`,
+    );
+  }
+  console.log(
+    `${route.title}: drawer ${Math.round(drawerMetrics.width)}px / ${drawerMetrics.viewportWidth}px (${(drawerMetrics.ratio * 100).toFixed(1)}%)`,
+  );
   for (const testId of MOBILE_NAV_TEST_IDS) {
     if (!(await page.getByTestId(testId).isVisible())) {
       throw new Error(`${route.title}: drawer destination ${testId} missing`);
@@ -406,6 +558,15 @@ async function verifyMobileAtWidth(browser, width) {
   await waitForRoute(page, ROUTES.dispatcher);
   await assertCollapsedMobileLists(page, width);
   await assertNoMobileShellOverflow(page, "Dispatcher collapsed lists");
+  await assertCompactStatusFilters(page, width);
+  await assertReadableTextContrast(
+    page,
+    DISPATCHER_STATUS_FILTER_CONTRAST_SPEC,
+  );
+  const topbarHeight = await page
+    .getByTestId("dispatcher-portal-topbar")
+    .evaluate((element) => Math.round(element.getBoundingClientRect().height));
+  console.log(`Dispatcher Dashboard: top bar ${topbarHeight}px at ${width}px`);
   await openAndAssertMobileDrawer(page, ROUTES.dispatcher);
   await navigateFromDrawer(page, "portal-mobile-nav-zones", ROUTES.zones);
 
@@ -433,6 +594,11 @@ async function verifyMobileAtWidth(browser, width) {
     await page.evaluate(() => localStorage.setItem("stageverify-theme", "dark"));
     await page.reload({ waitUntil: "domcontentloaded" });
     await waitForRoute(page, ROUTES.dispatcher);
+    await assertCompactStatusFilters(page, `${width} dark`);
+    await assertReadableTextContrast(
+      page,
+      DISPATCHER_STATUS_FILTER_CONTRAST_SPEC,
+    );
     await openAndAssertMobileDrawer(page, ROUTES.dispatcher);
     await page
       .getByTestId("portal-mobile-nav-backdrop")

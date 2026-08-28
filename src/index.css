@@ -224,6 +224,10 @@ html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
   color: var(--admin-text);
 }
 
+.portal-topbar-action-cluster {
+  display: contents;
+}
+
 .portal-mobile-nav-toggle,
 .portal-mobile-nav-layer {
   display: none;
@@ -350,20 +354,30 @@ html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
     max-width: 100%;
     min-width: 0 !important;
     min-height: auto !important;
-    padding: max(env(safe-area-inset-top, 0px), 10px)
+    padding: max(env(safe-area-inset-top, 0px), 8px)
       max(12px, env(safe-area-inset-right, 0px))
-      10px
+      8px
       max(12px, env(safe-area-inset-left, 0px)) !important;
     display: grid !important;
     grid-template-columns: 44px minmax(0, 1fr) !important;
     align-items: center !important;
-    gap: 8px 10px !important;
+    gap: 6px 10px !important;
     overflow: visible !important;
     box-sizing: border-box !important;
   }
 
-  /* Desktop 4-col spacer must not auto-place into the mobile grid. */
-  .portal-topbar > [aria-hidden="true"] {
+  .portal-topbar-action-cluster {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Desktop 4-col spacer must not auto-place into the mobile action grid. */
+  .portal-topbar-action-cluster > [aria-hidden="true"] {
     display: none !important;
   }
 
@@ -392,15 +406,7 @@ html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
   }
 
   .portal-topbar [data-testid="dispatcher-topbar-middle"] {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px !important;
-    flex-shrink: 1 !important;
+    display: contents !important;
   }
 
   .portal-topbar [data-testid="dispatcher-topbar-vendor-comms-slot"],
@@ -412,20 +418,13 @@ html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
     flex-wrap: wrap !important;
   }
 
+  .portal-topbar [data-testid="dispatcher-topbar-vendor-comms-slot"] {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
   .portal-topbar [data-testid="dispatcher-topbar-actions"] {
-    grid-column: 1 / -1;
-    grid-row: 3;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    display: grid !important;
-    /* Single column — 2-col still clipped Catch-all + New Delivery on ~360–390px. */
-    grid-template-columns: minmax(0, 1fr);
-    align-items: stretch !important;
-    justify-content: stretch !important;
-    gap: 8px !important;
-    flex-shrink: 1 !important;
-    flex-wrap: wrap !important;
+    display: contents !important;
   }
 
   .portal-topbar [data-testid="dispatcher-topbar-actions"] > *,
@@ -441,6 +440,8 @@ html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
   }
 
   .portal-topbar [data-testid="catch-all-delivery-topbar-slot"] {
+    grid-column: 2;
+    grid-row: 1;
     flex-wrap: wrap !important;
     overflow: visible;
   }
@@ -449,6 +450,16 @@ html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
     position: relative;
     display: block !important;
     width: 100%;
+  }
+
+  .portal-topbar [data-testid="dispatcher-new-delivery"] {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .portal-topbar [data-testid="dispatcher-refresh-now"] {
+    grid-column: 2;
+    grid-row: 2;
   }
 
   .portal-topbar [data-testid="catch-all-delivery-count-badge"] {
@@ -464,10 +475,10 @@ html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
     min-height: 44px;
     padding-left: 12px !important;
     padding-right: 12px !important;
-    white-space: normal !important;
+    white-space: nowrap !important;
     overflow: visible;
     text-overflow: clip;
-    overflow-wrap: anywhere;
+    overflow-wrap: normal;
   }
 
   .portal-topbar [data-testid="catch-all-delivery-btn"] {
@@ -476,12 +487,56 @@ html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
 
   .portal-topbar .dispatcher-mobile-action-message {
     grid-column: 1 / -1;
+    grid-row: 3;
     max-width: 100% !important;
     overflow-wrap: anywhere;
   }
 
   .portal-topbar .dispatcher-desktop-only {
     display: none !important;
+  }
+
+  .dispatcher-status-filter-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch !important;
+    gap: 8px !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .dispatcher-status-filter-grid > .dispatcher-status-filter-item,
+  .dispatcher-status-filter-grid > [data-testid="deliveries-unplanned-filter"] {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .dispatcher-status-filter-grid > .dispatcher-status-filter-item--wide {
+    grid-column: 1 / -1;
+  }
+
+  .dispatcher-status-filter-grid .admin-chip {
+    min-height: 44px;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: normal;
+    word-break: normal;
+    line-height: 1.2;
+    text-align: left;
+    justify-content: flex-start;
+  }
+
+  .dispatcher-status-filter-grid > .dispatcher-status-filter-item .admin-chip,
+  .dispatcher-status-filter-grid > [data-testid="deliveries-unplanned-filter"] {
+    width: 100%;
+  }
+
+  .dispatcher-status-filter-grid > .admin-chip:last-child {
+    grid-column: 1 / -1;
+    justify-self: start;
+    width: auto;
+    margin-left: 0 !important;
   }
 
   /* Delivery Overview / invoice field grids — one readable column on phone. */
@@ -611,7 +666,7 @@ html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
   .portal-sidebar.portal-sidebar--mobile {
     position: relative;
     z-index: 1;
-    width: min(82vw, 20rem);
+    width: min(72vw, 17.5rem);
     max-width: 100%;
     height: 100svh;
     display: flex !important;
