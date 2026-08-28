@@ -48,6 +48,7 @@ import {
   DELIVERY_LIST_PAGE_SIZE_OPTIONS,
   type DeliveryListPageSize,
 } from "./dispatcher/deliveryListPaging";
+import { useIsPhonePortal } from "./useIsPhonePortal";
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
@@ -217,6 +218,10 @@ export function DispatcherDashboardPage() {
   const [selectedDeliveryId, setSelectedDeliveryId] = useState<string | null>(
     null,
   );
+  const [expandedMobileDeliveryIds, setExpandedMobileDeliveryIds] = useState<
+    Set<string>
+  >(() => new Set());
+  const isPhonePortal = useIsPhonePortal();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const fetchAllDataRef = useRef<() => Promise<void>>(async () => {});
   const lastRefreshGeneration = useRef(0);
@@ -938,7 +943,292 @@ export function DispatcherDashboardPage() {
               </div>
             </div>
 
-            {/* Primary deliveries board — fixed layout, no desktop H-scroll */}
+            {/* Primary deliveries board — desktop table; phone accordion cards */}
+            {isPhonePortal ? (
+              <div
+                data-testid="dispatcher-deliveries-mobile-list"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                  padding: "12px",
+                  width: "100%",
+                  maxWidth: "100%",
+                  boxSizing: "border-box",
+                }}
+              >
+                {paged.items.length === 0 && !listLoading ? (
+                  <p
+                    data-testid="dispatcher-deliveries-mobile-empty"
+                    style={{
+                      margin: 0,
+                      padding: "12px 4px",
+                      fontSize: 13,
+                      color: "var(--admin-text-muted)",
+                    }}
+                  >
+                    No deliveries match the current filters.
+                  </p>
+                ) : null}
+                {paged.items.map((row) => {
+                  const expanded = expandedMobileDeliveryIds.has(row.deliveryId);
+                  const b = listStatusBadge(row);
+                  const selected = selectedDeliveryId === row.deliveryId;
+                  const toggle = () => {
+                    setExpandedMobileDeliveryIds((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(row.deliveryId)) next.delete(row.deliveryId);
+                      else next.add(row.deliveryId);
+                      return next;
+                    });
+                  };
+                  const released =
+                    jobReleasedToEntries.get(row.jobId) ?? [];
+                  return (
+                    <div
+                      key={row.deliveryId}
+                      data-testid={`dispatcher-delivery-mobile-card-${row.deliveryId}`}
+                      data-order-number={row.orderNumber}
+                      data-expanded={expanded ? "true" : "false"}
+                      style={{
+                        border: `1px solid var(--admin-border)`,
+                        borderLeft: selected
+                          ? `3px solid ${NAVY}`
+                          : "3px solid transparent",
+                        borderRadius: 10,
+                        backgroundColor: "var(--admin-surface)",
+                        overflow: "hidden",
+                        maxWidth: "100%",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        data-testid={`dispatcher-delivery-mobile-toggle-${row.deliveryId}`}
+                        aria-expanded={expanded}
+                        onClick={toggle}
+                        style={{
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 10,
+                          padding: "12px 12px",
+                          border: "none",
+                          background: "transparent",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          fontFamily: FONT,
+                          color: "var(--admin-text)",
+                          boxSizing: "border-box",
+                        }}
+                      >
+                        <span
+                          aria-hidden
+                          style={{
+                            flexShrink: 0,
+                            marginTop: 2,
+                            fontSize: 16,
+                            color: "var(--admin-text-muted)",
+                            transform: expanded ? "rotate(90deg)" : "none",
+                            transition: "transform 0.12s",
+                          }}
+                        >
+                          ▸
+                        </span>
+                        <span
+                          style={{
+                            flex: "1 1 auto",
+                            minWidth: 0,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 6,
+                          }}
+                        >
+                          <span
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 6,
+                              alignItems: "center",
+                            }}
+                          >
+                            <span
+                              className="admin-chip"
+                              data-testid={`delivery-status-chip-${row.deliveryId}`}
+                              style={{
+                                gap: 5,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                backgroundColor: b.bg,
+                                color: b.text,
+                                border: `1px solid ${b.border}`,
+                                whiteSpace: "normal",
+                                lineHeight: 1.25,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: "50%",
+                                  backgroundColor: b.dot,
+                                  flexShrink: 0,
+                                }}
+                              />
+                              {row.statusDisplayLabel}
+                            </span>
+                            {row.creditReturnLinked ? (
+                              <span
+                                className="admin-chip"
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  color: "var(--admin-danger-text)",
+                                  backgroundColor: "var(--admin-danger-bg)",
+                                  border: "1px solid var(--admin-danger-border)",
+                                }}
+                              >
+                                Credit/Return
+                              </span>
+                            ) : null}
+                          </span>
+                          <span
+                            style={{
+                              fontWeight: 700,
+                              fontSize: 15,
+                              color: "var(--admin-text)",
+                              overflowWrap: "break-word",
+                              wordBreak: "normal",
+                              lineHeight: 1.3,
+                            }}
+                          >
+                            {row.jobName || "—"}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 12,
+                              color: "var(--admin-text-muted)",
+                              overflowWrap: "break-word",
+                              wordBreak: "normal",
+                              lineHeight: 1.35,
+                            }}
+                          >
+                            Inv {row.vendorInvoiceNumber ?? "—"}
+                            {" · "}
+                            PO {row.poNumber ?? "—"}
+                            {row.fulfillmentDisplayLabel
+                              ? ` · ${row.fulfillmentDisplayLabel}`
+                              : ""}
+                          </span>
+                          <span style={{ display: "block", marginTop: 2 }}>
+                            <DeliveryListStagingChips
+                              codes={row.stagingLocationCodes}
+                              occupancyByZoneCode={occupancyByZoneCode}
+                              shopStockByCode={shopStockByCode}
+                              occupancyReady={stagingOccupancyReady}
+                              deliveryId={row.deliveryId}
+                              stagingNotApplicable={
+                                row.stagingLocationListNotApplicable === true
+                              }
+                              needsStagingAssignment={
+                                row.missingStagingAssignment === true
+                              }
+                            />
+                          </span>
+                        </span>
+                      </button>
+                      {expanded ? (
+                        <div
+                          data-testid={`dispatcher-delivery-mobile-details-${row.deliveryId}`}
+                          style={{
+                            padding: "0 12px 12px 38px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 10,
+                            borderTop: "1px solid var(--admin-border)",
+                            paddingTop: 10,
+                          }}
+                        >
+                          <div style={{ fontSize: 13, color: "var(--admin-text-data)" }}>
+                            <div style={{ fontWeight: 700, color: "var(--admin-text-muted)", fontSize: 11, marginBottom: 2 }}>
+                              Issue
+                            </div>
+                            {row.missingStagingAssignment ? (
+                              <div style={{ color: "var(--admin-danger-text)", fontWeight: 700, marginBottom: 4 }}>
+                                {DISPATCHER_STAGING_ACTION_ISSUE_SUMMARY}
+                              </div>
+                            ) : null}
+                            {row.openIssueCount > 0 ? (
+                              <div style={{ marginBottom: 4 }}>
+                                Issues ({row.openIssueCount})
+                              </div>
+                            ) : null}
+                            <div style={{ overflowWrap: "break-word", wordBreak: "normal" }}>
+                              {row.issueSummary ||
+                                (row.openIssueCount > 0 || row.missingStagingAssignment
+                                  ? ""
+                                  : "—")}
+                            </div>
+                          </div>
+                          <div style={{ fontSize: 13, color: "var(--admin-text-data)" }}>
+                            <div style={{ fontWeight: 700, color: "var(--admin-text-muted)", fontSize: 11, marginBottom: 2 }}>
+                              Assigned technician
+                            </div>
+                            {released.length === 0 ? (
+                              <span style={{ color: "var(--admin-text-muted)" }}>—</span>
+                            ) : (
+                              <span style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                {released.map((entry) => {
+                                  const tech = techById.get(entry.technicianId);
+                                  const badgeStyle = resolveTechnicianBadgeStyle(
+                                    tech ?? { id: entry.technicianId },
+                                  );
+                                  return (
+                                    <span
+                                      key={entry.technicianId}
+                                      style={{
+                                        display: "inline-flex",
+                                        padding: "3px 10px",
+                                        borderRadius: 999,
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                        backgroundColor: badgeStyle.bg,
+                                        color: badgeStyle.text,
+                                        border: `1px solid ${badgeStyle.border}`,
+                                        overflowWrap: "break-word",
+                                      }}
+                                    >
+                                      {entry.name}
+                                    </span>
+                                  );
+                                })}
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            data-testid={`dispatcher-delivery-mobile-open-${row.deliveryId}`}
+                            onClick={() => void selectDelivery(row.deliveryId)}
+                            style={{
+                              minHeight: 44,
+                              borderRadius: 8,
+                              border: `1.5px solid ${NAVY}`,
+                              backgroundColor: NAVY,
+                              color: "#fff",
+                              fontWeight: 700,
+                              fontSize: 13,
+                              fontFamily: FONT,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Open delivery details
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
             <div
               data-testid="dispatcher-deliveries-table-scroll"
               style={{ overflowX: "auto", width: "100%" }}
@@ -1476,6 +1766,7 @@ export function DispatcherDashboardPage() {
                 </tbody>
               </table>
             </div>
+            )}
 
             {/* Pagination footer */}
             <div
