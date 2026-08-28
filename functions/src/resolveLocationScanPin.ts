@@ -47,6 +47,9 @@ export const resolveLocationScanPin = onCall(
     ],
   },
   async (request) => {
+    const tStart = Date.now();
+    let writeMs = 0;
+
     const data = (request.data ?? {}) as {
       pin?: string;
       stagingLocationCode?: string;
@@ -61,22 +64,27 @@ export const resolveLocationScanPin = onCall(
     const attemptKey = `loc:${stagingLocationCode}`;
     await checkPinRateLimit(RATE_LIMIT_COLLECTION, attemptKey);
     await checkPinRateLimit(RATE_LIMIT_COLLECTION, "pin:location-scan:global");
+    const rateLimitMs = Date.now() - tStart;
 
-    const [techMatch, jobMatch, vendorMatch, catchAllConfig, location] =
-      await Promise.all([
-        findTechnicianByPin(pin),
-        findJobByPin(pin),
-        findVendorByCompanyPin(pin),
-        loadCatchAllConfig(),
-        resolveStagingLocation(stagingLocationCode),
-      ]);
+    const tLookup = Date.now();
+    const [
+      techMatch,
+      jobMatch,
+      vendorMatch,
+      catchAllConfig,
+      location,
+      managementMatchRaw,
+    ] = await Promise.all([
+      findTechnicianByPin(pin),
+      findJobByPin(pin),
+      findVendorByCompanyPin(pin),
+      loadCatchAllConfig(),
+      resolveStagingLocation(stagingLocationCode),
+      resolveManagementPinMatch(pin),
+    ]);
+    const lookupMs = Date.now() - tLookup;
 
-    let managementMatch: Awaited<
-      ReturnType<typeof resolveManagementPinMatch>
-    > | null = null;
-    if (catchAllConfig) {
-      managementMatch = await resolveManagementPinMatch(pin);
-    }
+    const managementMatch = catchAllConfig ? managementMatchRaw : null;
 
     const typeMatches: AccessTypeMatch[] = [];
 
@@ -119,13 +127,22 @@ export const resolveLocationScanPin = onCall(
         );
       }
 
+      const tWrite = Date.now();
       const session = await mintManagementSession({
         location,
         pinId: managementMatch.id,
         permissions: managementMatch.permissions,
       });
+      writeMs = Date.now() - tWrite;
 
       await clearBothPinRateLimits(attemptKey);
+
+      console.info("resolveLocationScanPin timings", {
+        rateLimitMs,
+        lookupMs,
+        writeMs,
+        totalMs: Date.now() - tStart,
+      });
 
       return {
         success: true,
@@ -144,14 +161,23 @@ export const resolveLocationScanPin = onCall(
       }
 
       const technicianName = techMatch.data.name?.trim() || "Technician";
+      const tWrite = Date.now();
       const session = await mintTechnicianSession({
         technicianId: techMatch.id,
         technicianName,
         stagingLocationCode,
         resolvedLocation: location,
       });
+      writeMs = Date.now() - tWrite;
 
       await clearBothPinRateLimits(attemptKey);
+
+      console.info("resolveLocationScanPin timings", {
+        rateLimitMs,
+        lookupMs,
+        writeMs,
+        totalMs: Date.now() - tStart,
+      });
 
       return {
         success: true,
@@ -172,25 +198,35 @@ export const resolveLocationScanPin = onCall(
         return { success: false, message: "Invalid code." };
       }
 
-      await writeVendorPinVerifiedAudit({
-        deliveryId: vendorInfo.deliveryId,
-        vendorId: vendorInfo.vendorId,
-        vendorName: vendorInfo.vendorName,
-        jobId,
-        stagingLocationCode,
-      });
-
-      const session = await createVendorSession({
-        deliveryId: vendorInfo.deliveryId,
-        vendorId: vendorInfo.vendorId,
-        vendorName: vendorInfo.vendorName,
-        sessionScope: "job",
-        jobId,
-        scannedStagingLocationId: location?.id,
-        scannedStagingLocationCode: location?.code ?? stagingLocationCode,
-      });
+      const tWrite = Date.now();
+      const [, session] = await Promise.all([
+        writeVendorPinVerifiedAudit({
+          deliveryId: vendorInfo.deliveryId,
+          vendorId: vendorInfo.vendorId,
+          vendorName: vendorInfo.vendorName,
+          jobId,
+          stagingLocationCode,
+        }),
+        createVendorSession({
+          deliveryId: vendorInfo.deliveryId,
+          vendorId: vendorInfo.vendorId,
+          vendorName: vendorInfo.vendorName,
+          sessionScope: "job",
+          jobId,
+          scannedStagingLocationId: location?.id,
+          scannedStagingLocationCode: location?.code ?? stagingLocationCode,
+        }),
+      ]);
+      writeMs = Date.now() - tWrite;
 
       await clearBothPinRateLimits(attemptKey);
+
+      console.info("resolveLocationScanPin timings", {
+        rateLimitMs,
+        lookupMs,
+        writeMs,
+        totalMs: Date.now() - tStart,
+      });
 
       return {
         success: true,
@@ -214,24 +250,34 @@ export const resolveLocationScanPin = onCall(
     const vendorName = vendorDisplayName(vendorMatch.data);
 
     if (!anchorDeliveryId) {
-      await writeVendorPinVerifiedAudit({
-        deliveryId: `unplanned-anchor:${vendorMatch.id}`,
-        vendorId: vendorMatch.id,
-        vendorName,
-        stagingLocationCode,
-      });
-
-      const session = await createVendorSession({
-        deliveryId: "",
-        vendorId: vendorMatch.id,
-        vendorName,
-        sessionScope: "vendor_unplanned",
-        scannedStagingLocationId: location?.id,
-        scannedStagingLocationCode: location?.code ?? stagingLocationCode,
-        unplannedEligible: true,
-      });
+      const tWrite = Date.now();
+      const [, session] = await Promise.all([
+        writeVendorPinVerifiedAudit({
+          deliveryId: `unplanned-anchor:${vendorMatch.id}`,
+          vendorId: vendorMatch.id,
+          vendorName,
+          stagingLocationCode,
+        }),
+        createVendorSession({
+          deliveryId: "",
+          vendorId: vendorMatch.id,
+          vendorName,
+          sessionScope: "vendor_unplanned",
+          scannedStagingLocationId: location?.id,
+          scannedStagingLocationCode: location?.code ?? stagingLocationCode,
+          unplannedEligible: true,
+        }),
+      ]);
+      writeMs = Date.now() - tWrite;
 
       await clearBothPinRateLimits(attemptKey);
+
+      console.info("resolveLocationScanPin timings", {
+        rateLimitMs,
+        lookupMs,
+        writeMs,
+        totalMs: Date.now() - tStart,
+      });
 
       return {
         success: true,
@@ -246,24 +292,34 @@ export const resolveLocationScanPin = onCall(
       };
     }
 
-    await writeVendorPinVerifiedAudit({
-      deliveryId: anchorDeliveryId,
-      vendorId: vendorMatch.id,
-      vendorName,
-      stagingLocationCode,
-    });
-
     const sessionScope: VendorSessionScope = "vendor";
-    const session = await createVendorSession({
-      deliveryId: anchorDeliveryId,
-      vendorId: vendorMatch.id,
-      vendorName,
-      sessionScope,
-      scannedStagingLocationId: location?.id,
-      scannedStagingLocationCode: location?.code ?? stagingLocationCode,
-    });
+    const tWrite = Date.now();
+    const [, session] = await Promise.all([
+      writeVendorPinVerifiedAudit({
+        deliveryId: anchorDeliveryId,
+        vendorId: vendorMatch.id,
+        vendorName,
+        stagingLocationCode,
+      }),
+      createVendorSession({
+        deliveryId: anchorDeliveryId,
+        vendorId: vendorMatch.id,
+        vendorName,
+        sessionScope,
+        scannedStagingLocationId: location?.id,
+        scannedStagingLocationCode: location?.code ?? stagingLocationCode,
+      }),
+    ]);
+    writeMs = Date.now() - tWrite;
 
     await clearBothPinRateLimits(attemptKey);
+
+    console.info("resolveLocationScanPin timings", {
+      rateLimitMs,
+      lookupMs,
+      writeMs,
+      totalMs: Date.now() - tStart,
+    });
 
     return {
       success: true,
