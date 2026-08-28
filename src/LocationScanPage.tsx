@@ -220,6 +220,7 @@ function LocationScanPageInner() {
   const vendorRunLoadGenerationRef = useRef(0);
   const firstCardRenderMarkedRef = useRef(false);
   const lastUiScreenRef = useRef<string | null>(null);
+  const stopKeepaliveRef = useRef<(() => void) | null>(null);
 
   const [step, setStep] = useState<Step>("loading");
   const [branding, setBranding] = useState<LocationBranding | null>(null);
@@ -373,9 +374,17 @@ function LocationScanPageInner() {
   }, [loadBranding]);
 
   useEffect(() => {
-    if (step !== "pin" && step !== "loading") return;
+    const shouldRunKeepalive =
+      (step === "pin" || step === "loading") && !pinOpeningList;
+
+    if (!shouldRunKeepalive) {
+      stopKeepaliveRef.current?.();
+      stopKeepaliveRef.current = null;
+      return;
+    }
 
     const stopKeepalive = startVendorLoginCfKeepalive();
+    stopKeepaliveRef.current = stopKeepalive;
     const rewarm = () => warmupVendorLoginCloudFunctions();
 
     const onVisibilityChange = () => {
@@ -386,10 +395,13 @@ function LocationScanPageInner() {
     window.addEventListener("pageshow", rewarm);
     return () => {
       stopKeepalive();
+      if (stopKeepaliveRef.current === stopKeepalive) {
+        stopKeepaliveRef.current = null;
+      }
       window.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pageshow", rewarm);
     };
-  }, [step]);
+  }, [step, pinOpeningList]);
 
   useLayoutEffect(() => {
     requestLeftoverReceiveCollapse();
@@ -1068,6 +1080,8 @@ function LocationScanPageInner() {
   }, [historyView.kind, step]);
 
   const handlePinSubmitStart = useCallback(() => {
+    stopKeepaliveRef.current?.();
+    stopKeepaliveRef.current = null;
     markVendorPinDebug("UI_LANDING_OPEN");
     setPinOpeningList(true);
     setLoading(true);
