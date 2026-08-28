@@ -95,6 +95,7 @@
 
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
+**Shipped (2026-08-28):** `#/s` HTML parse starts PIN+list CF warmup before React — **v0.0.344** gh-pages FE-only; does not match `#/settings`. Real iPhone idle &lt;2s still requires Dan acceptance.
 **Shipped (2026-08-28):** Vendor door warms `getVendorRunDeliveries` + re-arms PIN/list CF warmup after 90s idle — **v0.0.343** gh-pages FE-only; empty POST, no session; PR #189 paint/hydrate unchanged. Real iPhone idle &lt;2s still requires Dan acceptance.
 **Shipped (2026-08-25):** Gated vendor PIN debug timeline (`#/s?loc=G1&svdebug=1`) — **v0.0.340** diagnostic FE only; no PIN/protocol/perf change. Use to screenshot real-iPhone hang stage.
 **Shipped (2026-08-25):** `getVendorRunDeliveries` qty/status pass-through — **v0.0.339** PR #203 merge `bcb5ad45`; CF only; live list DTO now includes qty. Real iPhone 2s still unproven.
