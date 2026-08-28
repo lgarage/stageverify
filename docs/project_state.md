@@ -212,6 +212,7 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 ## Recently shipped (away)
 
 **Internal mobile shell (2026-08-28, v0.0.355)** — Phone hamburger drawer reuses `PORTAL_NAV_ITEMS`; 390px top-bar wrap; desktop ≥768 sidebar unchanged. FE-only; no Google auth / PIN / CF. Verify: `verify:internal-mobile-shell`, `verify:dispatcher-nav`.
+**Vendor PIN loading UX (2026-08-28, v0.0.356)** — Staged status Checking PIN… → Loading deliveries… → Still loading… / Connection may be slow. (9s); spinner; list-load retry keeps session. FE-only; minInstances 1 unchanged; no cpuIdle/Scheduler. Verify: `verify-location-pin-layout.mjs`, `verify:vendor-run-job-actions`.
 
 **Theme revert (2026-08-03, v0.0.194)** — Reverted dual dark/light theme modernize (PR #29 / merge `1e16628`): removed ThemeProvider, ThemeToggle, FOUC `data-theme` script, and `brandColors` CSS-var wrappers. Pre-theme UI chrome restored; later product (Handle arrival, vendor comms issue draft) kept. Verify: `verify:dispatcher-nav`, `verify:settings-technicians`, `verify:pickup`.
 

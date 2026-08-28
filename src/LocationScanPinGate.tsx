@@ -36,6 +36,7 @@ interface LocationScanPinGateProps {
   onVerified: (payload: LocationScanPinVerifiedPayload) => void;
   onSubmitStart?: (pin: string) => void;
   onSubmitError?: (message?: string) => void;
+  errorMessage?: string | null;
 }
 
 function sessionMinutesFromExpiresAt(expiresAt: string, fallback = 15): number {
@@ -63,11 +64,16 @@ export function LocationScanPinGate({
   onVerified,
   onSubmitStart,
   onSubmitError,
+  errorMessage,
 }: LocationScanPinGateProps) {
   const [digits, setDigits] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [verified, setVerified] = useState(false);
+
+  useEffect(() => {
+    setError(errorMessage ?? null);
+  }, [errorMessage]);
 
   const submitPin = useCallback(
     async (pin: string) => {
@@ -368,7 +374,7 @@ export function LocationScanPinGate({
               {verified
                 ? "Opening…"
                 : submitting
-                  ? "Verifying PIN…"
+                  ? "Checking PIN…"
                   : canVerify
                     ? "Ready to verify"
                     : pinLength === 0
@@ -393,10 +399,16 @@ export function LocationScanPinGate({
             </p>
           ) : locked ? (
             <p
-              className="text-center text-sm font-medium leading-5 text-text-primary"
+              className="inline-flex items-center justify-center gap-2 text-center text-sm font-medium leading-5 text-text-primary"
               data-testid="location-scan-pin-verifying"
             >
-              {verified ? "Continuing…" : "Checking your PIN securely…"}
+              {!verified && (
+                <span
+                  className="size-4 shrink-0 animate-spin rounded-full border-2 border-[#cbd5e1]/35 border-t-[#6ee7b7]"
+                  aria-hidden="true"
+                />
+              )}
+              {verified ? "Continuing…" : "Checking PIN…"}
             </p>
           ) : pinLength > 0 ? (
             <div className="flex items-center justify-center gap-2 text-xs leading-5">
@@ -489,7 +501,7 @@ export function LocationScanPinGate({
             color: "#f8fafc",
           }}
         >
-          {submitting ? "Verifying…" : "Verify"}
+          {submitting ? "Checking PIN…" : "Verify"}
         </button>
 
         <p

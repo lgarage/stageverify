@@ -4,6 +4,7 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 
 | Date | Task type (archetype) | Tier | Recommended model | confStart | confAfter | Outcome | Note |
 |------|----------------------|------|-------------------|-----------|-----------|---------|------|
+| 2026-08-28 | service-logic/perf + visual-judgment UI (vendor PIN latency + loading UX) | T1 FE (+T3 only if CF body) | Grok orch + Composer archaeology + Sol High loading UX; Sonnet only if CF | 97 | 98 | ok | v0.0.356 FE loading stages; no CF; idle PIN~0.8–1.1s justified app work; minInstances kept |
 | 2026-08-28 | ui-component / visual-judgment (internal mobile shell/nav) | T1 | Grok 4.6 orch + Sol High (`gpt-5.6-sol-high`) | 97 | 98 | ok | v0.0.355 hamburger drawer; 390 wrap; desktop sidebar unchanged; no auth/PIN/CF |
 | 2026-08-28 | service-logic / performance (vendor PIN early HTML warmup) | T1 | Grok 4.6 orch + Composer 2.5 Fast | 97 | 97 | ok | v0.0.344 HTML #/s warmup at 13ms; not #/settings; idle iPhone still required |
 | 2026-08-28 | service-logic / performance (vendor PIN → job list idle) | T1 | Grok 4.6 orch + Composer 2.5 Fast implement | 82 | 97 | ok | Measured cold 6.86s (PIN 2.71 + list 4.13); FE warmup+90s rearm v0.0.343; Dan iPhone idle still required |

@@ -55,6 +55,20 @@ const contrastSpec = {
   ],
 };
 
+const vendorPinLoadingContrastSpec = {
+  rootSelector: '[data-testid="vendor-run-layout"]',
+  elements: [
+    {
+      name: "vendor PIN loading status",
+      selector: '[data-testid="vendor-pin-loading-status"]',
+    },
+    {
+      name: "vendor PIN skeleton loading status",
+      selector: '[data-testid="vendor-pin-loading-skeleton-status"]',
+    },
+  ],
+};
+
 async function newMobilePage(browser, width = 390, height = 844) {
   const context = await browser.newContext({
     viewport: { width, height },
@@ -245,9 +259,47 @@ try {
     await openNeutralPin(page);
     await enterPin(page, "1234");
     await page.getByTestId("location-scan-pin-verify").click();
-    await page
-      .getByTestId("location-scan-pin-verifying")
-      .waitFor({ state: "visible", timeout: 5_000 });
+    const loadingStatus = page.getByTestId("vendor-pin-loading-status");
+    await loadingStatus.waitFor({ state: "visible", timeout: 5_000 });
+    assert.equal(
+      await loadingStatus.getAttribute("data-stage"),
+      "checking-pin",
+      "hung PIN should begin in checking-pin stage",
+    );
+    assert.match(
+      (await loadingStatus.textContent()) ?? "",
+      /Checking PIN…/,
+      "hung PIN should acknowledge Verify immediately",
+    );
+    assert.equal(
+      await page.getByTestId("location-scan-pin-verify").isDisabled(),
+      true,
+      "Verify should stay disabled while the PIN request is active",
+    );
+    await assertReadableTextContrast(page, vendorPinLoadingContrastSpec);
+
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector('[data-testid="vendor-pin-loading-status"]')
+          ?.getAttribute("data-stage") === "still-loading",
+      { timeout: 11_000 },
+    );
+    assert.match(
+      (await loadingStatus.textContent()) ?? "",
+      /Still loading…\s*Connection may be slow\./,
+      "hung PIN should progress to calm long-wait copy",
+    );
+    assert.equal(
+      (
+        (await page
+          .getByTestId("vendor-pin-loading-skeleton-status")
+          .textContent()) ?? ""
+      ).trim(),
+      "Still loading…",
+      "skeleton status should match the long-wait stage",
+    );
+    await assertReadableTextContrast(page, vendorPinLoadingContrastSpec);
     await page.screenshot({
       path: resolve(outDir, "after-neutral-pin-390-verifying.png"),
       fullPage: false,
@@ -278,6 +330,11 @@ try {
       .getByRole("alert")
       .filter({ hasText: "Invalid code." })
       .waitFor({ state: "visible", timeout: 10_000 });
+    assert.equal(
+      await page.getByRole("button", { name: "1", exact: true }).isEnabled(),
+      true,
+      "keypad should be usable again after an invalid PIN",
+    );
     await page.screenshot({
       path: resolve(outDir, "after-neutral-pin-390-invalid.png"),
       fullPage: false,

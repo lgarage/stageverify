@@ -150,6 +150,13 @@ type Step =
   | "hub"
   | "done";
 type SessionScope = "job" | "vendor" | "vendor_unplanned" | null;
+type VendorPinLoadingPhase =
+  | "idle"
+  | "checking-pin"
+  | "loading-deliveries"
+  | "still-loading";
+
+const VENDOR_PIN_SLOW_THRESHOLD_MS = 9_000;
 
 interface LocationBranding {
   code: string;
@@ -227,6 +234,7 @@ function LocationScanPageInner() {
   const vendorIdRef = useRef<string | null>(null);
   const lastUiScreenRef = useRef<string | null>(null);
   const stopKeepaliveRef = useRef<(() => void) | null>(null);
+  const vendorPinSlowTimerRef = useRef<number | null>(null);
 
   const [step, setStep] = useState<Step>("loading");
   const [branding, setBranding] = useState<LocationBranding | null>(null);
@@ -248,6 +256,7 @@ function LocationScanPageInner() {
     useState<DeliveryDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pinSubmitError, setPinSubmitError] = useState<string | null>(null);
   const [outsideGeofence, setOutsideGeofence] = useState<boolean | null>(null);
   const [vendorGeofenceEnforce, setVendorGeofenceEnforce] = useState(false);
   const [revertWindowMinutes, setRevertWindowMinutes] = useState(60);
@@ -270,8 +279,45 @@ function LocationScanPageInner() {
   const [jobsRevalidating, setJobsRevalidating] = useState(false);
   const [isCatchAllParcelIntake, setIsCatchAllParcelIntake] = useState(false);
   const [pinOpeningList, setPinOpeningList] = useState(false);
+  const [vendorPinLoadingPhase, setVendorPinLoadingPhase] =
+    useState<VendorPinLoadingPhase>("idle");
+  const [vendorRunLoadError, setVendorRunLoadError] = useState<string | null>(
+    null,
+  );
   const [openingVendorName, setOpeningVendorName] = useState<string | null>(
     null,
+  );
+
+  const clearVendorPinSlowTimer = useCallback(() => {
+    if (vendorPinSlowTimerRef.current !== null) {
+      window.clearTimeout(vendorPinSlowTimerRef.current);
+      vendorPinSlowTimerRef.current = null;
+    }
+  }, []);
+
+  const finishVendorPinLoading = useCallback(() => {
+    clearVendorPinSlowTimer();
+    setVendorPinLoadingPhase("idle");
+  }, [clearVendorPinSlowTimer]);
+
+  const beginVendorPinLoading = useCallback(() => {
+    clearVendorPinSlowTimer();
+    setVendorPinLoadingPhase("checking-pin");
+    vendorPinSlowTimerRef.current = window.setTimeout(() => {
+      vendorPinSlowTimerRef.current = null;
+      setVendorPinLoadingPhase((current) =>
+        current === "checking-pin" || current === "loading-deliveries"
+          ? "still-loading"
+          : current,
+      );
+    }, VENDOR_PIN_SLOW_THRESHOLD_MS);
+  }, [clearVendorPinSlowTimer]);
+
+  useEffect(
+    () => () => {
+      clearVendorPinSlowTimer();
+    },
+    [clearVendorPinSlowTimer],
   );
 
   const jobDeliveriesForList = useMemo(
@@ -598,10 +644,12 @@ function LocationScanPageInner() {
     const token = getVendorRunSessionToken(resolvedVendorId);
     if (!token) {
       markVendorPinDebug("ERROR:NO_SESSION");
+      finishVendorPinLoading();
       goToHistoryView({ kind: "pin" }, { replace: true });
       return;
     }
     const isRefresh = Boolean(expansionUpdate);
+    setVendorRunLoadError(null);
 
     const cached = !isRefresh
       ? readVendorRunDeliveriesCache(resolvedVendorId)
@@ -619,6 +667,7 @@ function LocationScanPageInner() {
         }
         setStep("vendor-list");
         setLoading(false);
+        finishVendorPinLoading();
       });
     }
 
@@ -666,6 +715,7 @@ function LocationScanPageInner() {
         setStep("vendor-list");
         vendorRunPaintedRef.current = resolvedVendorId;
         setLoading(false);
+        finishVendorPinLoading();
       };
 
       flushSync(() => {
@@ -709,13 +759,13 @@ function LocationScanPageInner() {
             : "Could not refresh vendor deliveries — showing cached list.",
         );
       } else {
-        setError(
-          err instanceof Error ? err.message : "Could not load vendor deliveries.",
+        setVendorRunLoadError(
+          err instanceof Error
+            ? err.message
+            : "Could not load vendor deliveries.",
         );
         vendorRunPaintedRef.current = null;
-        clearVendorRunDeliveriesCache(resolvedVendorId);
-        clearVendorRunPinSession(resolvedVendorId);
-        goToHistoryView({ kind: "pin" }, { replace: true });
+        finishVendorPinLoading();
       }
     } finally {
       if (vendorRunInFlightRef.current === resolvedVendorId) {
@@ -725,13 +775,15 @@ function LocationScanPageInner() {
         setLoading(false);
       }
     }
-  }, [goToHistoryView]);
+  }, [finishVendorPinLoading, goToHistoryView]);
 
   const clearOptimisticVendorRunPaint = useCallback(
     (options?: { keepStep?: boolean }) => {
       setVendorRunDeliveries([]);
       setOpeningVendorName(null);
       setPinOpeningList(false);
+      setVendorRunLoadError(null);
+      finishVendorPinLoading();
       pendingPinFingerprintRef.current = null;
       firstCardRenderMarkedRef.current = false;
 
@@ -746,7 +798,7 @@ function LocationScanPageInner() {
         }
       }
     },
-    [],
+    [finishVendorPinLoading],
   );
 
   const handlePinVerified = useCallback(
@@ -783,6 +835,13 @@ function LocationScanPageInner() {
         return;
       }
       if (payload.sessionScope === "vendor" && payload.vendorId) {
+        if (vendorRunDeliveries.length > 0) {
+          finishVendorPinLoading();
+        } else {
+          setVendorPinLoadingPhase((current) =>
+            current === "still-loading" ? current : "loading-deliveries",
+          );
+        }
         if (pendingPinFingerprintRef.current) {
           linkVendorRunDeliveriesCachePin(
             pendingPinFingerprintRef.current,
@@ -823,7 +882,13 @@ function LocationScanPageInner() {
       setVendorId(null);
       goToHistoryView({ kind: "deliveries" });
     },
-    [clearOptimisticVendorRunPaint, goToHistoryView, loadVendorRunDeliveries],
+    [
+      clearOptimisticVendorRunPaint,
+      finishVendorPinLoading,
+      goToHistoryView,
+      loadVendorRunDeliveries,
+      vendorRunDeliveries.length,
+    ],
   );
 
   const resolveUnplannedSessionToken = useCallback(
@@ -1133,6 +1198,9 @@ function LocationScanPageInner() {
       firstCardRenderMarkedRef.current = false;
       setPinOpeningList(true);
       setLoading(true);
+      setPinSubmitError(null);
+      setVendorRunLoadError(null);
+      beginVendorPinLoading();
 
       const syncCache = readLastVendorRunDeliveriesCache();
       const syncPainted =
@@ -1180,7 +1248,7 @@ function LocationScanPageInner() {
         });
       })();
     },
-    [locationCode],
+    [beginVendorPinLoading, locationCode],
   );
 
   useEffect(() => {
@@ -1231,8 +1299,9 @@ function LocationScanPageInner() {
     }
   }, [vendorRunDeliveries.length]);
 
-  const handlePinSubmitError = useCallback(() => {
+  const handlePinSubmitError = useCallback((message?: string) => {
     setLoading(false);
+    setPinSubmitError(message ?? "Invalid code.");
     clearOptimisticVendorRunPaint();
   }, [clearOptimisticVendorRunPaint]);
 
@@ -1292,8 +1361,16 @@ function LocationScanPageInner() {
     setReleasedJobs([]);
     setSessionScope(null);
     setOpeningVendorName(null);
+    setVendorRunLoadError(null);
+    finishVendorPinLoading();
     goToHistoryView({ kind: "pin" }, { replace: true });
-  }, [goToHistoryView, jobId, technicianId, vendorId]);
+  }, [
+    finishVendorPinLoading,
+    goToHistoryView,
+    jobId,
+    technicianId,
+    vendorId,
+  ]);
 
   const handleManagementSessionExpired = useCallback(() => {
     clearManagementPinSession();
@@ -1513,7 +1590,10 @@ function LocationScanPageInner() {
     setVendorRunIssueReportedIds(new Set());
     setDeliveryDetails(null);
     setError(null);
+    setPinSubmitError(null);
     setOpeningVendorName(null);
+    setVendorRunLoadError(null);
+    finishVendorPinLoading();
     goToHistoryView({ kind: "pin" }, { replace: true });
   };
 
@@ -1582,6 +1662,7 @@ function LocationScanPageInner() {
           onVerified={handleLocationScanPinVerified}
           onSubmitStart={handlePinSubmitStart}
           onSubmitError={handlePinSubmitError}
+          errorMessage={pinSubmitError}
         />
       </div>
     );
@@ -1883,6 +1964,18 @@ function LocationScanPageInner() {
       vendorRunDeliveries.length === 0;
     const showListSkeleton =
       vendorRunDeliveries.length === 0 && (isPendingPinShell || loading);
+    const displayedVendorPinLoadingPhase: VendorPinLoadingPhase =
+      vendorPinLoadingPhase !== "idle"
+        ? vendorPinLoadingPhase
+        : showListSkeleton
+          ? "loading-deliveries"
+          : "idle";
+    const vendorPinLoadingHeadline =
+      displayedVendorPinLoadingPhase === "checking-pin"
+        ? "Checking PIN…"
+        : displayedVendorPinLoadingPhase === "still-loading"
+          ? "Still loading…"
+          : "Loading deliveries…";
     const renderVendorRunCard = (row: VendorRunDeliverySummary) => {
       const canComplete = row.hasAssignableSpot;
       const expanded = expandedDeliveryIds.has(row.deliveryId);
@@ -2135,9 +2228,30 @@ function LocationScanPageInner() {
           </>
         }
         helper={
-          isPendingPinShell
-            ? "Opening your deliveries…"
-            : "Tap a job to review and complete delivery."
+          displayedVendorPinLoadingPhase !== "idle" ? (
+            <span
+              className="inline-flex flex-col items-start"
+              data-testid="vendor-pin-loading-status"
+              data-stage={displayedVendorPinLoadingPhase}
+              role="status"
+              aria-live="polite"
+            >
+              <span className="inline-flex items-center gap-2 font-medium text-text-primary">
+                <span
+                  className="size-4 shrink-0 animate-spin rounded-full border-2 border-[#cbd5e1]/35 border-t-[#6ee7b7]"
+                  aria-hidden="true"
+                />
+                <span>{vendorPinLoadingHeadline}</span>
+              </span>
+              {displayedVendorPinLoadingPhase === "still-loading" && (
+                <span className="mt-0.5 text-[#cbd5e1]">
+                  Connection may be slow.
+                </span>
+              )}
+            </span>
+          ) : (
+            "Tap a job to review and complete delivery."
+          )
         }
         helperTestId="vendor-run-helper"
         footer={
@@ -2186,6 +2300,13 @@ function LocationScanPageInner() {
               {error}
             </p>
           )}
+          {vendorRunLoadError && vendorId && (
+            <PublicNetworkErrorPanel
+              message={vendorRunLoadError}
+              onRetry={() => void loadVendorRunDeliveries(vendorId)}
+              testId="vendor-run-load-error"
+            />
+          )}
           {/*
             Unplanned fallback is a reusable escape hatch (D-73): prior listed
             deliveries (expected or unplanned) must not hide "Add unplanned delivery".
@@ -2206,10 +2327,11 @@ function LocationScanPageInner() {
                     aria-hidden
                   />
                 ))}
-                <p className="mt-3 text-center text-sm text-text-secondary">
-                  {isPendingPinShell
-                    ? "Opening your deliveries…"
-                    : "Loading your deliveries…"}
+                <p
+                  className="mt-3 text-center text-sm text-[#cbd5e1]"
+                  data-testid="vendor-pin-loading-skeleton-status"
+                >
+                  {vendorPinLoadingHeadline}
                 </p>
               </div>
             ) : (
@@ -2269,7 +2391,7 @@ function LocationScanPageInner() {
                 )}
               </div>
             )}
-          {vendorRunDeliveries.length === 0 ? (
+          {!vendorRunLoadError && (vendorRunDeliveries.length === 0 ? (
             <div
               className="vendor-deliveries-empty-card rounded-2xl border border-white/10 bg-bg-secondary px-5 py-6 text-center shadow-lg shadow-black/15"
               data-testid="vendor-unplanned-empty-state"
@@ -2326,7 +2448,7 @@ function LocationScanPageInner() {
                 Add unplanned delivery
               </button>
             </div>
-          )}
+          ))}
               </>
             )}
           </div>
@@ -2368,6 +2490,7 @@ function LocationScanPageInner() {
             onVerified={handleLocationScanPinVerified}
             onSubmitStart={handlePinSubmitStart}
             onSubmitError={handlePinSubmitError}
+            errorMessage={pinSubmitError}
           />
         </div>
       )}

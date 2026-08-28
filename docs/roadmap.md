@@ -62,6 +62,7 @@
 
 ## NOW (Phase 5 prototype)
 
+**Shipped (2026-08-28):** Vendor PIN staged loading UX (**v0.0.356**) — Checking PIN… → Loading deliveries… → Still loading… / Connection may be slow.; list-load retry; FE-only; minInstances 1 kept; no cpuIdle/Scheduler. Real-iPhone PERFORMANCE + LOADING-UX TEST still required.
 **Shipped (2026-08-28):** Internal mobile shell/nav (**v0.0.355**) — hamburger drawer reuses `PORTAL_NAV_ITEMS`; 390px top-bar wrap; desktop ≥768 sidebar unchanged. FE-only; no Google auth / PIN / CF.
 
 **Shipped (2026-08-18):** Vendor location-scan Safari history (**v0.0.293**) — PIN → deliveries → order are real `#/s?loc=` history views; leftover `#/receive` recovery is collapsed on QR entry; hash canonicalize uses replaceState. FE-only.

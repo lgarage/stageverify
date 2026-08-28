@@ -23,6 +23,20 @@ const appBase = resolveAppBase(baseUrl);
 const outDir = resolve(process.cwd(), "screenshots", "vendor-run-job-actions");
 mkdirSync(outDir, { recursive: true });
 
+const vendorPinLoadingContrastSpec = {
+  rootSelector: '[data-testid="vendor-run-layout"]',
+  elements: [
+    {
+      name: "vendor PIN loading status",
+      selector: '[data-testid="vendor-pin-loading-status"]',
+    },
+    {
+      name: "vendor PIN skeleton loading status",
+      selector: '[data-testid="vendor-pin-loading-skeleton-status"]',
+    },
+  ],
+};
+
 const results = [];
 function record(name, pass, detail = "") {
   results.push({ name, pass, detail });
@@ -501,6 +515,16 @@ async function fulfillCallableWarmupInvalidArgument(route) {
         "skeleton visible during pending PIN verify",
         await page.getByTestId("vendor-run-list-skeleton").isVisible(),
       );
+      const pinLoadingStatus = page.getByTestId("vendor-pin-loading-status");
+      record(
+        "pending shell immediately says Checking PIN",
+        (await pinLoadingStatus.getAttribute("data-stage")) === "checking-pin" &&
+          ((await pinLoadingStatus.textContent()) ?? "").includes(
+            "Checking PIN…",
+          ),
+      );
+      await assertReadableTextContrast(page, vendorPinLoadingContrastSpec);
+      record("D-42 pending PIN loading contrast", true);
       record(
         "no delivery rows during pending PIN verify",
         (await page.locator('[data-testid^="vendor-run-row-"]').count()) === 0,
@@ -533,6 +557,7 @@ async function fulfillCallableWarmupInvalidArgument(route) {
 
   const pinHeadingDeadline = Date.now() + 5000;
   let headingFromPinBeforeList = false;
+  let loadingDeliveriesStageBeforeList = false;
   while (Date.now() < pinHeadingDeadline && !vendorRunDeliveriesFulfilled) {
     if (pinResolveFulfilled) {
       const headingText =
@@ -540,6 +565,13 @@ async function fulfillCallableWarmupInvalidArgument(route) {
         "";
       if (headingText.includes("JOHNSTONE SUPPLY DELIVERIES")) {
         headingFromPinBeforeList = true;
+        const loadingStatus = page.getByTestId("vendor-pin-loading-status");
+        loadingDeliveriesStageBeforeList =
+          (await loadingStatus.getAttribute("data-stage")) ===
+            "loading-deliveries" &&
+          ((await loadingStatus.textContent()) ?? "").includes(
+            "Loading deliveries…",
+          );
         break;
       }
     }
@@ -549,6 +581,12 @@ async function fulfillCallableWarmupInvalidArgument(route) {
     "vendor heading from PIN before list CF returns (cold)",
     headingFromPinBeforeList,
   );
+  record(
+    "PIN success advances to Loading deliveries before cards",
+    loadingDeliveriesStageBeforeList,
+  );
+  await assertReadableTextContrast(page, vendorPinLoadingContrastSpec);
+  record("D-42 delivery-loading contrast", true);
 
   await page.getByTestId("vendor-run-layout").waitFor({ timeout: 45_000 });
   record("company-run list lands after PIN", true);
