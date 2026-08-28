@@ -1,5 +1,9 @@
 export const VENDOR_CF_WARMUP_REARM_MS = 90_000;
 
+export const VENDOR_CF_WARMUP_ABORT_MS = 8000;
+
+export const VENDOR_LOGIN_CF_KEEPALIVE_MS = 1500;
+
 export const RESOLVE_LOCATION_SCAN_PIN_URL =
   "https://us-central1-stageverify-db.cloudfunctions.net/resolveLocationScanPin";
 
@@ -29,4 +33,41 @@ export function getEffectiveVendorCfWarmupStart(moduleLastStartedAt: number): nu
 export function shouldSkipVendorCfWarmup(moduleLastStartedAt: number): boolean {
   const effective = getEffectiveVendorCfWarmupStart(moduleLastStartedAt);
   return Date.now() - effective < VENDOR_CF_WARMUP_REARM_MS;
+}
+
+/** Fire-and-forget empty POST warmup (no PIN, no session). Ignores re-arm skip. */
+export function pingVendorCf(url: string): void {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    VENDOR_CF_WARMUP_ABORT_MS,
+  );
+
+  void fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data: {} }),
+    signal: controller.signal,
+  })
+    .catch(() => {})
+    .finally(() => clearTimeout(timeoutId));
+}
+
+/** Ping both vendor login CFs immediately (no re-arm skip). */
+export function pingVendorLoginCloudFunctions(): void {
+  pingVendorCf(RESOLVE_LOCATION_SCAN_PIN_URL);
+  pingVendorCf(GET_VENDOR_RUN_DELIVERIES_URL);
+}
+
+/**
+ * Overlapping keep-alive pings while the vendor PIN keypad is visible.
+ * Returns stop(); pings ignore shouldSkipVendorCfWarmup.
+ */
+export function startVendorLoginCfKeepalive(): () => void {
+  pingVendorLoginCloudFunctions();
+  const intervalId = setInterval(
+    pingVendorLoginCloudFunctions,
+    VENDOR_LOGIN_CF_KEEPALIVE_MS,
+  );
+  return () => clearInterval(intervalId);
 }

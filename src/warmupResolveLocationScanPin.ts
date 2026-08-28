@@ -1,9 +1,8 @@
 import {
+  pingVendorCf,
   RESOLVE_LOCATION_SCAN_PIN_URL,
   shouldSkipVendorCfWarmup,
 } from "./vendorCfWarmupShared";
-
-const WARMUP_ABORT_MS = 8000;
 
 let lastWarmupStartedAt = 0;
 
@@ -11,16 +10,5 @@ let lastWarmupStartedAt = 0;
 export function warmupResolveLocationScanPin(): void {
   if (shouldSkipVendorCfWarmup(lastWarmupStartedAt)) return;
   lastWarmupStartedAt = Date.now();
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), WARMUP_ABORT_MS);
-
-  void fetch(RESOLVE_LOCATION_SCAN_PIN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ data: {} }),
-    signal: controller.signal,
-  })
-    .catch(() => {})
-    .finally(() => clearTimeout(timeoutId));
+  pingVendorCf(RESOLVE_LOCATION_SCAN_PIN_URL);
 }
