@@ -1231,6 +1231,37 @@
       "mergedAt": null,
       "mergedToId": null,
       "sourceTask": null
+    },
+    {
+      "id": "dfl-032",
+      "scriptName": "deploy",
+      "fingerprint": "f2b0bc7f3c1ae097",
+      "exitCode": 1,
+      "category": "gotcha",
+      "summary": "npm run deploy — live bundle mismatch; confirm live index.html main JS asset before :prod verify or claiming live",
+      "triggerTerms": [
+        "deploy",
+        "gh-pages",
+        "npm run deploy",
+        "ship loop",
+        "live bundle mismatch",
+        "stale bundle",
+        "live index asset",
+        "propagation lag",
+        "local bundle differs from live"
+      ],
+      "type": "service-logic",
+      "subtype": "deploy",
+      "gateCandidate": true,
+      "domain": "deploy",
+      "source": "deploy-auto-capture",
+      "taskHint": "stale-bundle",
+      "stderrTail": "deploy: wrote dist/.nojekyll\ndeploy: pushing dist/ to gh-pages branch…\ndeploy: gh-pages branch push complete\ndeploy: expected bundle | /stageverify/assets/index-C8APjXzh.js\ndeploy: poll | elapsed=0s | timeout_in=300s | status=built | sha=3269c01 | expected=/stageverify/assets/index-C8APjXzh.js | live=/stageverify/assets/index-KXC8zRlL.js | building_for=— | posts=0/2\ndeploy: status change | — → built | sha=3269c01 | total_elapsed=0s\ndeploy: Pages build succeeded (commit 3269c01)\ndeploy: checking live index.html references /stageverify/assets/index-C8APjXzh.js…\ndeploy: live bundle not yet matching — waiting 15s for propagation…\ndeploy: checking live index.html references /stageverify/assets/index-C8APjXzh.js…\ndeploy: FAIL — live bundle mismatch — expected /stageverify/assets/index-C8APjXzh.js, live has /stageverify/assets/index-KXC8zRlL.js.\n\nPages reported built but live is stale. Do NOT re-run npm run deploy.\n\nNext steps:\n  1. Wait 15s and re-check live index.html\n  2. Force rebuild: gh api -X POST repos/lgarage/stageverify/pages/builds\n  3. Poll until built: gh api repos/lgarage/stageverify/pages/builds",
+      "stdoutTail": null,
+      "createdAt": "2026-08-28T02:00:57.151Z",
+      "mergedAt": null,
+      "mergedToId": null,
+      "sourceTask": null
     }
   ]
 }
