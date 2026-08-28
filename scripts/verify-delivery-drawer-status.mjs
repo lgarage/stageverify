@@ -187,6 +187,51 @@ const REVIEW_VENDOR_EMAIL_MODAL_CONTRAST = {
 
 const REVIEW_VENDOR_EMAIL_DELIVERY_ID = "delivery-demo-vendor-2";
 
+const FULL_EMAIL_CHAIN_MODAL_CONTRAST = {
+  rootSelector: '[data-testid="full-email-chain-modal-panel"]',
+  elements: [
+    {
+      name: "modal title",
+      selector: '[data-testid="full-email-chain-modal-title"]',
+      large: true,
+    },
+    {
+      name: "modal context",
+      selector: '[data-testid="full-email-chain-modal-context"]',
+      large: false,
+    },
+    {
+      name: "modal close button",
+      selector: '[data-testid="full-email-chain-modal-close"]',
+      large: false,
+    },
+    {
+      name: "invoice source from",
+      selector: '[data-testid="full-email-chain-from"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "invoice source subject",
+      selector: '[data-testid="full-email-chain-subject"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "invoice source empty body",
+      selector: '[data-testid="full-email-chain-empty-body"]',
+      large: false,
+      optional: true,
+    },
+    {
+      name: "invoice source view original pdf",
+      selector: '[data-testid="full-email-chain-view-original-pdf"]',
+      large: false,
+      optional: true,
+    },
+  ],
+};
+
 (async () => {
   mkdirSync(outDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
@@ -1125,6 +1170,103 @@ const REVIEW_VENDOR_EMAIL_DELIVERY_ID = "delivery-demo-vendor-2";
   }
   console.log(
     "PASS Review Vendor Email: centered modal open/close, correct ORD-006 email, Escape, no leak on switch",
+  );
+
+  // ── View Full Email Chain — large centered modal (ORD-006 / delivery-demo-vendor-2) ──
+  await openDeliveryDrawerByDeepLink(page, appBase, REVIEW_VENDOR_EMAIL_DELIVERY_ID);
+  await page.getByTestId("drawer-action-banner").waitFor({ timeout: 15_000 });
+  const viewChainBtn = page.getByTestId("readiness-evidence-view-email-chain");
+  if (!(await viewChainBtn.isVisible().catch(() => false))) {
+    throw new Error(
+      "FAIL View Full Email Chain: button must be visible on delivery-demo-vendor-2.",
+    );
+  }
+  await viewChainBtn.click();
+  const chainModal = page.getByTestId("full-email-chain-modal");
+  await chainModal.waitFor({ state: "visible", timeout: 10_000 });
+  await page.getByTestId("full-email-chain-modal-panel").waitFor({
+    state: "visible",
+    timeout: 5_000,
+  });
+  const chainTitle = (
+    await page.getByTestId("full-email-chain-modal-title").innerText()
+  ).trim();
+  if (chainTitle !== "Full Email Chain") {
+    throw new Error(
+      `FAIL View Full Email Chain: modal title must be "Full Email Chain" — got "${chainTitle}".`,
+    );
+  }
+  const chainContext = (
+    await page.getByTestId("full-email-chain-modal-context").innerText()
+  ).trim();
+  if (!/ORD-006/i.test(chainContext)) {
+    throw new Error(
+      `FAIL View Full Email Chain: modal context must name ORD-006 — got "${chainContext}".`,
+    );
+  }
+  const drawerOpen =
+    (await page.getByTestId("issue-summary-panel").isVisible().catch(() => false)) ||
+    (await page.getByTestId("drawer-action-banner").isVisible().catch(() => false));
+  if (!drawerOpen) {
+    throw new Error(
+      "FAIL View Full Email Chain: Delivery Details drawer must stay open behind the modal.",
+    );
+  }
+  const detailsExpanded = await page
+    .getByTestId("readiness-evidence-details")
+    .isVisible()
+    .catch(() => false);
+  const emailListExpanded = await page
+    .getByTestId("email-evidence-list")
+    .isVisible()
+    .catch(() => false);
+  if (detailsExpanded && emailListExpanded) {
+    throw new Error(
+      "FAIL View Full Email Chain: must not expand in-drawer email evidence list as primary result.",
+    );
+  }
+  const chainEmailCard = page.locator(
+    '[data-testid="full-email-chain-modal-body"] [data-testid^="email-evidence-card-"], [data-testid="full-email-chain-modal-body"] [data-testid^="email-evidence-live-card-"], [data-testid="full-email-chain-modal-body"] [data-testid^="email-evidence-invoice-source-"]',
+  ).first();
+  if ((await chainEmailCard.count()) === 0) {
+    throw new Error(
+      "FAIL View Full Email Chain: modal must show at least one email card.",
+    );
+  }
+  await assertReadableTextContrast(page, FULL_EMAIL_CHAIN_MODAL_CONTRAST);
+
+  await page.getByTestId("full-email-chain-modal-close").click();
+  await chainModal.waitFor({ state: "hidden", timeout: 8_000 });
+  if (!(await page.getByTestId("drawer-action-banner").isVisible().catch(() => false))) {
+    throw new Error(
+      "FAIL View Full Email Chain: drawer must remain open after modal Close.",
+    );
+  }
+  if (await page.getByTestId("full-email-chain-modal").isVisible().catch(() => false)) {
+    throw new Error("FAIL View Full Email Chain: modal must close after Close.");
+  }
+
+  await viewChainBtn.click();
+  await chainModal.waitFor({ state: "visible", timeout: 8_000 });
+  await page.keyboard.press("Escape");
+  await chainModal.waitFor({ state: "hidden", timeout: 8_000 });
+  if (!(await page.getByTestId("drawer-action-banner").isVisible().catch(() => false))) {
+    throw new Error(
+      "FAIL View Full Email Chain: Escape must close only the modal and keep Delivery Details open.",
+    );
+  }
+
+  await viewChainBtn.click();
+  await chainModal.waitFor({ state: "visible", timeout: 8_000 });
+  await openDeliveryDrawerByDeepLink(page, appBase, FIXTURE_ASSIGNED_STAGING_ID);
+  await page.getByTestId("drawer-action-banner").waitFor({ timeout: 15_000 });
+  if (await page.getByTestId("full-email-chain-modal").isVisible().catch(() => false)) {
+    throw new Error(
+      "FAIL View Full Email Chain: switching deliveries must close the previous email chain modal.",
+    );
+  }
+  console.log(
+    "PASS View Full Email Chain: large centered modal, drawer stays open, no in-drawer dump, Close/Escape, no leak on switch",
   );
 
   await page.screenshot({
