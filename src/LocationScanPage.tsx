@@ -1138,6 +1138,7 @@ function LocationScanPageInner() {
       const syncPainted =
         syncCache !== null && syncCache.deliveries.length > 0;
       if (syncPainted) {
+        firstCardRenderMarkedRef.current = true;
         flushSync(() => {
           setVendorId(syncCache.vendorId);
           if (syncCache.vendorName) {
@@ -1147,6 +1148,7 @@ function LocationScanPageInner() {
           setVendorRunDeliveries(syncCache.deliveries);
           setStep("vendor-list");
         });
+        markVendorPinDebug("FIRST_CARD_RENDER");
       }
 
       void (async () => {
