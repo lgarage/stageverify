@@ -59,6 +59,11 @@ import {
   INVOICE_APPROVE_FLOW_STORAGE_KEY,
 } from "./invoiceApproveToast";
 import type { InvoiceApproveOptions } from "./invoiceApproveToast";
+import {
+  reduceDecisionConfirm,
+  type DecisionConfirmEvent,
+  type DecisionConfirmKind,
+} from "./invoiceReviewDecisionConfirm";
 
 type ApproveWizardPhase =
   | "idle"
@@ -205,6 +210,9 @@ export function InvoiceParsedInspectModal({
     "",
   );
   const [rejectDetailText, setRejectDetailText] = useState("");
+  const [decisionConfirmKind, setDecisionConfirmKind] =
+    useState<DecisionConfirmKind>(null);
+  const decisionConfirmFireLockRef = useRef(false);
   const { viewPdf, isLoading: pdfLoading, unavailableMessage: pdfUnavailableMessage } =
     useVendorInvoicePdfViewer();
 
@@ -468,6 +476,11 @@ export function InvoiceParsedInspectModal({
   }, [importRow.id, importRow.draftPlannedStagingLocationIds]);
 
   useEffect(() => {
+    setDecisionConfirmKind(null);
+    decisionConfirmFireLockRef.current = false;
+  }, [importRow.id]);
+
+  useEffect(() => {
     setApproveWizardPhase("idle");
     try {
       const raw = sessionStorage.getItem(INVOICE_APPROVE_FLOW_STORAGE_KEY);
@@ -521,6 +534,35 @@ export function InvoiceParsedInspectModal({
   const resetApproveWizard = () => {
     setApproveWizardPhase("idle");
     sessionStorage.removeItem(INVOICE_APPROVE_FLOW_STORAGE_KEY);
+  };
+
+  const decisionLocked = actionLoading || decisionConfirmFireLockRef.current;
+
+  const dispatchDecisionConfirm = (event: DecisionConfirmEvent) => {
+    const locked = actionLoading || decisionConfirmFireLockRef.current;
+    if (
+      locked &&
+      (event === "confirm" ||
+        event === "tap-approve" ||
+        event === "tap-reject")
+    ) {
+      return;
+    }
+    const result = reduceDecisionConfirm(decisionConfirmKind, event, {
+      locked,
+    });
+    setDecisionConfirmKind(result.next);
+    if (!result.fire) return;
+
+    decisionConfirmFireLockRef.current = true;
+    if (result.fire === "approve") {
+      setApproveWizardPhase("fulfillment_choice");
+    } else {
+      openRejectDialog();
+    }
+    queueMicrotask(() => {
+      decisionConfirmFireLockRef.current = false;
+    });
   };
 
   const persistApproveFlowContext = (phase: ApproveWizardPhase) => {
@@ -1308,10 +1350,11 @@ export function InvoiceParsedInspectModal({
             <div
               style={{
                 display: "flex",
-                justifyContent: "flex-end",
+                justifyContent: "flex-start",
                 alignItems: "center",
                 gap: 10,
                 flexWrap: "wrap",
+                width: "100%",
               }}
             >
               {approveWizardPhase === "fulfillment_choice" && (
@@ -1540,14 +1583,139 @@ export function InvoiceParsedInspectModal({
                 </div>
               )}
 
-              {!approveWizardActive && (
+              {!approveWizardActive && decisionConfirmKind && (
+                <div
+                  data-testid="invoice-review-decision-confirm"
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                    padding: "12px 14px",
+                    border: "1px solid var(--admin-border)",
+                    borderRadius: 8,
+                    backgroundColor: "var(--admin-surface-2)",
+                  }}
+                >
+                  <p
+                    data-testid="invoice-review-decision-confirm-title"
+                    style={{
+                      margin: 0,
+                      fontSize: 15,
+                      fontWeight: 700,
+                      color: "var(--admin-text-label)",
+                      fontFamily: FONT,
+                    }}
+                  >
+                    {decisionConfirmKind === "approve"
+                      ? "Approve this invoice?"
+                      : "Reject this invoice?"}
+                  </p>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 13,
+                      lineHeight: 1.45,
+                      color: MUTED,
+                      fontFamily: FONT,
+                    }}
+                  >
+                    {decisionConfirmKind === "approve"
+                      ? "This will approve the parsed invoice and continue the existing workflow."
+                      : "This will reject this review item."}
+                  </p>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      gap: 10,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      data-testid="invoice-review-decision-confirm-cancel"
+                      disabled={decisionLocked}
+                      onClick={() => dispatchDecisionConfirm("cancel")}
+                      style={{
+                        ...HEADER_BTN,
+                        cursor: decisionLocked ? "not-allowed" : "pointer",
+                        opacity: decisionLocked ? 0.55 : 1,
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="invoice-review-decision-confirm-action"
+                      disabled={decisionLocked}
+                      onClick={() => dispatchDecisionConfirm("confirm")}
+                      style={
+                        decisionConfirmKind === "reject"
+                          ? {
+                              backgroundColor: "var(--admin-surface)",
+                              color: "var(--admin-danger-text)",
+                              border: "1px solid var(--admin-danger-border)",
+                              borderRadius: 6,
+                              padding: "10px 18px",
+                              fontSize: 13,
+                              fontWeight: 700,
+                              cursor: decisionLocked ? "not-allowed" : "pointer",
+                              opacity: decisionLocked ? 0.55 : 1,
+                              fontFamily: FONT,
+                            }
+                          : {
+                              backgroundColor: NAVY,
+                              color: "var(--admin-on-navy)",
+                              border: "none",
+                              borderRadius: 6,
+                              padding: "10px 18px",
+                              fontSize: 13,
+                              fontWeight: 700,
+                              cursor: decisionLocked ? "not-allowed" : "pointer",
+                              opacity: decisionLocked ? 0.55 : 1,
+                              fontFamily: FONT,
+                            }
+                      }
+                    >
+                      {decisionConfirmKind === "approve"
+                        ? "Confirm approval"
+                        : "Confirm rejection"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {!approveWizardActive && !decisionConfirmKind && (
                 <>
+              <button
+                type="button"
+                data-testid="invoice-parsed-inspect-cancel"
+                disabled={actionLoading}
+                onClick={onClose}
+                style={{
+                  ...HEADER_BTN,
+                  cursor: actionLoading ? "not-allowed" : "pointer",
+                  opacity: actionLoading ? 0.55 : 1,
+                }}
+              >
+                Cancel
+              </button>
+              <div
+                style={{
+                  marginLeft: "auto",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
               {onReject && isPending && (
                 <button
                   type="button"
                   data-testid="invoice-parsed-inspect-reject"
                   disabled={actionLoading}
-                  onClick={openRejectDialog}
+                  onClick={() => dispatchDecisionConfirm("tap-reject")}
                   style={{
                     backgroundColor: "var(--admin-surface)",
                     color: "var(--admin-danger-text)",
@@ -1620,7 +1788,7 @@ export function InvoiceParsedInspectModal({
                         ? "Approving also saves your note as a lesson."
                         : undefined
                   }
-                  onClick={() => setApproveWizardPhase("fulfillment_choice")}
+                  onClick={() => dispatchDecisionConfirm("tap-approve")}
                   style={{
                     backgroundColor: NAVY,
                     color: "var(--admin-on-navy)",
@@ -1637,6 +1805,7 @@ export function InvoiceParsedInspectModal({
                   Approve
                 </button>
               )}
+              </div>
                 </>
               )}
             </div>

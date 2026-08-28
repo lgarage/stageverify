@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.359",
+  "version": "0.0.360",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -76,6 +76,8 @@
     "verify:catch-all-map": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map scripts/verify-catch-all-map.mjs",
     "verify:catch-all-map:prod": "node scripts/run-verify-with-learning.mjs --script verify:catch-all-map:prod scripts/verify-catch-all-map.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-review": "node scripts/verify-invoice-review.mjs",
+    "verify:invoice-review-mobile-ux": "node scripts/verify-invoice-review-mobile-ux.mjs",
+    "verify:invoice-review-mobile-ux:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-review-mobile-ux:prod scripts/verify-invoice-review-mobile-ux.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-assign-location": "node scripts/verify-invoice-assign-location.mjs",
     "verify:invoice-assign-location:prod": "node scripts/run-verify-with-learning.mjs --script verify:invoice-assign-location:prod scripts/verify-invoice-assign-location.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:invoice-review-chat": "node scripts/verify-invoice-review-chat.mjs",
@@ -224,6 +226,7 @@
     "test:pdf-extract-4046362": "cd functions && npm run build && cd .. && npx tsx scripts/test-pdf-extract-4046362.mjs",
     "test:invoice-batch": "npx tsx scripts/test-invoice-batch.mjs",
     "test:invoice-shell-display": "npx tsx scripts/test-invoice-shell-display.mjs",
+    "test:invoice-review-decision-confirm": "npx tsx scripts/test-invoice-review-decision-confirm.mjs",
     "test:format-approved-at": "npx tsx scripts/test-format-approved-at-display.mjs",
     "test:parsed-inspect-site-confirmed": "npx tsx scripts/test-parsed-inspect-site-confirmed.mjs",
     "test:gmail-api": "npx tsx scripts/test-gmail-api.mjs",
