@@ -21,6 +21,39 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (function () {
+        try {
+          var hash = location.hash || "";
+          if (hash !== "#/s" && hash.indexOf("#/s?") !== 0) return;
+          window.__svVendorCfWarmupAt = Date.now();
+          var urls = [
+            "https://us-central1-stageverify-db.cloudfunctions.net/resolveLocationScanPin",
+            "https://us-central1-stageverify-db.cloudfunctions.net/getVendorRunDeliveries",
+          ];
+          var body = JSON.stringify({ data: {} });
+          for (var i = 0; i < urls.length; i++) {
+            (function (url) {
+              var controller = new AbortController();
+              var tid = setTimeout(function () {
+                controller.abort();
+              }, 8000);
+              fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: body,
+                signal: controller.signal,
+                keepalive: true,
+              })
+                .catch(function () {})
+                .finally(function () {
+                  clearTimeout(tid);
+                });
+            })(urls[i]);
+          }
+        } catch (e) {}
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
