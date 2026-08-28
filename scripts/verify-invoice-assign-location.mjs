@@ -19,6 +19,7 @@ import { chromium } from "playwright";
 import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
+import { confirmInvoiceReviewDecision } from "./lib/invoice-review-decision-confirm.mjs";
 
 function assertApproveConfirmRefreshWiring() {
   const zone = readFileSync(resolve(process.cwd(), "src/ZoneManagementPage.tsx"), "utf8");
@@ -209,9 +210,11 @@ async function main() {
     }
 
     await approveBtn.click();
+    await page.getByTestId("invoice-review-decision-confirm").waitFor({ timeout: 5000 });
+    await confirmInvoiceReviewDecision(page);
     const choicePanel = page.getByTestId("invoice-approve-fulfillment-choice");
     await choicePanel.waitFor({ timeout: 5000 });
-    console.log("PASS: Approve opens fulfillment choice");
+    console.log("PASS: Approve confirm opens fulfillment choice");
 
     await page.getByTestId("invoice-approve-choice-willcall").click();
     await page.getByTestId("invoice-approve-willcall-confirm").waitFor({ timeout: 5000 });

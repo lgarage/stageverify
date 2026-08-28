@@ -1099,8 +1099,11 @@ export function InvoiceReviewPanel({
                 data-testid={`invoice-review-queue-row-${row.id}`}
                 data-expanded={mobileExpanded ? "true" : "false"}
                 style={{
-                  borderBottom: "1px solid var(--admin-border)",
+                  border: "1px solid var(--admin-border-strong)",
+                  borderRadius: 8,
                   backgroundColor: "var(--admin-surface)",
+                  boxShadow: "0 1px 2px rgba(27, 31, 36, 0.08)",
+                  margin: "6px 4px",
                   padding: "10px 12px",
                   maxWidth: "100%",
                   boxSizing: "border-box",

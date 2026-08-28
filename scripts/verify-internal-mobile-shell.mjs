@@ -489,6 +489,36 @@ async function assertCollapsedMobileLists(page, width) {
   if (invoiceCount === 0) {
     console.log(`${width}: no invoice review rows — skip invoice collapse`);
   } else {
+    if (invoiceCount >= 2) {
+      const separation = await invoiceRows.evaluateAll((els) => {
+        const pair = els.slice(0, 2).map((el) => {
+          const rect = el.getBoundingClientRect();
+          const style = getComputedStyle(el);
+          return {
+            top: rect.top,
+            bottom: rect.bottom,
+            width: rect.width,
+            overflow: el.scrollWidth - el.clientWidth,
+            marginBottom: parseFloat(style.marginBottom) || 0,
+            borderRadius: style.borderRadius,
+            boxShadow: style.boxShadow,
+          };
+        });
+        const gap = pair[1].top - pair[0].bottom;
+        return { gap, pair };
+      });
+      if (separation.gap < 4) {
+        throw new Error(
+          `${width}: invoice cards not visually separated (gap=${separation.gap}px)`,
+        );
+      }
+      if (separation.pair.some((p) => p.overflow > 1)) {
+        throw new Error(`${width}: invoice card horizontal overflow`);
+      }
+      console.log(
+        `${width}: invoice cards separated by ${separation.gap.toFixed(1)}px`,
+      );
+    }
     for (let i = 0; i < Math.min(invoiceCount, 3); i += 1) {
       const row = invoiceRows.nth(i);
       const expanded = await row.getAttribute("data-expanded");
