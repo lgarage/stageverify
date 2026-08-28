@@ -1028,6 +1028,7 @@ export function SettingsPage() {
               )}
             </div>
             <div
+              className="settings-field-cluster"
               style={{
                 padding: "20px",
                 display: "flex",

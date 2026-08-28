@@ -243,10 +243,14 @@ export function NeedsReviewEmailStrip() {
             onClick={() => setExpanded((v) => !v)}
             style={{
               width: "100%",
+              maxWidth: "100%",
+              minWidth: 0,
+              boxSizing: "border-box",
               display: "flex",
-              alignItems: "center",
+              flexWrap: "wrap",
+              alignItems: "flex-start",
               justifyContent: "space-between",
-              gap: 12,
+              gap: 8,
               padding: "14px 18px",
               border: "none",
               backgroundColor: "var(--admin-surface-2)",
@@ -257,11 +261,26 @@ export function NeedsReviewEmailStrip() {
           >
             <span
               data-testid="needs-review-email-count"
-              style={{ fontSize: 15, fontWeight: 700, color: "var(--admin-accent-soft)" }}
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                color: "var(--admin-accent-soft)",
+                minWidth: 0,
+                overflowWrap: "anywhere",
+              }}
             >
               Needs Review ({needsReview.length})
             </span>
-            <span style={{ fontSize: 12, color: "var(--admin-text-muted)" }}>
+            <span
+              style={{
+                fontSize: 12,
+                color: "var(--admin-text-muted)",
+                minWidth: 0,
+                flex: "1 1 12rem",
+                overflowWrap: "anywhere",
+                whiteSpace: "normal",
+              }}
+            >
               {expanded ? "Hide" : "Show"} vendor replies · unmatched · ambiguous
             </span>
           </button>
@@ -615,10 +634,14 @@ function DismissedEmailsFooter({
         onClick={onToggle}
         style={{
           width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
           display: "flex",
-          alignItems: "center",
+          flexWrap: "wrap",
+          alignItems: "flex-start",
           justifyContent: "space-between",
-          gap: 12,
+          gap: 8,
           padding: "14px 18px",
           border: "none",
           backgroundColor: "var(--admin-surface-2)",
@@ -629,12 +652,27 @@ function DismissedEmailsFooter({
       >
         <span
           data-testid="needs-review-dismissed-count"
-          style={{ fontSize: 15, fontWeight: 700, color: "var(--admin-accent-soft)" }}
+          style={{
+            fontSize: 15,
+            fontWeight: 700,
+            color: "var(--admin-accent-soft)",
+            minWidth: 0,
+            overflowWrap: "anywhere",
+          }}
         >
           Dismissed emails
           {dismissedLoaded ? ` (${dismissedCount})` : ""}
         </span>
-        <span style={{ fontSize: 12, color: "var(--admin-text-muted)" }}>
+        <span
+          style={{
+            fontSize: 12,
+            color: "var(--admin-text-muted)",
+            minWidth: 0,
+            flex: "1 1 12rem",
+            overflowWrap: "anywhere",
+            whiteSpace: "normal",
+          }}
+        >
           {dismissedExpanded ? "Hide" : "Show"} dismissed · undo restore
         </span>
       </button>

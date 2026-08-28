@@ -291,22 +291,80 @@ html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
   cursor: pointer;
 }
 
+.portal-mobile-appearance {
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: var(--admin-control-radius);
+  background: rgba(255,255,255,0.08);
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
 @media (max-width: 767px) {
   .portal-shell {
     height: 100svh;
     max-height: 100svh;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .portal-main,
+  .portal-scroll {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* Page body: reduce desktop padding so cards fit real phone widths. */
+  .portal-scroll > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding-left: max(12px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(12px, env(safe-area-inset-right, 0px)) !important;
+    box-sizing: border-box !important;
+  }
+
+  .portal-shell .admin-card,
+  .portal-shell .admin-section,
+  .portal-shell .admin-table-wrap {
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .portal-shell .admin-table-wrap,
+  .portal-shell [style*="overflow-x"],
+  .portal-shell [style*="overflowX"] {
+    max-width: 100%;
   }
 
   .portal-topbar {
     width: 100%;
     max-width: 100%;
+    min-width: 0 !important;
     min-height: auto !important;
-    padding: max(env(safe-area-inset-top, 0px), 10px) 12px 10px !important;
+    padding: max(env(safe-area-inset-top, 0px), 10px)
+      max(12px, env(safe-area-inset-right, 0px))
+      10px
+      max(12px, env(safe-area-inset-left, 0px)) !important;
     display: grid !important;
     grid-template-columns: 44px minmax(0, 1fr) !important;
     align-items: center !important;
     gap: 8px 10px !important;
     overflow: visible !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Desktop 4-col spacer must not auto-place into the mobile grid. */
+  .portal-topbar > [aria-hidden="true"] {
+    display: none !important;
   }
 
   .portal-mobile-nav-toggle {
@@ -337,28 +395,37 @@ html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
     grid-column: 1 / -1;
     grid-row: 2;
     width: 100%;
+    max-width: 100%;
     min-width: 0;
     display: grid !important;
     grid-template-columns: minmax(0, 1fr);
     gap: 8px !important;
+    flex-shrink: 1 !important;
   }
 
   .portal-topbar [data-testid="dispatcher-topbar-vendor-comms-slot"],
   .portal-topbar [data-testid="dispatcher-topbar-vendor-comms-slot"] > button {
     width: 100%;
+    max-width: 100%;
     min-width: 0;
+    flex-shrink: 1 !important;
+    flex-wrap: wrap !important;
   }
 
   .portal-topbar [data-testid="dispatcher-topbar-actions"] {
     grid-column: 1 / -1;
     grid-row: 3;
     width: 100%;
+    max-width: 100%;
     min-width: 0;
     display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* Single column — 2-col still clipped Catch-all + New Delivery on ~360–390px. */
+    grid-template-columns: minmax(0, 1fr);
     align-items: stretch !important;
     justify-content: stretch !important;
     gap: 8px !important;
+    flex-shrink: 1 !important;
+    flex-wrap: wrap !important;
   }
 
   .portal-topbar [data-testid="dispatcher-topbar-actions"] > *,
@@ -368,7 +435,26 @@ html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
   .portal-topbar [data-testid="dispatcher-new-delivery"],
   .portal-topbar [data-testid="dispatcher-refresh-now"] {
     width: 100%;
+    max-width: 100%;
     min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .portal-topbar [data-testid="catch-all-delivery-topbar-slot"] {
+    flex-wrap: wrap !important;
+    overflow: visible;
+  }
+
+  .portal-topbar [data-testid="catch-all-delivery-topbar-slot"] > div {
+    position: relative;
+    display: block !important;
+    width: 100%;
+  }
+
+  .portal-topbar [data-testid="catch-all-delivery-count-badge"] {
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%);
   }
 
   .portal-topbar [data-testid="catch-all-delivery-btn"],
@@ -376,10 +462,16 @@ html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
   .portal-topbar [data-testid="dispatcher-refresh-now"],
   .portal-topbar [data-testid="vendor-communications-entry"] {
     min-height: 44px;
-    padding-left: 8px !important;
-    padding-right: 8px !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    white-space: normal !important;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+  }
+
+  .portal-topbar [data-testid="catch-all-delivery-btn"] {
+    padding-right: 36px !important;
   }
 
   .portal-topbar .dispatcher-mobile-action-message {
@@ -392,12 +484,118 @@ html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
     display: none !important;
   }
 
+  /* Delivery Overview / invoice field grids — one readable column on phone. */
+  .portal-scroll [data-testid="invoice-review-pending-fields"],
+  .portal-scroll [data-testid="invoice-review-approved-fields"],
+  .portal-scroll [data-invoice-fields="true"] {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    column-gap: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .portal-scroll [data-testid="needs-review-email-toggle"],
+  .portal-scroll [data-testid="needs-review-dismissed-toggle"] {
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
+  }
+
+  .portal-scroll [data-testid="needs-review-email-toggle"] > span,
+  .portal-scroll [data-testid="needs-review-dismissed-toggle"] > span {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal !important;
+  }
+
+  /* Settings workflow rows: allow labels to wrap instead of forcing sideways stretch. */
+  .portal-scroll label {
+    white-space: normal !important;
+  }
+
+  .portal-scroll input[type="number"],
+  .portal-scroll input[type="date"],
+  .portal-scroll select {
+    max-width: 100%;
+  }
+
+  .portal-scroll .settings-field-cluster {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .portal-scroll .settings-field-cluster > label,
+  .portal-scroll .settings-field-cluster > span {
+    margin-left: 0 !important;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .portal-scroll .settings-field-cluster > input,
+  .portal-scroll .settings-field-cluster > select {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Vendors table: keep name + company + actions on phone; rest via scroll if shown. */
+  .portal-scroll .vendors-admin-table {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .portal-scroll .vendors-admin-table th:nth-child(n + 3):nth-child(-n + 11),
+  .portal-scroll .vendors-admin-table td:nth-child(n + 3):nth-child(-n + 11) {
+    display: none;
+  }
+
+  .portal-scroll {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Keep Dark/Light FAB off operational chips and map spots on phone.
+     Theme switch lives in the hamburger drawer instead. */
+  .admin-appearance-toggle {
+    display: none !important;
+  }
+
+  /* Staging Map: keep canvas scroll inside the viewport chrome. */
+  .portal-scroll [data-testid="shop-map-viewport"],
+  .portal-scroll [data-testid="shop-map-view-controls"],
+  .portal-scroll .shop-floor-map-host,
+  .portal-scroll .shop-map-legend {
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .portal-scroll [data-testid="shop-map-viewport"] {
+    width: 100%;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .portal-scroll [data-testid="shop-map-view-controls"] {
+    flex-wrap: wrap !important;
+  }
+
+  /* Settings / Vendors wide tables: local horizontal scroll only. */
+  .portal-scroll div:has(> table),
+  .portal-scroll .admin-table-wrap > div {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .portal-mobile-nav-layer {
     position: fixed;
     inset: 0;
     z-index: 100;
     display: flex;
-    width: 100vw;
+    width: 100%;
+    max-width: 100%;
     height: 100svh;
   }
 
@@ -414,6 +612,7 @@ html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
     position: relative;
     z-index: 1;
     width: min(82vw, 20rem);
+    max-width: 100%;
     height: 100svh;
     display: flex !important;
     border-right-color: rgba(255,255,255,0.18);
@@ -543,7 +742,9 @@ html[data-sv-admin-theme="dark"] [data-testid="invoice-review-chat-panel"],
 
 .portal-scroll {
   flex: 1;
+  min-width: 0;
   min-height: 0;
+  overflow-x: auto;
   overflow-y: auto;
   background-color: var(--admin-bg);
   color: var(--admin-text);

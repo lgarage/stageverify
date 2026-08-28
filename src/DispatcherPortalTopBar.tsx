@@ -4,6 +4,7 @@ import { auth } from "./firebase";
 import { signOutWithConfirm } from "./signOutWithConfirm";
 import { PORTAL_TOPBAR_CLASS } from "./dispatcherPortalLayout";
 import { PortalSidebar } from "./PortalSidebar";
+import { AdminAppearanceDrawerButton } from "./AdminAppearanceToggle";
 
 const LazyVendorCommunicationsTopBarEntry = lazy(() =>
   import("./dispatcher/VendorCommunicationsTopBarEntry").then((m) => ({
@@ -285,14 +286,17 @@ export function DispatcherPortalTopBar({
             onNavigate={() => setMobileNavOpen(false)}
             onClose={() => setMobileNavOpen(false)}
             mobileFooter={
-              <button
-                type="button"
-                className="portal-mobile-sign-out"
-                data-testid="portal-mobile-sign-out"
-                onClick={() => signOutWithConfirm(auth, navigate)}
-              >
-                Sign Out
-              </button>
+              <>
+                <AdminAppearanceDrawerButton />
+                <button
+                  type="button"
+                  className="portal-mobile-sign-out"
+                  data-testid="portal-mobile-sign-out"
+                  onClick={() => signOutWithConfirm(auth, navigate)}
+                >
+                  Sign Out
+                </button>
+              </>
             }
           />
         </div>

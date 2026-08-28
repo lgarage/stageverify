@@ -148,7 +148,7 @@ export function CatchAllDeliveryTopBarEntry() {
           style={{
             position: "absolute",
             top: -6,
-            right: -4,
+            right: 4,
             minWidth: 18,
             height: 18,
             padding: "0 4px",

@@ -3352,10 +3352,15 @@ export const ShopFloorMap = forwardRef<ShopFloorMapHandle, Props>(
         data-testid="shop-map-viewport"
         style={{
           overflow: "auto",
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
           maxHeight: "min(85vh, 900px)",
           border: "1px solid var(--admin-border)",
           borderRadius: 10,
           backgroundColor: "var(--admin-surface-muted, #f1f5f9)",
+          WebkitOverflowScrolling: "touch",
         }}
       >
         <div

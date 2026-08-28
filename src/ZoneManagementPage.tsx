@@ -1850,7 +1850,17 @@ export function ZoneManagementPage() {
             </div>
           ) : null}
 
-          <div className="shop-floor-map-host admin-card" style={{ ...cardStyle, padding: 16 }}>
+          <div
+            className="shop-floor-map-host admin-card"
+            style={{
+              ...cardStyle,
+              padding: 16,
+              maxWidth: "100%",
+              minWidth: 0,
+              boxSizing: "border-box",
+              overflow: "hidden",
+            }}
+          >
             <ShopFloorMap
               ref={mapRef}
               occupancyByZoneCode={mapOccupancyByZoneCode}

@@ -244,9 +244,9 @@ export function VendorsManagementPanel({
               />
             </div>
 
-            <div style={{ overflowX: "auto" }}>
+            <div style={{ overflowX: "auto", maxWidth: "100%", WebkitOverflowScrolling: "touch" }}>
               <table
-                className="admin-table"
+                className="admin-table vendors-admin-table"
                 style={{
                   minWidth: 600,
                   fontSize: 14,

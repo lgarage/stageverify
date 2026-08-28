@@ -109,12 +109,57 @@ async function assertNoMobileShellOverflow(page, label) {
       ({ left, right }) => left < -1 || right > viewportWidth + 1,
     );
     const topbarRect = topbar?.getBoundingClientRect();
+
+    const intentionalWide = (el) => {
+      if (!el || !(el instanceof Element)) return false;
+      if (
+        el.closest(
+          '[data-testid="shop-map-viewport"], [data-testid="shop-map-canvas"], [data-testid="shop-map-zoom-spacer"]',
+        )
+      ) {
+        return true;
+      }
+      const scroller = el.closest("div");
+      if (!scroller) return false;
+      // Wide tables/maps are OK only inside an overflow-x scroller.
+      let node = el.parentElement;
+      while (node && node !== document.body) {
+        const ox = getComputedStyle(node).overflowX;
+        if (ox === "auto" || ox === "scroll") return true;
+        node = node.parentElement;
+      }
+      return false;
+    };
+
+    const contentOffenders = [];
+    for (const el of document.querySelectorAll(
+      ".portal-scroll h1, .portal-scroll p, .portal-scroll .admin-card, .portal-scroll .admin-section, .portal-scroll [data-invoice-fields], .portal-scroll [data-testid='invoice-review-pending-fields'], .portal-scroll [data-testid='needs-review-email-toggle'], .portal-scroll [data-testid='dispatcher-page-heading']",
+    )) {
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 1) continue;
+      if (intentionalWide(el)) continue;
+      if (rect.right > viewportWidth + 1 || rect.left < -1) {
+        contentOffenders.push({
+          testId: el.getAttribute("data-testid"),
+          tag: el.tagName,
+          left: Math.round(rect.left),
+          right: Math.round(rect.right),
+          text: (el.textContent || "").trim().slice(0, 48),
+        });
+      }
+    }
+
     return {
       viewportWidth,
       documentWidth: document.documentElement.scrollWidth,
       topbarLeft: topbarRect?.left ?? null,
       topbarRight: topbarRect?.right ?? null,
       escaped,
+      contentOffenders: contentOffenders.slice(0, 8),
+      actionsGridColumns: getComputedStyle(
+        document.querySelector('[data-testid="dispatcher-topbar-actions"]') ||
+          document.body,
+      ).gridTemplateColumns,
     };
   });
 
@@ -134,6 +179,20 @@ async function assertNoMobileShellOverflow(page, label) {
   if (result.escaped.length > 0) {
     throw new Error(
       `${label}: top bar controls escaped viewport: ${JSON.stringify(result.escaped)}`,
+    );
+  }
+  if (result.contentOffenders.length > 0) {
+    throw new Error(
+      `${label}: content overflow: ${JSON.stringify(result.contentOffenders)}`,
+    );
+  }
+  const trackCount = (result.actionsGridColumns || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+  if (result.viewportWidth <= 767 && trackCount > 1) {
+    throw new Error(
+      `${label}: top bar actions should be single-column on phone (got ${result.actionsGridColumns})`,
     );
   }
 }
@@ -174,6 +233,9 @@ async function openAndAssertMobileDrawer(page, route) {
   if (!(await page.getByTestId("portal-mobile-sign-out").isVisible())) {
     throw new Error(`${route.title}: Sign Out is not reachable in mobile drawer`);
   }
+  if (!(await page.getByTestId("portal-mobile-appearance").isVisible())) {
+    throw new Error(`${route.title}: appearance toggle missing from mobile drawer`);
+  }
   await assertReadableTextContrast(page, INTERNAL_MOBILE_NAV_CONTRAST_SPEC);
 }
 
@@ -208,13 +270,13 @@ async function assertContentScrolls(page) {
   }
 }
 
-async function verifyMobile(browser) {
+async function verifyMobileAtWidth(browser, width) {
   const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
+    viewport: { width, height: 844 },
   });
   const page = await context.newPage();
   const authOutcome = await ensureAuthenticated(page, appBase);
-  console.log(`Mobile auth: ${authOutcome}`);
+  console.log(`Mobile ${width} auth: ${authOutcome}`);
 
   await waitForRoute(page, ROUTES.dispatcher);
   await openAndAssertMobileDrawer(page, ROUTES.dispatcher);
@@ -240,18 +302,29 @@ async function verifyMobile(browser) {
     ROUTES.dispatcher,
   );
 
-  await page.evaluate(() => localStorage.setItem("stageverify-theme", "dark"));
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await waitForRoute(page, ROUTES.dispatcher);
-  await openAndAssertMobileDrawer(page, ROUTES.dispatcher);
-  await page.getByTestId("portal-mobile-nav-backdrop").click({ position: { x: 370, y: 400 } });
-  await page
-    .getByTestId("portal-mobile-nav-drawer")
-    .waitFor({ state: "detached", timeout: 10_000 });
+  if (width === 390) {
+    await page.evaluate(() => localStorage.setItem("stageverify-theme", "dark"));
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await waitForRoute(page, ROUTES.dispatcher);
+    await openAndAssertMobileDrawer(page, ROUTES.dispatcher);
+    await page
+      .getByTestId("portal-mobile-nav-backdrop")
+      .click({ position: { x: Math.min(370, width - 20), y: 400 } });
+    await page
+      .getByTestId("portal-mobile-nav-drawer")
+      .waitFor({ state: "detached", timeout: 10_000 });
+  }
+
   console.log(
-    "PASS: mobile 390x844 — four routes, shared drawer destinations, actions, scrolling, light/dark contrast, no shell overflow.",
+    `PASS: mobile ${width}x844 — routes, drawer, actions, no content overflow.`,
   );
   await context.close();
+}
+
+async function verifyMobile(browser) {
+  for (const width of [360, 375, 390]) {
+    await verifyMobileAtWidth(browser, width);
+  }
 }
 
 async function verifyDesktop(browser) {

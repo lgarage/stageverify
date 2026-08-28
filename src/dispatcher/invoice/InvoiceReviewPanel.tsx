@@ -955,14 +955,19 @@ export function InvoiceReviewPanel({
                   </div>
 
                   <div
+                    data-invoice-fields="true"
                     data-testid={
-                      filter === "approved" ? "invoice-review-approved-fields" : undefined
+                      filter === "approved"
+                        ? "invoice-review-approved-fields"
+                        : "invoice-review-pending-fields"
                     }
                     style={
                       filter === "approved"
                         ? {
                             display: "grid",
                             width: "100%",
+                            maxWidth: "100%",
+                            minWidth: 0,
                             alignItems: "end",
                             columnGap: 24,
                             rowGap: 10,
@@ -971,6 +976,9 @@ export function InvoiceReviewPanel({
                           }
                         : {
                             display: "grid",
+                            width: "100%",
+                            maxWidth: "100%",
+                            minWidth: 0,
                             gridTemplateColumns: "repeat(auto-fill, minmax(88px, 1fr))",
                             gap: "10px 14px",
                           }
