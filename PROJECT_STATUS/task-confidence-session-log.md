@@ -162,3 +162,5 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-10 | backend-write-critical (C3-D.2 lifecycle backend + tests) | T3 | Composer 2.5 Fast (+ Sol UI deferred) | 98 | 98 | ok (branch; shipping) | setVendorInvoiceFieldLessonStatus; revalidation; evaluator D.2 fixes; D-84 |
 | 2026-08-10 | backend-write-critical (C3-D.2 Manager lesson lifecycle) | T3 | Composer 2.5 Fast (+ Sol High UI) | 98 | 99 | ok (Dan deploy approved — shipping) | PR #146 rebase onto main v0.0.286; D-60+D-38 PASS |
 | 2026-08-23 | service-logic (staging map open-spot assign identity) | T2 | Composer 2.5 Fast | 97 | 98 | ok (shipping) | FE-only; canonical slot→id; authoritative occupancy; no CF |
+
+- 2026-08-28 business-invoice-resend-idempotency T3 confStart=92 confAfter=98 PR#238
