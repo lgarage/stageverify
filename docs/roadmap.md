@@ -95,6 +95,7 @@
 
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
+**Shipped (2026-08-28):** last-vendor/legacy list cache paints sync at Verify (no SHA-256 wait) — **v0.0.353** gh-pages FE-only; no `minInstances`. Real iPhone idle &lt;2s still requires Dan acceptance.
 **Shipped (2026-08-28):** first unused login scans pre-351 `stageverify_vendor_run_list_*` cache — **v0.0.352** gh-pages FE-only; no `minInstances`. Real iPhone idle &lt;2s still requires Dan acceptance.
 **Shipped (2026-08-28):** vendor list 24h cache paints at PIN Verify (before PIN CF) — **v0.0.351** gh-pages FE-only; no `minInstances`. Returning-device unused &lt;2s still requires Dan acceptance.
 **Shipped (2026-08-28):** vendor PIN submit uses raw `fetch`/`callCallable` (same stack as the list) — **v0.0.350** gh-pages FE-only; no `minInstances`. Real iPhone idle &lt;2s still requires Dan acceptance.
