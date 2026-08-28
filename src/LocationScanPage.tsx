@@ -107,6 +107,7 @@ import {
   yieldToNextPaint,
 } from "./dispatcher/vendorRunFulfillmentHydration";
 import { startVendorLoginCfKeepalive } from "./vendorCfWarmupShared";
+import { prewarmVendorLoginCallables } from "./resolveLocationScanPinClient";
 import { warmupGetVendorRunDeliveries } from "./warmupGetVendorRunDeliveries";
 import { warmupResolveLocationScanPin } from "./warmupResolveLocationScanPin";
 import { VendorPinDebugOverlay } from "./VendorPinDebugOverlay";
@@ -383,9 +384,13 @@ function LocationScanPageInner() {
       return;
     }
 
+    prewarmVendorLoginCallables();
     const stopKeepalive = startVendorLoginCfKeepalive();
     stopKeepaliveRef.current = stopKeepalive;
-    const rewarm = () => warmupVendorLoginCloudFunctions();
+    const rewarm = () => {
+      prewarmVendorLoginCallables();
+      warmupVendorLoginCloudFunctions();
+    };
 
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") rewarm();
@@ -598,15 +603,17 @@ function LocationScanPageInner() {
     const cacheHasRows = cached !== null && cached.deliveries.length > 0;
 
     if (cacheHasRows && cached && !isRefresh) {
-      setVendorId(resolvedVendorId);
-      setSessionScope("vendor");
-      setVendorRunDeliveries(cached.deliveries);
-      setScannedCode(cached.scannedStagingLocationCode);
-      if (cached.vendorName) {
-        setOpeningVendorName(cached.vendorName);
-      }
-      setStep("vendor-list");
-      setLoading(false);
+      flushSync(() => {
+        setVendorId(resolvedVendorId);
+        setSessionScope("vendor");
+        setVendorRunDeliveries(cached.deliveries);
+        setScannedCode(cached.scannedStagingLocationCode);
+        if (cached.vendorName) {
+          setOpeningVendorName(cached.vendorName);
+        }
+        setStep("vendor-list");
+        setLoading(false);
+      });
     }
 
     if (!isRefresh && vendorRunInFlightRef.current === resolvedVendorId) {
@@ -755,13 +762,15 @@ function LocationScanPageInner() {
         setSessionScope("vendor");
         const pinCache = readVendorRunDeliveriesCache(payload.vendorId);
         if (pinCache && pinCache.deliveries.length > 0) {
-          setVendorRunDeliveries(pinCache.deliveries);
-          setScannedCode(pinCache.scannedStagingLocationCode);
-          if (pinCache.vendorName) {
-            setOpeningVendorName(pinCache.vendorName);
-          }
-          setStep("vendor-list");
-          setLoading(false);
+          flushSync(() => {
+            setVendorRunDeliveries(pinCache.deliveries);
+            setScannedCode(pinCache.scannedStagingLocationCode);
+            if (pinCache.vendorName) {
+              setOpeningVendorName(pinCache.vendorName);
+            }
+            setStep("vendor-list");
+            setLoading(false);
+          });
         } else {
           setStep("vendor-list");
         }
