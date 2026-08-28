@@ -19,6 +19,7 @@ const reconcileAfterFieldCorrection_1 = require("../invoice/reviewChat/reconcile
 const inferImportStatus_1 = require("../invoice/inferImportStatus");
 const parsedHeaderValidation_1 = require("../invoice/parsedHeaderValidation");
 const creditReturnSkip_1 = require("../invoice/creditReturnSkip");
+const businessInvoiceIdentity_1 = require("../invoice/businessInvoiceIdentity");
 const vendorIgnoreRules_1 = require("../invoice/aiShadow/vendorIgnoreRules");
 const ignoreRuleAudit_1 = require("../invoice/aiShadow/ignoreRuleAudit");
 const strongInvoiceSignals_1 = require("../invoice/strongInvoiceSignals");
@@ -322,71 +323,95 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         const resolvedMatchedRuleId = skipFields && matchedRuleId
             ? existingData?.matchedRuleId ?? matchedRuleId
             : undefined;
-        const buildReviewDoc = (input) => ({
-            id: reviewId,
-            inboundEmailProcessingId: inboundDoc.id,
-            gmailMessageId: inboundDoc.gmailMessageId,
-            importBatchId: batchResult.importBatchId,
-            pageId: row.pageId,
-            pageIndexInBatch: row.pageIndexInBatch,
-            reviewStatus: skipFields ? skipFields.reviewStatus : "pending_review",
-            importStatus: input.importStatus,
-            confidenceTier: proc.confidenceTier,
-            confidenceScore: proc.confidenceScore,
-            humanReviewRequired: skipFields
-                ? skipFields.humanReviewRequired
-                : true,
-            duplicate: proc.duplicate,
-            parsedHeader: input.parsedHeader,
-            parsedLines,
-            parsedLineCount: parsedLines.length,
-            parseWarnings: input.parseWarnings,
-            orderNotes: proc.parsed.orderNotes,
-            outcome: skipFields ? "skipped" : "needs_review",
-            autoImportEligible: input.autoImportEligible,
-            autoImportConfidence: input.autoImportConfidence,
-            autoImportReasons: input.autoImportReasons,
-            reviewRequiredReasons: input.reviewRequiredReasons,
-            importDecisionMode: input.importDecisionMode,
-            suggestedAction: input.suggestedAction,
-            parserFormatId: proc.parserFormatId,
-            parserRouteConfidence: proc.parserRouteConfidence,
-            detectedVendorName: proc.detectedVendorName,
-            createdAt,
-            updatedAt: now,
-            ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),
-            ...(reviewError ? { error: reviewError } : {}),
-            ...(input.fieldCorrectionLog.length > 0
-                ? { fieldCorrectionLog: input.fieldCorrectionLog }
-                : {}),
-            ...(input.originalParsedHeader
-                ? { originalParsedHeader: input.originalParsedHeader }
-                : {}),
-            ...(Array.isArray(input.originalParseWarnings)
-                ? { originalParseWarnings: input.originalParseWarnings }
-                : {}),
-            ...(input.fulfillmentOverride
-                ? { fulfillmentOverride: input.fulfillmentOverride }
-                : {}),
-            ...(Array.isArray(input.draftPlannedStagingLocationIds)
-                ? { draftPlannedStagingLocationIds: input.draftPlannedStagingLocationIds }
-                : {}),
-            ...(skipFields
-                ? {
-                    skipReason: skipFields.skipReason,
-                    rejectedAt: skipFields.rejectedAt,
-                    rejectedBy: skipFields.rejectedBy,
-                    ...(resolvedMatchedRuleId
-                        ? { matchedRuleId: resolvedMatchedRuleId }
-                        : {}),
-                }
-                : ignoreRuleArmed && strongSignals
-                    ? { ignoreRuleSuppressedBy: strongInvoiceSignals_1.STRONG_INVOICE_SIGNALS_REASON }
+        const vendorInvoiceNumberRaw = String(proc.parsed.header
+            .vendorInvoiceNumber ?? "");
+        const businessIdentity = !skipFields && !proc.duplicate
+            ? (0, businessInvoiceIdentity_1.tryBuildBusinessInvoiceIdentity)({
+                detectedVendorId: existingData?.detectedVendorId,
+                detectedVendorName: proc.detectedVendorName,
+                parserFormatId: proc.parserFormatId,
+                vendorInvoiceNumber: vendorInvoiceNumberRaw,
+                parsedLines,
+            })
+            : null;
+        const buildReviewDoc = (input) => {
+            const activeSkip = input.effectiveSkipFields ?? skipFields;
+            return {
+                id: reviewId,
+                inboundEmailProcessingId: inboundDoc.id,
+                gmailMessageId: inboundDoc.gmailMessageId,
+                importBatchId: batchResult.importBatchId,
+                pageId: row.pageId,
+                pageIndexInBatch: row.pageIndexInBatch,
+                reviewStatus: activeSkip ? activeSkip.reviewStatus : "pending_review",
+                importStatus: input.importStatus,
+                confidenceTier: proc.confidenceTier,
+                confidenceScore: proc.confidenceScore,
+                humanReviewRequired: activeSkip
+                    ? activeSkip.humanReviewRequired
+                    : true,
+                duplicate: proc.duplicate,
+                parsedHeader: input.parsedHeader,
+                parsedLines,
+                parsedLineCount: parsedLines.length,
+                parseWarnings: input.parseWarnings,
+                orderNotes: proc.parsed.orderNotes,
+                outcome: activeSkip ? "skipped" : "needs_review",
+                autoImportEligible: input.autoImportEligible,
+                autoImportConfidence: input.autoImportConfidence,
+                autoImportReasons: input.autoImportReasons,
+                reviewRequiredReasons: input.reviewRequiredReasons,
+                importDecisionMode: input.importDecisionMode,
+                suggestedAction: input.suggestedAction,
+                parserFormatId: proc.parserFormatId,
+                parserRouteConfidence: proc.parserRouteConfidence,
+                detectedVendorName: proc.detectedVendorName,
+                createdAt,
+                updatedAt: now,
+                ...(proc.duplicateOfPageId ? { duplicateOfPageId: proc.duplicateOfPageId } : {}),
+                ...(reviewError ? { error: reviewError } : {}),
+                ...(input.fieldCorrectionLog.length > 0
+                    ? { fieldCorrectionLog: input.fieldCorrectionLog }
                     : {}),
-        });
+                ...(input.originalParsedHeader
+                    ? { originalParsedHeader: input.originalParsedHeader }
+                    : {}),
+                ...(Array.isArray(input.originalParseWarnings)
+                    ? { originalParseWarnings: input.originalParseWarnings }
+                    : {}),
+                ...(input.fulfillmentOverride
+                    ? { fulfillmentOverride: input.fulfillmentOverride }
+                    : {}),
+                ...(Array.isArray(input.draftPlannedStagingLocationIds)
+                    ? { draftPlannedStagingLocationIds: input.draftPlannedStagingLocationIds }
+                    : {}),
+                ...(input.canonicalImportId
+                    ? { canonicalImportId: input.canonicalImportId }
+                    : {}),
+                ...(input.possibleRevisionOfImportId
+                    ? { possibleRevisionOfImportId: input.possibleRevisionOfImportId }
+                    : {}),
+                ...(activeSkip
+                    ? {
+                        skipReason: activeSkip.skipReason,
+                        rejectedAt: activeSkip.rejectedAt,
+                        rejectedBy: activeSkip.rejectedBy,
+                        ...(resolvedMatchedRuleId &&
+                            activeSkip.skipReason !== "duplicate_business_invoice"
+                            ? { matchedRuleId: resolvedMatchedRuleId }
+                            : {}),
+                    }
+                    : ignoreRuleArmed && strongSignals
+                        ? { ignoreRuleSuppressedBy: strongInvoiceSignals_1.STRONG_INVOICE_SIGNALS_REASON }
+                        : {}),
+            };
+        };
         const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);
         await db.runTransaction(async (tx) => {
             const freshSnap = await tx.get(reviewRef);
+            const keySnap = businessIdentity
+                ? await (0, businessInvoiceIdentity_1.getBusinessInvoiceKeySnap)(tx, db, businessIdentity.keyDocId)
+                : null;
             const freshData = freshSnap.exists
                 ? freshSnap.data()
                 : undefined;
@@ -398,6 +423,35 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             if (freshStatus === "rejected" && !(0, creditReturnSkip_1.isSystemAutoRejectedImport)(freshData)) {
                 return;
             }
+            let businessClaim = null;
+            if (businessIdentity && keySnap && !skipFields) {
+                // Preserve user re-open of a prior system skip — do not re-claim as duplicate.
+                const reopenedPending = freshSnap.exists &&
+                    freshStatus === "pending_review" &&
+                    !freshSystemSkip &&
+                    !isNewImport;
+                if (!reopenedPending) {
+                    businessClaim = (0, businessInvoiceIdentity_1.claimOrLinkBusinessInvoiceWithSnap)(tx, db, keySnap, {
+                        identity: businessIdentity,
+                        reviewId,
+                        gmailMessageId: inboundDoc.gmailMessageId,
+                        inboundEmailProcessingId: inboundDoc.id,
+                        now,
+                    });
+                }
+            }
+            const duplicateSkip = businessClaim?.kind === "exact_duplicate"
+                ? (0, creditReturnSkip_1.duplicateBusinessInvoiceSkipFields)(now)
+                : null;
+            const revisionOfId = businessClaim?.kind === "possible_revision"
+                ? businessClaim.canonicalImportId
+                : undefined;
+            const canonicalImportId = businessClaim?.kind === "exact_duplicate" ||
+                businessClaim?.kind === "possible_revision"
+                ? businessClaim.canonicalImportId
+                : businessClaim?.kind === "same_message_multipage"
+                    ? undefined
+                    : undefined;
             // Recompute correction overrides from the fresh in-tx import snapshot so a
             // concurrent apply cannot be wiped by a stale pre-tx log read.
             const freshLog = Array.isArray(freshData?.fieldCorrectionLog)
@@ -457,8 +511,15 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 autoImportEligible: freshReconciled.autoImportEligible,
                 autoImportConfidence: freshReconciled.autoImportConfidence,
                 autoImportReasons: freshReconciled.autoImportReasons,
-                reviewRequiredReasons: freshReconciled.reviewRequiredReasons,
-                importDecisionMode: freshReconciled.importDecisionMode,
+                reviewRequiredReasons: revisionOfId
+                    ? [
+                        ...freshReconciled.reviewRequiredReasons,
+                        "possible_revision_of_existing_invoice",
+                    ]
+                    : freshReconciled.reviewRequiredReasons,
+                importDecisionMode: revisionOfId
+                    ? "review_required"
+                    : freshReconciled.importDecisionMode,
                 suggestedAction: freshReconciled.suggestedAction,
                 fieldCorrectionLog: freshLog,
                 originalParsedHeader: freshOriginalHeader,
@@ -466,6 +527,9 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 importStatus: effectiveImportStatus,
                 fulfillmentOverride: freshData?.fulfillmentOverride,
                 draftPlannedStagingLocationIds: freshData?.draftPlannedStagingLocationIds,
+                effectiveSkipFields: duplicateSkip ?? skipFields,
+                canonicalImportId,
+                possibleRevisionOfImportId: revisionOfId,
             });
             // User re-opened a system skip (pending, no skipReason) — do not re-auto-skip.
             if (freshSnap.exists &&

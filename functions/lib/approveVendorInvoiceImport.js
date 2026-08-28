@@ -13,6 +13,7 @@ const loadMatchContext_1 = require("./email/loadMatchContext");
 const buildExpectedItemsFromImport_1 = require("./invoice/buildExpectedItemsFromImport");
 const createDeliveryShellFromImport_1 = require("./invoice/createDeliveryShellFromImport");
 const matchInvoiceToRecords_1 = require("./invoice/matchInvoiceToRecords");
+const businessInvoiceIdentity_1 = require("./invoice/businessInvoiceIdentity");
 const invoiceShellDisplayHelpers_1 = require("./invoice/invoiceShellDisplayHelpers");
 const parsedHeaderValidation_1 = require("./invoice/parsedHeaderValidation");
 const computeAutoImportEligibility_1 = require("./invoice/computeAutoImportEligibility");
@@ -433,6 +434,23 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         if ((0, creditReturnSkip_1.creditReturnBlocksDeliveryCreation)(importDoc)) {
             throw new https_1.HttpsError("failed-precondition", creditReturnSkip_1.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
         }
+        const shellRedirect = await (0, businessInvoiceIdentity_1.resolveApproveBusinessInvoiceRedirect)(getDb(), importId, importDoc);
+        if (shellRedirect?.linkedDeliveryOrderId &&
+            !importDoc.linkedDeliveryOrderId?.trim()) {
+            await importRef.update({
+                linkedDeliveryOrderId: shellRedirect.linkedDeliveryOrderId,
+                canonicalImportId: importDoc.canonicalImportId ?? shellRedirect.canonicalImportId,
+                updatedAt: now,
+            });
+            return {
+                vendorInvoiceImportId: importId,
+                reviewStatus: importDoc.reviewStatus,
+                deliveryOrderId: shellRedirect.linkedDeliveryOrderId,
+                itemsApplied: 0,
+                shellCreated: false,
+                linkedExistingBusinessInvoice: true,
+            };
+        }
         if (importDoc.reviewStatus !== "approved") {
             throw new https_1.HttpsError("failed-precondition", "Only approved imports can create a dashboard record.");
         }
@@ -562,22 +580,41 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     if ((0, creditReturnSkip_1.creditReturnBlocksDeliveryCreation)(importDoc)) {
         throw new https_1.HttpsError("failed-precondition", creditReturnSkip_1.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
     }
-    const shell = await (0, createDeliveryShellFromImport_1.buildInvoiceDeliveryShellContext)(getDb(), importId, importDoc);
+    const businessRedirect = await (0, businessInvoiceIdentity_1.resolveApproveBusinessInvoiceRedirect)(getDb(), importId, importDoc);
+    if (businessRedirect &&
+        businessRedirect.canonicalImportId !== importId &&
+        !businessRedirect.linkedDeliveryOrderId &&
+        importDoc.skipReason === creditReturnSkip_1.DUPLICATE_BUSINESS_INVOICE_SKIP_REASON) {
+        throw new https_1.HttpsError("failed-precondition", "This invoice is a duplicate resend — approve the original Invoice Review item instead.");
+    }
+    const effectiveImportDoc = businessRedirect?.linkedDeliveryOrderId
+        ? {
+            ...importDoc,
+            linkedDeliveryOrderId: businessRedirect.linkedDeliveryOrderId,
+            canonicalImportId: importDoc.canonicalImportId ?? businessRedirect.canonicalImportId,
+        }
+        : businessRedirect?.canonicalImportId
+            ? {
+                ...importDoc,
+                canonicalImportId: importDoc.canonicalImportId ?? businessRedirect.canonicalImportId,
+            }
+            : importDoc;
+    const shell = await (0, createDeliveryShellFromImport_1.buildInvoiceDeliveryShellContext)(getDb(), importId, effectiveImportDoc);
     const explicitApprovalOverride = fulfillmentDecision !== undefined;
     const effectiveFulfillment = fulfillmentDecision ?? shell.invoiceFulfillmentMethod;
     const effectiveDeliveryStatus = (fulfillmentDecision
-        ? (0, invoiceShellDisplayHelpers_1.resolveShellDeliveryStatus)(importDoc.importStatus, fulfillmentDecision, shell.invoiceDeliverToSite)
+        ? (0, invoiceShellDisplayHelpers_1.resolveShellDeliveryStatus)(effectiveImportDoc.importStatus, fulfillmentDecision, shell.invoiceDeliverToSite)
         : shell.deliveryStatus);
     const effectiveShell = {
         ...shell,
         invoiceFulfillmentMethod: effectiveFulfillment,
         deliveryStatus: effectiveDeliveryStatus,
     };
-    const header = (0, parsedHeaderValidation_1.asParsedHeaderForImport)(importDoc.parsedHeader);
+    const header = (0, parsedHeaderValidation_1.asParsedHeaderForImport)(effectiveImportDoc.parsedHeader);
     const matchCtx = await (0, loadMatchContext_1.loadEmailMatchContext)();
     const resolved = (0, createDeliveryShellFromImport_1.resolveInvoiceApproveDeliveryTarget)({
         importId,
-        importDoc,
+        importDoc: effectiveImportDoc,
         header,
         ctx: matchCtx,
     });
@@ -587,6 +624,9 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     const targetId = resolved.targetDeliveryOrderId;
     const matchedExisting = resolved.matchedExisting;
     const shellId = resolved.shellId || (0, createDeliveryShellFromImport_1.shellDeliveryIdForImport)(importId);
+    const businessCanonicalId = effectiveImportDoc.canonicalImportId?.trim() ||
+        businessRedirect?.canonicalImportId?.trim() ||
+        "";
     let matchedDeliveryData;
     if (matchedExisting) {
         const matchedSnap = await getDb().collection("deliveries").doc(targetId).get();
@@ -677,7 +717,9 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             }
             // Re-check ownership at commit time (D-38) — pre-txn match snapshot can race.
             const liveDelivery = existingDelivery.data() ?? {};
-            if (!(0, matchInvoiceToRecords_1.isDeliveryOwnedByImportOrUnclaimed)(liveDelivery, importId)) {
+            const owned = (0, matchInvoiceToRecords_1.isDeliveryOwnedByImportOrUnclaimed)(liveDelivery, importId) ||
+                (0, businessInvoiceIdentity_1.isDeliveryOwnedForBusinessInvoiceApprove)(liveDelivery, importId, businessCanonicalId || fresh.canonicalImportId);
+            if (!owned) {
                 throw new https_1.HttpsError("failed-precondition", "Matched delivery is already linked to another invoice import. Reload and try again.");
             }
             const matchedFulfillmentPatch = (0, createDeliveryShellFromImport_1.buildInvoiceMatchedDeliveryPatchDocument)(effectiveShell, importId, fresh, now, liveDelivery, explicitApprovalOverride);

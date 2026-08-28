@@ -187,6 +187,17 @@ export interface VendorInvoiceImportDoc {
   };
   /** Draft staging picks before Approve — no occupancy claim until approve CF. */
   draftPlannedStagingLocationIds?: string[];
+  /**
+   * Cross-message business-invoice identity (exact resend).
+   * Points at the canonical vendorInvoiceImports doc when this row is a duplicate/revision.
+   */
+  canonicalImportId?: string;
+  /** Same invoice number with materially different parsed content — needs human review. */
+  possibleRevisionOfImportId?: string;
+  /** Additional Gmail message ids linked as exact-resend evidence (on canonical). */
+  linkedGmailMessageIds?: string[];
+  /** Additional inboundEmailProcessing ids linked as exact-resend evidence (on canonical). */
+  linkedInboundEmailProcessingIds?: string[];
   createdAt: string;
   updatedAt: string;
 }
