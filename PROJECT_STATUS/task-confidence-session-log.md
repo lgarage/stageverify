@@ -4,6 +4,7 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 
 | Date | Task type (archetype) | Tier | Recommended model | confStart | confAfter | Outcome | Note |
 |------|----------------------|------|-------------------|-----------|-----------|---------|------|
+| 2026-08-28 | service-logic / performance (vendor PIN early HTML warmup) | T1 | Grok 4.6 orch + Composer 2.5 Fast | 97 | 97 | ok | v0.0.344 HTML #/s warmup at 13ms; not #/settings; idle iPhone still required |
 | 2026-08-28 | service-logic / performance (vendor PIN → job list idle) | T1 | Grok 4.6 orch + Composer 2.5 Fast implement | 82 | 97 | ok | Measured cold 6.86s (PIN 2.71 + list 4.13); FE warmup+90s rearm v0.0.343; Dan iPhone idle still required |
 | 2026-08-23 | ui-component / layout (MAP LEGEND UPDATE) | T1 | Composer 2.5 Fast implement + Sol High visual (`gpt-5.6-sol-high`) | 98 | 99 | ok | Legend beside zoom/Fit; v0.0.320 PR #190 |
 | 2026-08-23 | service-logic / performance (vendor mobile load) | T1 | Composer 2.5 Fast | 70 | 98 | ok | Measured 2×17 getVendorReceiveDetails; progressive hydrate v0.0.319 |
