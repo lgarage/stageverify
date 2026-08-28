@@ -13,6 +13,7 @@ import { chromium } from "playwright";
 import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { resolveAppBase } from "./resolveAppBase.mjs";
+import { confirmInvoiceReviewDecision } from "./lib/invoice-review-decision-confirm.mjs";
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -386,6 +387,43 @@ async function assertRejectReasonDialog(page) {
   }
 
   await rejectBtn.click();
+  const decisionConfirm = page.getByTestId("invoice-review-decision-confirm");
+  await decisionConfirm.waitFor({ timeout: 5000 });
+  const confirmTitle = page.getByTestId("invoice-review-decision-confirm-title");
+  const titleText = (await confirmTitle.innerText()).trim();
+  if (!titleText.includes("Reject this invoice")) {
+    throw new Error(`Expected reject decision confirm title, got "${titleText}"`);
+  }
+  const reasonDialogBeforeConfirm = page.getByTestId("invoice-reject-reason-dialog");
+  if (await reasonDialogBeforeConfirm.isVisible().catch(() => false)) {
+    throw new Error("Reject reason dialog should not open before decision confirm");
+  }
+  console.log("PASS: Reject opens decision confirm (not reason dialog)");
+
+  {
+    const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+    await assertReadableTextContrast(page, {
+      rootSelector: '[data-testid="invoice-review-decision-confirm"]',
+      elements: [
+        {
+          name: "Decision confirm title",
+          selector: '[data-testid="invoice-review-decision-confirm-title"]',
+          large: true,
+        },
+        {
+          name: "Decision confirm action",
+          selector: '[data-testid="invoice-review-decision-confirm-action"]',
+        },
+        {
+          name: "Decision confirm cancel",
+          selector: '[data-testid="invoice-review-decision-confirm-cancel"]',
+        },
+      ],
+    });
+    console.log("PASS: decision confirm panel readable contrast (D-42)");
+  }
+
+  await page.getByTestId("invoice-review-decision-confirm-action").click();
   const dialog = page.getByTestId("invoice-reject-reason-dialog");
   await dialog.waitFor({ timeout: 5000 });
 
@@ -665,6 +703,41 @@ async function main() {
           console.log("PASS: modal Approve disabled when approval eligibility is No");
         } else if (/^yes$/i.test(approvalEligibleText) && !modalApproveDisabled) {
           await modalApproveBtn.click();
+          const decisionConfirm = page.getByTestId("invoice-review-decision-confirm");
+          await decisionConfirm.waitFor({ timeout: 5000 });
+          const choiceBeforeConfirm = page.getByTestId("invoice-approve-fulfillment-choice");
+          if (await choiceBeforeConfirm.isVisible().catch(() => false)) {
+            throw new Error("Fulfillment choice visible before confirm approval");
+          }
+          console.log("PASS: Approve opens decision confirm (not fulfillment choice)");
+
+          {
+            const { assertReadableTextContrast } = await import("./lib/ui-text-contrast-lib.mjs");
+            await assertReadableTextContrast(page, {
+              rootSelector: '[data-testid="invoice-review-decision-confirm"]',
+              elements: [
+                {
+                  name: "Approve decision confirm title",
+                  selector: '[data-testid="invoice-review-decision-confirm-title"]',
+                  large: true,
+                },
+                {
+                  name: "Approve decision confirm action",
+                  selector: '[data-testid="invoice-review-decision-confirm-action"]',
+                },
+              ],
+            });
+            console.log("PASS: approve decision confirm readable contrast (D-42)");
+          }
+
+          await page.getByTestId("invoice-review-decision-confirm-cancel").click();
+          await decisionConfirm.waitFor({ state: "hidden", timeout: 5000 });
+          await modalApproveBtn.waitFor({ timeout: 5000 });
+          console.log("PASS: approve decision confirm Cancel returns to idle inspect");
+
+          await modalApproveBtn.click();
+          await decisionConfirm.waitFor({ timeout: 5000 });
+          await confirmInvoiceReviewDecision(page);
           const choicePanel = page.getByTestId("invoice-approve-fulfillment-choice");
           await choicePanel.waitFor({ timeout: 5000 });
           await page.getByTestId("invoice-approve-choice-dropoff").waitFor({ timeout: 5000 });
@@ -697,6 +770,8 @@ async function main() {
           console.log("PASS: fulfillment Cancel returns to inspect");
 
           await modalApproveBtn.click();
+          await page.getByTestId("invoice-review-decision-confirm").waitFor({ timeout: 5000 });
+          await confirmInvoiceReviewDecision(page);
           await choicePanel.waitFor({ timeout: 5000 });
           await page.getByTestId("invoice-approve-choice-willcall").click();
           await page.getByTestId("invoice-approve-willcall-confirm").waitFor({ timeout: 5000 });
@@ -797,11 +872,20 @@ async function main() {
       }
       console.log("PASS: row-level match toggle removed");
 
-      await page.getByTestId("invoice-parsed-inspect-close").click();
+      const footerCancel = page.getByTestId("invoice-parsed-inspect-cancel");
+      if (await footerCancel.isVisible().catch(() => false)) {
+        await footerCancel.click();
+        console.log("PASS: footer Cancel closes inspect modal");
+      } else {
+        await page.getByTestId("invoice-parsed-inspect-close").click();
+        console.log("PASS: header Close closes inspect modal (footer Cancel not visible)");
+      }
       await page.getByTestId("invoice-parsed-inspect-modal").waitFor({
         state: "hidden",
         timeout: 5000,
       });
+      await page.getByTestId("invoice-review-queue").waitFor({ timeout: 10_000 });
+      console.log("PASS: inspect closed — review queue still visible");
     } else {
       console.log("SKIP: no queue items — inspect modal not exercised");
     }
