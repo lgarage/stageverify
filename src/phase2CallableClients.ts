@@ -23,7 +23,7 @@ async function callCallableAuthHeaders(): Promise<Record<string, string>> {
   return headers;
 }
 
-async function callCallable<T>(
+export async function callCallable<T>(
   functionName: string,
   data: Record<string, unknown>,
 ): Promise<T> {

@@ -107,7 +107,6 @@ import {
   yieldToNextPaint,
 } from "./dispatcher/vendorRunFulfillmentHydration";
 import { startVendorLoginCfKeepalive } from "./vendorCfWarmupShared";
-import { prewarmVendorLoginCallables } from "./resolveLocationScanPinClient";
 import { warmupGetVendorRunDeliveries } from "./warmupGetVendorRunDeliveries";
 import { warmupResolveLocationScanPin } from "./warmupResolveLocationScanPin";
 import { VendorPinDebugOverlay } from "./VendorPinDebugOverlay";
@@ -384,11 +383,9 @@ function LocationScanPageInner() {
       return;
     }
 
-    prewarmVendorLoginCallables();
     const stopKeepalive = startVendorLoginCfKeepalive();
     stopKeepaliveRef.current = stopKeepalive;
     const rewarm = () => {
-      prewarmVendorLoginCallables();
       warmupVendorLoginCloudFunctions();
     };
 
