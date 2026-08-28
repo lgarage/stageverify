@@ -1,8 +1,9 @@
 import { useNavigate } from "react-router-dom";
-import { lazy, Suspense, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { auth } from "./firebase";
 import { signOutWithConfirm } from "./signOutWithConfirm";
 import { PORTAL_TOPBAR_CLASS } from "./dispatcherPortalLayout";
+import { PortalSidebar } from "./PortalSidebar";
 
 const LazyVendorCommunicationsTopBarEntry = lazy(() =>
   import("./dispatcher/VendorCommunicationsTopBarEntry").then((m) => ({
@@ -45,6 +46,16 @@ export function DispatcherPortalTopBar({
   showNewDelivery = true,
 }: DispatcherPortalTopBarProps) {
   const navigate = useNavigate();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileNavOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [mobileNavOpen]);
 
   const handleNewDelivery = () => {
     if (onNewDelivery) {
@@ -73,6 +84,27 @@ export function DispatcherPortalTopBar({
         overflow: "visible",
       }}
     >
+      <button
+        type="button"
+        className="portal-mobile-nav-toggle"
+        data-testid="portal-mobile-nav-toggle"
+        aria-label="Open portal navigation"
+        aria-expanded={mobileNavOpen}
+        aria-controls="portal-mobile-navigation"
+        onClick={() => setMobileNavOpen(true)}
+      >
+        <svg
+          width={22}
+          height={22}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+        >
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
+      </button>
       <div
         data-testid="dispatcher-topbar-breadcrumb"
         style={{
@@ -164,6 +196,7 @@ export function DispatcherPortalTopBar({
         {gmailSyncMessage ? (
           <span
             data-testid="gmail-sync-message"
+            className="dispatcher-mobile-action-message"
             style={{
               fontSize: 12,
               color: gmailSyncMessage.includes("failed") ? "var(--admin-danger-text)" : "var(--admin-success-text)",
@@ -177,6 +210,7 @@ export function DispatcherPortalTopBar({
         {lastUpdated !== undefined ? (
           <div
             data-testid="dispatcher-topbar-last-updated"
+            className="dispatcher-desktop-only"
             style={{
               fontSize: 12,
               color: "var(--admin-text-muted)",
@@ -196,7 +230,7 @@ export function DispatcherPortalTopBar({
         ) : null}
         <button
           type="button"
-          className="admin-btn"
+          className="admin-btn dispatcher-desktop-only"
           data-testid="dispatcher-sign-out"
           onClick={() => signOutWithConfirm(auth, navigate)}
           style={{
@@ -215,6 +249,7 @@ export function DispatcherPortalTopBar({
           Sign Out
         </button>
         <div
+          className="dispatcher-desktop-only"
           style={{
             width: 30,
             height: 30,
@@ -232,6 +267,36 @@ export function DispatcherPortalTopBar({
           D
         </div>
       </div>
+      {mobileNavOpen ? (
+        <div
+          id="portal-mobile-navigation"
+          className="portal-mobile-nav-layer"
+          data-testid="portal-mobile-nav-layer"
+        >
+          <button
+            type="button"
+            className="portal-mobile-nav-backdrop"
+            data-testid="portal-mobile-nav-backdrop"
+            aria-label="Close navigation"
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <PortalSidebar
+            variant="mobile"
+            onNavigate={() => setMobileNavOpen(false)}
+            onClose={() => setMobileNavOpen(false)}
+            mobileFooter={
+              <button
+                type="button"
+                className="portal-mobile-sign-out"
+                data-testid="portal-mobile-sign-out"
+                onClick={() => signOutWithConfirm(auth, navigate)}
+              >
+                Sign Out
+              </button>
+            }
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

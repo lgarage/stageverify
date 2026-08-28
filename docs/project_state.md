@@ -211,6 +211,8 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 
 ## Recently shipped (away)
 
+**Internal mobile shell (2026-08-28, v0.0.355)** — Phone hamburger drawer reuses `PORTAL_NAV_ITEMS`; 390px top-bar wrap; desktop ≥768 sidebar unchanged. FE-only; no Google auth / PIN / CF. Verify: `verify:internal-mobile-shell`, `verify:dispatcher-nav`.
+
 **Theme revert (2026-08-03, v0.0.194)** — Reverted dual dark/light theme modernize (PR #29 / merge `1e16628`): removed ThemeProvider, ThemeToggle, FOUC `data-theme` script, and `brandColors` CSS-var wrappers. Pre-theme UI chrome restored; later product (Handle arrival, vendor comms issue draft) kept. Verify: `verify:dispatcher-nav`, `verify:settings-technicians`, `verify:pickup`.
 
 **Batch print labels size + print-only (2026-07-25, v0.0.162, shipped)** — `#/zones/print-labels`: Full page vs 2×4 label toggle, summary copy, no on-screen preview (print-stage off-screen); new `LocationSignLabel2x4Sheet` (8-up letter). Verify: `verify:location-scan` / `:prod`.

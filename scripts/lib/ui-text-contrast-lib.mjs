@@ -293,6 +293,12 @@ export const DISPATCHER_TOPBAR_CONTRAST_SPEC = {
   rootSelector: '[data-testid="dispatcher-portal-topbar"]',
   elements: [
     {
+      name: "mobile navigation button",
+      selector: '[data-testid="portal-mobile-nav-toggle"]',
+      large: false,
+      optional: true,
+    },
+    {
       name: "breadcrumb title",
       selector: '[data-testid="dispatcher-topbar-breadcrumb"] span:first-child',
       large: false,
@@ -330,6 +336,43 @@ export const DISPATCHER_TOPBAR_CONTRAST_SPEC = {
     {
       name: "sign out button",
       selector: '[data-testid="dispatcher-sign-out"]',
+      large: false,
+    },
+  ],
+};
+
+/** Internal portal mobile drawer — shared nav links and account exit (D-42). */
+export const INTERNAL_MOBILE_NAV_CONTRAST_SPEC = {
+  rootSelector: '[data-testid="portal-mobile-nav-drawer"]',
+  elements: [
+    {
+      name: "drawer close button",
+      selector: '[data-testid="portal-mobile-nav-close"]',
+      large: false,
+    },
+    {
+      name: "dispatcher navigation link",
+      selector: '[data-testid="portal-mobile-nav-dispatcher"]',
+      large: false,
+    },
+    {
+      name: "staging map navigation link",
+      selector: '[data-testid="portal-mobile-nav-zones"]',
+      large: false,
+    },
+    {
+      name: "vendors navigation link",
+      selector: '[data-testid="portal-mobile-nav-vendors"]',
+      large: false,
+    },
+    {
+      name: "settings navigation link",
+      selector: '[data-testid="portal-mobile-nav-settings"]',
+      large: false,
+    },
+    {
+      name: "mobile sign out",
+      selector: '[data-testid="portal-mobile-sign-out"]',
       large: false,
     },
   ],
@@ -750,6 +793,11 @@ export const VENDOR_DELIVERED_HUB_HEADER_OVERLAP_SPEC = {
 export const DISPATCHER_TOPBAR_OVERLAP_SPEC = {
   containerSelector: '[data-testid="dispatcher-portal-topbar"]',
   elementSelectors: [
+    {
+      name: "mobile navigation",
+      selector: '[data-testid="portal-mobile-nav-toggle"]',
+      optional: true,
+    },
     { name: "breadcrumb", selector: '[data-testid="dispatcher-topbar-breadcrumb"]' },
     {
       name: "vendor comms",

@@ -1,7 +1,7 @@
 {
   "name": "stageverify",
   "private": true,
-  "version": "0.0.354",
+  "version": "0.0.355",
   "type": "module",
   "homepage": "https://lgarage.github.io/stageverify",
   "scripts": {
@@ -61,6 +61,8 @@
     "verify:portal-layout": "node scripts/verify-portal-layout.mjs",
     "verify:dispatcher-nav": "node scripts/run-verify-with-learning.mjs --script verify:dispatcher-nav --runner tsx scripts/verify-dispatcher-nav.mjs",
     "verify:dispatcher-nav:prod": "node scripts/run-verify-with-learning.mjs --script verify:dispatcher-nav:prod --runner tsx scripts/verify-dispatcher-nav.mjs --base-url=https://lgarage.github.io/stageverify",
+    "verify:internal-mobile-shell": "node scripts/run-verify-with-learning.mjs --script verify:internal-mobile-shell scripts/verify-internal-mobile-shell.mjs",
+    "verify:internal-mobile-shell:prod": "node scripts/run-verify-with-learning.mjs --script verify:internal-mobile-shell:prod scripts/verify-internal-mobile-shell.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:dispatcher-deliveries-page-size": "node scripts/run-verify-with-learning.mjs --script verify:dispatcher-deliveries-page-size scripts/verify-dispatcher-deliveries-page-size.mjs",
     "verify:dispatcher-deliveries-page-size:prod": "node scripts/run-verify-with-learning.mjs --script verify:dispatcher-deliveries-page-size:prod scripts/verify-dispatcher-deliveries-page-size.mjs --base-url=https://lgarage.github.io/stageverify",
     "verify:shop-map": "node scripts/run-verify-with-learning.mjs --script verify:shop-map scripts/verify-shop-map.mjs",

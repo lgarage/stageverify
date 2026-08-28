@@ -62,6 +62,8 @@
 
 ## NOW (Phase 5 prototype)
 
+**Shipped (2026-08-28):** Internal mobile shell/nav (**v0.0.355**) — hamburger drawer reuses `PORTAL_NAV_ITEMS`; 390px top-bar wrap; desktop ≥768 sidebar unchanged. FE-only; no Google auth / PIN / CF.
+
 **Shipped (2026-08-18):** Vendor location-scan Safari history (**v0.0.293**) — PIN → deliveries → order are real `#/s?loc=` history views; leftover `#/receive` recovery is collapsed on QR entry; hash canonicalize uses replaceState. FE-only.
 
 **In flight (2026-08-10):** **D-84–D-90 receiving/readiness** — Slice 1 exception-oriented vendor Delivered qty SoT on `cursor/receiving-readiness-d84-slice1-c86f` (**v0.0.287**); CF `markVendorDelivered` / bulk + hub exception panel; **CF/rules/gh-pages deploy NOT approved**. Next slices: Unplanned→CA (D-85), auto-Ready (D-84), manual Ready (D-87).

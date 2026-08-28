@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { PORTAL_SIDEBAR_CLASS } from "./dispatcherPortalLayout";
 import { formatAppVersionLabel } from "./appVersion";
 import {
@@ -61,12 +61,54 @@ function NavIcon({ icon }: { icon: string }) {
 }
 
 /** Shared navy sidebar for dispatcher portal pages. */
-export function PortalSidebar({ className = "" }: { className?: string }) {
+export function PortalSidebar({
+  className = "",
+  variant = "desktop",
+  onNavigate,
+  onClose,
+  mobileFooter,
+}: {
+  className?: string;
+  variant?: "desktop" | "mobile";
+  onNavigate?: () => void;
+  onClose?: () => void;
+  mobileFooter?: ReactNode;
+}) {
   const location = useLocation();
   const isSettings = location.pathname === "/settings";
+  const isMobile = variant === "mobile";
 
   return (
-    <aside className={`${PORTAL_SIDEBAR_CLASS} ${className}`.trim()}>
+    <aside
+      className={`${PORTAL_SIDEBAR_CLASS} ${isMobile ? "portal-sidebar--mobile" : ""} ${className}`.trim()}
+      data-testid={isMobile ? "portal-mobile-nav-drawer" : undefined}
+      role={isMobile ? "dialog" : undefined}
+      aria-modal={isMobile ? "true" : undefined}
+      aria-label={isMobile ? "Portal navigation" : undefined}
+    >
+      {isMobile ? (
+        <div className="portal-mobile-nav-header">
+          <span>Navigation</span>
+          <button
+            type="button"
+            data-testid="portal-mobile-nav-close"
+            aria-label="Close navigation"
+            onClick={onClose}
+          >
+            <svg
+              width={20}
+              height={20}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+            >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+      ) : null}
       <div
         className="flex flex-col items-center px-5 pt-6 pb-5"
         data-testid="portal-sidebar-brand"
@@ -128,6 +170,13 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
             <Link
               key={item.label}
               to={item.to}
+              data-testid={
+                isMobile
+                  ? `portal-mobile-nav-${item.to === "/dispatcher" ? "dispatcher" : item.to.slice(1)}`
+                  : undefined
+              }
+              aria-current={active ? "page" : undefined}
+              onClick={onNavigate}
               style={navLinkStyle(active)}
               onMouseEnter={(e) => {
                 if (!active) {
@@ -174,6 +223,9 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
         </div>
         <Link
           to={PORTAL_SETTINGS_ITEM.to}
+          data-testid={isMobile ? "portal-mobile-nav-settings" : undefined}
+          aria-current={isSettings ? "page" : undefined}
+          onClick={onNavigate}
           style={navLinkStyle(isSettings)}
           onMouseEnter={(e) => {
             if (!isSettings) {
@@ -196,6 +248,10 @@ export function PortalSidebar({ className = "" }: { className?: string }) {
           {PORTAL_SETTINGS_ITEM.label}
         </Link>
       </div>
+
+      {isMobile && mobileFooter ? (
+        <div className="portal-mobile-nav-footer">{mobileFooter}</div>
+      ) : null}
 
       <div
         className="px-5 py-4 text-center shrink-0"
