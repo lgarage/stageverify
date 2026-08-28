@@ -50,6 +50,30 @@ function mapItems(itemsSnap) {
         };
     });
 }
+function chunkDeliveryIds(ids, chunkSize) {
+    const chunks = [];
+    for (let i = 0; i < ids.length; i += chunkSize) {
+        chunks.push(ids.slice(i, i + chunkSize));
+    }
+    return chunks;
+}
+function groupItemsByDeliveryId(itemSnaps) {
+    const byDeliveryId = new Map();
+    for (const snap of itemSnaps) {
+        for (const itemDoc of snap.docs) {
+            const deliveryOrderId = itemDoc.data().deliveryOrderId;
+            if (typeof deliveryOrderId !== "string" || !deliveryOrderId) {
+                continue;
+            }
+            const existing = byDeliveryId.get(deliveryOrderId) ?? [];
+            if (existing.length < 50) {
+                existing.push(itemDoc);
+                byDeliveryId.set(deliveryOrderId, existing);
+            }
+        }
+    }
+    return byDeliveryId;
+}
 /** Vendor-scoped multi-job delivery list (opt-in company PIN — D-09 amended). */
 exports.getVendorRunDeliveries = (0, https_1.onCall)({
     region: "us-central1",
@@ -96,17 +120,19 @@ exports.getVendorRunDeliveries = (0, https_1.onCall)({
     const tEnrich = Date.now();
     const jobRefs = [...jobIds].map((id) => db.collection("jobs").doc(id));
     const poRefs = [...poIds].map((id) => db.collection("purchaseOrders").doc(id));
-    const [jobSnaps, locationCodeMap, poSnaps, ...itemsSnaps] = await Promise.all([
+    const deliveryIds = activeDocs.map((docSnap) => docSnap.id);
+    const deliveryIdChunks = chunkDeliveryIds(deliveryIds, 30);
+    const [jobSnaps, locationCodeMap, poSnaps, ...itemsChunkSnaps] = await Promise.all([
         jobRefs.length > 0 ? db.getAll(...jobRefs) : Promise.resolve([]),
         (0, vendorDeliverySpotUtils_1.resolveLocationCodesById)(db, allLocationIds),
         poRefs.length > 0 ? db.getAll(...poRefs) : Promise.resolve([]),
-        ...activeDocs.map((docSnap) => db
+        ...deliveryIdChunks.map((chunk) => db
             .collection("items")
-            .where("deliveryOrderId", "==", docSnap.id)
-            .limit(50)
+            .where("deliveryOrderId", "in", chunk)
             .get()),
     ]);
     timings.enrichmentMs = Date.now() - tEnrich;
+    const itemsByDeliveryId = groupItemsByDeliveryId(itemsChunkSnaps);
     const jobNameById = new Map();
     for (const snap of jobSnaps) {
         if (snap.exists) {
@@ -124,7 +150,7 @@ exports.getVendorRunDeliveries = (0, https_1.onCall)({
                 poNumberById.set(snap.id, po);
         }
     }
-    const summaries = activeDocs.map((docSnap, index) => {
+    const summaries = activeDocs.map((docSnap) => {
         const delivery = docSnap.data();
         const deliveryId = docSnap.id;
         const jobId = String(delivery.jobId ?? "");
@@ -141,6 +167,7 @@ exports.getVendorRunDeliveries = (0, https_1.onCall)({
             delivery.vendorInvoiceNumber.trim()
             ? delivery.vendorInvoiceNumber.trim()
             : undefined;
+        const itemDocs = itemsByDeliveryId.get(deliveryId) ?? [];
         return {
             deliveryId,
             jobId,
@@ -154,7 +181,7 @@ exports.getVendorRunDeliveries = (0, https_1.onCall)({
             stagingLocationCodes,
             hasAssignableSpot: (0, vendorDeliverySpotUtils_1.hasAssignableSpot)(delivery),
             vendorPhysicalDropoffConfirmed: delivery.vendorPhysicalDropoffConfirmed === true,
-            items: mapItems(itemsSnaps[index]),
+            items: mapItems({ docs: itemDocs }),
         };
     });
     summaries.sort((a, b) => {
