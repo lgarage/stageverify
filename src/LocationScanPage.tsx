@@ -106,6 +106,7 @@ import {
   vendorRunFulfillmentUsesPhysicalFallback,
   yieldToNextPaint,
 } from "./dispatcher/vendorRunFulfillmentHydration";
+import { startVendorLoginCfKeepalive } from "./vendorCfWarmupShared";
 import { warmupGetVendorRunDeliveries } from "./warmupGetVendorRunDeliveries";
 import { warmupResolveLocationScanPin } from "./warmupResolveLocationScanPin";
 import { VendorPinDebugOverlay } from "./VendorPinDebugOverlay";
@@ -374,6 +375,7 @@ function LocationScanPageInner() {
   useEffect(() => {
     if (step !== "pin" && step !== "loading") return;
 
+    const stopKeepalive = startVendorLoginCfKeepalive();
     const rewarm = () => warmupVendorLoginCloudFunctions();
 
     const onVisibilityChange = () => {
@@ -383,6 +385,7 @@ function LocationScanPageInner() {
     window.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pageshow", rewarm);
     return () => {
+      stopKeepalive();
       window.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pageshow", rewarm);
     };
