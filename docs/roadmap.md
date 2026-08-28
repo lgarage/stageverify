@@ -95,6 +95,7 @@
 
 **Shipped (2026-08-09):** Technician Pickup visual consistency with Vendor Drop-Off + FE speed (progressive job shell, SPA navigate, released-jobs cache, non-blocking PIN session) — **v0.0.252**; CF list N+1 / bootstrap still candidate (high-risk, needs approve; no `minInstances`).
 
+**Shipped (2026-08-28):** flushSync vendor list cache at PIN success — **v0.0.349** gh-pages FE-only; no `minInstances`. Real iPhone idle &lt;2s still requires Dan acceptance.
 **Shipped (2026-08-28):** unused keep-alive cold start is not aborted at Verify — **v0.0.348** gh-pages FE-only; no `minInstances`. Real iPhone idle &lt;2s still requires Dan acceptance.
 **Shipped (2026-08-28):** stop `#/s` CF keep-alive at PIN Verify — **v0.0.347** gh-pages FE-only; no `minInstances`. Real iPhone idle &lt;2s still requires Dan acceptance.
 **Shipped (2026-08-28):** `#/s` PIN keypad keep-alive pings PIN+list CFs every 1.5s — **v0.0.346** gh-pages FE-only; no `minInstances`. Real iPhone idle &lt;2s still requires Dan acceptance.
