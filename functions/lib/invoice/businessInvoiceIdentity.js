@@ -54,7 +54,7 @@ function businessInvoiceKeyDocId(vendorScope, normalizedInvoiceNumber) {
 }
 /**
  * Stable content fingerprint for exact-resend vs material-revision.
- * Uses authoritative parsed header/line fields only — not gmail/message ids.
+ * Uses authoritative parsed header + line fields — not gmail/message ids.
  */
 function businessInvoiceContentFingerprint(input) {
     const lineParts = input.parsedLines
@@ -70,8 +70,20 @@ function businessInvoiceContentFingerprint(input) {
         return `${sku}|${qo}|${qs}|${qb}|${lt}`;
     })
         .sort();
+    const po = String(input.customerPoOrReference ?? "")
+        .trim()
+        .toUpperCase();
+    const order = String(input.vendorOrderNumber ?? "")
+        .trim()
+        .toUpperCase();
+    const fulfillment = String(input.fulfillmentMethod ?? "")
+        .trim()
+        .toLowerCase();
     const payload = [
         input.normalizedInvoiceNumber,
+        `po=${po}`,
+        `order=${order}`,
+        `fulfillment=${fulfillment}`,
         `lines=${lineParts.length}`,
         ...lineParts,
     ].join("\n");
@@ -87,6 +99,9 @@ function tryBuildBusinessInvoiceIdentity(input) {
         return null;
     const contentFingerprint = businessInvoiceContentFingerprint({
         normalizedInvoiceNumber,
+        customerPoOrReference: input.customerPoOrReference,
+        vendorOrderNumber: input.vendorOrderNumber,
+        fulfillmentMethod: input.fulfillmentMethod,
         parsedLines: input.parsedLines,
     });
     return {
@@ -182,6 +197,9 @@ async function resolveApproveBusinessInvoiceRedirect(db, importId, importDoc) {
         detectedVendorName: importDoc.detectedVendorName,
         parserFormatId: importDoc.parserFormatId,
         vendorInvoiceNumber,
+        customerPoOrReference: String(header.customerPoOrReference ?? ""),
+        vendorOrderNumber: String(header.vendorOrderNumber ?? ""),
+        fulfillmentMethod: String(header.fulfillmentMethod ?? ""),
         parsedLines: importDoc.parsedLines ?? [],
     });
     if (!identity)

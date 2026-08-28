@@ -116,8 +116,14 @@ function sampleLines(overrides = {}) {
     normalizedInvoiceNumber: inv,
     parsedLines: sampleLines({ quantityShipped: 1, quantityBackordered: 1 }),
   });
+  const fp4 = businessInvoiceContentFingerprint({
+    normalizedInvoiceNumber: inv,
+    customerPoOrReference: "PO-OTHER",
+    parsedLines: sampleLines(),
+  });
   assert.equal(fp1, fp2);
   assert.notEqual(fp1, fp3);
+  assert.notEqual(fp1, fp4);
   pass("6 content fingerprint exact vs material revision");
 }
 

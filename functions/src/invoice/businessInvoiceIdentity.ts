@@ -98,10 +98,13 @@ export function businessInvoiceKeyDocId(
 
 /**
  * Stable content fingerprint for exact-resend vs material-revision.
- * Uses authoritative parsed header/line fields only — not gmail/message ids.
+ * Uses authoritative parsed header + line fields — not gmail/message ids.
  */
 export function businessInvoiceContentFingerprint(input: {
   normalizedInvoiceNumber: string;
+  customerPoOrReference?: string;
+  vendorOrderNumber?: string;
+  fulfillmentMethod?: string;
   parsedLines: Array<
     Pick<
       VendorInvoiceImportParsedLine,
@@ -127,8 +130,20 @@ export function businessInvoiceContentFingerprint(input: {
       return `${sku}|${qo}|${qs}|${qb}|${lt}`;
     })
     .sort();
+  const po = String(input.customerPoOrReference ?? "")
+    .trim()
+    .toUpperCase();
+  const order = String(input.vendorOrderNumber ?? "")
+    .trim()
+    .toUpperCase();
+  const fulfillment = String(input.fulfillmentMethod ?? "")
+    .trim()
+    .toLowerCase();
   const payload = [
     input.normalizedInvoiceNumber,
+    `po=${po}`,
+    `order=${order}`,
+    `fulfillment=${fulfillment}`,
     `lines=${lineParts.length}`,
     ...lineParts,
   ].join("\n");
@@ -140,6 +155,9 @@ export function tryBuildBusinessInvoiceIdentity(input: {
   detectedVendorName?: string;
   parserFormatId?: string;
   vendorInvoiceNumber: string;
+  customerPoOrReference?: string;
+  vendorOrderNumber?: string;
+  fulfillmentMethod?: string;
   parsedLines: VendorInvoiceImportParsedLine[];
 }): BusinessInvoiceIdentity | null {
   const normalizedInvoiceNumber = normalizeBusinessInvoiceNumber(
@@ -153,6 +171,9 @@ export function tryBuildBusinessInvoiceIdentity(input: {
 
   const contentFingerprint = businessInvoiceContentFingerprint({
     normalizedInvoiceNumber,
+    customerPoOrReference: input.customerPoOrReference,
+    vendorOrderNumber: input.vendorOrderNumber,
+    fulfillmentMethod: input.fulfillmentMethod,
     parsedLines: input.parsedLines,
   });
   return {
@@ -310,6 +331,9 @@ export async function resolveApproveBusinessInvoiceRedirect(
     detectedVendorName: importDoc.detectedVendorName,
     parserFormatId: importDoc.parserFormatId,
     vendorInvoiceNumber,
+    customerPoOrReference: String(header.customerPoOrReference ?? ""),
+    vendorOrderNumber: String(header.vendorOrderNumber ?? ""),
+    fulfillmentMethod: String(header.fulfillmentMethod ?? ""),
     parsedLines: importDoc.parsedLines ?? [],
   });
   if (!identity) return null;

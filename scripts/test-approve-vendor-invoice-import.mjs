@@ -2672,6 +2672,15 @@ try {
   fail("legacy duplicate approve failed", err?.message);
 }
 
+const canonStamp = await getDoc(
+  doc(db, "deliveries", "delivery-vii-vii-biz-canon-page-1"),
+);
+if (canonStamp.data()?.vendorInvoiceImportId === "vii-biz-canon-page-1") {
+  pass("canonical delivery ownership stamp preserved after duplicate approve");
+} else {
+  fail("canonical ownership stamp stolen", canonStamp.data());
+}
+
 const dupShell = await getDoc(
   doc(db, "deliveries", "delivery-vii-vii-biz-dup-page-1"),
 );

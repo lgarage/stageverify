@@ -456,6 +456,11 @@ async function writeReviewRecords(
       (proc.parsed.header as { vendorInvoiceNumber?: string })
         .vendorInvoiceNumber ?? "",
     );
+    const headerForIdentity = proc.parsed.header as {
+      customerPoOrReference?: string;
+      vendorOrderNumber?: string;
+      fulfillmentMethod?: string;
+    };
     const businessIdentity: BusinessInvoiceIdentity | null =
       !skipFields && !proc.duplicate
         ? tryBuildBusinessInvoiceIdentity({
@@ -463,6 +468,9 @@ async function writeReviewRecords(
             detectedVendorName: proc.detectedVendorName,
             parserFormatId: proc.parserFormatId,
             vendorInvoiceNumber: vendorInvoiceNumberRaw,
+            customerPoOrReference: headerForIdentity.customerPoOrReference,
+            vendorOrderNumber: headerForIdentity.vendorOrderNumber,
+            fulfillmentMethod: headerForIdentity.fulfillmentMethod,
             parsedLines,
           })
         : null;

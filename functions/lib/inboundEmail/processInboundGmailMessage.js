@@ -325,12 +325,16 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
             : undefined;
         const vendorInvoiceNumberRaw = String(proc.parsed.header
             .vendorInvoiceNumber ?? "");
+        const headerForIdentity = proc.parsed.header;
         const businessIdentity = !skipFields && !proc.duplicate
             ? (0, businessInvoiceIdentity_1.tryBuildBusinessInvoiceIdentity)({
                 detectedVendorId: existingData?.detectedVendorId,
                 detectedVendorName: proc.detectedVendorName,
                 parserFormatId: proc.parserFormatId,
                 vendorInvoiceNumber: vendorInvoiceNumberRaw,
+                customerPoOrReference: headerForIdentity.customerPoOrReference,
+                vendorOrderNumber: headerForIdentity.vendorOrderNumber,
+                fulfillmentMethod: headerForIdentity.fulfillmentMethod,
                 parsedLines,
             })
             : null;
