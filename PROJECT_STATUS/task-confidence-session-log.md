@@ -164,3 +164,5 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 | 2026-08-23 | service-logic (staging map open-spot assign identity) | T2 | Composer 2.5 Fast | 97 | 98 | ok (shipping) | FE-only; canonical slot→id; authoritative occupancy; no CF |
 
 - 2026-08-28 business-invoice-resend-idempotency T3 confStart=92 confAfter=98 PR#238
+
+- 2026-08-28 gate-check-evidence-format T0 confStart=99 confAfter=99 PR#238 bare-UUID
