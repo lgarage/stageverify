@@ -32,8 +32,8 @@ globalThis.localStorage = {
   clear() {
     store.clear();
   },
-  key() {
-    return null;
+  key(index) {
+    return [...store.keys()][index] ?? null;
   },
   get length() {
     return store.size;
@@ -234,5 +234,89 @@ assert.equal(setCalls, 3, "write retries once with empty items after last-vendor
 const retryRead = readVendorRunDeliveriesCache("vendor-retry");
 assert.ok(retryRead);
 assert.deepEqual(retryRead.deliveries[0].items, []);
+
+// Legacy scan: list key only — no LAST_VENDOR_KEY or pin alias
+store.clear();
+const legacyVendorId = "vendor-legacy";
+const legacyKey = `stageverify_vendor_run_list_${legacyVendorId}`;
+const legacyCachedAt = Date.now() - 60_000;
+store.set(
+  legacyKey,
+  JSON.stringify({
+    deliveries: [sampleDelivery],
+    scannedStagingLocationCode: stagingCode,
+    vendorName: "Legacy Vendor",
+    cachedAt: legacyCachedAt,
+  }),
+);
+assert.equal(store.has(LAST_VENDOR_KEY), false, "legacy fixture has no last-vendor key");
+
+const legacyForSubmit = await readVendorRunDeliveriesCacheForSubmit({
+  pin: "1111",
+  stagingLocationCode: stagingCode,
+});
+assert.ok(legacyForSubmit, "ForSubmit finds legacy list cache without last-vendor or pin alias");
+assert.equal(legacyForSubmit.vendorId, legacyVendorId);
+assert.equal(legacyForSubmit.deliveries[0].deliveryId, "d-cache-1");
+assert.equal(
+  store.get(LAST_VENDOR_KEY),
+  legacyVendorId,
+  "legacy scan migrates LAST_VENDOR_KEY",
+);
+
+// Newest cachedAt wins among legacy keys
+store.delete(LAST_VENDOR_KEY);
+const olderVendorId = "vendor-legacy-older";
+const newerVendorId = "vendor-legacy-newer";
+store.set(
+  `stageverify_vendor_run_list_${olderVendorId}`,
+  JSON.stringify({
+    deliveries: [{ ...sampleDelivery, deliveryId: "d-older", jobName: "Older Job" }],
+    scannedStagingLocationCode: stagingCode,
+    cachedAt: Date.now() - 120_000,
+  }),
+);
+store.set(
+  `stageverify_vendor_run_list_${newerVendorId}`,
+  JSON.stringify({
+    deliveries: [{ ...sampleDelivery, deliveryId: "d-newer", jobName: "Newer Job" }],
+    scannedStagingLocationCode: stagingCode,
+    cachedAt: Date.now() - 30_000,
+  }),
+);
+const newestLegacy = readLastVendorRunDeliveriesCache();
+assert.ok(newestLegacy);
+assert.equal(newestLegacy.vendorId, newerVendorId, "newest cachedAt wins");
+assert.equal(newestLegacy.deliveries[0].deliveryId, "d-newer");
+
+// Expired / invalid legacy keys ignored
+store.clear();
+store.set(
+  `stageverify_vendor_run_list_${legacyVendorId}-expired`,
+  JSON.stringify({
+    deliveries: [sampleDelivery],
+    scannedStagingLocationCode: stagingCode,
+    cachedAt: Date.now() - VENDOR_RUN_DELIVERIES_CACHE_TTL_MS - 1,
+  }),
+);
+store.set(
+  `stageverify_vendor_run_list_${legacyVendorId}-invalid`,
+  JSON.stringify({
+    deliveries: [{ deliveryId: "", jobName: "Bad", items: [] }],
+    scannedStagingLocationCode: stagingCode,
+    cachedAt: Date.now(),
+  }),
+);
+assert.equal(readLastVendorRunDeliveriesCache(), null, "no valid legacy caches");
+assert.equal(
+  store.has(`stageverify_vendor_run_list_${legacyVendorId}-expired`),
+  false,
+  "expired legacy removed",
+);
+assert.equal(
+  store.has(`stageverify_vendor_run_list_${legacyVendorId}-invalid`),
+  false,
+  "invalid legacy removed",
+);
 
 console.log("test:vendor-run-deliveries-cache — all assertions passed");

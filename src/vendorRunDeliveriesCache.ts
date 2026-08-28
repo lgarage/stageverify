@@ -157,13 +157,81 @@ export function readVendorRunDeliveriesCache(
   return readCacheForVendorId(vendorId);
 }
 
+function scanLegacyVendorRunCaches(
+  migrateLastVendorKey: boolean,
+): VendorRunDeliveriesCacheReadResult | null {
+  let best: {
+    vendorId: string;
+    cachedAt: number;
+    cached: Omit<VendorRunDeliveriesCacheEntry, "cachedAt">;
+  } | null = null;
+
+  const keys: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith(CACHE_KEY_PREFIX)) keys.push(key);
+  }
+
+  for (const key of keys) {
+
+    const vendorId = key.slice(CACHE_KEY_PREFIX.length);
+    if (!vendorId) continue;
+
+    const raw = localStorage.getItem(key);
+    if (!raw) continue;
+
+    let parsed: VendorRunDeliveriesCacheEntry | null;
+    try {
+      parsed = parseEntry(raw);
+    } catch {
+      continue;
+    }
+    if (!parsed) {
+      localStorage.removeItem(key);
+      continue;
+    }
+    if (Date.now() - parsed.cachedAt > TTL_MS) {
+      localStorage.removeItem(key);
+      continue;
+    }
+    if (parsed.deliveries.length === 0) continue;
+
+    if (!best || parsed.cachedAt > best.cachedAt) {
+      best = {
+        vendorId,
+        cachedAt: parsed.cachedAt,
+        cached: {
+          deliveries: parsed.deliveries,
+          scannedStagingLocationCode: parsed.scannedStagingLocationCode,
+          vendorName: parsed.vendorName,
+        },
+      };
+    }
+  }
+
+  if (!best) return null;
+
+  if (migrateLastVendorKey) {
+    try {
+      localStorage.setItem(LAST_VENDOR_KEY, best.vendorId);
+    } catch {
+      // ignore quota / private mode
+    }
+  }
+
+  return { ...best.cached, vendorId: best.vendorId };
+}
+
 export function readLastVendorRunDeliveriesCache(): VendorRunDeliveriesCacheReadResult | null {
   try {
-    const vendorId = localStorage.getItem(LAST_VENDOR_KEY);
-    if (!vendorId) return null;
-    const cached = readCacheForVendorId(vendorId);
-    if (!cached || cached.deliveries.length === 0) return null;
-    return { ...cached, vendorId };
+    const lastVendorId = localStorage.getItem(LAST_VENDOR_KEY);
+    if (lastVendorId) {
+      const cached = readCacheForVendorId(lastVendorId);
+      if (cached && cached.deliveries.length > 0) {
+        return { ...cached, vendorId: lastVendorId };
+      }
+    }
+    return scanLegacyVendorRunCaches(lastVendorId === null);
   } catch {
     return null;
   }
