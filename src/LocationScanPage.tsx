@@ -106,6 +106,7 @@ import {
   vendorRunFulfillmentUsesPhysicalFallback,
   yieldToNextPaint,
 } from "./dispatcher/vendorRunFulfillmentHydration";
+import { warmupGetVendorRunDeliveries } from "./warmupGetVendorRunDeliveries";
 import { warmupResolveLocationScanPin } from "./warmupResolveLocationScanPin";
 import { VendorPinDebugOverlay } from "./VendorPinDebugOverlay";
 import {
@@ -113,6 +114,11 @@ import {
   isVendorPinDebugEnabled,
   markVendorPinDebug,
 } from "./vendorPinDebugTimeline";
+
+function warmupVendorLoginCloudFunctions(): void {
+  warmupResolveLocationScanPin();
+  warmupGetVendorRunDeliveries();
+}
 
 const LazyVendorIssueModal = lazy(() =>
   import("./VendorIssueModal").then((m) => ({ default: m.VendorIssueModal })),
@@ -311,7 +317,7 @@ function LocationScanPageInner() {
       setStep("missing");
       return;
     }
-    warmupResolveLocationScanPin();
+    warmupVendorLoginCloudFunctions();
     setStep("loading");
     markVendorPinDebug("BRANDING_START");
     try {
@@ -364,6 +370,23 @@ function LocationScanPageInner() {
   useEffect(() => {
     void loadBranding();
   }, [loadBranding]);
+
+  useEffect(() => {
+    if (step !== "pin" && step !== "loading") return;
+
+    const rewarm = () => warmupVendorLoginCloudFunctions();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") rewarm();
+    };
+
+    window.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pageshow", rewarm);
+    return () => {
+      window.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pageshow", rewarm);
+    };
+  }, [step]);
 
   useLayoutEffect(() => {
     requestLeftoverReceiveCollapse();
