@@ -191,6 +191,27 @@ async function enterPin(page, pin) {
   }
 }
 
+function parseCallablePostData(route) {
+  try {
+    return JSON.parse(route.request().postData() ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+async function fulfillCallableWarmupInvalidArgument(route) {
+  await route.fulfill({
+    status: 400,
+    contentType: "application/json",
+    body: JSON.stringify({
+      error: {
+        message: "invalid-argument",
+        status: "INVALID_ARGUMENT",
+      },
+    }),
+  });
+}
+
 async function shot(page, name) {
   await page.screenshot({ path: resolve(outDir, `${name}.png`) });
 }
@@ -725,6 +746,11 @@ try {
   let lastVendorRunCompleteIds = [];
 
   await page.route("**/resolveLocationScanPin", async (route) => {
+    const requestBody = parseCallablePostData(route);
+    if (!requestBody.data?.pin) {
+      await fulfillCallableWarmupInvalidArgument(route);
+      return;
+    }
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -744,6 +770,11 @@ try {
     });
   });
   await page.route("**/getVendorRunDeliveries", async (route) => {
+    const requestBody = parseCallablePostData(route);
+    if (!requestBody.data?.sessionToken) {
+      await fulfillCallableWarmupInvalidArgument(route);
+      return;
+    }
     await route.fulfill({
       status: 200,
       contentType: "application/json",

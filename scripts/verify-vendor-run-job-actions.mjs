@@ -35,6 +35,27 @@ async function enterPin(page, digits) {
   }
 }
 
+function parseCallablePostData(route) {
+  try {
+    return JSON.parse(route.request().postData() ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+async function fulfillCallableWarmupInvalidArgument(route) {
+  await route.fulfill({
+    status: 400,
+    contentType: "application/json",
+    body: JSON.stringify({
+      error: {
+        message: "invalid-argument",
+        status: "INVALID_ARGUMENT",
+      },
+    }),
+  });
+}
+
 (async () => {
   const hoursAgoIso = (hours) =>
     new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
@@ -195,6 +216,11 @@ async function enterPin(page, digits) {
     });
   });
   await page.route("**/resolveLocationScanPin", async (route) => {
+    const requestBody = parseCallablePostData(route);
+    if (!requestBody.data?.pin) {
+      await fulfillCallableWarmupInvalidArgument(route);
+      return;
+    }
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 1200));
     pinResolveFulfilled = true;
     await route.fulfill({
@@ -244,6 +270,11 @@ async function enterPin(page, digits) {
   });
   let vendorRunDeliveriesFulfilled = false;
   await page.route("**/getVendorRunDeliveries", async (route) => {
+    const requestBody = parseCallablePostData(route);
+    if (!requestBody.data?.sessionToken) {
+      await fulfillCallableWarmupInvalidArgument(route);
+      return;
+    }
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 800));
     vendorRunDeliveriesFulfilled = true;
     await route.fulfill({
@@ -499,6 +530,11 @@ async function enterPin(page, digits) {
     });
   });
   await page2.route("**/resolveLocationScanPin", async (route) => {
+    const requestBody = parseCallablePostData(route);
+    if (!requestBody.data?.pin) {
+      await fulfillCallableWarmupInvalidArgument(route);
+      return;
+    }
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 1200));
     pinResolveFulfilled = true;
     await route.fulfill({
@@ -520,6 +556,11 @@ async function enterPin(page, digits) {
     });
   });
   await page2.route("**/getVendorRunDeliveries", async (route) => {
+    const requestBody = parseCallablePostData(route);
+    if (!requestBody.data?.sessionToken) {
+      await fulfillCallableWarmupInvalidArgument(route);
+      return;
+    }
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 800));
     vendorRunDeliveriesFulfilled = true;
     await route.fulfill({
