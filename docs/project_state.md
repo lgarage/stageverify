@@ -211,6 +211,8 @@ No manual push subscription to Cloud Functions ? Firebase Eventarc subscribes to
 
 ## Recently shipped (away)
 
+**Internal mobile collapse cards (2026-08-28, v0.0.358)** — Phone deliveries + Invoice Review load collapsed (accordion); expand/collapse; desktop table unchanged; no squeezed char-wrap columns. Verify: `verify:internal-mobile-shell` @ 360/375/390 + desktop. FE-only; no Google auth / PIN / CF. Status: READY FOR DAN REAL-IPHONE RESPONSIVE + COLLAPSE TEST.
+
 **Internal mobile content overflow (2026-08-28, v0.0.357)** — Phone content fits 360–390 without clipping top-bar actions / Delivery Overview / invoice cards; Staging Map pan stays in viewport; Vendors/Settings stack. PR #233 hamburger preserved. FE-only; no Google auth / PIN / CF. Verify: `verify:internal-mobile-shell` @ 360/375/390 + desktop.
 
 **Internal mobile shell (2026-08-28, v0.0.355)** — Phone hamburger drawer reuses `PORTAL_NAV_ITEMS`; 390px top-bar wrap; desktop ≥768 sidebar unchanged. FE-only; no Google auth / PIN / CF. Verify: `verify:internal-mobile-shell`, `verify:dispatcher-nav`.
