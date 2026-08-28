@@ -39,3 +39,7 @@ Append-only session log (Dan standing preference). Not a planning SSOT.
 | 2026-08-23 | WHAT NEEDS ATTENTION COPY TOO WORDY | ui-component / simple-ui copy | T1 | Composer 2.5 Fast + Sol High visual review | 98 | 99 | FE-only WNA compact title/Why/Next; readiness unchanged |
 | 2026-08-23 | Delivery Details unified Order Summary (delivered stays in same list) | ui-component / visual-judgment | T1 | Sol High (`gpt-5.6-sol-high`) + Grok orchestrate/ship | 98 | 99 | FE-only v0.0.308; deriveItemIssueDisplayStatus + effectiveItemQtyReceived; no CF/rules |
 | 2026-08-23 | Staging Map open-spot Assign Location identity/availability | service-logic | T2 | Composer 2.5 Fast | 97 | 98 | FE-only v0.0.311; no CF/rules; backend occupancy guard unchanged |
+
+| 2026-08-28 | Resent vendor invoices must not create duplicate orders (business-invoice idempotency) | backend-write-critical | T3 | Composer 2.5 Fast + Sonnet D-60/D-38 + Grok adversarial | 92 | 98 | PR #238; CF+rules; READY FOR PROTECTED DEPLOY AUTHORIZATION |
+
+| 2026-08-28 | gate-check evidence format fix (bare UUID, no bc- prefix) for PR #238 | harness / CI | T0 | Composer 2.5 Fast | 99 | 99 | PR body + commit evidence; CF/rules still held |

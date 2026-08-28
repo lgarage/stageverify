@@ -18,6 +18,10 @@ import {
 } from "./invoice/createDeliveryShellFromImport";
 import { isDeliveryOwnedByImportOrUnclaimed } from "./invoice/matchInvoiceToRecords";
 import {
+  isDeliveryOwnedForBusinessInvoiceApprove,
+  resolveApproveBusinessInvoiceRedirect,
+} from "./invoice/businessInvoiceIdentity";
+import {
   isInvoiceShellNoShopStaging,
   jobNameFromInvoiceContext,
   resolveShellDeliveryStatus,
@@ -617,6 +621,40 @@ export const approveVendorInvoiceImport = onCall(
       if (creditReturnBlocksDeliveryCreation(importDoc)) {
         throw new HttpsError("failed-precondition", CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
       }
+      const shellRedirect = await resolveApproveBusinessInvoiceRedirect(
+        getDb(),
+        importId,
+        importDoc,
+      );
+      if (
+        shellRedirect &&
+        shellRedirect.canonicalImportId !== importId &&
+        !shellRedirect.linkedDeliveryOrderId
+      ) {
+        throw new HttpsError(
+          "failed-precondition",
+          "This invoice is already tracked by another Invoice Review item — use that original delivery instead of create_shell.",
+        );
+      }
+      if (
+        shellRedirect?.linkedDeliveryOrderId &&
+        !importDoc.linkedDeliveryOrderId?.trim()
+      ) {
+        await importRef.update({
+          linkedDeliveryOrderId: shellRedirect.linkedDeliveryOrderId,
+          canonicalImportId:
+            importDoc.canonicalImportId ?? shellRedirect.canonicalImportId,
+          updatedAt: now,
+        });
+        return {
+          vendorInvoiceImportId: importId,
+          reviewStatus: importDoc.reviewStatus,
+          deliveryOrderId: shellRedirect.linkedDeliveryOrderId,
+          itemsApplied: 0,
+          shellCreated: false,
+          linkedExistingBusinessInvoice: true,
+        };
+      }
       if (importDoc.reviewStatus !== "approved") {
         throw new HttpsError(
           "failed-precondition",
@@ -633,7 +671,16 @@ export const approveVendorInvoiceImport = onCall(
             createdFromInvoiceImport?: boolean;
             vendorInvoiceImportId?: string;
           };
-          const missingStamp = !delivery.vendorInvoiceImportId?.trim();
+          const existingOwner = delivery.vendorInvoiceImportId?.trim() ?? "";
+          const canonicalOwner =
+            (importDoc.canonicalImportId ?? shellRedirect?.canonicalImportId ?? "").trim();
+          const preserveOtherOwner =
+            Boolean(existingOwner) &&
+            existingOwner !== importId &&
+            (existingOwner === canonicalOwner ||
+              (shellRedirect?.canonicalImportId === existingOwner &&
+                shellRedirect.canonicalImportId !== importId));
+          const missingStamp = !existingOwner;
           const isInvoiceShell =
             linkedId === shell.deliveryOrderId ||
             delivery.createdFromInvoiceImport === true;
@@ -648,6 +695,9 @@ export const approveVendorInvoiceImport = onCall(
               now,
               deliverySnap.data(),
             );
+            if (preserveOtherOwner) {
+              delete shellPatch.vendorInvoiceImportId;
+            }
             const stagingClear = activeStagingPatchForCurrentFulfillment(
               existingData,
               shellPatch,
@@ -664,6 +714,13 @@ export const approveVendorInvoiceImport = onCall(
               invoiceImportStatus: importDoc.importStatus,
               updatedAt: now,
             });
+          } else if (preserveOtherOwner) {
+            // Already stamped by canonical sibling — do not steal ownership.
+          } else if (existingOwner !== importId) {
+            throw new HttpsError(
+              "failed-precondition",
+              "Linked delivery is already owned by another invoice import.",
+            );
           }
           const jobSnap = await getDb().collection("jobs").doc(shell.jobId).get();
           const jobData = jobSnap.data();
@@ -808,13 +865,54 @@ export const approveVendorInvoiceImport = onCall(
     if (creditReturnBlocksDeliveryCreation(importDoc)) {
       throw new HttpsError("failed-precondition", CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
     }
-    const shell = await buildInvoiceDeliveryShellContext(getDb(), importId, importDoc);
+
+    const businessRedirect = await resolveApproveBusinessInvoiceRedirect(
+      getDb(),
+      importId,
+      importDoc,
+    );
+    if (
+      businessRedirect &&
+      businessRedirect.canonicalImportId !== importId &&
+      !businessRedirect.linkedDeliveryOrderId
+    ) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This invoice is already tracked by another Invoice Review item — approve that original instead of creating a duplicate delivery.",
+      );
+    }
+    const effectiveImportDoc: VendorInvoiceImportDoc =
+      businessRedirect?.linkedDeliveryOrderId
+        ? {
+            ...importDoc,
+            linkedDeliveryOrderId: businessRedirect.linkedDeliveryOrderId,
+            canonicalImportId:
+              importDoc.canonicalImportId ?? businessRedirect.canonicalImportId,
+          }
+        : businessRedirect?.canonicalImportId
+          ? {
+              ...importDoc,
+              canonicalImportId:
+                importDoc.canonicalImportId ?? businessRedirect.canonicalImportId,
+            }
+          : importDoc;
+    const preserveCanonicalOwnerStamp = Boolean(
+      businessRedirect?.linkedDeliveryOrderId &&
+        businessRedirect.canonicalImportId &&
+        businessRedirect.canonicalImportId !== importId,
+    );
+
+    const shell = await buildInvoiceDeliveryShellContext(
+      getDb(),
+      importId,
+      effectiveImportDoc,
+    );
     const explicitApprovalOverride = fulfillmentDecision !== undefined;
     const effectiveFulfillment =
       fulfillmentDecision ?? shell.invoiceFulfillmentMethod;
     const effectiveDeliveryStatus = (fulfillmentDecision
       ? resolveShellDeliveryStatus(
-          importDoc.importStatus,
+          effectiveImportDoc.importStatus,
           fulfillmentDecision,
           shell.invoiceDeliverToSite,
         )
@@ -824,11 +922,11 @@ export const approveVendorInvoiceImport = onCall(
       invoiceFulfillmentMethod: effectiveFulfillment,
       deliveryStatus: effectiveDeliveryStatus,
     };
-    const header = asParsedHeaderForImport(importDoc.parsedHeader);
+    const header = asParsedHeaderForImport(effectiveImportDoc.parsedHeader);
     const matchCtx = await loadEmailMatchContext();
     const resolved = resolveInvoiceApproveDeliveryTarget({
       importId,
-      importDoc,
+      importDoc: effectiveImportDoc,
       header,
       ctx: matchCtx,
     });
@@ -842,6 +940,10 @@ export const approveVendorInvoiceImport = onCall(
     const targetId = resolved.targetDeliveryOrderId;
     const matchedExisting = resolved.matchedExisting;
     const shellId = resolved.shellId || shellDeliveryIdForImport(importId);
+    const businessCanonicalId =
+      effectiveImportDoc.canonicalImportId?.trim() ||
+      businessRedirect?.canonicalImportId?.trim() ||
+      "";
 
     let matchedDeliveryData: Record<string, unknown> | undefined;
     if (matchedExisting) {
@@ -982,7 +1084,14 @@ export const approveVendorInvoiceImport = onCall(
         }
         // Re-check ownership at commit time (D-38) — pre-txn match snapshot can race.
         const liveDelivery = existingDelivery.data() ?? {};
-        if (!isDeliveryOwnedByImportOrUnclaimed(liveDelivery, importId)) {
+        const owned =
+          isDeliveryOwnedByImportOrUnclaimed(liveDelivery, importId) ||
+          isDeliveryOwnedForBusinessInvoiceApprove(
+            liveDelivery,
+            importId,
+            businessCanonicalId || fresh.canonicalImportId,
+          );
+        if (!owned) {
           throw new HttpsError(
             "failed-precondition",
             "Matched delivery is already linked to another invoice import. Reload and try again.",
@@ -996,6 +1105,14 @@ export const approveVendorInvoiceImport = onCall(
           liveDelivery,
           explicitApprovalOverride,
         );
+        // Exact-resend / sibling approve must not steal D-67 ownership from canonical.
+        if (
+          preserveCanonicalOwnerStamp &&
+          String(liveDelivery.vendorInvoiceImportId ?? "").trim() ===
+            (businessCanonicalId || fresh.canonicalImportId || "").trim()
+        ) {
+          delete matchedFulfillmentPatch.vendorInvoiceImportId;
+        }
         const activeStagingPatch = activeStagingPatchForCurrentFulfillment(
           liveDelivery as Record<string, unknown>,
           matchedFulfillmentPatch,
@@ -1037,6 +1154,15 @@ export const approveVendorInvoiceImport = onCall(
           existingDelivery.data(),
           explicitApprovalOverride,
         );
+        if (
+          preserveCanonicalOwnerStamp &&
+          String(
+            (existingDelivery.data() as { vendorInvoiceImportId?: string } | undefined)
+              ?.vendorInvoiceImportId ?? "",
+          ).trim() === (businessCanonicalId || fresh.canonicalImportId || "").trim()
+        ) {
+          delete shellFulfillmentPatch.vendorInvoiceImportId;
+        }
         const activeStagingPatch = activeStagingPatchForCurrentFulfillment(
           liveShellData,
           shellFulfillmentPatch,

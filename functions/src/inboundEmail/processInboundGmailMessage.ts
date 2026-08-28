@@ -31,12 +31,20 @@ import { deriveImportStatus } from "../invoice/inferImportStatus";
 import { asParsedHeaderForImport } from "../invoice/parsedHeaderValidation";
 import type { ParsedJohnstoneInvoice } from "../invoice/types";
 import {
-  isCreditReturnInvoice,
   documentIgnoreSkipFields,
+  duplicateBusinessInvoiceSkipFields,
+  isCreditReturnInvoice,
   isSystemAutoRejectedImport,
   isSystemIgnoreSkipReason,
   resolveCreditReturnIngestSkip,
 } from "../invoice/creditReturnSkip";
+import {
+  claimOrLinkBusinessInvoiceWithSnap,
+  getBusinessInvoiceKeySnap,
+  tryBuildBusinessInvoiceIdentity,
+  type BusinessInvoiceClaimOutcome,
+  type BusinessInvoiceIdentity,
+} from "../invoice/businessInvoiceIdentity";
 import {
   fingerprintFromImport,
   incrementVendorIgnoreRuleMatch,
@@ -444,6 +452,29 @@ async function writeReviewRecords(
         ? existingData?.matchedRuleId ?? matchedRuleId
         : undefined;
 
+    const vendorInvoiceNumberRaw = String(
+      (proc.parsed.header as { vendorInvoiceNumber?: string })
+        .vendorInvoiceNumber ?? "",
+    );
+    const headerForIdentity = proc.parsed.header as {
+      customerPoOrReference?: string;
+      vendorOrderNumber?: string;
+      fulfillmentMethod?: string;
+    };
+    const businessIdentity: BusinessInvoiceIdentity | null =
+      !skipFields && !proc.duplicate
+        ? tryBuildBusinessInvoiceIdentity({
+            detectedVendorId: existingData?.detectedVendorId,
+            detectedVendorName: proc.detectedVendorName,
+            parserFormatId: proc.parserFormatId,
+            vendorInvoiceNumber: vendorInvoiceNumberRaw,
+            customerPoOrReference: headerForIdentity.customerPoOrReference,
+            vendorOrderNumber: headerForIdentity.vendorOrderNumber,
+            fulfillmentMethod: headerForIdentity.fulfillmentMethod,
+            parsedLines,
+          })
+        : null;
+
     const buildReviewDoc = (input: {
       parsedHeader: Record<string, unknown>;
       parseWarnings: string[];
@@ -459,25 +490,32 @@ async function writeReviewRecords(
       importStatus: string;
       fulfillmentOverride?: VendorInvoiceImportDoc["fulfillmentOverride"];
       draftPlannedStagingLocationIds?: string[];
+      effectiveSkipFields?: typeof skipFields | ReturnType<
+        typeof duplicateBusinessInvoiceSkipFields
+      >;
+      canonicalImportId?: string;
+      possibleRevisionOfImportId?: string;
     }): VendorInvoiceImportDoc & {
       fieldCorrectionLog?: FieldCorrectionLogEntry[];
       originalParsedHeader?: Record<string, unknown>;
       originalParseWarnings?: string[];
       fulfillmentOverride?: VendorInvoiceImportDoc["fulfillmentOverride"];
       draftPlannedStagingLocationIds?: string[];
-    } => ({
+    } => {
+      const activeSkip = input.effectiveSkipFields ?? skipFields;
+      return {
       id: reviewId,
       inboundEmailProcessingId: inboundDoc.id,
       gmailMessageId: inboundDoc.gmailMessageId,
       importBatchId: batchResult.importBatchId,
       pageId: row.pageId,
       pageIndexInBatch: row.pageIndexInBatch,
-      reviewStatus: skipFields ? skipFields.reviewStatus : "pending_review",
+      reviewStatus: activeSkip ? activeSkip.reviewStatus : "pending_review",
       importStatus: input.importStatus,
       confidenceTier: proc.confidenceTier,
       confidenceScore: proc.confidenceScore,
-      humanReviewRequired: skipFields
-        ? skipFields.humanReviewRequired
+      humanReviewRequired: activeSkip
+        ? activeSkip.humanReviewRequired
         : true,
       duplicate: proc.duplicate,
       parsedHeader: input.parsedHeader,
@@ -485,7 +523,7 @@ async function writeReviewRecords(
       parsedLineCount: parsedLines.length,
       parseWarnings: input.parseWarnings,
       orderNotes: proc.parsed.orderNotes,
-      outcome: skipFields ? "skipped" : "needs_review",
+      outcome: activeSkip ? "skipped" : "needs_review",
       autoImportEligible: input.autoImportEligible,
       autoImportConfidence: input.autoImportConfidence,
       autoImportReasons: input.autoImportReasons,
@@ -514,23 +552,34 @@ async function writeReviewRecords(
       ...(Array.isArray(input.draftPlannedStagingLocationIds)
         ? { draftPlannedStagingLocationIds: input.draftPlannedStagingLocationIds }
         : {}),
-      ...(skipFields
+      ...(input.canonicalImportId
+        ? { canonicalImportId: input.canonicalImportId }
+        : {}),
+      ...(input.possibleRevisionOfImportId
+        ? { possibleRevisionOfImportId: input.possibleRevisionOfImportId }
+        : {}),
+      ...(activeSkip
         ? {
-            skipReason: skipFields.skipReason,
-            rejectedAt: skipFields.rejectedAt,
-            rejectedBy: skipFields.rejectedBy,
-            ...(resolvedMatchedRuleId
+            skipReason: activeSkip.skipReason,
+            rejectedAt: activeSkip.rejectedAt,
+            rejectedBy: activeSkip.rejectedBy,
+            ...(resolvedMatchedRuleId &&
+            activeSkip.skipReason !== "duplicate_business_invoice"
               ? { matchedRuleId: resolvedMatchedRuleId }
               : {}),
           }
         : ignoreRuleArmed && strongSignals
           ? { ignoreRuleSuppressedBy: STRONG_INVOICE_SIGNALS_REASON }
           : {}),
-    });
+    };
+    };
 
     const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);
     await db.runTransaction(async (tx) => {
       const freshSnap = await tx.get(reviewRef);
+      const keySnap = businessIdentity
+        ? await getBusinessInvoiceKeySnap(tx, db, businessIdentity.keyDocId)
+        : null;
       const freshData = freshSnap.exists
         ? (freshSnap.data() as VendorInvoiceImportDoc)
         : undefined;
@@ -542,6 +591,41 @@ async function writeReviewRecords(
       if (freshStatus === "rejected" && !isSystemAutoRejectedImport(freshData)) {
         return;
       }
+
+      let businessClaim: BusinessInvoiceClaimOutcome | null = null;
+      if (businessIdentity && keySnap && !skipFields) {
+        // Preserve user re-open of a prior system skip — do not re-claim as duplicate.
+        const reopenedPending =
+          freshSnap.exists &&
+          freshStatus === "pending_review" &&
+          !freshSystemSkip &&
+          !isNewImport;
+        if (!reopenedPending) {
+          businessClaim = claimOrLinkBusinessInvoiceWithSnap(tx, db, keySnap, {
+            identity: businessIdentity,
+            reviewId,
+            gmailMessageId: inboundDoc.gmailMessageId,
+            inboundEmailProcessingId: inboundDoc.id,
+            now,
+          });
+        }
+      }
+
+      const duplicateSkip =
+        businessClaim?.kind === "exact_duplicate"
+          ? duplicateBusinessInvoiceSkipFields(now)
+          : null;
+      const revisionOfId =
+        businessClaim?.kind === "possible_revision"
+          ? businessClaim.canonicalImportId
+          : undefined;
+      const canonicalImportId =
+        businessClaim?.kind === "exact_duplicate" ||
+        businessClaim?.kind === "possible_revision"
+          ? businessClaim.canonicalImportId
+          : businessClaim?.kind === "same_message_multipage"
+            ? undefined
+            : undefined;
 
       // Recompute correction overrides from the fresh in-tx import snapshot so a
       // concurrent apply cannot be wiped by a stale pre-tx log read.
@@ -612,8 +696,15 @@ async function writeReviewRecords(
         autoImportEligible: freshReconciled.autoImportEligible,
         autoImportConfidence: freshReconciled.autoImportConfidence,
         autoImportReasons: freshReconciled.autoImportReasons,
-        reviewRequiredReasons: freshReconciled.reviewRequiredReasons,
-        importDecisionMode: freshReconciled.importDecisionMode,
+        reviewRequiredReasons: revisionOfId
+          ? [
+              ...freshReconciled.reviewRequiredReasons,
+              "possible_revision_of_existing_invoice",
+            ]
+          : freshReconciled.reviewRequiredReasons,
+        importDecisionMode: revisionOfId
+          ? "review_required"
+          : freshReconciled.importDecisionMode,
         suggestedAction: freshReconciled.suggestedAction,
         fieldCorrectionLog: freshLog,
         originalParsedHeader: freshOriginalHeader,
@@ -621,6 +712,9 @@ async function writeReviewRecords(
         importStatus: effectiveImportStatus,
         fulfillmentOverride: freshData?.fulfillmentOverride,
         draftPlannedStagingLocationIds: freshData?.draftPlannedStagingLocationIds,
+        effectiveSkipFields: duplicateSkip ?? skipFields,
+        canonicalImportId,
+        possibleRevisionOfImportId: revisionOfId,
       });
 
       // User re-opened a system skip (pending, no skipReason) — do not re-auto-skip.

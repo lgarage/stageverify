@@ -247,6 +247,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Cross-message business-invoice identity index — CF Admin SDK only.
+    match /vendorBusinessInvoiceKeys/{id} {
+      allow read, write: if false;
+    }
+
     // Immutable ignore-rule audit stream — dispatcher read; CF Admin SDK create only (D-59 P5).
     match /ignoreRuleAuditEvents/{eventId} {
       allow read: if isDispatcher();

@@ -2547,6 +2547,149 @@ if (claimedAfter.data()?.vendorInvoiceImportId === "vii-other-claimant" && claim
   fail("foreign delivery mutated", claimedAfter.data());
 }
 
+// Case 10 — legacy duplicate Review approve redirects to canonical delivery (no second shell)
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendors", "vendor-1"), {
+    id: "vendor-1",
+    name: "Johnstone Supply",
+    updatedAt: "2026-06-01T00:00:00Z",
+  });
+  await setDoc(doc(adminDb, "jobs", "job-biz-canon"), {
+    id: "job-biz-canon",
+    jobNumber: "26-BIZ",
+    jobName: "Biz Idempotency",
+    status: "active",
+    createdAt: "2026-06-01T00:00:00Z",
+    updatedAt: "2026-06-01T00:00:00Z",
+  });
+  await setDoc(doc(adminDb, "deliveries", "delivery-vii-vii-biz-canon-page-1"), {
+    id: "delivery-vii-vii-biz-canon-page-1",
+    orderNumber: "BIZ-INV-100",
+    jobId: "job-biz-canon",
+    vendorId: "vendor-1",
+    vendorName: "Johnstone Supply",
+    status: "pending",
+    createdFromInvoiceImport: true,
+    vendorInvoiceImportId: "vii-biz-canon-page-1",
+    vendorInvoiceNumber: "BIZ-INV-100",
+    plannedStagingLocationIds: ["staging-matched-a4-wc"],
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-biz-canon-page-1"), {
+    id: "vii-biz-canon-page-1",
+    inboundEmailProcessingId: "inbound-biz-canon",
+    gmailMessageId: "msg-biz-canon",
+    importBatchId: "batch-biz-canon",
+    pageId: "page-1",
+    pageIndexInBatch: 0,
+    reviewStatus: "approved",
+    importStatus: "pending",
+    confidenceTier: "high",
+    confidenceScore: 90,
+    humanReviewRequired: false,
+    duplicate: false,
+    linkedDeliveryOrderId: "delivery-vii-vii-biz-canon-page-1",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: {
+      ...dropOffHeader,
+      vendorInvoiceNumber: "BIZ-INV-100",
+      vendorOrderNumber: "BIZ-INV-100",
+      customerPoOrReference: "PO-BIZ-100",
+      fulfillmentMethod: "delivery",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    approvedAt: "2026-06-24T10:05:00Z",
+    approvedBy: "tester",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:05:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorBusinessInvoiceKeys", "key:johnstone-supply__BIZ-INV-100"), {
+    vendorScope: "key:johnstone-supply",
+    vendorKey: "johnstone-supply",
+    normalizedInvoiceNumber: "BIZ-INV-100",
+    canonicalImportId: "vii-biz-canon-page-1",
+    canonicalGmailMessageId: "msg-biz-canon",
+    contentFingerprint: "testhash",
+    createdAt: "2026-06-24T10:00:00Z",
+    updatedAt: "2026-06-24T10:00:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-biz-dup-page-1"), {
+    id: "vii-biz-dup-page-1",
+    inboundEmailProcessingId: "inbound-biz-dup",
+    gmailMessageId: "msg-biz-dup",
+    importBatchId: "batch-biz-dup",
+    pageId: "page-1",
+    pageIndexInBatch: 0,
+    reviewStatus: "pending_review",
+    importStatus: "pending",
+    confidenceTier: "high",
+    confidenceScore: 90,
+    humanReviewRequired: true,
+    duplicate: false,
+    canonicalImportId: "vii-biz-canon-page-1",
+    skipReason: "duplicate_business_invoice",
+    rejectedAt: "2026-06-24T11:00:00Z",
+    rejectedBy: "system:duplicate_business_invoice",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: {
+      ...dropOffHeader,
+      vendorInvoiceNumber: "BIZ-INV-100",
+      vendorOrderNumber: "BIZ-INV-100",
+      customerPoOrReference: "PO-BIZ-100",
+      fulfillmentMethod: "delivery",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "skipped",
+    createdAt: "2026-06-24T11:00:00Z",
+    updatedAt: "2026-06-24T11:00:00Z",
+  });
+});
+
+try {
+  const dupApprove = await approveImport({
+    vendorInvoiceImportId: "vii-biz-dup-page-1",
+    action: "approve",
+    plannedStagingLocationIds: ["staging-matched-a4-wc"],
+  });
+  const dupData = dupApprove?.data ?? dupApprove;
+  if (dupData?.deliveryOrderId === "delivery-vii-vii-biz-canon-page-1") {
+    pass("legacy duplicate Review approve redirects to canonical delivery (no second shell)");
+  } else {
+    fail("legacy duplicate approve should target canonical delivery", dupData);
+  }
+} catch (err) {
+  fail("legacy duplicate approve failed", err?.message);
+}
+
+const canonStamp = await getDoc(
+  doc(db, "deliveries", "delivery-vii-vii-biz-canon-page-1"),
+);
+if (canonStamp.data()?.vendorInvoiceImportId === "vii-biz-canon-page-1") {
+  pass("canonical delivery ownership stamp preserved after duplicate approve");
+} else {
+  fail("canonical ownership stamp stolen", canonStamp.data());
+}
+
+const dupShell = await getDoc(
+  doc(db, "deliveries", "delivery-vii-vii-biz-dup-page-1"),
+);
+if (!dupShell.exists()) {
+  pass("no second shell delivery-vii-vii-biz-dup-page-1 created");
+} else {
+  fail("second shell was created for duplicate import", dupShell.data());
+}
+
 await testEnv.cleanup();
 
 console.log(`\n--- Result: ${passed} passed, ${failed} failed ---`);

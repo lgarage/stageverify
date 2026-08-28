@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE = exports.CREDIT_RETURN_ADVISORY_LABEL = exports.CREDIT_RETURN_AUTO_SKIP_LABEL = exports.CREDIT_RETURN_SKIP_LABEL = exports.DOCUMENT_IGNORE_SKIP_REASON = exports.CREDIT_RETURN_SKIP_REASON = void 0;
+exports.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE = exports.CREDIT_RETURN_ADVISORY_LABEL = exports.CREDIT_RETURN_AUTO_SKIP_LABEL = exports.CREDIT_RETURN_SKIP_LABEL = exports.DUPLICATE_BUSINESS_INVOICE_SKIP_LABEL = exports.DUPLICATE_BUSINESS_INVOICE_SKIP_REASON = exports.DOCUMENT_IGNORE_SKIP_REASON = exports.CREDIT_RETURN_SKIP_REASON = void 0;
 exports.creditReturnSkipLabel = creditReturnSkipLabel;
 exports.creditReturnSkipFields = creditReturnSkipFields;
 exports.documentIgnoreSkipFields = documentIgnoreSkipFields;
+exports.duplicateBusinessInvoiceSkipFields = duplicateBusinessInvoiceSkipFields;
 exports.isSystemIgnoreSkipReason = isSystemIgnoreSkipReason;
 exports.isSystemAutoRejectedImport = isSystemAutoRejectedImport;
 exports.importStatusForCreditSkip = importStatusForCreditSkip;
@@ -16,6 +17,9 @@ exports.resolveCreditReturnIngestSkip = resolveCreditReturnIngestSkip;
 exports.CREDIT_RETURN_SKIP_REASON = "credit_return";
 /** Taught fingerprint ignore (any document type) — review-queue auto-skip only. */
 exports.DOCUMENT_IGNORE_SKIP_REASON = "document_ignore";
+/** Exact business-invoice resend (new Gmail message, same vendor invoice). */
+exports.DUPLICATE_BUSINESS_INVOICE_SKIP_REASON = "duplicate_business_invoice";
+exports.DUPLICATE_BUSINESS_INVOICE_SKIP_LABEL = "Skipped — duplicate invoice resend";
 /** Legacy auto-skipped / manually dismissed credit imports in Rejected archive. */
 exports.CREDIT_RETURN_SKIP_LABEL = "Skipped — credit/return";
 /** System auto-skip after vendor ignore rule taught + confirmed. */
@@ -64,15 +68,19 @@ function linesIndicateDocumentLevelCredit(lines, notes = []) {
     return (lines.some(lineIsCreditOrReturn) ||
         notes.some((n) => /return from invoice/i.test(n)));
 }
-/** User-visible label when skipReason is credit_return or document_ignore. */
+/** User-visible label when skipReason is credit_return, document_ignore, or duplicate resend. */
 function creditReturnSkipLabel(skipReason, rejectedBy) {
+    if (skipReason === exports.DUPLICATE_BUSINESS_INVOICE_SKIP_REASON) {
+        return exports.DUPLICATE_BUSINESS_INVOICE_SKIP_LABEL;
+    }
     if (skipReason === exports.DOCUMENT_IGNORE_SKIP_REASON) {
         return exports.CREDIT_RETURN_AUTO_SKIP_LABEL;
     }
     if (skipReason !== exports.CREDIT_RETURN_SKIP_REASON)
         return null;
     if (rejectedBy === "system:credit_return_skip" ||
-        rejectedBy === "system:document_ignore_skip") {
+        rejectedBy === "system:document_ignore_skip" ||
+        rejectedBy === "system:duplicate_business_invoice") {
         return exports.CREDIT_RETURN_AUTO_SKIP_LABEL;
     }
     return exports.CREDIT_RETURN_SKIP_LABEL;
@@ -99,13 +107,26 @@ function documentIgnoreSkipFields(now) {
         updatedAt: now,
     };
 }
+/** Firestore patch when auto-skipping an exact business-invoice resend. */
+function duplicateBusinessInvoiceSkipFields(now) {
+    return {
+        reviewStatus: "rejected",
+        skipReason: exports.DUPLICATE_BUSINESS_INVOICE_SKIP_REASON,
+        rejectedAt: now,
+        rejectedBy: "system:duplicate_business_invoice",
+        humanReviewRequired: false,
+        updatedAt: now,
+    };
+}
 function isSystemIgnoreSkipReason(skipReason) {
     return (skipReason === exports.CREDIT_RETURN_SKIP_REASON ||
-        skipReason === exports.DOCUMENT_IGNORE_SKIP_REASON);
+        skipReason === exports.DOCUMENT_IGNORE_SKIP_REASON ||
+        skipReason === exports.DUPLICATE_BUSINESS_INVOICE_SKIP_REASON);
 }
 const SYSTEM_AUTO_REJECTED_BY = [
     "system:credit_return_skip",
     "system:document_ignore_skip",
+    "system:duplicate_business_invoice",
 ];
 /** Rejected by ingest/auto-skip — Gmail reparse may refresh. User rejections must never reopen. */
 function isSystemAutoRejectedImport(doc) {

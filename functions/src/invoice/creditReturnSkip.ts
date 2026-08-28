@@ -9,6 +9,13 @@ export const CREDIT_RETURN_SKIP_REASON = "credit_return" as const;
 /** Taught fingerprint ignore (any document type) — review-queue auto-skip only. */
 export const DOCUMENT_IGNORE_SKIP_REASON = "document_ignore" as const;
 
+/** Exact business-invoice resend (new Gmail message, same vendor invoice). */
+export const DUPLICATE_BUSINESS_INVOICE_SKIP_REASON =
+  "duplicate_business_invoice" as const;
+
+export const DUPLICATE_BUSINESS_INVOICE_SKIP_LABEL =
+  "Skipped — duplicate invoice resend";
+
 /** Legacy auto-skipped / manually dismissed credit imports in Rejected archive. */
 export const CREDIT_RETURN_SKIP_LABEL = "Skipped — credit/return";
 
@@ -79,18 +86,22 @@ function linesIndicateDocumentLevelCredit(
   );
 }
 
-/** User-visible label when skipReason is credit_return or document_ignore. */
+/** User-visible label when skipReason is credit_return, document_ignore, or duplicate resend. */
 export function creditReturnSkipLabel(
   skipReason?: string,
   rejectedBy?: string,
 ): string | null {
+  if (skipReason === DUPLICATE_BUSINESS_INVOICE_SKIP_REASON) {
+    return DUPLICATE_BUSINESS_INVOICE_SKIP_LABEL;
+  }
   if (skipReason === DOCUMENT_IGNORE_SKIP_REASON) {
     return CREDIT_RETURN_AUTO_SKIP_LABEL;
   }
   if (skipReason !== CREDIT_RETURN_SKIP_REASON) return null;
   if (
     rejectedBy === "system:credit_return_skip" ||
-    rejectedBy === "system:document_ignore_skip"
+    rejectedBy === "system:document_ignore_skip" ||
+    rejectedBy === "system:duplicate_business_invoice"
   ) {
     return CREDIT_RETURN_AUTO_SKIP_LABEL;
   }
@@ -135,16 +146,37 @@ export function documentIgnoreSkipFields(now: string): {
   };
 }
 
+/** Firestore patch when auto-skipping an exact business-invoice resend. */
+export function duplicateBusinessInvoiceSkipFields(now: string): {
+  reviewStatus: "rejected";
+  skipReason: typeof DUPLICATE_BUSINESS_INVOICE_SKIP_REASON;
+  rejectedAt: string;
+  rejectedBy: "system:duplicate_business_invoice";
+  humanReviewRequired: false;
+  updatedAt: string;
+} {
+  return {
+    reviewStatus: "rejected",
+    skipReason: DUPLICATE_BUSINESS_INVOICE_SKIP_REASON,
+    rejectedAt: now,
+    rejectedBy: "system:duplicate_business_invoice",
+    humanReviewRequired: false,
+    updatedAt: now,
+  };
+}
+
 export function isSystemIgnoreSkipReason(skipReason?: string): boolean {
   return (
     skipReason === CREDIT_RETURN_SKIP_REASON ||
-    skipReason === DOCUMENT_IGNORE_SKIP_REASON
+    skipReason === DOCUMENT_IGNORE_SKIP_REASON ||
+    skipReason === DUPLICATE_BUSINESS_INVOICE_SKIP_REASON
   );
 }
 
 const SYSTEM_AUTO_REJECTED_BY = [
   "system:credit_return_skip",
   "system:document_ignore_skip",
+  "system:duplicate_business_invoice",
 ] as const;
 
 /** Rejected by ingest/auto-skip — Gmail reparse may refresh. User rejections must never reopen. */
