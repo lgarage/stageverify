@@ -35,7 +35,13 @@ export function shouldSkipVendorCfWarmup(moduleLastStartedAt: number): boolean {
   return Date.now() - effective < VENDOR_CF_WARMUP_REARM_MS;
 }
 
+/** Completed tracked ping below this → instance warm; abort overlap on stop(). */
+const KEEPALIVE_WARM_DURATION_MS = 400;
+
 const keepaliveInFlight = new Set<AbortController>();
+
+/** Most recent completed `{ trackForKeepalive: true }` ping duration (page session). */
+let lastCompletedKeepaliveDurationMs: number | null = null;
 
 /** Fire-and-forget empty POST warmup (no PIN, no session). Ignores re-arm skip. */
 export function pingVendorCf(
@@ -43,7 +49,9 @@ export function pingVendorCf(
   options?: { trackForKeepalive?: boolean },
 ): void {
   const controller = new AbortController();
-  if (options?.trackForKeepalive) {
+  const track = options?.trackForKeepalive === true;
+  const startedAt = track ? Date.now() : 0;
+  if (track) {
     keepaliveInFlight.add(controller);
   }
   const timeoutId = setTimeout(
@@ -60,7 +68,8 @@ export function pingVendorCf(
     .catch(() => {})
     .finally(() => {
       clearTimeout(timeoutId);
-      if (options?.trackForKeepalive) {
+      if (track) {
+        lastCompletedKeepaliveDurationMs = Date.now() - startedAt;
         keepaliveInFlight.delete(controller);
       }
     });
@@ -71,6 +80,17 @@ function abortKeepaliveInFlight(): void {
     controller.abort();
   }
   keepaliveInFlight.clear();
+}
+
+/** Abort overlap only when a tracked ping already proved the instance is warm. */
+function stopKeepalivePings(intervalId: ReturnType<typeof setInterval>): void {
+  clearInterval(intervalId);
+  if (
+    lastCompletedKeepaliveDurationMs != null &&
+    lastCompletedKeepaliveDurationMs < KEEPALIVE_WARM_DURATION_MS
+  ) {
+    abortKeepaliveInFlight();
+  }
 }
 
 /** Ping both vendor login CFs immediately (no re-arm skip). */
@@ -89,8 +109,5 @@ export function startVendorLoginCfKeepalive(): () => void {
     pingVendorLoginCloudFunctions,
     VENDOR_LOGIN_CF_KEEPALIVE_MS,
   );
-  return () => {
-    clearInterval(intervalId);
-    abortKeepaliveInFlight();
-  };
+  return () => stopKeepalivePings(intervalId);
 }
