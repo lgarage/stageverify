@@ -278,6 +278,15 @@ async function assertCollapsedMobileLists(page, width) {
     throw new Error(`${width}: desktop deliveries table must not show on phone`);
   }
 
+  // Wait for deliveries list to settle (cards or empty) after auth/data load.
+  await page
+    .locator(
+      '[data-testid^="dispatcher-delivery-mobile-card-"], [data-testid="dispatcher-deliveries-mobile-empty"]',
+    )
+    .first()
+    .waitFor({ state: "visible", timeout: 45_000 })
+    .catch(() => {});
+
   const cards = page.locator('[data-testid^="dispatcher-delivery-mobile-card-"]');
   const cardCount = await cards.count();
   if (cardCount === 0) {
@@ -291,6 +300,7 @@ async function assertCollapsedMobileLists(page, width) {
       }
     }
     const firstToggle = page.locator('[data-testid^="dispatcher-delivery-mobile-toggle-"]').first();
+    await firstToggle.scrollIntoViewIfNeeded();
     await firstToggle.click();
     const firstCard = cards.first();
     if ((await firstCard.getAttribute("data-expanded")) !== "true") {
@@ -302,15 +312,25 @@ async function assertCollapsedMobileLists(page, width) {
     if ((await firstCard.getAttribute("data-expanded")) !== "false") {
       throw new Error(`${width}: delivery card did not collapse again`);
     }
+    // Expand a second card when present.
+    if (cardCount > 1) {
+      const secondToggle = page.locator('[data-testid^="dispatcher-delivery-mobile-toggle-"]').nth(1);
+      await secondToggle.scrollIntoViewIfNeeded();
+      await secondToggle.click();
+      if ((await cards.nth(1).getAttribute("data-expanded")) !== "true") {
+        throw new Error(`${width}: second delivery card did not expand`);
+      }
+      await secondToggle.click();
+    }
   }
 
   await page.getByTestId("invoice-review-panel").waitFor({ state: "visible", timeout: 30_000 });
   await page
     .locator(
-      '[data-testid="invoice-review-queue"], [data-testid="invoice-review-empty"], [data-testid="invoice-review-approved-empty"]',
+      '[data-testid^="invoice-review-queue-row-"], [data-testid="invoice-review-empty"]',
     )
     .first()
-    .waitFor({ state: "visible", timeout: 30_000 })
+    .waitFor({ state: "visible", timeout: 45_000 })
     .catch(() => {});
   const invoiceRows = page.locator('[data-testid^="invoice-review-queue-row-"]');
   const invoiceCount = await invoiceRows.count();
