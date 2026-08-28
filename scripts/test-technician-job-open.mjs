@@ -151,9 +151,37 @@ async function seedDeliveriesForJob(db, jobId, deliverySpecs) {
       status: spec.status,
       orderNumber: `ORD-${spec.id}`,
       vendorId: "vendor-1",
+      vendorOrderComplete: spec.vendorOrderComplete ?? false,
+      vendorPhysicalDropoffConfirmed: spec.vendorPhysicalDropoffConfirmed ?? false,
+      stagingLocationId: spec.stagingLocationId ?? "",
+      additionalStagingLocationIds: spec.additionalStagingLocationIds ?? [],
+      plannedStagingLocationIds: spec.plannedStagingLocationIds ?? [],
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     });
+    const itemSpecs = spec.items ?? [
+      {
+        id: `${spec.id}-item-0`,
+        qtyOrdered: 1,
+        qtyReceived: spec.status === "ready_for_pickup" ? 1 : 0,
+        qtyMissing: spec.status === "ready_for_pickup" ? 0 : 1,
+        qtyDamaged: 0,
+        qtyBackordered: 0,
+      },
+    ];
+    for (const item of itemSpecs) {
+      await setDoc(doc(db, "items", item.id), {
+        id: item.id,
+        deliveryOrderId: spec.id,
+        description: "Test item",
+        qtyOrdered: item.qtyOrdered,
+        qtyReceived: item.qtyReceived,
+        qtyMissing: item.qtyMissing,
+        qtyDamaged: item.qtyDamaged,
+        qtyBackordered: item.qtyBackordered,
+        status: item.qtyReceived === item.qtyOrdered ? "received" : "partial",
+      });
+    }
   }
 }
 
@@ -174,9 +202,27 @@ try {
     await seedTechnicianSession(db);
     await seedDayRelease(db);
     await seedDeliveriesForJob(db, JOB_ID, [
-      { id: "del-r1", status: "ready_for_pickup" },
-      { id: "del-r2", status: "ready_for_pickup" },
-      { id: "del-p1", status: "partial" },
+      {
+        id: "del-r1",
+        status: "ready_for_pickup",
+        vendorOrderComplete: true,
+        vendorPhysicalDropoffConfirmed: true,
+        stagingLocationId: "loc-g1",
+      },
+      {
+        id: "del-r2",
+        status: "ready_for_pickup",
+        vendorOrderComplete: true,
+        vendorPhysicalDropoffConfirmed: true,
+        stagingLocationId: "loc-g2",
+      },
+      {
+        id: "del-p1",
+        status: "partial",
+        vendorOrderComplete: false,
+        vendorPhysicalDropoffConfirmed: true,
+        stagingLocationId: "loc-g3",
+      },
     ]);
   });
 
@@ -297,11 +343,26 @@ try {
     await setDoc(doc(db, "deliveries", "del-t10-extra"), {
       id: "del-t10-extra",
       jobId: JOB_ID,
-      status: "ready_for_pickup",
+      status: "partial",
       orderNumber: "ORD-T10",
       vendorId: "vendor-1",
+      vendorOrderComplete: true,
+      vendorPhysicalDropoffConfirmed: true,
+      stagingLocationId: "",
+      plannedStagingLocationIds: ["loc-g6"],
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
+    });
+    await setDoc(doc(db, "items", "del-t10-extra-item-0"), {
+      id: "del-t10-extra-item-0",
+      deliveryOrderId: "del-t10-extra",
+      description: "Fully received",
+      qtyOrdered: 1,
+      qtyReceived: 1,
+      qtyMissing: 0,
+      qtyDamaged: 0,
+      qtyBackordered: 0,
+      status: "received",
     });
   });
   const t10ClientOpenId = "open-t10-snapshot";

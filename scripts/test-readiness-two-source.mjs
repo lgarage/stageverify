@@ -7,6 +7,8 @@ import {
   computeDeliveryReadiness,
   computeJobReadiness,
   computeStagingAssignmentComplete,
+  getShopStagingAssignmentIds,
+  isPickupEligible,
 } from "../src/dispatcher/readiness.ts";
 import {
   computeDeliveryDisplayState,
@@ -1066,6 +1068,108 @@ const physical6168008Snapshot = buildPhysicalDeliveryEvidenceSnapshot({
 assert(
   physical6168008Snapshot.label === "Vendor Marked Delivered — incomplete",
   "6168008-shaped physical snapshot → Vendor Marked Delivered — incomplete",
+);
+
+// Pickup eligibility: computed-ready + persisted partial (6167419-shaped)
+const inv6170797Items = [
+  {
+    id: "item-inv-1",
+    deliveryOrderId: "delivery-inv-6170797",
+    description: "Fully received line",
+    qtyOrdered: 1,
+    qtyReceived: 1,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+    qtyBackordered: 0,
+    status: "received",
+  },
+];
+const inv6170797Delivery = {
+  ...baseDelivery,
+  id: "delivery-inv-6170797",
+  orderNumber: "INV-6170797",
+  stagingLocationId: "",
+  additionalStagingLocationIds: [],
+  plannedStagingLocationIds: ["loc-g6"],
+  vendorOrderComplete: true,
+  vendorPhysicalDropoffConfirmed: true,
+  status: "partial",
+};
+assert(
+  isPickupEligible(inv6170797Delivery, inv6170797Items).eligible,
+  "INV-6170797-shaped: persisted partial + planned G6 + fully delivered → pickup eligible",
+);
+assert(
+  getShopStagingAssignmentIds(inv6170797Delivery).includes("loc-g6"),
+  "getShopStagingAssignmentIds includes planned loc-g6",
+);
+
+// Planned-only without physical dropoff → NOT pickup eligible
+const plannedOnlyNoPhysicalItems = [
+  {
+    id: "item-planned-only",
+    deliveryOrderId: "delivery-planned-only",
+    description: "Never received",
+    qtyOrdered: 3,
+    qtyReceived: 0,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+    qtyBackordered: 0,
+    status: "missing",
+  },
+];
+const plannedOnlyNoPhysicalDelivery = {
+  ...baseDelivery,
+  id: "delivery-planned-only",
+  stagingLocationId: "",
+  additionalStagingLocationIds: [],
+  plannedStagingLocationIds: ["loc-g6"],
+  vendorOrderComplete: true,
+  vendorPhysicalDropoffConfirmed: false,
+  status: "arrived",
+};
+assert(
+  !isPickupEligible(plannedOnlyNoPhysicalDelivery, plannedOnlyNoPhysicalItems)
+    .eligible,
+  "planned-only without physical dropoff → pickup ineligible",
+);
+
+// True partial 1 of 3 → NOT pickup eligible
+const truePartialItems = [
+  {
+    id: "item-partial-1",
+    deliveryOrderId: "delivery-true-partial",
+    description: "One of three",
+    qtyOrdered: 3,
+    qtyReceived: 1,
+    qtyMissing: 2,
+    qtyDamaged: 0,
+    qtyBackordered: 0,
+    status: "partial",
+  },
+];
+const truePartialDelivery = {
+  ...baseDelivery,
+  id: "delivery-true-partial",
+  plannedStagingLocationIds: ["loc-g6"],
+  vendorOrderComplete: true,
+  vendorPhysicalDropoffConfirmed: true,
+  status: "partial",
+};
+assert(
+  !isPickupEligible(truePartialDelivery, truePartialItems).eligible,
+  "true partial 1 of 3 stays pickup ineligible",
+);
+
+// Dispatcher display still Ready for 6167419-shaped fixture
+const display6167419 = computeDeliveryDisplayState(
+  fixture6167419Delivery,
+  fixture6167419Items,
+  [],
+);
+assert(
+  display6167419.statusDisplayLabel === "Staged — Ready for Pickup",
+  "6167419-shaped computeDeliveryDisplayState still Ready",
 );
 
 if (failures.length) {

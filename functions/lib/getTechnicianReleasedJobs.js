@@ -3,9 +3,43 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getTechnicianReleasedJobs = void 0;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
+const deliveryReadiness_1 = require("./deliveryReadiness");
 const technicianSessionValidation_1 = require("./technicianSessionValidation");
 function getDb() {
     return admin.firestore();
+}
+/** Loose match key: strip dashes/spaces, uppercase (parity with FE stagingCode.ts). */
+function normalizeStagingCodeKey(raw) {
+    return raw.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+}
+function formatStagingCodeCanonical(raw) {
+    const key = normalizeStagingCodeKey(raw);
+    if (!key)
+        return raw.trim();
+    const shelfBin = /^S(\d+)([A-Z])$/.exec(key);
+    if (shelfBin)
+        return `S${shelfBin[1]}-${shelfBin[2]}`;
+    const ground = /^G(\d+)$/.exec(key);
+    if (ground)
+        return `G${ground[1]}`;
+    return key;
+}
+function resolveStagingLocationCodes(rawIds, codeById, codeKeyToCanonical) {
+    const codes = new Set();
+    for (const rawId of rawIds) {
+        const id = typeof rawId === "string" ? rawId.trim() : "";
+        if (!id)
+            continue;
+        const byId = codeById.get(id);
+        if (byId?.trim()) {
+            codes.add(formatStagingCodeCanonical(byId));
+            continue;
+        }
+        const canonical = codeKeyToCanonical.get(normalizeStagingCodeKey(id));
+        if (canonical)
+            codes.add(canonical);
+    }
+    return [...codes].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
 }
 async function loadSession(sessionToken) {
     const snap = await getDb()
@@ -21,15 +55,13 @@ async function loadSession(sessionToken) {
     }
     return data;
 }
-function allStagingIds(delivery) {
-    const ids = [];
-    if (delivery.stagingLocationId?.trim()) {
-        ids.push(delivery.stagingLocationId.trim());
-    }
-    if (delivery.additionalStagingLocationIds?.length) {
-        ids.push(...delivery.additionalStagingLocationIds);
-    }
-    return ids;
+async function loadItemsForDelivery(deliveryId) {
+    const itemsSnap = await getDb()
+        .collection("items")
+        .where("deliveryOrderId", "==", deliveryId)
+        .limit(500)
+        .get();
+    return itemsSnap.docs.map((doc) => doc.data());
 }
 /** Always-strict: returns only day-released jobs (empty array when none). */
 exports.getTechnicianReleasedJobs = (0, https_1.onCall)({
@@ -65,10 +97,21 @@ exports.getTechnicianReleasedJobs = (0, https_1.onCall)({
         .limit(500)
         .get();
     const codeById = new Map();
+    const codeKeyToCanonical = new Map();
     for (const doc of stagingSnap.docs) {
         const code = String(doc.data().code ?? doc.id);
         codeById.set(doc.id, code);
+        const canonical = formatStagingCodeCanonical(code);
+        if (canonical)
+            codeKeyToCanonical.set(normalizeStagingCodeKey(code), canonical);
     }
+    const settingsSnap = await getDb()
+        .collection("appSettings")
+        .doc("config")
+        .get();
+    const vendorDeliveryMode = settingsSnap.data()?.vendorDeliveryMode ??
+        "full_checkin";
+    const now = new Date().toISOString();
     const jobs = [];
     for (const jobId of jobIds) {
         const jobSnap = await getDb().collection("jobs").doc(jobId).get();
@@ -87,16 +130,16 @@ exports.getTechnicianReleasedJobs = (0, https_1.onCall)({
         for (const doc of deliveriesSnap.docs) {
             const delivery = doc.data();
             deliveryCount += 1;
-            if (delivery.status === "ready_for_pickup") {
+            const items = await loadItemsForDelivery(doc.id);
+            const readiness = (0, deliveryReadiness_1.computeDeliveryReadiness)(delivery, items, now, vendorDeliveryMode);
+            if (readiness.readyForPickup) {
                 readyForPickupCount += 1;
             }
-            for (const locId of allStagingIds(delivery)) {
+            for (const locId of (0, deliveryReadiness_1.getShopStagingAssignmentIds)(delivery)) {
                 locationIdSet.add(locId);
             }
         }
-        const stagingLocationCodes = [...locationIdSet]
-            .map((id) => codeById.get(id) ?? id)
-            .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+        const stagingLocationCodes = resolveStagingLocationCodes([...locationIdSet], codeById, codeKeyToCanonical);
         jobs.push({
             jobId,
             jobName,

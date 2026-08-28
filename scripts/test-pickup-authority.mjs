@@ -888,6 +888,128 @@ try {
     await unauth.cleanup();
   }
 
+  console.log("\n=== Computed-ready partial + planned staging pickup ===\n");
+
+  const PLANNED_G6_ID = "loc-planned-g6";
+  const TECH_PLANNED_TOKEN = "f".repeat(64);
+
+  await seed(async (db) => {
+    await setDoc(doc(db, "stagingLocations", PLANNED_G6_ID), {
+      id: PLANNED_G6_ID,
+      code: "G6",
+      label: "G6",
+      zoneId: "zone-ground",
+      active: true,
+    });
+    await setDoc(doc(db, "jobs", "job-planned-g6"), {
+      id: "job-planned-g6",
+      jobNumber: "26-G6",
+      jobName: "Planned G6 job",
+      status: "active",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+    await setDoc(doc(db, "purchaseOrders", "po-planned-g6"), {
+      id: "po-planned-g6",
+      poNumber: "PO-G6",
+      jobId: "job-planned-g6",
+      vendorId: "vendor-1",
+      status: "open",
+    });
+    await setDoc(doc(db, "deliveries", "del-planned-g6-ready"), {
+      id: "del-planned-g6-ready",
+      orderNumber: "INV-6170797",
+      jobId: "job-planned-g6",
+      vendorId: "vendor-1",
+      purchaseOrderId: "po-planned-g6",
+      deliveryDate: "2026-06-12",
+      status: "partial",
+      readinessStatus: "not_ready",
+      vendorOrderComplete: true,
+      vendorPhysicalDropoffConfirmed: true,
+      stagingLocationId: "",
+      additionalStagingLocationIds: [],
+      plannedStagingLocationIds: [PLANNED_G6_ID],
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+    await setDoc(doc(db, "items", "del-planned-g6-ready-item"), {
+      id: "del-planned-g6-ready-item",
+      deliveryOrderId: "del-planned-g6-ready",
+      description: "Fully received",
+      qtyOrdered: 1,
+      qtyReceived: 1,
+      qtyMissing: 0,
+      qtyDamaged: 0,
+      qtyBackordered: 0,
+      status: "received",
+    });
+    await seedPickupToken(db, "job-planned-g6");
+    await seedTechnicianSession(db, {
+      token: TECH_PLANNED_TOKEN,
+      jobIds: ["job-planned-g6"],
+    });
+  });
+
+  try {
+    await recordPickup({
+      deliveryOrderId: "del-planned-g6-ready",
+      jobId: "job-planned-g6",
+      technicianName: "Session Tech",
+      itemsPickedSummary: "1 item",
+      clientOperationId: `op-planned-g6-${crypto.randomUUID()}`,
+      stagingLocationIds: [PLANNED_G6_ID],
+      technicianSessionToken: TECH_PLANNED_TOKEN,
+    });
+    pass("computed-ready persisted partial + planned G6 → pickup succeeds");
+  } catch (err) {
+    fail("computed-ready planned G6 pickup should succeed", err);
+  }
+
+  await seed(async (db) => {
+    await setDoc(doc(db, "deliveries", "del-planned-only-fail"), {
+      id: "del-planned-only-fail",
+      orderNumber: "ORD-PLAN-FAIL",
+      jobId: "job-planned-g6",
+      vendorId: "vendor-1",
+      purchaseOrderId: "po-planned-g6",
+      deliveryDate: "2026-06-12",
+      status: "arrived",
+      vendorOrderComplete: true,
+      vendorPhysicalDropoffConfirmed: false,
+      stagingLocationId: "",
+      plannedStagingLocationIds: [PLANNED_G6_ID],
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+    await setDoc(doc(db, "items", "del-planned-only-fail-item"), {
+      id: "del-planned-only-fail-item",
+      deliveryOrderId: "del-planned-only-fail",
+      description: "Never received",
+      qtyOrdered: 1,
+      qtyReceived: 0,
+      qtyMissing: 0,
+      qtyDamaged: 0,
+      qtyBackordered: 0,
+      status: "missing",
+    });
+  });
+
+  try {
+    await recordPickup({
+      deliveryOrderId: "del-planned-only-fail",
+      jobId: "job-planned-g6",
+      technicianName: "Session Tech",
+      itemsPickedSummary: "1 item",
+      clientOperationId: `op-planned-only-${crypto.randomUUID()}`,
+      stagingLocationIds: [PLANNED_G6_ID],
+      technicianSessionToken: TECH_PLANNED_TOKEN,
+    });
+    fail("planned-only without physical dropoff should be rejected");
+  } catch {
+    pass("planned-only without physical dropoff rejected");
+  }
+
   console.log("\n=== Dispatcher manual pickup authority ===\n");
 
   async function seedDispatcherRole(uid, { active = true } = {}) {

@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.computePhysicalDropoffComplete = computePhysicalDropoffComplete;
 exports.deliveryHasCurrentShopStagingAssignment = deliveryHasCurrentShopStagingAssignment;
+exports.getShopStagingAssignmentIds = getShopStagingAssignmentIds;
 exports.computeStagingAssignmentComplete = computeStagingAssignmentComplete;
 exports.computeDeliveryReadiness = computeDeliveryReadiness;
 exports.isPickupEligible = isPickupEligible;
@@ -56,6 +57,22 @@ function deliveryHasCurrentShopStagingAssignment(delivery) {
         return true;
     }
     return false;
+}
+/** Physical + planned shop staging ids (parity with FE collectDeliveryStagingCodes id union). */
+function getShopStagingAssignmentIds(delivery) {
+    const ids = new Set();
+    if (delivery.stagingLocationId?.trim()) {
+        ids.add(delivery.stagingLocationId.trim());
+    }
+    for (const id of delivery.additionalStagingLocationIds ?? []) {
+        if (typeof id === "string" && id.trim())
+            ids.add(id.trim());
+    }
+    for (const id of delivery.plannedStagingLocationIds ?? []) {
+        if (typeof id === "string" && id.trim())
+            ids.add(id.trim());
+    }
+    return [...ids];
 }
 function computeStagingAssignmentComplete(delivery, items) {
     const anyReceived = items.some((item) => item.qtyReceived > 0);
@@ -179,7 +196,7 @@ function isPickupEligible(delivery, items, vendorDeliveryMode) {
             "ready_for_pickup",
             "complete",
         ]
-        : ["ready_for_pickup", "complete"];
+        : ["ready_for_pickup", "complete", "partial", "arrived"];
     if (!allowedStatuses.includes(delivery.status)) {
         return { eligible: false, reason: "delivery_not_ready_for_pickup" };
     }

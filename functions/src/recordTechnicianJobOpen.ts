@@ -1,6 +1,12 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import {
+  computeDeliveryReadiness,
+  type DeliveryDoc,
+  type ItemDoc,
+  type VendorDeliveryMode,
+} from "./deliveryReadiness";
+import {
   asTechnicianSessionToken,
   assertTechnicianSessionForJobPickup,
   todayReleaseDateUtc,
@@ -40,6 +46,15 @@ function normalizeSource(
   return value as "location_scan" | "pickup_deep_link";
 }
 
+async function loadItemsForDelivery(deliveryId: string): Promise<ItemDoc[]> {
+  const itemsSnap = await getDb()
+    .collection("items")
+    .where("deliveryOrderId", "==", deliveryId)
+    .limit(500)
+    .get();
+  return itemsSnap.docs.map((doc) => doc.data() as ItemDoc);
+}
+
 /** Records technician job open for ROI analytics (idempotent per clientOpenId). */
 export const recordTechnicianJobOpen = onCall(
   {
@@ -74,6 +89,15 @@ export const recordTechnicianJobOpen = onCall(
       releaseDate,
     );
 
+    const settingsSnap = await getDb()
+      .collection("appSettings")
+      .doc("config")
+      .get();
+    const vendorDeliveryMode =
+      (settingsSnap.data()?.vendorDeliveryMode as VendorDeliveryMode | undefined) ??
+      "full_checkin";
+    const now = new Date().toISOString();
+
     const deliveriesSnap = await getDb()
       .collection("deliveries")
       .where("jobId", "==", jobId)
@@ -84,12 +108,19 @@ export const recordTechnicianJobOpen = onCall(
     let readyForPickupCount = 0;
     for (const deliveryDoc of deliveriesSnap.docs) {
       deliveryCount += 1;
-      if (deliveryDoc.data().status === "ready_for_pickup") {
+      const delivery = deliveryDoc.data() as DeliveryDoc;
+      const items = await loadItemsForDelivery(deliveryDoc.id);
+      const readiness = computeDeliveryReadiness(
+        delivery,
+        items,
+        now,
+        vendorDeliveryMode,
+      );
+      if (readiness.readyForPickup) {
         readyForPickupCount += 1;
       }
     }
 
-    const now = new Date().toISOString();
     const eventId = `job-open-${clientOpenId}`;
     const source = normalizeSource(data.source);
 

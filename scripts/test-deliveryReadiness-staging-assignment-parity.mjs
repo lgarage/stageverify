@@ -11,6 +11,8 @@ import {
   computeDeliveryReadiness,
   computeStagingAssignmentComplete,
   deliveryHasCurrentShopStagingAssignment,
+  getShopStagingAssignmentIds,
+  isPickupEligible,
 } from "../functions/src/deliveryReadiness.ts";
 import { resolveSpotColor } from "../src/dispatcher/resolveSpotColor.ts";
 
@@ -354,6 +356,46 @@ runCase(
   assert(
     resolveSpotColor("G12", occupancyNotReady, {}) === "orange",
     "case12: not_ready occupied → orange",
+  );
+}
+
+// 13 — isPickupEligible widened for shop-staging persisted partial/arrived
+{
+  const items = [completeItem(1)];
+  const delivery = baseDelivery({
+    status: "partial",
+    stagingLocationId: "",
+    plannedStagingLocationIds: ["loc-g6"],
+    vendorPhysicalDropoffConfirmed: true,
+  });
+  assert(
+    getShopStagingAssignmentIds(delivery).includes("loc-g6"),
+    "case13: getShopStagingAssignmentIds includes planned G6",
+  );
+  assert(
+    isPickupEligible(delivery, items).eligible,
+    "case13: persisted partial + planned G6 + fully delivered → pickup eligible",
+  );
+}
+
+// 14 — planned-only without physical dropoff stays ineligible
+{
+  const items = [
+    completeItem(1, {
+      qtyReceived: 0,
+      qtyMissing: 0,
+      qtyBackordered: 0,
+    }),
+  ];
+  const delivery = baseDelivery({
+    status: "arrived",
+    stagingLocationId: "",
+    plannedStagingLocationIds: ["loc-g6"],
+    vendorPhysicalDropoffConfirmed: false,
+  });
+  assert(
+    !isPickupEligible(delivery, items).eligible,
+    "case14: planned-only without physical dropoff → pickup ineligible",
   );
 }
 

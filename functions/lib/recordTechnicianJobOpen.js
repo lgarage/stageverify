@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.recordTechnicianJobOpen = void 0;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
+const deliveryReadiness_1 = require("./deliveryReadiness");
 const technicianSessionValidation_1 = require("./technicianSessionValidation");
 function getDb() {
     return admin.firestore();
@@ -30,6 +31,14 @@ function normalizeSource(value) {
         return undefined;
     return value;
 }
+async function loadItemsForDelivery(deliveryId) {
+    const itemsSnap = await getDb()
+        .collection("items")
+        .where("deliveryOrderId", "==", deliveryId)
+        .limit(500)
+        .get();
+    return itemsSnap.docs.map((doc) => doc.data());
+}
 /** Records technician job open for ROI analytics (idempotent per clientOpenId). */
 exports.recordTechnicianJobOpen = (0, https_1.onCall)({
     region: "us-central1",
@@ -54,6 +63,13 @@ exports.recordTechnicianJobOpen = (0, https_1.onCall)({
     }
     const releaseDate = (0, technicianSessionValidation_1.todayReleaseDateUtc)();
     const session = await (0, technicianSessionValidation_1.assertTechnicianSessionForJobPickup)(sessionToken, jobId, releaseDate);
+    const settingsSnap = await getDb()
+        .collection("appSettings")
+        .doc("config")
+        .get();
+    const vendorDeliveryMode = settingsSnap.data()?.vendorDeliveryMode ??
+        "full_checkin";
+    const now = new Date().toISOString();
     const deliveriesSnap = await getDb()
         .collection("deliveries")
         .where("jobId", "==", jobId)
@@ -63,11 +79,13 @@ exports.recordTechnicianJobOpen = (0, https_1.onCall)({
     let readyForPickupCount = 0;
     for (const deliveryDoc of deliveriesSnap.docs) {
         deliveryCount += 1;
-        if (deliveryDoc.data().status === "ready_for_pickup") {
+        const delivery = deliveryDoc.data();
+        const items = await loadItemsForDelivery(deliveryDoc.id);
+        const readiness = (0, deliveryReadiness_1.computeDeliveryReadiness)(delivery, items, now, vendorDeliveryMode);
+        if (readiness.readyForPickup) {
             readyForPickupCount += 1;
         }
     }
-    const now = new Date().toISOString();
     const eventId = `job-open-${clientOpenId}`;
     const source = normalizeSource(data.source);
     const eventDoc = {

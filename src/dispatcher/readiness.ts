@@ -125,6 +125,28 @@ export function deliveryHasCurrentShopStagingAssignment(
   return false;
 }
 
+/** Physical + planned shop staging ids (parity with CF deliveryReadiness). */
+export function getShopStagingAssignmentIds(
+  delivery: Pick<
+    DeliveryOrder,
+    | "stagingLocationId"
+    | "additionalStagingLocationIds"
+    | "plannedStagingLocationIds"
+  >,
+): string[] {
+  const ids = new Set<string>();
+  if (delivery.stagingLocationId?.trim()) {
+    ids.add(delivery.stagingLocationId.trim());
+  }
+  for (const id of delivery.additionalStagingLocationIds ?? []) {
+    if (typeof id === "string" && id.trim()) ids.add(id.trim());
+  }
+  for (const id of delivery.plannedStagingLocationIds ?? []) {
+    if (typeof id === "string" && id.trim()) ids.add(id.trim());
+  }
+  return [...ids];
+}
+
 /** Staging: zone assigned when material received or vendor confirmed drop-off. */
 export function computeStagingAssignmentComplete(
   delivery: Pick<
@@ -358,7 +380,7 @@ export function isPickupEligible(
         "ready_for_pickup",
         "complete",
       ]
-    : ["ready_for_pickup", "complete"];
+    : ["ready_for_pickup", "complete", "partial", "arrived"];
 
   if (!allowedStatuses.includes(delivery.status)) {
     return { eligible: false, reason: "delivery_not_ready_for_pickup" };

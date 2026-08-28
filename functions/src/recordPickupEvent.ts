@@ -3,6 +3,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import {
   computeDeliveryReadiness,
   computePhysicalDropoffComplete,
+  getShopStagingAssignmentIds,
   isDispatcherPickupEligible,
   isPickupEligible,
   type DeliveryDoc,
@@ -61,6 +62,7 @@ interface DeliveryRecord extends DeliveryDoc {
   additionalStagingLocationIds?: string[];
   combinationStagingGroupId?: string;
   combinationMemberLocationIds?: string[];
+  plannedStagingLocationIds?: string[];
   pickedUpStagingLocationIds?: string[];
   readinessStatus?: string;
   shopStockLines?: ShopStockLineRecord[];
@@ -91,11 +93,7 @@ function asStringArray(value: unknown, maxItems: number): string[] | null {
 }
 
 function allStagingIds(delivery: DeliveryRecord): string[] {
-  const ids: string[] = [];
-  if (delivery.stagingLocationId?.trim()) ids.push(delivery.stagingLocationId.trim());
-  if (delivery.additionalStagingLocationIds?.length) {
-    ids.push(...delivery.additionalStagingLocationIds);
-  }
+  const ids = [...getShopStagingAssignmentIds(delivery)];
   if (delivery.combinationMemberLocationIds?.length) {
     for (const memberId of delivery.combinationMemberLocationIds) {
       const trimmed = memberId?.trim();
