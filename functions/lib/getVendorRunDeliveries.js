@@ -53,6 +53,7 @@ function mapItems(itemsSnap) {
 /** Vendor-scoped multi-job delivery list (opt-in company PIN — D-09 amended). */
 exports.getVendorRunDeliveries = (0, https_1.onCall)({
     region: "us-central1",
+    minInstances: 1,
     cors: [
         "http://localhost:5173",
         "http://127.0.0.1:5173",

@@ -38,6 +38,7 @@ async function clearBothPinRateLimits(attemptKey: string): Promise<void> {
 export const resolveLocationScanPin = onCall(
   {
     region: "us-central1",
+    minInstances: 1,
     secrets: [accessPinEncryptionKey],
     cors: [
       "http://localhost:5173",
