@@ -12,6 +12,7 @@ import {
   type VendorFulfillmentItemInput,
   vendorItemsHaveFulfillmentQty,
 } from "./vendorJobCardStatus";
+import type { VendorRunDeliverySummary } from "./models";
 
 export const VENDOR_COMPLETED_MS_24H = 24 * 60 * 60 * 1000;
 export const VENDOR_COMPLETED_MS_72H = 72 * 60 * 60 * 1000;
@@ -146,4 +147,78 @@ export function partitionVendorRunDeliveries<
     mainList: partial.concat(open, recentCompleted),
     completedDeliveries,
   };
+}
+
+function vendorRunRowId(row: VendorRunListPartitionRow & { deliveryId?: string; id?: string }): string | undefined {
+  return row.deliveryId ?? row.id;
+}
+
+/**
+ * Re-attach locally-known completed-visible rows omitted by the server list
+ * (e.g. after readiness promotes ready_for_pickup and CF filters active-only).
+ * Server rows win on id collision; recovered rows append in source order.
+ */
+export function mergeVendorVisibleCompletedRows<
+  T extends VendorRunListPartitionRow & { deliveryId?: string; id?: string },
+>(serverRows: readonly T[], previousRows: readonly T[], nowMs: number = Date.now()): T[] {
+  const serverIds = new Set(
+    serverRows
+      .map((row) => vendorRunRowId(row))
+      .filter((id): id is string => typeof id === "string" && id.length > 0),
+  );
+  const recovered: T[] = [];
+  const recoveredIds = new Set<string>();
+
+  for (const row of previousRows) {
+    const id = vendorRunRowId(row);
+    if (!id || serverIds.has(id) || recoveredIds.has(id)) {
+      continue;
+    }
+    const group = classifyVendorRunDeliveryRow(row, nowMs);
+    if (group === "recentCompleted" || group === "completedSection") {
+      recovered.push(row);
+      recoveredIds.add(id);
+    }
+  }
+
+  return serverRows.concat(recovered);
+}
+
+/**
+ * Optimistic patch after vendor Complete write: set physical drop-off flags.
+ * When fulfillment qty is already on the list DTO and the order is Partial,
+ * items are left unchanged (backorder lines keep qtyReceived: 0). Otherwise
+ * qtyReceived is synthesized from qtyOrdered so merge can classify recentCompleted.
+ */
+export function patchVendorRunCompleteRows(
+  rows: readonly VendorRunDeliverySummary[],
+  deliveredIds: ReadonlySet<string>,
+  nowMs: number = Date.now(),
+): VendorRunDeliverySummary[] {
+  const nowIso = new Date(nowMs).toISOString();
+  return rows.map((row) => {
+    if (!deliveredIds.has(row.deliveryId)) {
+      return row;
+    }
+    const hasFulfillmentQty = vendorItemsHaveFulfillmentQty(row.items);
+    const isPartialOrder =
+      hasFulfillmentQty &&
+      deriveVendorOrderFulfillmentLabel({
+        items: row.items,
+        deliveryStatus: row.status,
+        vendorPhysicalDropoffConfirmed: false,
+      }) === "Partial";
+    return {
+      ...row,
+      vendorPhysicalDropoffConfirmed: true,
+      vendorPhysicalDropoffConfirmedAt:
+        row.vendorPhysicalDropoffConfirmedAt ?? nowIso,
+      items: isPartialOrder
+        ? row.items
+        : row.items.map((item) => ({
+            ...item,
+            qtyReceived: item.qtyOrdered ?? item.qtyReceived ?? 0,
+          })),
+    };
+  });
 }

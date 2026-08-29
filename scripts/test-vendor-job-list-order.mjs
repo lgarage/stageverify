@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import {
   isVendorJobCardDelivered,
+  mergeVendorVisibleCompletedRows,
   orderVendorJobsDeliveredLast,
   partitionVendorRunDeliveries,
+  patchVendorRunCompleteRows,
   classifyVendorRunDeliveryRow,
   VENDOR_COMPLETED_MS_24H,
   VENDOR_COMPLETED_MS_72H,
@@ -251,4 +253,172 @@ assert.deepEqual(
   "source order preserved inside each main-list group",
 );
 
-console.log("PASS: test-vendor-job-list-order (28 cases)");
+const serverRecent = [partitionRow("open-1", { delivered: false })];
+const omittedRecent = deliveredLifecycleRow("recent-omitted", 2);
+assert.deepEqual(
+  mergeVendorVisibleCompletedRows(serverRecent, [omittedRecent], nowMs).map(
+    (r) => r.id,
+  ),
+  ["open-1", "recent-omitted"],
+  "omitted <24h completed row recovered to recent",
+);
+
+const serverOpenOnly = [partitionRow("open-2", { delivered: false })];
+const omitted48h = deliveredLifecycleRow("section-omitted", 48);
+assert.deepEqual(
+  mergeVendorVisibleCompletedRows(serverOpenOnly, [omitted48h], nowMs).map(
+    (r) => r.id,
+  ),
+  ["open-2", "section-omitted"],
+  "omitted 48h completed row recovered to completed section",
+);
+
+const omitted80h = deliveredLifecycleRow("hidden-omitted", 80);
+assert.deepEqual(
+  mergeVendorVisibleCompletedRows(serverOpenOnly, [omitted80h], nowMs).map(
+    (r) => r.id,
+  ),
+  ["open-2"],
+  "omitted >72h completed row stays hidden",
+);
+
+const serverWithRecent = [
+  partitionRow("open-3", { delivered: false }),
+  deliveredLifecycleRow("recent-server", 1),
+];
+const staleRecent = deliveredLifecycleRow("recent-server", 5);
+staleRecent.staleMarker = true;
+const mergedBoth = mergeVendorVisibleCompletedRows(
+  serverWithRecent,
+  [staleRecent],
+  nowMs,
+);
+assert.equal(mergedBoth.length, 2);
+assert.equal(mergedBoth[1].id, "recent-server");
+assert.equal(mergedBoth[1].staleMarker, undefined, "server row wins when both present");
+
+const omittedPartial = partitionRow("partial-omitted", {
+  delivered: true,
+  at: hoursAgoIso(2),
+  items: partialItems(),
+});
+assert.deepEqual(
+  mergeVendorVisibleCompletedRows(serverOpenOnly, [omittedPartial], nowMs).map(
+    (r) => r.id,
+  ),
+  ["open-2"],
+  "Partial omitted leftover is NOT recovered as completed",
+);
+
+const omittedWithZeroQty = {
+  ...deliveredLifecycleRow("recent-zero-qty", 1),
+  items: [{ id: "i1", qtyOrdered: 1, qtyReceived: 0 }],
+  vendorPhysicalDropoffConfirmed: true,
+};
+assert.deepEqual(
+  mergeVendorVisibleCompletedRows(serverOpenOnly, [omittedWithZeroQty], nowMs).map(
+    (r) => r.id,
+  ),
+  ["open-2"],
+  "zero qtyReceived with drop-off confirms does not recover as completed",
+);
+const omittedWithPatchedQty = {
+  ...deliveredLifecycleRow("recent-patched-qty", 1),
+  items: [{ id: "i1", qtyOrdered: 1, qtyReceived: 1 }],
+  vendorPhysicalDropoffConfirmed: true,
+};
+assert.deepEqual(
+  mergeVendorVisibleCompletedRows(serverOpenOnly, [omittedWithPatchedQty], nowMs).map(
+    (r) => r.id,
+  ),
+  ["open-2", "recent-patched-qty"],
+  "patched qtyReceived recovers omitted recent completed row",
+);
+
+function patchTestRow(id, opts = {}) {
+  return {
+    deliveryId: id,
+    jobId: "job",
+    jobName: "Shop",
+    orderNumber: "ORDER",
+    stagingLocationCodes: ["G1"],
+    hasAssignableSpot: true,
+    vendorPhysicalDropoffConfirmed: opts.delivered ?? false,
+    vendorPhysicalDropoffConfirmedAt: opts.at,
+    status: opts.status,
+    items: opts.items ?? [],
+  };
+}
+
+const partialCompleteSource = patchTestRow("partial-complete", {
+  status: "partial",
+  items: [
+    {
+      id: "i-partial",
+      qtyOrdered: 2,
+      qtyReceived: 0,
+      qtyBackordered: 2,
+      status: "backordered",
+    },
+  ],
+});
+const partialPatched = patchVendorRunCompleteRows(
+  [partialCompleteSource],
+  new Set(["partial-complete"]),
+  nowMs,
+)[0];
+assert.equal(
+  partialPatched.items[0].qtyReceived,
+  0,
+  "Partial complete patch keeps qtyReceived 0",
+);
+assert.equal(
+  partialPatched.items[0].qtyBackordered,
+  2,
+  "Partial complete patch keeps backorder qty",
+);
+assert.equal(
+  classifyVendorRunDeliveryRow(partialPatched, nowMs),
+  "partial",
+  "Partial complete patch stays in partial group",
+);
+
+const unhydratedCompleteSource = patchTestRow("open-complete", {
+  items: [{ id: "i-open", qtyOrdered: 1, description: "Air handler" }],
+});
+const unhydratedPatched = patchVendorRunCompleteRows(
+  [unhydratedCompleteSource],
+  new Set(["open-complete"]),
+  nowMs,
+)[0];
+assert.equal(
+  unhydratedPatched.items[0].qtyReceived,
+  1,
+  "unhydrated complete patch fills qtyReceived from qtyOrdered",
+);
+assert.equal(
+  classifyVendorRunDeliveryRow(unhydratedPatched, nowMs),
+  "recentCompleted",
+  "unhydrated complete patch classifies as recentCompleted",
+);
+
+const hydratedOpenZeroSource = patchTestRow("open-hydrated-zero", {
+  items: [{ id: "i-open", qtyOrdered: 1, qtyReceived: 0 }],
+});
+const hydratedOpenZeroPatched = patchVendorRunCompleteRows(
+  [hydratedOpenZeroSource],
+  new Set(["open-hydrated-zero"]),
+  nowMs,
+)[0];
+assert.equal(
+  hydratedOpenZeroPatched.items[0].qtyReceived,
+  1,
+  "hydrated open qtyReceived 0 is filled on complete when not Partial",
+);
+assert.equal(
+  classifyVendorRunDeliveryRow(hydratedOpenZeroPatched, nowMs),
+  "recentCompleted",
+  "hydrated open complete patch classifies as recentCompleted",
+);
+
+console.log("PASS: test-vendor-job-list-order (39 cases)");

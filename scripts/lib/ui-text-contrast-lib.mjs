@@ -710,7 +710,7 @@ export const VENDOR_RUN_LAYOUT_CONTRAST_SPEC = {
     },
     {
       name: "vendor-run Complete delivery button",
-      selector: '[data-testid^="vendor-run-complete-"]',
+      selector: '[data-testid^="vendor-run-complete-"]:not([data-testid*="-confirm-"]):not([data-testid*="-status-"])',
       large: false,
     },
     {
@@ -743,6 +743,28 @@ export const VENDOR_DELIVERED_HUB_ITEMS_CONTRAST_SPEC = {
     {
       name: "item row quantity",
       selector: '[data-testid="vendor-hub-item-row"] [data-testid="vendor-item-qty"]',
+      large: false,
+    },
+  ],
+};
+
+export const VENDOR_RUN_COMPLETE_CONFIRM_CONTRAST_SPEC = {
+  rootSelector: '[data-testid^="vendor-run-complete-confirm-"]:not([data-testid*="-yes-"]):not([data-testid*="-no-"])',
+  elements: [
+    {
+      name: "complete confirm prompt",
+      selector:
+        '[data-testid^="vendor-run-complete-confirm-"]:not([data-testid*="-yes-"]):not([data-testid*="-no-"]) p',
+      large: false,
+    },
+    {
+      name: "complete confirm yes button",
+      selector: '[data-testid^="vendor-run-complete-confirm-yes-"]',
+      large: false,
+    },
+    {
+      name: "complete confirm no button",
+      selector: '[data-testid^="vendor-run-complete-confirm-no-"]',
       large: false,
     },
   ],

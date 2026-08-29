@@ -102,7 +102,13 @@ import {
   deriveVendorOrderFulfillmentLabel,
   vendorFulfillmentTone,
 } from "./dispatcher/vendorJobCardStatus";
-import { orderVendorJobsDeliveredLast, partitionVendorRunDeliveries } from "./dispatcher/vendorJobListOrder";
+import {
+  mergeVendorVisibleCompletedRows,
+  orderVendorJobsDeliveredLast,
+  partitionVendorRunDeliveries,
+  patchVendorRunCompleteRows,
+} from "./dispatcher/vendorJobListOrder";
+import { reduceVendorCompleteConfirm } from "./dispatcher/vendorCompleteConfirm";
 import {
   createVendorRunDetailsCache,
   enrichVendorRunFulfillment,
@@ -167,6 +173,7 @@ interface LocationBranding {
 interface VendorRunExpansionUpdate {
   preserveExpandedIds: Set<string>;
   collapseDeliveryIds: Set<string>;
+  mergePreviousRows?: VendorRunDeliverySummary[];
 }
 
 type VendorScanFirestoreModule = typeof import("./dispatcher/firestoreService");
@@ -232,6 +239,7 @@ function LocationScanPageInner() {
   const firstCardRenderMarkedRef = useRef(false);
   const pendingPinFingerprintRef = useRef<string | null>(null);
   const vendorIdRef = useRef<string | null>(null);
+  const vendorRunDeliveriesRef = useRef<VendorRunDeliverySummary[]>([]);
   const lastUiScreenRef = useRef<string | null>(null);
   const stopKeepaliveRef = useRef<(() => void) | null>(null);
   const vendorPinSlowTimerRef = useRef<number | null>(null);
@@ -248,6 +256,12 @@ function LocationScanPageInner() {
   const [vendorRunDeliveries, setVendorRunDeliveries] = useState<
     VendorRunDeliverySummary[]
   >([]);
+  useEffect(() => {
+    vendorRunDeliveriesRef.current = vendorRunDeliveries;
+  }, [vendorRunDeliveries]);
+  const [vendorCompleteConfirmId, setVendorCompleteConfirmId] = useState<
+    string | null
+  >(null);
   const [expandedDeliveryIds, setExpandedDeliveryIds] = useState<Set<string>>(
     new Set(),
   );
@@ -706,6 +720,26 @@ function LocationScanPageInner() {
         }
         return new Set();
       };
+      const collectMergePreviousRows = (): VendorRunDeliverySummary[] => {
+        if (expansionUpdate?.mergePreviousRows) {
+          return expansionUpdate.mergePreviousRows;
+        }
+        const merged: VendorRunDeliverySummary[] = [
+          ...vendorRunDeliveriesRef.current,
+        ];
+        const cacheRows = readVendorRunDeliveriesCache(resolvedVendorId)?.deliveries;
+        if (cacheRows) {
+          merged.push(...cacheRows);
+        }
+        return merged;
+      };
+      const mergeServerDeliveries = (
+        serverRows: VendorRunDeliverySummary[],
+      ): VendorRunDeliverySummary[] =>
+        mergeVendorVisibleCompletedRows(
+          serverRows,
+          collectMergePreviousRows(),
+        );
       const applyVendorRunListState = (deliveries: VendorRunDeliverySummary[]) => {
         setVendorId(resolvedVendorId);
         setSessionScope("vendor");
@@ -719,7 +753,7 @@ function LocationScanPageInner() {
       };
 
       flushSync(() => {
-        applyVendorRunListState(result.deliveries);
+        applyVendorRunListState(mergeServerDeliveries(result.deliveries));
       });
       markVendorPinDebug(
         "LIST_STATE_COMMIT",
@@ -728,7 +762,7 @@ function LocationScanPageInner() {
       await yieldToNextPaint();
 
       writeVendorRunDeliveriesCache(resolvedVendorId, {
-        deliveries: result.deliveries,
+        deliveries: mergeServerDeliveries(result.deliveries),
         scannedStagingLocationCode:
           result.scannedStagingLocationCode ?? scannedCode ?? "",
         vendorName:
@@ -736,7 +770,7 @@ function LocationScanPageInner() {
       });
 
       const deliveries = await enrichVendorRunFulfillment(
-        result.deliveries,
+        mergeServerDeliveries(result.deliveries),
         token,
         getVendorReceiveDetailsClient,
         vendorRunDetailsCacheRef.current,
@@ -1414,6 +1448,7 @@ function LocationScanPageInner() {
       handlePinSessionExpired();
       return;
     }
+    setVendorCompleteConfirmId(null);
     setLoading(true);
     setError(null);
     try {
@@ -1439,9 +1474,14 @@ function LocationScanPageInner() {
           id,
         );
       }
+      const patchedRows = patchVendorRunCompleteRows(
+        vendorRunDeliveriesRef.current,
+        deliveredIds,
+      );
       await loadVendorRunDeliveries(vendorId, {
         preserveExpandedIds: new Set(expandedDeliveryIds),
         collapseDeliveryIds: deliveredIds,
+        mergePreviousRows: patchedRows,
       });
     } catch (err) {
       if (isVendorSessionError(err)) {
@@ -1452,6 +1492,27 @@ function LocationScanPageInner() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVendorCompleteTap = (deliveryId: string) => {
+    const result = reduceVendorCompleteConfirm(
+      vendorCompleteConfirmId,
+      "tap-complete",
+      deliveryId,
+      { locked: loading },
+    );
+    setVendorCompleteConfirmId(result.next);
+  };
+
+  const handleVendorCompleteConfirmCancel = () => {
+    setVendorCompleteConfirmId(
+      reduceVendorCompleteConfirm(vendorCompleteConfirmId, "cancel").next,
+    );
+  };
+
+  const handleVendorCompleteConfirmYes = (deliveryId: string) => {
+    setVendorCompleteConfirmId(null);
+    void handleVendorRunComplete(deliveryId);
   };
 
   const handleVendorRunUndo = async (deliveryId: string) => {
@@ -2118,29 +2179,61 @@ function LocationScanPageInner() {
               )}
               {!delivered && (
                 <div className="space-y-2.5 border-t border-border bg-bg-surface p-3">
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      disabled={loading || !hasVendorRunSession}
-                      onClick={() => setExpandedDeliveryIds(new Set())}
-                      className="action-btn action-btn-secondary flex-1 disabled:opacity-50"
-                      data-testid={`vendor-run-cancel-${row.deliveryId}`}
+                  {vendorCompleteConfirmId === row.deliveryId ? (
+                    <div
+                      className="space-y-2.5"
+                      data-testid={`vendor-run-complete-confirm-${row.deliveryId}`}
                     >
-                      Cancel / Back
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!canComplete || loading || !hasVendorRunSession}
-                      onClick={() =>
-                        void handleVendorRunComplete(row.deliveryId)
-                      }
-                      className="action-btn action-btn-delivered flex-1 disabled:opacity-40"
-                      style={{ backgroundColor: "#047857" }}
-                      data-testid={`vendor-run-complete-${row.deliveryId}`}
-                    >
-                      {loading ? "Completing…" : "Complete delivery"}
-                    </button>
-                  </div>
+                      <p className="text-center text-sm font-semibold text-[#fde68a]">
+                        Complete this delivery?
+                      </p>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          disabled={loading || !hasVendorRunSession}
+                          onClick={handleVendorCompleteConfirmCancel}
+                          className="action-btn action-btn-secondary flex-1 disabled:opacity-50"
+                          data-testid={`vendor-run-complete-confirm-no-${row.deliveryId}`}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!canComplete || loading || !hasVendorRunSession}
+                          onClick={() =>
+                            handleVendorCompleteConfirmYes(row.deliveryId)
+                          }
+                          className="action-btn action-btn-delivered flex-1 disabled:opacity-40"
+                          style={{ backgroundColor: "#047857" }}
+                          data-testid={`vendor-run-complete-confirm-yes-${row.deliveryId}`}
+                        >
+                          {loading ? "Completing…" : "Confirm completion"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        disabled={loading || !hasVendorRunSession}
+                        onClick={() => setExpandedDeliveryIds(new Set())}
+                        className="action-btn action-btn-secondary flex-1 disabled:opacity-50"
+                        data-testid={`vendor-run-cancel-${row.deliveryId}`}
+                      >
+                        Cancel / Back
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!canComplete || loading || !hasVendorRunSession}
+                        onClick={() => handleVendorCompleteTap(row.deliveryId)}
+                        className="action-btn action-btn-delivered flex-1 disabled:opacity-40"
+                        style={{ backgroundColor: "#047857" }}
+                        data-testid={`vendor-run-complete-${row.deliveryId}`}
+                      >
+                        Complete delivery
+                      </button>
+                    </div>
+                  )}
                   <button
                     type="button"
                     disabled={loading || !hasVendorRunSession}
