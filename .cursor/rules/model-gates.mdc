@@ -11,7 +11,7 @@ Single authoritative model-routing definition. Other harness files pointer-refer
 
 ### Roles
 
-- **Preferred parent/orchestrator:** Grok 4.6 when the Cursor job/session is Grok 4.6 / available — inspect scope, classify risk, choose worker/lanes, coordinate investigation, **delegate implementation**, review outputs, coordinate verification, decide gates, write the final report. Must **not** automatically write product or harness implementation code. Platform limitation: Cursor chooses the parent at job start; rules cannot force every job to boot as Grok 4.6. When parent **is already** Composer 2.5 Fast (desktop Auto+Composer), Composer may implement **inline**. When parent is Grok 4.6 (or any non-Composer/non-Sol parent), it MUST `Task({ model: "composer-2.5-fast" })` for routine/simple-UI/non-UI code, or `gpt-5.6-sol-high` for visual-judgment UI. Never `resume: "self"` except D-50 or **D-92 Composer-repair takeover**.
+- **Preferred parent/orchestrator:** Grok 4.6 when the Cursor job/session is Grok 4.6 / available — inspect scope, classify risk, choose worker/lanes, coordinate investigation, **delegate implementation**, review outputs, coordinate verification, decide gates, write the final report. Must **not** automatically write product or harness implementation code. Platform limitation: Cursor chooses the parent at job start; rules cannot force every job to boot as Grok 4.6. When parent **is already** Composer 2.5 Fast (desktop Auto+Composer), Composer may implement **inline**. When parent is Grok 4.6 (or any non-Composer/non-Sol parent), it MUST `Task({ model: "composer-2.5-fast" })` for routine/simple-UI/non-UI code. For **visual-judgment UI:** Task Sol (`gpt-5.6-sol-high`) to **inspect + write Composer instructions**, then Task Composer to implement, then Sol verifies actual before/after. Parent already Sol Medium may still implement visual-judgment UI inline. Never `resume: "self"` except D-50 or **D-92 Composer-repair takeover**.
 
 - **Default implementer:** Composer 2.5 Fast (`composer-2.5-fast`) whenever available and the task fits + confidence/risk allow — routine frontend, non-UI, straightforward React/TS, obvious CSS/layout, copy, small helpers, tests, routine perf, in-scope refactors.
 
@@ -25,7 +25,7 @@ Single authoritative model-routing definition. Other harness files pointer-refer
 
 Routine product/harness code must go to Composer 2.5 Fast unless one of:
 
-1. visual-judgment UI → Sol
+1. visual-judgment UI → Sol inspect/instruct/verify (D-93); Composer implements after the Sol packet (parent already Sol Medium may implement inline). Silent Composer (no Sol inspect+instruct) = NOT RUN
 2. D-50 stuck-task carve-out (and D-62 rounds)
 3. D-60 high-risk explicitly assigns another builder (Composer remains default mechanical builder under Sonnet constraints when capable)
 4. Composer unavailable/incapable = **only** platform Task rejection of `composer-2.5-fast` (record `fallback-from: composer-2.5-fast`) — **not** subjective “I already have context / faster inline”
@@ -42,7 +42,7 @@ Implementer workers (Composer/Sol/Grok-as-D-50/Grok-as-D-92-takeover) never comm
 
 ### Composer-repair + Grok takeover (D-92 implementer-review loop)
 
-Applies when parent is **Grok 4.6** and implementer is **Composer 2.5 Fast** (routine path). Composer-parent inline implement → this loop `N/A`. Visual-judgment UI stays with Sol — do **not** use this loop to take visual authority from `gpt-5.6-sol-high`.
+Applies when parent is **Grok 4.6** and implementer is **Composer 2.5 Fast** (routine path). Composer-parent inline implement → this loop `N/A`. This loop does **not** steal Sol visual pass/fail; after Sol-verified visual defects, Sol (not Grok) remains visual authority; Grok takeover of visual pixels is forbidden unless D-50 Agree already assigned Grok that stuck scope.
 
 1. Grok 4.6 orchestrates.
 2. Composer 2.5 Fast implements.
@@ -59,6 +59,32 @@ Parent Grok in-session review of the actual diff **is** this review — it does 
 **Does not bypass** D-60 / Sonnet 5 / D-38. High-risk takeover still needs `sonnet-instruct:` / `high-risk-adversarial:` / `sonnet-verify:` / `security-gate-id`. Grok must not self-approve protected security-sensitive changes.
 
 **vs D-50/D-55:** this loop is the Composer-implementation-review path only. D-50 remains for other counted fails (build / Playwright / Ship Verifier / mixed). Do not require a second Composer retry after this loop already handed the same defect to Grok. Do not skip D-50 Agree when the fail class is D-50’s (e.g. 2× Ship Verifier).
+
+### Capable-model plan → Composer implement → same-model verify (D-93)
+
+**Additive to D-92 / D-65 / D-60 / D-38 / D-63. Does not add new gate triggers and does not weaken existing safety architecture.**
+
+When an **existing** gate already invokes a higher-capability model, that model is the **planner + verifier**. Composer 2.5 Fast remains the **normal code-writing worker**.
+
+Required loop (same capable model throughout):
+1. Capable model investigates/plans from evidence first (repo/diff/tests/screenshots/runtime — not Composer’s summary).
+2. Capable model writes concrete implementation instructions for Composer.
+3. Composer implements only inside that packet.
+4. Same capable model verifies the **actual** resulting diff/tests/UI/system behavior.
+5. If not PASS: capable model writes exact repair instructions → Composer repairs → same model re-verifies.
+6. Repeat until **PASS** or an **existing** STOP / takeover / authorization rule applies.
+
+Existing stop/takeover/authorization rules that terminate the loop (do not invent new unbounded loops): D-92 one-repair then Grok takeover of the same verified defect; D-50/D-55/D-62; D-60 cycle caps + fail-closed; D-45 max 3; D-38 HIGH unfixed / NOT RUN; all-Sol-rejected STOP; explicit Dan CF/rules deploy authorization; 97 rule blocking DONE when confAfter < 97%.
+
+Does **not** dispatch extra premium models on cheap Composer-only T0/T1 that D-65 already leaves without a higher-model gate. Cheapest-safe routing (D-65) and the 97 rule (D-47/D-69) remain independently required.
+
+Role instances (authority unchanged; implementation typing defaults to Composer):
+- **Composer 2.5 Fast:** normal implementer; receives the instruction packet when a higher-model gate is active.
+- **Grok 4.6:** architecture/system/cross-system reasoning authority where existing routing invokes Grok; inspects evidence first; writes Composer instructions; verifies actual output; existing D-92 one-repair takeover unchanged.
+- **Sonnet 5 (`claude-sonnet-5-thinking-high`):** remains the protected D-60/D-38/security/data-integrity authority. Sonnet inspects the protected scope and writes Composer’s protected implementation instructions (`sonnet-instruct:`); Composer implements only inside that packet; D-60 Grok adversarial remains between builder and Sonnet final; Sonnet verifies the actual protected diff (`sonnet-verify:`); Composer repairs; Sonnet re-verifies. Fail-closed + explicit Dan CF/rules deploy approval remain fully intact. Do not downgrade any Sonnet gate to Grok.
+- **Sol (`gpt-5.6-sol-high`):** remains visual UI/UX authority where the existing visual gate applies. Sol inspects screenshots/current UI/reference evidence; writes Composer’s concrete UI instructions; Composer makes the UI edits; Sol inspects the **actual** before/after; Sol writes repair instructions as needed; repeat until Sol explicitly PASSes under existing D-51/D-42/D-63/97 requirements. Silent Composer on visual-judgment UI (no Sol inspect+instruct) = **NOT RUN**. Parent already Sol Medium may implement visual-judgment UI inline. Grok must not self-approve Sol visual pass/fail.
+
+Preserve: universal 97-confidence, D-65, D-60, D-38, D-69, D-50/D-55/D-62, fail-closed, Dan deploy authorization, current-main, scope locks, ship/testing requirements.
 
 ### Evidence (applicable substantive jobs; no invented Task IDs)
 
@@ -89,7 +115,7 @@ Desktop Cursor, cloud VM, mobile Cursor — identical. No mobile-only routing.
 
 ### Preserve
 
-97 rule, D-65, D-50, D-51, D-60, D-38, D-27, D-32, Sol visual authority, no auto-stack. D-92 takeover does not weaken Sonnet or Sol.
+97 rule, D-65, D-50, D-51, D-60, D-38, D-27, D-32, D-93, Sol visual authority, no auto-stack. D-92 takeover does not weaken Sonnet or Sol.
 
 ## Pre-edit dispatch (announce-and-go — Dan-nonblocking, not Grok-skip)
 
@@ -100,22 +126,22 @@ Desktop Cursor, cloud VM, mobile Cursor — identical. No mobile-only routing.
 | Tier | Archetypes | Model (implementer; parent/orchestrator = D-92 Grok 4.6 preferred) |
 |------|-----------|-------|
 | T0 UI simple | wording/labels/column swap/obvious CSS | **Composer 2.5 Fast** (inline) — D-65 |
-| T0/T1 UI visual-judgment | theme/contrast/a11y/complex layout/redesign | **Sol** — Task → `gpt-5.6-sol-high` **directly** (Medium not Task-runnable); parent already Medium → inline Medium — see § UI/UX (D-63/D-65) |
+| T0/T1 UI visual-judgment | theme/contrast/a11y/complex layout/redesign | **Sol plan/verify + Composer implement (D-93)** — Task Sol (`gpt-5.6-sol-high`) inspect+instruct first; Composer edits; Sol verifies actual before/after; parent already Medium → Sol may implement inline. Medium not Task-runnable. |
 | T0 non-UI | `docs-update`, scout/inventory | **Composer 2.5 Fast** (inline) |
-| T1 | `multi-file-feature`, `type-refactor`, `service-logic` | **Composer 2.5 Fast** (inline) — visual-judgment UI slices → Sol |
+| T1 | `multi-file-feature`, `type-refactor`, `service-logic` | **Composer 2.5 Fast** (inline) — visual-judgment UI slices → Sol instruct + Composer implement (D-93) |
 | T2 | multi-file with auth/routing/Firestore reads | **Composer 2.5 Fast** (inline; escalate if uncertain) |
 | T3 | `backend-write-critical` (rules, CF writes, schema, auth/PIN/security-sensitive) | **Composer 2.5 Fast** (inline, trial) — **PROTECTED** D-60 (Sonnet pre → builder → Grok adversarial → Sonnet final) + D-38 unchanged |
 
 ## UI/UX model routing (D-63, amended D-65)
 
-**SSOT:** `PROJECT_STATUS/ui-model-routing.json` v3.
+**SSOT:** `PROJECT_STATUS/ui-model-routing.json` v4.
 
 - **Simple UI → Composer** (wording-only, tiny labels, simple column swaps, straightforward visibility, obvious CSS). Evidence: `ui-implementer: composer-2.5-fast (simple-ui — D-65)`; `ui-readability: N/A (simple-ui — mechanical D-42)`.
-- **Visual-judgment UI → Sol** (theme, contrast, dark/light, a11y/readability, complex layout, major UX redesign, visual consistency). **Task dispatch uses `gpt-5.6-sol-high` directly** — do **not** attempt/describe Medium as a Task subagent. Parent already Sol Medium → inline Medium. Fallbacks: High → high-fast → xhigh → xhigh-fast.
-- **Silent Composer on visual-judgment UI = NOT RUN.** All Sol rejected on visual-judgment → STOP.
+- **Visual-judgment UI → Sol authority (inspect/instruct/verify) + Composer implement (D-93)** (theme, contrast, dark/light, a11y/readability, complex layout, major UX redesign, visual consistency). **Task dispatch uses `gpt-5.6-sol-high` directly** for Sol inspect+instruct+verify — do **not** attempt/describe Medium as a Task subagent. Composer implements after the Sol packet. Parent already Sol Medium → inline Medium. Fallbacks: High → high-fast → xhigh → xhigh-fast.
+- **Silent Composer on visual-judgment UI (no Sol inspect+instruct) = NOT RUN.** All Sol rejected on visual-judgment → STOP.
 - **UI verifier:** at most **one** Grok lane when warranted (prefer judgment-from-log/screenshots; see § UI Playwright). Mechanical D-42 + D-51 remain **PROTECTED** for visible UI.
 - **Ship lock (D-92):** Implementer workers never commit/push/deploy; orchestrator role owns ship. Grok-as-orchestrator may ship; Grok-as-implementer never ships.
-- **After D-50 stuck ship:** resume Sol for visual-judgment UI; Composer for simple UI / non-UI.
+- **After D-50 stuck ship:** resume Sol visual authority + Composer implement (D-93) for visual-judgment UI; Composer for simple UI / non-UI.
 - **Sonnet gates unchanged:** D-38 + D-60 — **PROTECTED** (D-65 hard STOP — do not soft-skip on T3).
 
 ## Risk-based routing (D-65 — Balanced cost trim)
@@ -131,7 +157,7 @@ Desktop Cursor, cloud VM, mobile Cursor — identical. No mobile-only routing.
 | T0 tiny copy/config | Composer | build/verify if applicable | **none** | `N/A (tiny-fast-safe — D-65)` |
 | T1 fast-safe non-UI | Composer | build + verify | **none** if obvious+tests green; else **Build Checker** only | N/A if tiny; else Ship if production-sensitive |
 | T1 UI simple | Composer | D-51 + D-42 + route verify | **none** if worker verify PASS; else **UI judgment-from-log** (no auto re-run) | N/A if tiny; else Ship if production-sensitive |
-| T1 UI visual-judgment | Sol (Task→high) | D-51 + D-42 + verify + `ui-readability` | **UI Playwright judgment** (prefer log; live re-run only if § D-45 criteria) | Ship if not tiny |
+| T1 UI visual-judgment | Composer under Sol instruct (D-93) | D-51 + D-42 + verify + `ui-readability` | **UI Playwright judgment** (prefer log; live re-run only if § D-45 criteria) | Ship if not tiny |
 | T2 moderate/multi-file | Composer | build + verify | **Solution** if branching/unclear SoT; else **Build Checker** | Ship when production-sensitive |
 | T3 high-risk | **PROTECTED path** | D-60 Sonnet pre → D-65 builder → Grok adversarial → Sonnet final → D-38 → push (CF/rules deploy still need Dan approval) | Ship **required** | **required** |
 
@@ -447,9 +473,9 @@ Task({
 
 **Live Grok Playwright re-run only when:** visual behavior is subtle; prior test evidence incomplete; regression risk meaningful; or verifier identifies a reason to challenge the first pass. Visual-judgment UI more often warrants judgment; simple wording/column swaps usually do not.
 
-**Flow when Grok lane fires:** Grok returns PASS or file:line fix list → Sol (visual-judgment) or Composer (simple UI) fixes → same Grok re-verifies (max 3). Never self-close Grok findings.
+**Flow when Grok lane fires:** Grok returns PASS or file:line fix list → Composer fixes (visual-judgment: after Sol instruct; simple UI: Composer directly) → same Grok re-verifies (max 3). Never self-close Grok findings.
 
-**Readability:** Sol completes D-63 DoD (`ui-readability: PASS`) only when Sol implements. Simple UI → mechanical D-42; `ui-readability: N/A (simple-ui — D-65)`.
+**Readability:** Sol completes D-63 DoD (`ui-readability: PASS`) only when Sol is visual authority on the change (Sol PASS after inspect of actual before/after; Composer may have applied the pixels). Simple UI → mechanical D-42; `ui-readability: N/A (simple-ui — D-65)`.
 
 **High-risk:** `ui-playwright-verifier: N/A (high-risk — D-60 sonnet-verify owns Playwright)`.
 

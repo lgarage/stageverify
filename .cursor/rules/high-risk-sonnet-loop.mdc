@@ -9,6 +9,8 @@ alwaysApply: true
 
 **SSOT:** this file. Discover via `alwaysApply`, `DECISIONS.md` D-60, `model-gates.mdc` T3 row, `npm run dossier:slice -- --tag backend-critical`. Classification examples: `scripts/verify-high-risk-loop-discovery.mjs`.
 
+D-60 is the Sonnet instance of D-93 (Sonnet inspect+`sonnet-instruct:` → Composer implement → Grok adversarial → `sonnet-verify:`); D-93 does not replace, skip, or reorder Phases 1–5 or D-38 or Dan CF/rules deploy approval.
+
 ## Trigger (T3 / high-risk / security-sensitive)
 
 Same class as `ship-loop.mdc` high-risk, plus explicit security-sensitive product surfaces. Fire when the task touches **any** of:
@@ -74,7 +76,7 @@ After Dan approval, **before any product/code edit** in scope:
 
 ## Phase 2 — Builder implementation
 
-Use the **cheapest sufficient builder under D-65** (Composer for non-UI / simple UI; Sol only if a visual-judgment UI slice is inside an already-approved high-risk ship).
+Use the **cheapest sufficient builder under D-65** (Composer for non-UI / simple UI; Sol instructs visual-judgment UI slice and Composer implements unless parent is already Sol Medium).
 
 Builder implements **only** the agreed Sonnet constraints. **D-50 carve-out unchanged:** after stuck-task Agree, Grok may implement that stuck scope only — Phases 3–4 still required before commit.
 

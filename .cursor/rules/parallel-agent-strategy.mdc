@@ -196,7 +196,7 @@ Domain executors are **coordinator-delegated slices** of one task. Multitask "co
 - Inconsistent repo state
 - Playwright on same dev server port
 - `backend-write-critical` **implementation**
-- **Grok (or any non-Composer/non-Sol parent) implementing product code** via inline edits or `resume: "self"` — dispatch `composer-2.5-fast` for simple UI / non-UI, or `gpt-5.6-sol-high` **directly** for visual-judgment UI (D-43 / D-37 / D-63 / D-65) **except** D-50 stuck-task scope after **stuck-task Agree** or **D-92 Composer-repair takeover** (one failed Composer repair of the same Grok-verified defect)
+- **Grok (or any non-Composer/non-Sol parent) implementing product code** via inline edits or `resume: "self"` — dispatch `composer-2.5-fast` for simple UI / non-UI; for visual-judgment UI Task Sol (`gpt-5.6-sol-high`) to inspect+instruct, then Composer implements (D-93), except parent Sol Medium inline / D-50 stuck-task scope after **stuck-task Agree** / **D-92 Composer-repair takeover** (D-43 / D-37 / D-63 / D-65)
 
 ## Sonnet 5 — rare escalation only
 

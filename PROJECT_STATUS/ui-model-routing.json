@@ -1,8 +1,8 @@
 {
-  "version": 3,
+  "version": 4,
   "decision": "D-63",
-  "amendedBy": "D-65",
-  "updated": "2026-08-08",
+  "amendedBy": "D-65, D-93",
+  "updated": "2026-08-29",
   "canonicalMediumSlug": "gpt-5.6-sol-medium",
   "canonicalMediumDisplay": "GPT-5.6 Sol Medium",
   "canonicalMediumEvidence": [
@@ -42,7 +42,7 @@
   "primaryDisplay": "GPT-5.6 Sol Medium",
   "automatedTaskPrimary": "gpt-5.6-sol-high",
   "automatedTaskPrimaryDisplay": "GPT-5.6 Sol High",
-  "primaryNote": "D-65: Sol only for visual-judgment UI (theme/contrast/a11y/complex layout/redesign). Simple UI → Composer. When Sol Task dispatch is required, use gpt-5.6-sol-high directly (Task rejects Medium — do not frame as a Medium attempt). Parent already Sol Medium may implement visual-judgment UI inline as Medium.",
+  "primaryNote": "D-93: Sol is visual authority (inspect/instruct/verify); Composer implements after Sol packet. D-65: Sol only for visual-judgment UI (theme/contrast/a11y/complex layout/redesign). Simple UI → Composer. When Sol Task dispatch is required, use gpt-5.6-sol-high directly (Task rejects Medium — do not frame as a Medium attempt). Parent already Sol Medium may implement visual-judgment UI inline as Medium.",
   "verifier": "cursor-grok-4.5-high-fast",
   "verifierDisplay": "Cursor Grok 4.5 High Fast",
   "fallbacks": ["gpt-5.6-sol-high", "gpt-5.6-sol-high-fast", "gpt-5.6-sol-xhigh", "gpt-5.6-sol-xhigh-fast"],
@@ -56,6 +56,7 @@
     "ui-readability": "N/A (simple-ui — mechanical D-42)",
     "ui-playwright-verifier": "N/A when worker verify:* PASS + sufficient evidence (judgment-from-log optional)"
   },
-  "silentComposerOnVisualJudgment": "NOT RUN — visual-judgment UI must use Sol",
+  "silentComposerOnVisualJudgment": "NOT RUN — visual-judgment UI must have Sol inspect+instruct before Composer edits",
+  "visualJudgmentLoop": "sol-inspect-instruct → composer-implement → sol-verify-actual (D-93)",
   "allSolRejected": "STOP — report NOT RUN for visual-judgment UI; simple UI may still use Composer"
 }

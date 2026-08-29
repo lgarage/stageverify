@@ -66,8 +66,8 @@ Grok **UI Playwright Verifier** must independently challenge (not rubber-stamp S
 
 | Line | Owner | When |
 |------|-------|------|
-| `ui-implementer:` | Composer (simple UI) or Sol (visual-judgment) | D-65 class — Sol Task uses `gpt-5.6-sol-high` directly |
-| `ui-readability:` | Sol when Sol implements | **PASS** after §1–6; else `N/A (simple-ui — D-65)` |
+| `ui-implementer:` | Composer after Sol instruct (visual-judgment) or Composer (simple UI); Sol Medium parent may implement inline | D-65 class — Sol Task uses `gpt-5.6-sol-high` directly |
+| `ui-readability:` | Sol visual authority PASS after inspecting actual before/after (§1–6) | **PASS** after §1–6; else `N/A (simple-ui — D-65)` |
 | `ui-playwright-verifier:` | Grok when lane fires | **PASS** or `N/A (worker-verify-pass — D-65)` |
 
 Missing any required line when trigger fired = **NOT RUN**. Ship lock (D-92): implementer workers never commit/push/deploy; **orchestrator** owns ship (Grok-as-orchestrator may ship; Grok-as-implementer never ships). Sol returns diff when dispatched via Task.
