@@ -1,6 +1,13 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import {
+  computeDeliveryReadiness,
+  getShopStagingAssignmentIds,
+  type DeliveryDoc,
+  type ItemDoc,
+  type VendorDeliveryMode,
+} from "./deliveryReadiness";
+import {
   asTechnicianSessionToken,
   loadTechnicianDayRelease,
   todayReleaseDateUtc,
@@ -19,19 +26,52 @@ interface JobDoc {
   name?: string;
 }
 
-interface DeliveryDoc {
-  jobId?: string;
-  status?: string;
-  stagingLocationId?: string;
-  additionalStagingLocationIds?: string[];
-}
-
 export interface TechnicianReleasedJobRow {
   jobId: string;
   jobName: string;
   stagingLocationCodes: string[];
   deliveryCount: number;
   readyForPickupCount: number;
+}
+
+/** Loose match key: strip dashes/spaces, uppercase (parity with FE stagingCode.ts). */
+function normalizeStagingCodeKey(raw: string): string {
+  return raw.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+}
+
+function formatStagingCodeCanonical(raw: string): string {
+  const key = normalizeStagingCodeKey(raw);
+  if (!key) return raw.trim();
+
+  const shelfBin = /^S(\d+)([A-Z])$/.exec(key);
+  if (shelfBin) return `S${shelfBin[1]}-${shelfBin[2]}`;
+
+  const ground = /^G(\d+)$/.exec(key);
+  if (ground) return `G${ground[1]}`;
+
+  return key;
+}
+
+function resolveStagingLocationCodes(
+  rawIds: string[],
+  codeById: Map<string, string>,
+  codeKeyToCanonical: Map<string, string>,
+): string[] {
+  const codes = new Set<string>();
+  for (const rawId of rawIds) {
+    const id = typeof rawId === "string" ? rawId.trim() : "";
+    if (!id) continue;
+    const byId = codeById.get(id);
+    if (byId?.trim()) {
+      codes.add(formatStagingCodeCanonical(byId));
+      continue;
+    }
+    const canonical = codeKeyToCanonical.get(normalizeStagingCodeKey(id));
+    if (canonical) codes.add(canonical);
+  }
+  return [...codes].sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+  );
 }
 
 async function loadSession(sessionToken: string) {
@@ -56,15 +96,13 @@ async function loadSession(sessionToken: string) {
   return data;
 }
 
-function allStagingIds(delivery: DeliveryDoc): string[] {
-  const ids: string[] = [];
-  if (delivery.stagingLocationId?.trim()) {
-    ids.push(delivery.stagingLocationId.trim());
-  }
-  if (delivery.additionalStagingLocationIds?.length) {
-    ids.push(...delivery.additionalStagingLocationIds);
-  }
-  return ids;
+async function loadItemsForDelivery(deliveryId: string): Promise<ItemDoc[]> {
+  const itemsSnap = await getDb()
+    .collection("items")
+    .where("deliveryOrderId", "==", deliveryId)
+    .limit(500)
+    .get();
+  return itemsSnap.docs.map((doc) => doc.data() as ItemDoc);
 }
 
 /** Always-strict: returns only day-released jobs (empty array when none). */
@@ -113,11 +151,23 @@ export const getTechnicianReleasedJobs = onCall(
       .limit(500)
       .get();
     const codeById = new Map<string, string>();
+    const codeKeyToCanonical = new Map<string, string>();
     for (const doc of stagingSnap.docs) {
       const code = String(doc.data().code ?? doc.id);
       codeById.set(doc.id, code);
+      const canonical = formatStagingCodeCanonical(code);
+      if (canonical) codeKeyToCanonical.set(normalizeStagingCodeKey(code), canonical);
     }
 
+    const settingsSnap = await getDb()
+      .collection("appSettings")
+      .doc("config")
+      .get();
+    const vendorDeliveryMode =
+      (settingsSnap.data()?.vendorDeliveryMode as VendorDeliveryMode | undefined) ??
+      "full_checkin";
+
+    const now = new Date().toISOString();
     const jobs: TechnicianReleasedJobRow[] = [];
 
     for (const jobId of jobIds) {
@@ -141,17 +191,28 @@ export const getTechnicianReleasedJobs = onCall(
       for (const doc of deliveriesSnap.docs) {
         const delivery = doc.data() as DeliveryDoc;
         deliveryCount += 1;
-        if (delivery.status === "ready_for_pickup") {
+
+        const items = await loadItemsForDelivery(doc.id);
+        const readiness = computeDeliveryReadiness(
+          delivery,
+          items,
+          now,
+          vendorDeliveryMode,
+        );
+        if (readiness.readyForPickup) {
           readyForPickupCount += 1;
         }
-        for (const locId of allStagingIds(delivery)) {
+
+        for (const locId of getShopStagingAssignmentIds(delivery)) {
           locationIdSet.add(locId);
         }
       }
 
-      const stagingLocationCodes = [...locationIdSet]
-        .map((id) => codeById.get(id) ?? id)
-        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+      const stagingLocationCodes = resolveStagingLocationCodes(
+        [...locationIdSet],
+        codeById,
+        codeKeyToCanonical,
+      );
 
       jobs.push({
         jobId,

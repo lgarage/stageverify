@@ -14,15 +14,26 @@ import {
   getTechnicianSessionForJob,
 } from "./technicianPinSession";
 import {
-  getAllStagingLocationIds,
   ISSUE_RESOLUTION_TYPE_LABEL,
   MATERIAL_ISSUE_TYPE_LABEL,
   type DeliveryDetails,
-  type DeliveryStatus,
   type MaterialIssueType,
   type PickupMaterialIssueReadback,
   type StagingLocation,
+  type VendorDeliveryMode,
 } from "./dispatcher/models";
+import {
+  getShopStagingAssignmentIds,
+} from "./dispatcher/readiness";
+import {
+  isTechnicianPickupReady,
+  pickupNotReadyDetailLabel,
+  pickupPublicStatusLabel,
+  pickupQueueSortRankForDelivery,
+  pickupReadinessForDelivery,
+  type PickupReadinessOptions,
+} from "./dispatcher/pickupReadiness";
+import { collectDeliveryStagingCodes } from "./dispatcher/drawer/DrawerStagingLocationChips";
 import {
   hasShopStockPickList,
   shopStockItemKey,
@@ -71,30 +82,21 @@ function Svg({ d, size = 24 }: { d: string; size?: number }) {
   );
 }
 
-function isPickupReady(status: DeliveryStatus): boolean {
-  return (
-    status === "ready_for_pickup" ||
-    status === "picked_up" ||
-    status === "installed"
-  );
-}
-
-function pickupQueueSortRank(status: DeliveryStatus): number {
-  if (status === "ready_for_pickup") return 0;
-  if (status === "picked_up" || status === "installed") return 1;
-  if (status === "partial" || status === "arrived") return 2;
-  return 3;
-}
-
-function publicNotReadyDetailLabel(status: DeliveryStatus): string | null {
-  if (status === "partial") return "Not ready — partial receipt";
-  if (status === "arrived") return "Not ready — awaiting staging";
-  return null;
-}
-
 function isDeliveryAlreadyPickedUp(delivery: DeliveryDetails): boolean {
   const status = delivery.delivery.status;
   return status === "picked_up" || status === "installed";
+}
+
+function pickupOptions(
+  vendorDeliveryMode: VendorDeliveryMode | undefined,
+): PickupReadinessOptions | undefined {
+  return vendorDeliveryMode ? { vendorDeliveryMode } : undefined;
+}
+
+function stagingLocById(
+  allLocations: StagingLocation[],
+): Map<string, StagingLocation> {
+  return new Map(allLocations.map((loc) => [loc.id, loc]));
 }
 
 function shopStockPullStateLabel(
@@ -112,15 +114,26 @@ function formatCountdown(totalSeconds: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function zoneSummary(deliveries: DeliveryDetails[]): string {
+function zoneSummary(
+  deliveries: DeliveryDetails[],
+  allLocations: StagingLocation[],
+  vendorDeliveryMode?: VendorDeliveryMode,
+): string {
+  const locById = stagingLocById(allLocations);
   const zones = deliveries
     .flatMap((d) => {
-      const ids = getAllStagingLocationIds(d.delivery);
-      if (ids.length === 0) return [d.stagingLocation?.code ?? "—"];
-      return ids.map((id) => {
-        if (id === d.stagingLocation?.id) return d.stagingLocation?.code ?? "—";
-        return id;
-      });
+      if (
+        !isTechnicianPickupReady(
+          d.delivery,
+          d.items,
+          pickupOptions(vendorDeliveryMode),
+        )
+      ) {
+        return [];
+      }
+      const codes = collectDeliveryStagingCodes(d.delivery, locById);
+      if (codes.length === 0) return [d.stagingLocation?.code ?? "—"];
+      return codes;
     })
     .join(", ");
   const vendors = [...new Set(deliveries.map((d) => d.vendor.name))].join(", ");
@@ -130,12 +143,21 @@ function zoneSummary(deliveries: DeliveryDetails[]): string {
 function collectJobStagingLocationEntries(
   deliveries: DeliveryDetails[],
   allLocations: StagingLocation[],
+  vendorDeliveryMode?: VendorDeliveryMode,
 ): { id: string; code: string; label: string }[] {
   const seen = new Set<string>();
   const entries: { id: string; code: string; label: string }[] = [];
   for (const d of deliveries) {
-    if (!isPickupReady(d.delivery.status)) continue;
-    for (const id of getAllStagingLocationIds(d.delivery)) {
+    if (
+      !isTechnicianPickupReady(
+        d.delivery,
+        d.items,
+        pickupOptions(vendorDeliveryMode),
+      )
+    ) {
+      continue;
+    }
+    for (const id of getShopStagingAssignmentIds(d.delivery)) {
       if (seen.has(id)) continue;
       seen.add(id);
       const loc =
@@ -157,7 +179,7 @@ function assignedStagingLocationsConfirmed(
   delivery: DeliveryDetails,
   confirmedLocationIds: Set<string>,
 ): boolean {
-  const assigned = getAllStagingLocationIds(delivery.delivery);
+  const assigned = getShopStagingAssignmentIds(delivery.delivery);
   if (assigned.length === 0) return true;
   return assigned.every((id) => confirmedLocationIds.has(id));
 }
@@ -166,7 +188,7 @@ function pickupStagingLocationIdsForDelivery(
   delivery: DeliveryDetails,
   confirmedLocationIds: Set<string>,
 ): string[] | undefined {
-  const assigned = getAllStagingLocationIds(delivery.delivery);
+  const assigned = getShopStagingAssignmentIds(delivery.delivery);
   if (assigned.length === 0) return undefined;
   const picked = new Set(delivery.delivery.pickedUpStagingLocationIds ?? []);
   const toPick = assigned.filter(
@@ -179,16 +201,15 @@ function resolveStagingLocations(
   delivery: DeliveryDetails,
   allLocations: StagingLocation[],
 ): { code: string; label: string; isPrimary: boolean }[] {
-  const ids = getAllStagingLocationIds(delivery.delivery);
-  return ids.map((id, idx) => {
+  const locById = stagingLocById(allLocations);
+  const codes = collectDeliveryStagingCodes(delivery.delivery, locById);
+  return codes.map((code, idx) => {
     const loc =
-      allLocations.find((l) => l.id === id) ??
-      (delivery.stagingLocation?.id === id
-        ? delivery.stagingLocation
-        : undefined);
+      allLocations.find((l) => l.code === code) ??
+      delivery.stagingLocation;
     return {
-      code: loc?.code ?? id,
-      label: loc?.label ?? loc?.code ?? id,
+      code,
+      label: loc?.label ?? loc?.code ?? code,
       isPrimary: idx === 0,
     };
   });
@@ -198,18 +219,21 @@ function primaryStagingCode(
   delivery: DeliveryDetails,
   allLocations: StagingLocation[],
 ): string {
-  const stagingLocations = resolveStagingLocations(delivery, allLocations);
-  const primary =
-    stagingLocations.find((loc) => loc.isPrimary) ?? stagingLocations[0];
-  return primary?.code ?? "—";
+  const locById = stagingLocById(allLocations);
+  const codes = collectDeliveryStagingCodes(delivery.delivery, locById);
+  return codes[0] ?? "—";
 }
 
 /** Public pickup status — hide internal workflow labels (Partial, Complete, etc.). */
-function publicPickupStatusLabel(status: DeliveryStatus): string | null {
-  if (status === "ready_for_pickup") return "Ready for pickup";
-  if (status === "picked_up") return "Picked up";
-  if (status === "installed") return "Installed";
-  return null;
+function publicPickupStatusLabelForDelivery(
+  delivery: DeliveryDetails,
+  vendorDeliveryMode?: VendorDeliveryMode,
+): string | null {
+  return pickupPublicStatusLabel(
+    delivery.delivery,
+    delivery.items,
+    pickupOptions(vendorDeliveryMode),
+  );
 }
 
 function formatPickupItemLine(
@@ -773,6 +797,9 @@ function JobPickupScreen({
   const [submitted, setSubmitted] = useState(false);
   const [notes, setNotes] = useState("");
   const [autoSubmitMinutes, setAutoSubmitMinutes] = useState(0);
+  const [vendorDeliveryMode, setVendorDeliveryMode] = useState<
+    VendorDeliveryMode | undefined
+  >(undefined);
   const [autoSubmitSecondsLeft, setAutoSubmitSecondsLeft] = useState<
     number | null
   >(null);
@@ -840,8 +867,16 @@ function JobPickupScreen({
       setDeliveries(
         [...loaded].sort(
           (a, b) =>
-            pickupQueueSortRank(a.delivery.status) -
-            pickupQueueSortRank(b.delivery.status),
+            pickupQueueSortRankForDelivery(
+              a.delivery,
+              a.items,
+              pickupOptions(vendorDeliveryMode),
+            ) -
+            pickupQueueSortRankForDelivery(
+              b.delivery,
+              b.items,
+              pickupOptions(vendorDeliveryMode),
+            ),
         ),
       );
       setCheckedItemIds(() => {
@@ -879,6 +914,7 @@ function JobPickupScreen({
       void getAppSettings()
         .then((settings) => {
           setAutoSubmitMinutes(settings.autoSubmitMinutes);
+          setVendorDeliveryMode(settings.vendorDeliveryMode);
           if (settings.autoSubmitMinutes > 0) {
             setAutoSubmitSecondsLeft(settings.autoSubmitMinutes * 60);
           }
@@ -1065,19 +1101,32 @@ function JobPickupScreen({
 
   const isDeliveryChecklistComplete = useCallback(
     (d: DeliveryDetails): boolean => {
-      if (!isPickupReady(d.delivery.status)) return true;
+      if (
+        !isTechnicianPickupReady(
+          d.delivery,
+          d.items,
+          pickupOptions(vendorDeliveryMode),
+        )
+      ) {
+        return true;
+      }
       return isShopStockCompleteForDelivery(d);
     },
-    [isShopStockCompleteForDelivery],
+    [isShopStockCompleteForDelivery, vendorDeliveryMode],
   );
 
   const pickupQueueDeliveries = deliveries.filter((d) =>
-    isPickupReady(d.delivery.status),
+    isTechnicianPickupReady(
+      d.delivery,
+      d.items,
+      pickupOptions(vendorDeliveryMode),
+    ),
   );
 
   const jobStagingLocationEntries = collectJobStagingLocationEntries(
     pickupQueueDeliveries,
     allStagingLocations,
+    vendorDeliveryMode,
   );
 
   const allStagingLocationsConfirmed =
@@ -1109,7 +1158,11 @@ function JobPickupScreen({
 
     const needsPickupRecord = deliveries.filter(
       (d) =>
-        isPickupReady(d.delivery.status) &&
+        isTechnicianPickupReady(
+          d.delivery,
+          d.items,
+          pickupOptions(vendorDeliveryMode),
+        ) &&
         !checkedRef.current.has(d.delivery.id) &&
         !isDeliveryAlreadyPickedUp(d),
     );
@@ -1160,6 +1213,7 @@ function JobPickupScreen({
     readyToFinish,
     submitting,
     confirmedStagingLocationIds,
+    vendorDeliveryMode,
   ]);
 
   const handleAutoSubmit = useCallback(async () => {
@@ -1168,7 +1222,11 @@ function JobPickupScreen({
     const blockedByChecklist =
       deliveries.some(
         (d) =>
-          isPickupReady(d.delivery.status) &&
+          isTechnicianPickupReady(
+            d.delivery,
+            d.items,
+            pickupOptions(vendorDeliveryMode),
+          ) &&
           !checkedRef.current.has(d.delivery.id) &&
           !isDeliveryChecklistComplete(d),
       ) || !allStagingLocationsConfirmed;
@@ -1188,7 +1246,11 @@ function JobPickupScreen({
 
     const unchecked = deliveries.filter(
       (d) =>
-        isPickupReady(d.delivery.status) &&
+        isTechnicianPickupReady(
+          d.delivery,
+          d.items,
+          pickupOptions(vendorDeliveryMode),
+        ) &&
         !checkedRef.current.has(d.delivery.id) &&
         isDeliveryChecklistComplete(d),
     );
@@ -1240,6 +1302,7 @@ function JobPickupScreen({
     isDeliveryChecklistComplete,
     confirmedStagingLocationIds,
     allStagingLocationsConfirmed,
+    vendorDeliveryMode,
   ]);
 
   useEffect(() => {
@@ -1277,16 +1340,11 @@ function JobPickupScreen({
     (zoneCode: string) => {
       const normalized = normalizeStagingCodeKey(zoneCode);
       const match = deliveries.find((d) => {
-        const ids = getAllStagingLocationIds(d.delivery);
-        return ids.some((locId) => {
-          const loc =
-            allStagingLocations.find((l) => l.id === locId) ??
-            (d.stagingLocation?.id === locId ? d.stagingLocation : undefined);
-          return (
-            loc?.code !== undefined &&
-            normalizeStagingCodeKey(loc.code) === normalized
-          );
-        });
+        const locById = stagingLocById(allStagingLocations);
+        const codes = collectDeliveryStagingCodes(d.delivery, locById);
+        return codes.some(
+          (code) => normalizeStagingCodeKey(code) === normalized,
+        );
       });
       setIsScanning(false);
       if (!match) {
@@ -1547,7 +1605,7 @@ function JobPickupScreen({
           Pickup recorded for this job.
         </p>
         <p className="text-sm text-text-secondary mb-12">
-          {zoneSummary(deliveries)}
+          {zoneSummary(deliveries, allStagingLocations, vendorDeliveryMode)}
         </p>
         <button
           onClick={onStartOver}
@@ -1589,10 +1647,19 @@ function JobPickupScreen({
     : null;
 
   const readyDeliveries = deliveries.filter((d) =>
-    isPickupReady(d.delivery.status),
+    isTechnicianPickupReady(
+      d.delivery,
+      d.items,
+      pickupOptions(vendorDeliveryMode),
+    ),
   );
   const notReadyDeliveries = deliveries.filter(
-    (d) => !isPickupReady(d.delivery.status),
+    (d) =>
+      !isTechnicianPickupReady(
+        d.delivery,
+        d.items,
+        pickupOptions(vendorDeliveryMode),
+      ),
   );
 
   const stagingSectionMap = new Map<string, DeliveryDetails[]>();
@@ -1612,8 +1679,16 @@ function JobPickupScreen({
   for (const [, sectionDeliveries] of stagingSections) {
     sectionDeliveries.sort(
       (a, b) =>
-        pickupQueueSortRank(a.delivery.status) -
-        pickupQueueSortRank(b.delivery.status),
+        pickupQueueSortRankForDelivery(
+          a.delivery,
+          a.items,
+          pickupOptions(vendorDeliveryMode),
+        ) -
+        pickupQueueSortRankForDelivery(
+          b.delivery,
+          b.items,
+          pickupOptions(vendorDeliveryMode),
+        ),
     );
   }
 
@@ -1720,8 +1795,13 @@ function JobPickupScreen({
             const showShopStock = hasShopStockPickList(d.delivery);
             const shopStockGroupHeader = shopStockLocationGroupHeader(d.delivery);
             const shopStockComplete = isShopStockCompleteForDelivery(d);
+            const pickupReady = isTechnicianPickupReady(
+              d.delivery,
+              d.items,
+              pickupOptions(vendorDeliveryMode),
+            );
             const canCheckOff =
-              isPickupReady(deliveryStatus) &&
+              pickupReady &&
               !isChecked &&
               shopStockComplete &&
               assignedStagingLocationsConfirmed(d, confirmedStagingLocationIds);
@@ -1770,7 +1850,10 @@ function JobPickupScreen({
                             currentLocationNote={d.delivery.currentLocationNote}
                             shopStockLocationNote={d.delivery.shopStockLocationNote}
                           />
-                          {publicPickupStatusLabel(deliveryStatus) && (
+                          {publicPickupStatusLabelForDelivery(
+                            d,
+                            vendorDeliveryMode,
+                          ) && (
                             <span
                               className={`mt-2 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
                                 deliveryStatus === "picked_up" ||
@@ -1780,7 +1863,10 @@ function JobPickupScreen({
                               }`}
                               data-testid="pickup-public-status"
                             >
-                              {publicPickupStatusLabel(deliveryStatus)}
+                              {publicPickupStatusLabelForDelivery(
+                                d,
+                                vendorDeliveryMode,
+                              )}
                             </span>
                           )}
                         </div>
@@ -1824,7 +1910,7 @@ function JobPickupScreen({
                       </div>
                     </div>
                 </button>
-                {!isInstalled && isPickupReady(deliveryStatus) && !isChecked && (
+                {!isInstalled && pickupReady && !isChecked && (
                   <div className="border-t border-border px-4 py-3">
                     <button
                       type="button"
@@ -2049,8 +2135,13 @@ function JobPickupScreen({
             <div className="space-y-3 pt-2 border-t border-border/60">
               {notReadyDeliveries.map((d) => {
                 const deliveryId = d.delivery.id;
-                const deliveryStatus = d.delivery.status;
-                const notReadyLabel = publicNotReadyDetailLabel(deliveryStatus);
+                const notReadyLabel = pickupNotReadyDetailLabel(
+                  pickupReadinessForDelivery(
+                    d.delivery,
+                    d.items,
+                    pickupOptions(vendorDeliveryMode),
+                  ),
+                );
 
                 return (
                   <div

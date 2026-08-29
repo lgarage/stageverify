@@ -46,12 +46,7 @@ function asStringArray(value, maxItems) {
     return out;
 }
 function allStagingIds(delivery) {
-    const ids = [];
-    if (delivery.stagingLocationId?.trim())
-        ids.push(delivery.stagingLocationId.trim());
-    if (delivery.additionalStagingLocationIds?.length) {
-        ids.push(...delivery.additionalStagingLocationIds);
-    }
+    const ids = [...(0, deliveryReadiness_1.getShopStagingAssignmentIds)(delivery)];
     if (delivery.combinationMemberLocationIds?.length) {
         for (const memberId of delivery.combinationMemberLocationIds) {
             const trimmed = memberId?.trim();
