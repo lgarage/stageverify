@@ -4,7 +4,7 @@ Use for **routine frontend/UI-only** changes (layout, copy, colors, spacing). Pa
 
 **D-65 routing:**
 - **Simple UI** (wording, labels, column swaps, obvious CSS, straightforward visibility) → **Composer 2.5 Fast** + mechanical `verify:*` / D-42 / D-51. No Sol. No multi-Grok stack.
-- **Visual-judgment UI** (theme, contrast, dark/light, a11y, complex layout, redesign) → **Sol** via Task `gpt-5.6-sol-high` **directly** (do not attempt Medium as Task) + readability DoD; ≤1 Grok UI judgment lane if warranted.
+- **Visual-judgment UI** (theme, contrast, dark/light, a11y, complex layout, redesign) → **Sol** via Task `gpt-5.6-sol-high` **directly** inspect/instruct/verify (do not attempt Medium as Task; Composer implements after Sol packet — D-93) + readability DoD; ≤1 Grok UI judgment lane if warranted.
 
 Backend deploy policy — see `.cursor/rules/ship-loop.mdc`; do not auto-deploy Firebase without Dan approval.
 

@@ -45,7 +45,7 @@ Away parent follows the same routing as interactive sessions (`model-gates.mdc` 
 - Classifies each item (archetype + tier).
 - Runs parallel **read-only scouts** when useful (see below).
 - **Synthesizes** scout output before any file edit.
-- Delegates implementation (Composer/Sol) or implements inline when Composer is parent.
+- Delegates implementation to Composer 2.5 Fast (visual-judgment: Sol inspect/instruct/verify, then Composer implements; parent Sol Medium may implement visual-judgment inline) or implements inline when Composer is parent.
 - Implements **one away item at a time** — never two items in parallel.
 - May delegate **non-overlapping file domains within the current item** to domain executors (`parallel-agent-strategy.mdc` § File-ownership batches); coordinator merges, then runs verify/build/ship itself.
 - Runs **verify gates** itself — do not delegate Playwright/build/ship to subagents.

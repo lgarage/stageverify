@@ -7,7 +7,7 @@ alwaysApply: true
 
 # Session orchestrator guide (stageverify)
 
-This file is the **session protocol** (verify, ship, completion) — not a claim that Composer is always the parent. Follow **D-92** (`model-gates.mdc` § Default model routing): if you are the **Composer parent**, you may implement inline; if you are the **Grok 4.6 parent**, delegate implementation to Composer (Sol is visual planner/verifier unless parent is already Sol Medium), own orchestration + ship, and never `resume: "self"` except D-50.
+This file is the **session protocol** (verify, ship, completion) — not a claim that Composer is always the parent. Follow **D-92** (`model-gates.mdc` § Default model routing): if you are the **Composer parent**, you may implement inline; if you are the **Grok 4.6 parent**, delegate implementation to Composer (Sol is visual planner/verifier unless parent is already Sol Medium), own orchestration + ship, and never `resume: "self"` except D-50 or D-92 Composer-repair takeover.
 
 ## Parallel execution (default when safe)
 Follow `.cursor/rules/parallel-agent-strategy.mdc` (**building ≠ max parallel** — scouts parallel by default; implementers serial unless disjoint domains within one item). Fan out read-only scouts automatically; synthesize; then implement as **one** executor, **or** parallel **non-overlapping** domain executors when file-ownership batches apply — coordinator merges and ships once.
@@ -292,8 +292,8 @@ When a feature ships, update `PROJECT_STATUS/CURRENT_STATE.md` AND `roadmap.md` 
 
 See `security-review-gate.mdc` (model lock + invocation + evidence). Run automatically before push when `backend-write-critical` or auth/T2 — exactly one Task per ship; await before push.
 
-### T3 / backend-write-critical during Composer trial
-Composer implements inline (trial 3/5 clean passes). Security gate per `security-review-gate.mdc` before `git push`. Opus only if Sonnet returns HIGH Composer cannot resolve.
+### T3 / backend-write-critical
+Follow **D-60** (`high-risk-sonnet-loop.mdc`) + **D-93**: after Dan approval, Sonnet 5 inspects and writes `sonnet-instruct:`; Composer 2.5 Fast implements only inside that packet; Grok adversarial then Sonnet `sonnet-verify:`; **D-38** security gate before push. Composer is the mechanical builder, not the T3 planner. Opus only if Sonnet D-38 returns HIGH Composer cannot resolve. CF/rules deploy still need explicit Dan approval.
 
 ### Workspace rules override global skill
 stageverify workspace rules (`.cursor/rules/`) override the global agent-ops skill where they conflict. When in doubt, follow the workspace rule.
