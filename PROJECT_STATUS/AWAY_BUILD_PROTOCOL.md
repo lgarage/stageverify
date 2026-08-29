@@ -40,7 +40,7 @@ Suggest **batch runs** to Dan at plan time; run them only after queue + approval
 
 ## Model routing (D-92)
 
-Away parent follows the same routing as interactive sessions (`model-gates.mdc` § Default model routing): **Grok 4.6 preferred orchestrator** when that is the session parent; **Composer 2.5 Fast default implementer** (Sol for visual-judgment UI). The **orchestrator** (not implementer workers):
+Away parent follows the same routing as interactive sessions (`model-gates.mdc` § Default model routing + D-93): **Grok 4.6 preferred orchestrator** when that is the session parent; **Composer 2.5 Fast default implementer** (visual-judgment: Sol inspect/instruct/verify, Composer implements). The **orchestrator** (not implementer workers):
 
 - Classifies each item (archetype + tier).
 - Runs parallel **read-only scouts** when useful (see below).

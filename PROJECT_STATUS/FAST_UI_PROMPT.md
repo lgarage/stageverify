@@ -20,7 +20,7 @@ Frontend/UI only.
 
 Use:
 - Agent mode
-- **Composer** for simple UI · **Sol High Task** only for visual-judgment UI
+- **Composer** for simple UI · visual-judgment: **Sol High Task** inspect/instruct/verify, then Composer implements (D-93)
 - Mechanical verify (D-42/D-51) — Grok only if D-65 lane table warrants
 - One agent only
 - No scouts unless blocked
