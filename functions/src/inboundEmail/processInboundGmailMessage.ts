@@ -40,8 +40,10 @@ import {
 } from "../invoice/creditReturnSkip";
 import {
   claimOrLinkBusinessInvoiceWithSnap,
+  findLegacyBusinessInvoiceCanonical,
   getBusinessInvoiceKeySnap,
   tryBuildBusinessInvoiceIdentity,
+  BUSINESS_INVOICE_LEGACY_LOOKUP_SATURATED,
   type BusinessInvoiceClaimOutcome,
   type BusinessInvoiceIdentity,
 } from "../invoice/businessInvoiceIdentity";
@@ -601,12 +603,26 @@ async function writeReviewRecords(
           !freshSystemSkip &&
           !isNewImport;
         if (!reopenedPending) {
+          // Legacy pre-key resend: query prior imports before claim writes.
+          const legacyLookup =
+            !keySnap.exists
+              ? await findLegacyBusinessInvoiceCanonical(tx, db, {
+                  identity: businessIdentity,
+                  vendorInvoiceNumberRaw,
+                  excludeReviewId: reviewId,
+                })
+              : { kind: "none" as const };
+          if (legacyLookup.kind === "saturated") {
+            throw new Error(BUSINESS_INVOICE_LEGACY_LOOKUP_SATURATED);
+          }
           businessClaim = claimOrLinkBusinessInvoiceWithSnap(tx, db, keySnap, {
             identity: businessIdentity,
             reviewId,
             gmailMessageId: inboundDoc.gmailMessageId,
             inboundEmailProcessingId: inboundDoc.id,
             now,
+            legacyCanonicalHint:
+              legacyLookup.kind === "found" ? legacyLookup.hint : null,
           });
         }
       }

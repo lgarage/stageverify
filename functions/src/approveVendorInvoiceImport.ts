@@ -18,6 +18,7 @@ import {
 } from "./invoice/createDeliveryShellFromImport";
 import { isDeliveryOwnedByImportOrUnclaimed } from "./invoice/matchInvoiceToRecords";
 import {
+  BUSINESS_INVOICE_LEGACY_LOOKUP_SATURATED,
   isDeliveryOwnedForBusinessInvoiceApprove,
   resolveApproveBusinessInvoiceRedirect,
 } from "./invoice/businessInvoiceIdentity";
@@ -101,6 +102,27 @@ function appendDecisionLogUpdate(
 function assertDeliveryAllowedForImport(doc: VendorInvoiceImportDoc): void {
   if (creditReturnBlocksDeliveryCreation(doc)) {
     throw new HttpsError("failed-precondition", CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
+  }
+}
+
+async function resolveApproveBusinessInvoiceRedirectSafe(
+  db: ReturnType<typeof getDb>,
+  importId: string,
+  importDoc: VendorInvoiceImportDoc,
+): Promise<Awaited<ReturnType<typeof resolveApproveBusinessInvoiceRedirect>>> {
+  try {
+    return await resolveApproveBusinessInvoiceRedirect(db, importId, importDoc);
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      err.message === BUSINESS_INVOICE_LEGACY_LOOKUP_SATURATED
+    ) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Too many Invoice Review rows share this invoice number to safely redirect — do not create a duplicate delivery. Approve the original import or contact support.",
+      );
+    }
+    throw err;
   }
 }
 
@@ -621,7 +643,7 @@ export const approveVendorInvoiceImport = onCall(
       if (creditReturnBlocksDeliveryCreation(importDoc)) {
         throw new HttpsError("failed-precondition", CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
       }
-      const shellRedirect = await resolveApproveBusinessInvoiceRedirect(
+      const shellRedirect = await resolveApproveBusinessInvoiceRedirectSafe(
         getDb(),
         importId,
         importDoc,
@@ -866,7 +888,7 @@ export const approveVendorInvoiceImport = onCall(
       throw new HttpsError("failed-precondition", CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
     }
 
-    const businessRedirect = await resolveApproveBusinessInvoiceRedirect(
+    const businessRedirect = await resolveApproveBusinessInvoiceRedirectSafe(
       getDb(),
       importId,
       importDoc,

@@ -2690,6 +2690,127 @@ if (!dupShell.exists()) {
   fail("second shell was created for duplicate import", dupShell.data());
 }
 
+// Case 11 — legacy import+delivery, NO key doc: approve of new pending same invoice
+// redirects to legacy delivery (first post-deploy resend gap).
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendors", "vendor-1"), {
+    id: "vendor-1",
+    name: "Johnstone Supply",
+    updatedAt: "2026-06-01T00:00:00Z",
+  });
+  await setDoc(doc(adminDb, "jobs", "job-biz-nokey"), {
+    id: "job-biz-nokey",
+    jobNumber: "26-NOKEY",
+    jobName: "Biz No Key",
+    status: "active",
+    createdAt: "2026-06-01T00:00:00Z",
+    updatedAt: "2026-06-01T00:00:00Z",
+  });
+  await setDoc(doc(adminDb, "deliveries", "delivery-vii-vii-biz-nokey-legacy-page-1"), {
+    id: "delivery-vii-vii-biz-nokey-legacy-page-1",
+    orderNumber: "BIZ-NOKEY-1",
+    jobId: "job-biz-nokey",
+    vendorId: "vendor-1",
+    vendorName: "Johnstone Supply",
+    status: "pending",
+    createdFromInvoiceImport: true,
+    vendorInvoiceImportId: "vii-biz-nokey-legacy-page-1",
+    vendorInvoiceNumber: "BIZ-NOKEY-1",
+    plannedStagingLocationIds: ["staging-matched-a4-wc"],
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:48:10Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-biz-nokey-legacy-page-1"), {
+    id: "vii-biz-nokey-legacy-page-1",
+    inboundEmailProcessingId: "inbound-biz-nokey-legacy",
+    gmailMessageId: "msg-biz-nokey-legacy",
+    importBatchId: "batch-biz-nokey-legacy",
+    pageId: "page-1",
+    pageIndexInBatch: 0,
+    reviewStatus: "approved",
+    importStatus: "pending",
+    confidenceTier: "high",
+    confidenceScore: 90,
+    humanReviewRequired: false,
+    duplicate: false,
+    linkedDeliveryOrderId: "delivery-vii-vii-biz-nokey-legacy-page-1",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: {
+      ...dropOffHeader,
+      vendorInvoiceNumber: "BIZ-NOKEY-1",
+      vendorOrderNumber: "BIZ-NOKEY-1",
+      customerPoOrReference: "PO-BIZ-NOKEY",
+      fulfillmentMethod: "delivery",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    approvedAt: "2026-08-08T18:50:00Z",
+    approvedBy: "tester",
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:50:00Z",
+  });
+  // Intentionally NO vendorBusinessInvoiceKeys doc.
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-biz-nokey-resend-page-1"), {
+    id: "vii-biz-nokey-resend-page-1",
+    inboundEmailProcessingId: "inbound-biz-nokey-resend",
+    gmailMessageId: "msg-biz-nokey-resend",
+    importBatchId: "batch-biz-nokey-resend",
+    pageId: "page-1",
+    pageIndexInBatch: 0,
+    reviewStatus: "pending_review",
+    importStatus: "pending",
+    confidenceTier: "high",
+    confidenceScore: 90,
+    humanReviewRequired: true,
+    duplicate: false,
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: {
+      ...dropOffHeader,
+      vendorInvoiceNumber: "BIZ-NOKEY-1",
+      vendorOrderNumber: "BIZ-NOKEY-1",
+      customerPoOrReference: "PO-BIZ-NOKEY",
+      fulfillmentMethod: "delivery",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    outcome: "needs_review",
+    createdAt: "2026-08-29T12:00:00Z",
+    updatedAt: "2026-08-29T12:00:00Z",
+  });
+});
+
+try {
+  const nokeyApprove = await approveImport({
+    vendorInvoiceImportId: "vii-biz-nokey-resend-page-1",
+    action: "approve",
+  });
+  const nokeyData = nokeyApprove?.data ?? nokeyApprove;
+  if (nokeyData?.deliveryOrderId === "delivery-vii-vii-biz-nokey-legacy-page-1") {
+    pass("no-key legacy resend approve redirects to legacy delivery");
+  } else {
+    fail("no-key legacy approve should target legacy delivery", nokeyData);
+  }
+} catch (err) {
+  fail("no-key legacy approve failed", err?.message);
+}
+
+const nokeyDupShell = await getDoc(
+  doc(db, "deliveries", "delivery-vii-vii-biz-nokey-resend-page-1"),
+);
+if (!nokeyDupShell.exists()) {
+  pass("no second shell for no-key legacy resend approve");
+} else {
+  fail("second shell created for no-key resend", nokeyDupShell.data());
+}
+
 await testEnv.cleanup();
 
 console.log(`\n--- Result: ${passed} passed, ${failed} failed ---`);
