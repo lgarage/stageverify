@@ -70,4 +70,4 @@ Grok **UI Playwright Verifier** must independently challenge (not rubber-stamp S
 | `ui-readability:` | Sol visual authority PASS after inspecting actual before/after (§1–6) | **PASS** after §1–6; else `N/A (simple-ui — D-65)` |
 | `ui-playwright-verifier:` | Grok when lane fires | **PASS** or `N/A (worker-verify-pass — D-65)` |
 
-Missing any required line when trigger fired = **NOT RUN**. Ship lock (D-92): implementer workers never commit/push/deploy; **orchestrator** owns ship (Grok-as-orchestrator may ship; Grok-as-implementer never ships). Sol returns diff when dispatched via Task.
+Missing any required line when trigger fired = **NOT RUN**. Ship lock (D-92): implementer workers never commit/push/deploy; **orchestrator** owns ship (Grok-as-orchestrator may ship; Grok-as-implementer never ships). Sol Task returns inspect/instruct/verify output, not the implementation diff; Composer implements after the Sol packet (D-93).
