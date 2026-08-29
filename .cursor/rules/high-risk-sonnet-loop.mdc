@@ -9,7 +9,7 @@ alwaysApply: true
 
 **SSOT:** this file. Discover via `alwaysApply`, `DECISIONS.md` D-60, `model-gates.mdc` T3 row, `npm run dossier:slice -- --tag backend-critical`. Classification examples: `scripts/verify-high-risk-loop-discovery.mjs`.
 
-D-60 is the Sonnet instance of D-93 (Sonnet inspect+`sonnet-instruct:` → Composer implement → Grok adversarial → `sonnet-verify:`); D-93 does not replace, skip, or reorder Phases 1–5 or D-38 or Dan CF/rules deploy approval.
+D-60 already matches the D-93 shape (Sonnet inspect+`sonnet-instruct:` → Composer implement → Grok adversarial → `sonnet-verify:`); D-93 does not replace, skip, or reorder Phases 1–5 or D-38 or Dan CF/rules deploy approval.
 
 ## Trigger (T3 / high-risk / security-sensitive)
 

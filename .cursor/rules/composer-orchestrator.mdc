@@ -182,11 +182,11 @@ Before adding a new React component or page, read 1–2 similar existing files f
 
 ## Escalation Triggers
 
-**2-fail + 3-fail stuck (D-50, D-55):** see `model-gates.mdc` § 2-fail + § 3-fail. **1st fail** → Sol (UI-class) / Composer (non-UI) retry. **2nd consecutive fail** on same scope → stall-advisor if same fingerprint, else Sonnet diagnose-only — **2nd fail always counts**. **3rd try (D-55):** after two consecutive fails (any type — build, Playwright, implement+verify, Ship Verifier), **automatic D-50 Agree → Grok implement** — **no** ordinary Composer-only 3rd retry or 3rd Ship Verifier close without D-50. **Dan repair intent:** Repair Verifier per § Repair loop (`repair-verifier:` + `fix-verified:`) — repair fix cycles count toward consecutive fails on scope when repair intent applies. QR/scan: self-trace on 1st fail per `MODEL_DOSSIER.md` tag `composer-trace`.
+**2-fail + 3-fail stuck (D-50, D-55):** see `model-gates.mdc` § 2-fail + § 3-fail. **1st fail** → Composer retry (visual-judgment: after Sol instruct — D-93) / Composer (non-UI). **2nd consecutive fail** on same scope → stall-advisor if same fingerprint, else Sonnet diagnose-only — **2nd fail always counts**. **3rd try (D-55):** after two consecutive fails (any type — build, Playwright, implement+verify, Ship Verifier), **automatic D-50 Agree → Grok implement** — **no** ordinary Composer-only 3rd retry or 3rd Ship Verifier close without D-50. **Dan repair intent:** Repair Verifier per § Repair loop (`repair-verifier:` + `fix-verified:`) — repair fix cycles count toward consecutive fails on scope when repair intent applies. QR/scan: self-trace on 1st fail per `MODEL_DOSSIER.md` tag `composer-trace`.
 
 ### Escalate to Sonnet 5 via Task subagent when:
 - A security gate review is required after any `backend-write-critical` commit
-- **Third try after two consecutive fails on the same task scope (D-55)** — **D-50** automatic stuck-task Agree + Grok implement (`model-gates.mdc` § 3-fail); any fail type; Sol (UI-class) / Composer (non-UI) resumes after that ship closes.
+- **Third try after two consecutive fails on the same task scope (D-55)** — **D-50** automatic stuck-task Agree + Grok implement (`model-gates.mdc` § 3-fail); any fail type; Sol visual authority + Composer implement (D-93) / Composer (non-UI) resume after that ship closes.
 - **Second failed fix on the same task** — per `model-gates.mdc` § 2-fail (same fingerprint → Grok stall-advisor first)
 - The task involves non-obvious cross-file dependencies requiring deep architectural reasoning after one Composer pass and still stuck
 - You are genuinely unsure whether a change has security or data integrity implications

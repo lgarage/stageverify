@@ -13,7 +13,7 @@ Global `body` uses light text (`#f8fafc`) for dark mobile surfaces. **Any visibl
 
 ## Readability definition-of-done (D-63)
 
-**Visual-judgment UI** (`PROJECT_STATUS/ui-model-routing.json` — theme/contrast/a11y/complex layout/redesign) requires **Sol** (Task → `gpt-5.6-sol-high` directly; parent Medium → inline) to complete this DoD (`ui-readability: PASS`) before any Grok UI lane. **Simple UI (D-65):** Composer implements; mechanical D-42 asserts suffice → `ui-readability: N/A (simple-ui — D-65)`. Missing required evidence for the class that applied = **NOT RUN**.
+**Visual-judgment UI** (`PROJECT_STATUS/ui-model-routing.json` — theme/contrast/a11y/complex layout/redesign) requires **Sol** (Task → `gpt-5.6-sol-high` directly; parent Medium → inline) to inspect the actual UI and complete this DoD (`ui-readability: PASS`) before any Grok UI lane; Composer applies the pixels after the Sol packet (D-93) unless parent is already Sol Medium. **Simple UI (D-65):** Composer implements; mechanical D-42 asserts suffice → `ui-readability: N/A (simple-ui — D-65)`. Missing required evidence for the class that applied = **NOT RUN**.
 
 ### 1. Operational information hierarchy
 

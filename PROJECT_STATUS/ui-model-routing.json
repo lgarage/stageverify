@@ -11,6 +11,8 @@
     "External live Cursor model catalogs map GPT-5.6 Sol → gpt-5.6-sol-medium"
   ],
   "simpleUiImplementer": "composer-2.5-fast",
+  "visualJudgmentImplementer": "composer-2.5-fast",
+  "visualJudgmentAuthority": "gpt-5.6-sol-high",
   "simpleUiClass": [
     "wording-only",
     "tiny labels",
