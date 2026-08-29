@@ -72,6 +72,75 @@ async function assertNoHorizontalOverflow(page, label) {
   }
 }
 
+async function verifyDrawerCloseStripsOpenDelivery(page, appBase, width) {
+  const btn = page.getByTestId("catch-all-delivery-btn");
+  await btn.click();
+  const sheet = page.getByTestId("catch-all-quick-sheet");
+  await sheet.waitFor({ state: "visible", timeout: 10_000 });
+
+  const row = page.getByTestId("catch-all-quick-sheet-row").first();
+  const rowVisible = await row.isVisible().catch(() => false);
+
+  if (rowVisible) {
+    await row.click();
+  } else {
+    await page.getByTestId("catch-all-quick-sheet-close").click();
+    await sheet.waitFor({ state: "detached", timeout: 10_000 });
+
+    const deliveryId = await page.evaluate(() => {
+      const badge = document.querySelector('[data-testid^="open-issue-badge-"]');
+      const testId = badge?.getAttribute("data-testid") ?? "";
+      const match = testId.match(/^open-issue-badge-(.+)$/);
+      return match?.[1]?.trim() || null;
+    });
+
+    if (!deliveryId) {
+      record(
+        `${width}px: drawer close strips openDelivery`,
+        false,
+        "no catch-all row and no list delivery id for fallback",
+      );
+      return;
+    }
+
+    await page.goto(
+      `${appBase}/#/dispatcher?openDelivery=${encodeURIComponent(deliveryId)}`,
+      { waitUntil: "domcontentloaded", timeout: 45_000 },
+    );
+    await page.waitForTimeout(1500);
+  }
+
+  const drawer = page.getByTestId("delivery-detail-drawer");
+  await drawer.waitFor({ state: "visible", timeout: 25_000 });
+  record(`${width}px: delivery drawer opens from catch-all path`, true);
+
+  const hashBefore = await page.evaluate(() => window.location.hash);
+  record(
+    `${width}px: openDelivery present before close`,
+    hashBefore.includes("openDelivery"),
+    hashBefore,
+  );
+
+  await page.getByTestId("delivery-drawer-close").click();
+  await drawer.waitFor({ state: "detached", timeout: 10_000 });
+  record(`${width}px: drawer closes on close button`, true);
+
+  await page.waitForTimeout(500);
+  const stillOpen = await drawer.isVisible().catch(() => false);
+  record(
+    `${width}px: drawer stays closed after 500ms`,
+    !stillOpen,
+    stillOpen ? "drawer re-opened" : "detached",
+  );
+
+  const hashAfter = await page.evaluate(() => window.location.hash);
+  record(
+    `${width}px: openDelivery stripped from hash`,
+    !hashAfter.includes("openDelivery"),
+    hashAfter,
+  );
+}
+
 async function verifyPhoneViewport(browser, width) {
   const context = await browser.newContext({
     viewport: { width, height: 844 },
@@ -132,6 +201,8 @@ async function verifyPhoneViewport(browser, width) {
       badgeAfter === badgeText,
       `before=${badgeText} after=${badgeAfter}`,
     );
+
+    await verifyDrawerCloseStripsOpenDelivery(page, appBase, width);
   } finally {
     await context.close();
   }

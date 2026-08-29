@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CreateDeliveryModal } from "./CreateDeliveryModal";
 import { DispatcherPortalTopBar } from "./DispatcherPortalTopBar";
@@ -361,13 +362,28 @@ export function DispatcherDashboardPage() {
     setSelectedDeliveryId(deliveryId);
   };
 
+  const closeDeliveryDrawer = useCallback(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.has("openDelivery")) {
+      params.delete("openDelivery");
+      const search = params.toString();
+      const next = search
+        ? `${location.pathname}?${search}`
+        : location.pathname;
+      flushSync(() => {
+        navigate(next, { replace: true });
+      });
+    }
+    setSelectedDeliveryId(null);
+  }, [location.pathname, location.search, navigate]);
+
   /* Deep-link drawer for verify harnesses when seed demo rows are hidden on prod. */
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const openId = params.get("openDelivery")?.trim();
-    if (!openId || selectedDeliveryId === openId) return;
-    selectDelivery(openId);
-  }, [location.search, selectedDeliveryId]);
+    if (!openId) return;
+    setSelectedDeliveryId(openId);
+  }, [location.search]);
 
   /* ── Filter / sort helpers ── */
   const toggleStatus = (status: DeliveryOverviewFilterStatus) => {
@@ -1911,7 +1927,7 @@ export function DispatcherDashboardPage() {
 
       <DeliveryDetailDrawer
         deliveryId={selectedDeliveryId}
-        onClose={() => setSelectedDeliveryId(null)}
+        onClose={closeDeliveryDrawer}
         onDataChanged={() => void fetchAllData()}
         onOpenDelivery={(id) => setSelectedDeliveryId(id)}
       />
