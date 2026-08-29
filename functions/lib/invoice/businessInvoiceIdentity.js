@@ -1,11 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BUSINESS_INVOICE_KEYS_COLLECTION = void 0;
+exports.LEGACY_INVOICE_QUERY_LIMIT = exports.BUSINESS_INVOICE_LEGACY_LOOKUP_SATURATED = exports.BUSINESS_INVOICE_KEYS_COLLECTION = void 0;
 exports.normalizeBusinessInvoiceNumber = normalizeBusinessInvoiceNumber;
 exports.resolveVendorScopeForBusinessIdentity = resolveVendorScopeForBusinessIdentity;
 exports.businessInvoiceKeyDocId = businessInvoiceKeyDocId;
 exports.businessInvoiceContentFingerprint = businessInvoiceContentFingerprint;
 exports.tryBuildBusinessInvoiceIdentity = tryBuildBusinessInvoiceIdentity;
+exports.isLegacyInvoiceQuerySaturated = isLegacyInvoiceQuerySaturated;
+exports.selectLegacyBusinessInvoiceCanonical = selectLegacyBusinessInvoiceCanonical;
+exports.findLegacyBusinessInvoiceCanonical = findLegacyBusinessInvoiceCanonical;
+exports.findLegacyBusinessInvoiceCanonicalOutsideTx = findLegacyBusinessInvoiceCanonicalOutsideTx;
 exports.claimOrLinkBusinessInvoiceWithSnap = claimOrLinkBusinessInvoiceWithSnap;
 exports.getBusinessInvoiceKeySnap = getBusinessInvoiceKeySnap;
 exports.resolveApproveBusinessInvoiceRedirect = resolveApproveBusinessInvoiceRedirect;
@@ -112,10 +116,189 @@ function tryBuildBusinessInvoiceIdentity(input) {
         contentFingerprint,
     };
 }
+exports.BUSINESS_INVOICE_LEGACY_LOOKUP_SATURATED = "business_invoice_legacy_lookup_saturated";
+exports.LEGACY_INVOICE_QUERY_LIMIT = 25;
+function isLegacyInvoiceQuerySaturated(resultSize) {
+    return resultSize >= exports.LEGACY_INVOICE_QUERY_LIMIT;
+}
+function createdAtMs(raw) {
+    const ms = Date.parse(String(raw ?? ""));
+    return Number.isFinite(ms) ? ms : Number.POSITIVE_INFINITY;
+}
+/**
+ * Pure selection: same vendorScope+invoice identity, exclude current review.
+ * Prefer earliest among those with linkedDeliveryOrderId; else earliest createdAt.
+ */
+function selectLegacyBusinessInvoiceCanonical(rows, identity, excludeReviewId) {
+    const exclude = excludeReviewId.trim();
+    const matched = [];
+    for (const row of rows) {
+        const id = String(row.id ?? "").trim();
+        if (!id || (exclude && id === exclude))
+            continue;
+        const header = row.parsedHeader ?? {};
+        const candidateIdentity = tryBuildBusinessInvoiceIdentity({
+            detectedVendorId: row.detectedVendorId,
+            detectedVendorName: row.detectedVendorName,
+            parserFormatId: row.parserFormatId,
+            vendorInvoiceNumber: String(header.vendorInvoiceNumber ?? ""),
+            customerPoOrReference: String(header.customerPoOrReference ?? ""),
+            vendorOrderNumber: String(header.vendorOrderNumber ?? ""),
+            fulfillmentMethod: String(header.fulfillmentMethod ?? ""),
+            parsedLines: row.parsedLines ?? [],
+        });
+        if (!candidateIdentity)
+            continue;
+        if (candidateIdentity.keyDocId !== identity.keyDocId)
+            continue;
+        matched.push({ row, candidateIdentity });
+    }
+    if (matched.length === 0)
+        return null;
+    matched.sort((a, b) => {
+        const aLinked = String(a.row.linkedDeliveryOrderId ?? "").trim() ? 0 : 1;
+        const bLinked = String(b.row.linkedDeliveryOrderId ?? "").trim() ? 0 : 1;
+        if (aLinked !== bLinked)
+            return aLinked - bLinked;
+        return createdAtMs(a.row.createdAt) - createdAtMs(b.row.createdAt);
+    });
+    const winner = matched[0];
+    const linked = String(winner.row.linkedDeliveryOrderId ?? "").trim();
+    return {
+        canonicalImportId: String(winner.row.id).trim(),
+        canonicalGmailMessageId: String(winner.row.gmailMessageId ?? "").trim(),
+        contentFingerprint: winner.candidateIdentity.contentFingerprint,
+        ...(linked ? { linkedDeliveryOrderId: linked } : {}),
+    };
+}
+function invoiceNumberQueryVariants(vendorInvoiceNumberRaw) {
+    const raw = vendorInvoiceNumberRaw.trim();
+    const normalized = normalizeBusinessInvoiceNumber(raw);
+    const variants = new Set();
+    if (raw)
+        variants.add(raw);
+    if (normalized)
+        variants.add(normalized);
+    return [...variants];
+}
+function rowFromImportSnapData(id, data) {
+    if (!data || typeof data !== "object")
+        return null;
+    const linked = typeof data.linkedDeliveryOrderId === "string"
+        ? data.linkedDeliveryOrderId.trim()
+        : "";
+    return {
+        id,
+        gmailMessageId: typeof data.gmailMessageId === "string" ? data.gmailMessageId : undefined,
+        createdAt: typeof data.createdAt === "string" ? data.createdAt : undefined,
+        ...(linked ? { linkedDeliveryOrderId: linked } : {}),
+        detectedVendorId: typeof data.detectedVendorId === "string"
+            ? data.detectedVendorId
+            : undefined,
+        detectedVendorName: typeof data.detectedVendorName === "string"
+            ? data.detectedVendorName
+            : undefined,
+        parserFormatId: typeof data.parserFormatId === "string" ? data.parserFormatId : undefined,
+        parsedHeader: data.parsedHeader && typeof data.parsedHeader === "object"
+            ? data.parsedHeader
+            : undefined,
+        parsedLines: Array.isArray(data.parsedLines)
+            ? data.parsedLines
+            : undefined,
+    };
+}
+/** Plain Firestore adapter so approve path shares the same loader as tx. */
+function firestoreQueryGetter(db) {
+    return {
+        get(query) {
+            return query.get();
+        },
+    };
+}
+async function loadLegacyImportRowsByInvoiceNumber(getter, db, vendorInvoiceNumberRaw) {
+    const variants = invoiceNumberQueryVariants(vendorInvoiceNumberRaw);
+    const byId = new Map();
+    let saturated = false;
+    for (const variant of variants) {
+        const q = db
+            .collection("vendorInvoiceImports")
+            .where("parsedHeader.vendorInvoiceNumber", "==", variant)
+            .limit(exports.LEGACY_INVOICE_QUERY_LIMIT);
+        const snap = await getter.get(q);
+        if (isLegacyInvoiceQuerySaturated(snap.size)) {
+            saturated = true;
+        }
+        for (const docSnap of snap.docs) {
+            const row = rowFromImportSnapData(docSnap.id, docSnap.data());
+            if (row)
+                byId.set(row.id, row);
+        }
+    }
+    return { rows: [...byId.values()], saturated };
+}
+function lookupResultFromRows(rows, saturated, identity, excludeReviewId) {
+    // Any full page is an incomplete sample — never mint self-canonical from it.
+    if (saturated) {
+        return { kind: "saturated" };
+    }
+    const hint = selectLegacyBusinessInvoiceCanonical(rows, identity, excludeReviewId);
+    return hint ? { kind: "found", hint } : { kind: "none" };
+}
+/**
+ * Transactional legacy lookup (all reads before claim writes).
+ * App-side vendor isolation via keyDocId match after invoice-number query.
+ */
+async function findLegacyBusinessInvoiceCanonical(tx, db, input) {
+    const { rows, saturated } = await loadLegacyImportRowsByInvoiceNumber(tx, db, input.vendorInvoiceNumberRaw);
+    return lookupResultFromRows(rows, saturated, input.identity, input.excludeReviewId);
+}
+/** Non-transactional legacy lookup for approve redirect. */
+async function findLegacyBusinessInvoiceCanonicalOutsideTx(db, input) {
+    const { rows, saturated } = await loadLegacyImportRowsByInvoiceNumber(firestoreQueryGetter(db), db, input.vendorInvoiceNumberRaw);
+    return lookupResultFromRows(rows, saturated, input.identity, input.excludeReviewId);
+}
 /** Pass keySnap from tx.get already performed (all reads before writes). */
 function claimOrLinkBusinessInvoiceWithSnap(tx, db, keySnap, input) {
     const keyRef = keySnap.ref;
     if (!keySnap.exists) {
+        const hint = input.legacyCanonicalHint;
+        if (hint &&
+            hint.canonicalImportId &&
+            hint.canonicalImportId !== input.reviewId) {
+            const doc = {
+                vendorScope: input.identity.vendorScope,
+                vendorKey: input.identity.vendorKey,
+                normalizedInvoiceNumber: input.identity.normalizedInvoiceNumber,
+                canonicalImportId: hint.canonicalImportId,
+                canonicalGmailMessageId: hint.canonicalGmailMessageId,
+                contentFingerprint: hint.contentFingerprint,
+                createdAt: input.now,
+                updatedAt: input.now,
+            };
+            tx.create(keyRef, doc);
+            const canonicalRef = db
+                .collection("vendorInvoiceImports")
+                .doc(hint.canonicalImportId);
+            tx.set(canonicalRef, {
+                linkedGmailMessageIds: firestore_1.FieldValue.arrayUnion(input.gmailMessageId),
+                linkedInboundEmailProcessingIds: firestore_1.FieldValue.arrayUnion(input.inboundEmailProcessingId),
+                updatedAt: input.now,
+            }, { merge: true });
+            const exact = hint.contentFingerprint.length > 0 &&
+                hint.contentFingerprint === input.identity.contentFingerprint;
+            if (exact) {
+                return {
+                    kind: "exact_duplicate",
+                    canonicalImportId: hint.canonicalImportId,
+                    canonicalGmailMessageId: hint.canonicalGmailMessageId,
+                };
+            }
+            return {
+                kind: "possible_revision",
+                canonicalImportId: hint.canonicalImportId,
+                canonicalGmailMessageId: hint.canonicalGmailMessageId,
+            };
+        }
         const doc = {
             vendorScope: input.identity.vendorScope,
             vendorKey: input.identity.vendorKey,
@@ -209,6 +392,25 @@ async function resolveApproveBusinessInvoiceRedirect(db, importId, importDoc) {
         .doc(identity.keyDocId)
         .get();
     if (!keySnap.exists) {
+        const legacyLookup = await findLegacyBusinessInvoiceCanonicalOutsideTx(db, {
+            identity,
+            vendorInvoiceNumberRaw: vendorInvoiceNumber,
+            excludeReviewId: importId,
+        });
+        if (legacyLookup.kind === "saturated") {
+            throw new Error(exports.BUSINESS_INVOICE_LEGACY_LOOKUP_SATURATED);
+        }
+        if (legacyLookup.kind === "found") {
+            const legacy = legacyLookup.hint;
+            if (legacy.canonicalImportId !== importId) {
+                return {
+                    canonicalImportId: legacy.canonicalImportId,
+                    ...(legacy.linkedDeliveryOrderId
+                        ? { linkedDeliveryOrderId: legacy.linkedDeliveryOrderId }
+                        : {}),
+                };
+            }
+        }
         const typedCanonical = importDoc.canonicalImportId?.trim() ?? "";
         if (!typedCanonical || typedCanonical === importId)
             return null;

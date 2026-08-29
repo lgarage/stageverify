@@ -5,8 +5,11 @@
 import { createHash } from "crypto";
 import {
   FieldValue,
+  type DocumentData,
   type DocumentSnapshot,
   type Firestore,
+  type Query,
+  type QuerySnapshot,
   type Transaction,
 } from "firebase-admin/firestore";
 import { isArmableVendorKey } from "./aiShadow/vendorIgnoreRules";
@@ -188,6 +191,248 @@ export function tryBuildBusinessInvoiceIdentity(input: {
   };
 }
 
+/** Candidate row for legacy (pre-key) business-invoice selection. */
+export type LegacyBusinessInvoiceImportRow = {
+  id: string;
+  gmailMessageId?: string;
+  createdAt?: string;
+  linkedDeliveryOrderId?: string;
+  detectedVendorId?: string;
+  detectedVendorName?: string;
+  parserFormatId?: string;
+  parsedHeader?: Record<string, unknown>;
+  parsedLines?: VendorInvoiceImportParsedLine[];
+};
+
+/** Hint when a prior import exists but vendorBusinessInvoiceKeys does not. */
+export type LegacyBusinessInvoiceCanonicalHint = {
+  canonicalImportId: string;
+  canonicalGmailMessageId: string;
+  contentFingerprint: string;
+  linkedDeliveryOrderId?: string;
+};
+
+/** Legacy lookup result — saturated queries must not mint a new canonical. */
+export type LegacyBusinessInvoiceLookupResult =
+  | { kind: "none" }
+  | { kind: "found"; hint: LegacyBusinessInvoiceCanonicalHint }
+  | { kind: "saturated" };
+
+export const BUSINESS_INVOICE_LEGACY_LOOKUP_SATURATED =
+  "business_invoice_legacy_lookup_saturated";
+
+export const LEGACY_INVOICE_QUERY_LIMIT = 25;
+
+export function isLegacyInvoiceQuerySaturated(resultSize: number): boolean {
+  return resultSize >= LEGACY_INVOICE_QUERY_LIMIT;
+}
+
+function createdAtMs(raw: string | undefined): number {
+  const ms = Date.parse(String(raw ?? ""));
+  return Number.isFinite(ms) ? ms : Number.POSITIVE_INFINITY;
+}
+
+/**
+ * Pure selection: same vendorScope+invoice identity, exclude current review.
+ * Prefer earliest among those with linkedDeliveryOrderId; else earliest createdAt.
+ */
+export function selectLegacyBusinessInvoiceCanonical(
+  rows: LegacyBusinessInvoiceImportRow[],
+  identity: BusinessInvoiceIdentity,
+  excludeReviewId: string,
+): LegacyBusinessInvoiceCanonicalHint | null {
+  const exclude = excludeReviewId.trim();
+  const matched: Array<{
+    row: LegacyBusinessInvoiceImportRow;
+    candidateIdentity: BusinessInvoiceIdentity;
+  }> = [];
+
+  for (const row of rows) {
+    const id = String(row.id ?? "").trim();
+    if (!id || (exclude && id === exclude)) continue;
+    const header = row.parsedHeader ?? {};
+    const candidateIdentity = tryBuildBusinessInvoiceIdentity({
+      detectedVendorId: row.detectedVendorId,
+      detectedVendorName: row.detectedVendorName,
+      parserFormatId: row.parserFormatId,
+      vendorInvoiceNumber: String(header.vendorInvoiceNumber ?? ""),
+      customerPoOrReference: String(header.customerPoOrReference ?? ""),
+      vendorOrderNumber: String(header.vendorOrderNumber ?? ""),
+      fulfillmentMethod: String(header.fulfillmentMethod ?? ""),
+      parsedLines: row.parsedLines ?? [],
+    });
+    if (!candidateIdentity) continue;
+    if (candidateIdentity.keyDocId !== identity.keyDocId) continue;
+    matched.push({ row, candidateIdentity });
+  }
+
+  if (matched.length === 0) return null;
+
+  matched.sort((a, b) => {
+    const aLinked = String(a.row.linkedDeliveryOrderId ?? "").trim() ? 0 : 1;
+    const bLinked = String(b.row.linkedDeliveryOrderId ?? "").trim() ? 0 : 1;
+    if (aLinked !== bLinked) return aLinked - bLinked;
+    return createdAtMs(a.row.createdAt) - createdAtMs(b.row.createdAt);
+  });
+
+  const winner = matched[0];
+  const linked = String(winner.row.linkedDeliveryOrderId ?? "").trim();
+  return {
+    canonicalImportId: String(winner.row.id).trim(),
+    canonicalGmailMessageId: String(winner.row.gmailMessageId ?? "").trim(),
+    contentFingerprint: winner.candidateIdentity.contentFingerprint,
+    ...(linked ? { linkedDeliveryOrderId: linked } : {}),
+  };
+}
+
+function invoiceNumberQueryVariants(vendorInvoiceNumberRaw: string): string[] {
+  const raw = vendorInvoiceNumberRaw.trim();
+  const normalized = normalizeBusinessInvoiceNumber(raw);
+  const variants = new Set<string>();
+  if (raw) variants.add(raw);
+  if (normalized) variants.add(normalized);
+  return [...variants];
+}
+
+function rowFromImportSnapData(
+  id: string,
+  data: DocumentData | undefined,
+): LegacyBusinessInvoiceImportRow | null {
+  if (!data || typeof data !== "object") return null;
+  const linked =
+    typeof data.linkedDeliveryOrderId === "string"
+      ? data.linkedDeliveryOrderId.trim()
+      : "";
+  return {
+    id,
+    gmailMessageId:
+      typeof data.gmailMessageId === "string" ? data.gmailMessageId : undefined,
+    createdAt: typeof data.createdAt === "string" ? data.createdAt : undefined,
+    ...(linked ? { linkedDeliveryOrderId: linked } : {}),
+    detectedVendorId:
+      typeof data.detectedVendorId === "string"
+        ? data.detectedVendorId
+        : undefined,
+    detectedVendorName:
+      typeof data.detectedVendorName === "string"
+        ? data.detectedVendorName
+        : undefined,
+    parserFormatId:
+      typeof data.parserFormatId === "string" ? data.parserFormatId : undefined,
+    parsedHeader:
+      data.parsedHeader && typeof data.parsedHeader === "object"
+        ? (data.parsedHeader as Record<string, unknown>)
+        : undefined,
+    parsedLines: Array.isArray(data.parsedLines)
+      ? (data.parsedLines as VendorInvoiceImportParsedLine[])
+      : undefined,
+  };
+}
+
+type QueryGetter = {
+  get(query: Query): Promise<QuerySnapshot>;
+};
+
+/** Plain Firestore adapter so approve path shares the same loader as tx. */
+function firestoreQueryGetter(db: Firestore): QueryGetter {
+  return {
+    get(query: Query): Promise<QuerySnapshot> {
+      return query.get();
+    },
+  };
+}
+
+async function loadLegacyImportRowsByInvoiceNumber(
+  getter: QueryGetter,
+  db: Firestore,
+  vendorInvoiceNumberRaw: string,
+): Promise<{ rows: LegacyBusinessInvoiceImportRow[]; saturated: boolean }> {
+  const variants = invoiceNumberQueryVariants(vendorInvoiceNumberRaw);
+  const byId = new Map<string, LegacyBusinessInvoiceImportRow>();
+  let saturated = false;
+  for (const variant of variants) {
+    const q = db
+      .collection("vendorInvoiceImports")
+      .where("parsedHeader.vendorInvoiceNumber", "==", variant)
+      .limit(LEGACY_INVOICE_QUERY_LIMIT);
+    const snap = await getter.get(q);
+    if (isLegacyInvoiceQuerySaturated(snap.size)) {
+      saturated = true;
+    }
+    for (const docSnap of snap.docs) {
+      const row = rowFromImportSnapData(docSnap.id, docSnap.data());
+      if (row) byId.set(row.id, row);
+    }
+  }
+  return { rows: [...byId.values()], saturated };
+}
+
+function lookupResultFromRows(
+  rows: LegacyBusinessInvoiceImportRow[],
+  saturated: boolean,
+  identity: BusinessInvoiceIdentity,
+  excludeReviewId: string,
+): LegacyBusinessInvoiceLookupResult {
+  // Any full page is an incomplete sample — never mint self-canonical from it.
+  if (saturated) {
+    return { kind: "saturated" };
+  }
+  const hint = selectLegacyBusinessInvoiceCanonical(
+    rows,
+    identity,
+    excludeReviewId,
+  );
+  return hint ? { kind: "found", hint } : { kind: "none" };
+}
+
+/**
+ * Transactional legacy lookup (all reads before claim writes).
+ * App-side vendor isolation via keyDocId match after invoice-number query.
+ */
+export async function findLegacyBusinessInvoiceCanonical(
+  tx: Transaction,
+  db: Firestore,
+  input: {
+    identity: BusinessInvoiceIdentity;
+    vendorInvoiceNumberRaw: string;
+    excludeReviewId: string;
+  },
+): Promise<LegacyBusinessInvoiceLookupResult> {
+  const { rows, saturated } = await loadLegacyImportRowsByInvoiceNumber(
+    tx,
+    db,
+    input.vendorInvoiceNumberRaw,
+  );
+  return lookupResultFromRows(
+    rows,
+    saturated,
+    input.identity,
+    input.excludeReviewId,
+  );
+}
+
+/** Non-transactional legacy lookup for approve redirect. */
+export async function findLegacyBusinessInvoiceCanonicalOutsideTx(
+  db: Firestore,
+  input: {
+    identity: BusinessInvoiceIdentity;
+    vendorInvoiceNumberRaw: string;
+    excludeReviewId: string;
+  },
+): Promise<LegacyBusinessInvoiceLookupResult> {
+  const { rows, saturated } = await loadLegacyImportRowsByInvoiceNumber(
+    firestoreQueryGetter(db),
+    db,
+    input.vendorInvoiceNumberRaw,
+  );
+  return lookupResultFromRows(
+    rows,
+    saturated,
+    input.identity,
+    input.excludeReviewId,
+  );
+}
+
 /** Pass keySnap from tx.get already performed (all reads before writes). */
 export function claimOrLinkBusinessInvoiceWithSnap(
   tx: Transaction,
@@ -199,11 +444,63 @@ export function claimOrLinkBusinessInvoiceWithSnap(
     gmailMessageId: string;
     inboundEmailProcessingId: string;
     now: string;
+    /** When key missing: prior import to claim as canonical (legacy pre-key resend). */
+    legacyCanonicalHint?: LegacyBusinessInvoiceCanonicalHint | null;
   },
 ): BusinessInvoiceClaimOutcome {
   const keyRef = keySnap.ref;
 
   if (!keySnap.exists) {
+    const hint = input.legacyCanonicalHint;
+    if (
+      hint &&
+      hint.canonicalImportId &&
+      hint.canonicalImportId !== input.reviewId
+    ) {
+      const doc: BusinessInvoiceKeyDoc = {
+        vendorScope: input.identity.vendorScope,
+        vendorKey: input.identity.vendorKey,
+        normalizedInvoiceNumber: input.identity.normalizedInvoiceNumber,
+        canonicalImportId: hint.canonicalImportId,
+        canonicalGmailMessageId: hint.canonicalGmailMessageId,
+        contentFingerprint: hint.contentFingerprint,
+        createdAt: input.now,
+        updatedAt: input.now,
+      };
+      tx.create(keyRef, doc);
+
+      const canonicalRef = db
+        .collection("vendorInvoiceImports")
+        .doc(hint.canonicalImportId);
+      tx.set(
+        canonicalRef,
+        {
+          linkedGmailMessageIds: FieldValue.arrayUnion(input.gmailMessageId),
+          linkedInboundEmailProcessingIds: FieldValue.arrayUnion(
+            input.inboundEmailProcessingId,
+          ),
+          updatedAt: input.now,
+        },
+        { merge: true },
+      );
+
+      const exact =
+        hint.contentFingerprint.length > 0 &&
+        hint.contentFingerprint === input.identity.contentFingerprint;
+      if (exact) {
+        return {
+          kind: "exact_duplicate",
+          canonicalImportId: hint.canonicalImportId,
+          canonicalGmailMessageId: hint.canonicalGmailMessageId,
+        };
+      }
+      return {
+        kind: "possible_revision",
+        canonicalImportId: hint.canonicalImportId,
+        canonicalGmailMessageId: hint.canonicalGmailMessageId,
+      };
+    }
+
     const doc: BusinessInvoiceKeyDoc = {
       vendorScope: input.identity.vendorScope,
       vendorKey: input.identity.vendorKey,
@@ -343,6 +640,25 @@ export async function resolveApproveBusinessInvoiceRedirect(
     .doc(identity.keyDocId)
     .get();
   if (!keySnap.exists) {
+    const legacyLookup = await findLegacyBusinessInvoiceCanonicalOutsideTx(db, {
+      identity,
+      vendorInvoiceNumberRaw: vendorInvoiceNumber,
+      excludeReviewId: importId,
+    });
+    if (legacyLookup.kind === "saturated") {
+      throw new Error(BUSINESS_INVOICE_LEGACY_LOOKUP_SATURATED);
+    }
+    if (legacyLookup.kind === "found") {
+      const legacy = legacyLookup.hint;
+      if (legacy.canonicalImportId !== importId) {
+        return {
+          canonicalImportId: legacy.canonicalImportId,
+          ...(legacy.linkedDeliveryOrderId
+            ? { linkedDeliveryOrderId: legacy.linkedDeliveryOrderId }
+            : {}),
+        };
+      }
+    }
     const typedCanonical = importDoc.canonicalImportId?.trim() ?? "";
     if (!typedCanonical || typedCanonical === importId) return null;
     const canonSnap = await db

@@ -1,18 +1,24 @@
 /**
  * Business-invoice resend idempotency — pure helpers + mock-tx claim races.
  * Cases: identity refuse, fingerprint exact/revision, vendor isolation,
- * same-message multipage, concurrent claim winner, approve ownership redirect.
+ * same-message multipage, concurrent claim winner, approve ownership redirect,
+ * legacy pre-key selection + hint claim. Ends by spawning Firestore emulator
+ * integration (`test-business-invoice-idempotency-emulator.mjs`).
  *
  * Usage: npm run test:business-invoice-idempotency
  */
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import {
   businessInvoiceContentFingerprint,
   businessInvoiceKeyDocId,
   claimOrLinkBusinessInvoiceWithSnap,
   isDeliveryOwnedForBusinessInvoiceApprove,
+  isLegacyInvoiceQuerySaturated,
+  LEGACY_INVOICE_QUERY_LIMIT,
   normalizeBusinessInvoiceNumber,
   resolveVendorScopeForBusinessIdentity,
+  selectLegacyBusinessInvoiceCanonical,
   tryBuildBusinessInvoiceIdentity,
 } from "../functions/lib/invoice/businessInvoiceIdentity.js";
 import {
@@ -382,5 +388,198 @@ function makeDb(store) {
   pass("10 approve ownership allows canonical sibling stamp");
 }
 
+// --- Legacy selection (pure) ---
+{
+  const identity = tryBuildBusinessInvoiceIdentity({
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    vendorInvoiceNumber: "6169474",
+    parsedLines: sampleLines(),
+  });
+  assert.ok(identity);
+
+  const none = selectLegacyBusinessInvoiceCanonical([], identity, "vii-new");
+  assert.equal(none, null);
+
+  const otherVendor = selectLegacyBusinessInvoiceCanonical(
+    [
+      {
+        id: "vii-other-vendor",
+        gmailMessageId: "msg-other",
+        createdAt: "2026-08-08T00:00:00Z",
+        linkedDeliveryOrderId: "delivery-x",
+        detectedVendorName: "First Supply",
+        parserFormatId: "first_supply",
+        parsedHeader: { vendorInvoiceNumber: "6169474" },
+        parsedLines: sampleLines(),
+      },
+    ],
+    identity,
+    "vii-new",
+  );
+  assert.equal(otherVendor, null);
+
+  const twoLinked = selectLegacyBusinessInvoiceCanonical(
+    [
+      {
+        id: "vii-later-linked",
+        gmailMessageId: "msg-later",
+        createdAt: "2026-08-09T17:25:47.310Z",
+        linkedDeliveryOrderId: "delivery-later",
+        detectedVendorName: "Johnstone Supply",
+        parserFormatId: "johnstone",
+        parsedHeader: { vendorInvoiceNumber: "6169474" },
+        parsedLines: sampleLines(),
+      },
+      {
+        id: "vii-earlier-linked",
+        gmailMessageId: "msg-earlier",
+        createdAt: "2026-08-08T18:48:10.178Z",
+        linkedDeliveryOrderId: "delivery-earlier",
+        detectedVendorName: "Johnstone Supply",
+        parserFormatId: "johnstone",
+        parsedHeader: { vendorInvoiceNumber: "6169474" },
+        parsedLines: sampleLines(),
+      },
+      {
+        id: "vii-unlinked-oldest",
+        gmailMessageId: "msg-unlinked",
+        createdAt: "2026-08-07T00:00:00Z",
+        detectedVendorName: "Johnstone Supply",
+        parserFormatId: "johnstone",
+        parsedHeader: { vendorInvoiceNumber: "6169474" },
+        parsedLines: sampleLines(),
+      },
+    ],
+    identity,
+    "vii-new",
+  );
+  assert.ok(twoLinked);
+  assert.equal(twoLinked.canonicalImportId, "vii-earlier-linked");
+  assert.equal(twoLinked.canonicalGmailMessageId, "msg-earlier");
+  assert.equal(twoLinked.linkedDeliveryOrderId, "delivery-earlier");
+  assert.equal(twoLinked.contentFingerprint, identity.contentFingerprint);
+
+  const excludeSelf = selectLegacyBusinessInvoiceCanonical(
+    [
+      {
+        id: "vii-earlier-linked",
+        gmailMessageId: "msg-earlier",
+        createdAt: "2026-08-08T18:48:10.178Z",
+        linkedDeliveryOrderId: "delivery-earlier",
+        detectedVendorName: "Johnstone Supply",
+        parserFormatId: "johnstone",
+        parsedHeader: { vendorInvoiceNumber: "6169474" },
+        parsedLines: sampleLines(),
+      },
+    ],
+    identity,
+    "vii-earlier-linked",
+  );
+  assert.equal(excludeSelf, null);
+
+  pass("legacy select: prefer earliest linked; vendor isolate; exclude self");
+}
+
+// --- Legacy hint claim (mock-tx, no query) ---
+{
+  const store = new Map();
+  const db = makeDb(store);
+  const identity = tryBuildBusinessInvoiceIdentity({
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    vendorInvoiceNumber: "LEGACY-42",
+    parsedLines: sampleLines(),
+  });
+  assert.ok(identity);
+  const keyPath = `vendorBusinessInvoiceKeys/${identity.keyDocId}`;
+  const keyRef = { path: keyPath, id: identity.keyDocId };
+  const emptySnap = { exists: false, data: () => undefined, ref: keyRef };
+
+  const hint = {
+    canonicalImportId: "vii-legacy-page-1",
+    canonicalGmailMessageId: "msg-legacy",
+    contentFingerprint: identity.contentFingerprint,
+    linkedDeliveryOrderId: "delivery-vii-vii-legacy-page-1",
+  };
+
+  const tx = makeMockTx(store);
+  const outcome = claimOrLinkBusinessInvoiceWithSnap(tx, db, emptySnap, {
+    identity,
+    reviewId: "vii-resend-page-1",
+    gmailMessageId: "msg-resend",
+    inboundEmailProcessingId: "inbound-resend",
+    now: "2026-08-29T00:00:00Z",
+    legacyCanonicalHint: hint,
+  });
+  assert.equal(outcome.kind, "exact_duplicate");
+  assert.equal(outcome.canonicalImportId, "vii-legacy-page-1");
+  assert.equal(store.get(keyPath).canonicalImportId, "vii-legacy-page-1");
+  assert.equal(store.get(keyPath).canonicalGmailMessageId, "msg-legacy");
+  assert.equal(store.get(keyPath).contentFingerprint, identity.contentFingerprint);
+
+  const revIdentity = tryBuildBusinessInvoiceIdentity({
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    vendorInvoiceNumber: "LEGACY-43",
+    parsedLines: sampleLines({ quantityShipped: 0, quantityBackordered: 2 }),
+  });
+  assert.ok(revIdentity);
+  const store2 = new Map();
+  const db2 = makeDb(store2);
+  const keyPath2 = `vendorBusinessInvoiceKeys/${revIdentity.keyDocId}`;
+  const keyRef2 = { path: keyPath2, id: revIdentity.keyDocId };
+  const legacyFp = tryBuildBusinessInvoiceIdentity({
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    vendorInvoiceNumber: "LEGACY-43",
+    parsedLines: sampleLines(),
+  });
+  assert.ok(legacyFp);
+  const o2 = claimOrLinkBusinessInvoiceWithSnap(
+    makeMockTx(store2),
+    db2,
+    { exists: false, data: () => undefined, ref: keyRef2 },
+    {
+      identity: revIdentity,
+      reviewId: "vii-rev-page-1",
+      gmailMessageId: "msg-rev",
+      inboundEmailProcessingId: "inbound-rev",
+      now: "2026-08-29T00:01:00Z",
+      legacyCanonicalHint: {
+        canonicalImportId: "vii-legacy-rev",
+        canonicalGmailMessageId: "msg-legacy-rev",
+        contentFingerprint: legacyFp.contentFingerprint,
+      },
+    },
+  );
+  assert.equal(o2.kind, "possible_revision");
+  assert.equal(store2.get(keyPath2).canonicalImportId, "vii-legacy-rev");
+
+  pass("legacy hint claim: exact_duplicate + possible_revision; key points at legacy");
+}
+
+// --- Saturation fail-closed (never mint self-canonical from incomplete page) ---
+{
+  assert.equal(isLegacyInvoiceQuerySaturated(LEGACY_INVOICE_QUERY_LIMIT), true);
+  assert.equal(isLegacyInvoiceQuerySaturated(LEGACY_INVOICE_QUERY_LIMIT - 1), false);
+  assert.equal(isLegacyInvoiceQuerySaturated(0), false);
+  pass("legacy query saturation threshold");
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
+
+// --- Emulator integration: tx.get(query) + claim with real Firestore ---
+if (!process.env.FIRESTORE_EMULATOR_HOST) {
+  console.log("\nSpawning Firestore emulator for legacy key-claim integration…");
+  const child = spawnSync(
+    `firebase emulators:exec --only firestore "node scripts/test-business-invoice-idempotency-emulator.mjs"`,
+    {
+      stdio: "inherit",
+      shell: true,
+      env: { ...process.env, BUSINESS_INVOICE_EMULATOR_ONLY: "1" },
+    },
+  );
+  process.exit(child.status ?? 1);
+}

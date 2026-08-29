@@ -65,6 +65,18 @@ function assertDeliveryAllowedForImport(doc) {
         throw new https_1.HttpsError("failed-precondition", creditReturnSkip_1.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
     }
 }
+async function resolveApproveBusinessInvoiceRedirectSafe(db, importId, importDoc) {
+    try {
+        return await (0, businessInvoiceIdentity_1.resolveApproveBusinessInvoiceRedirect)(db, importId, importDoc);
+    }
+    catch (err) {
+        if (err instanceof Error &&
+            err.message === businessInvoiceIdentity_1.BUSINESS_INVOICE_LEGACY_LOOKUP_SATURATED) {
+            throw new https_1.HttpsError("failed-precondition", "Too many Invoice Review rows share this invoice number to safely redirect — do not create a duplicate delivery. Approve the original import or contact support.");
+        }
+        throw err;
+    }
+}
 function approvePlannedStagingPatch(stagingSkipped, ids) {
     // Will-Call clear is applied inside the transaction from live delivery data.
     if (stagingSkipped || ids.length === 0)
@@ -434,7 +446,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         if ((0, creditReturnSkip_1.creditReturnBlocksDeliveryCreation)(importDoc)) {
             throw new https_1.HttpsError("failed-precondition", creditReturnSkip_1.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
         }
-        const shellRedirect = await (0, businessInvoiceIdentity_1.resolveApproveBusinessInvoiceRedirect)(getDb(), importId, importDoc);
+        const shellRedirect = await resolveApproveBusinessInvoiceRedirectSafe(getDb(), importId, importDoc);
         if (shellRedirect &&
             shellRedirect.canonicalImportId !== importId &&
             !shellRedirect.linkedDeliveryOrderId) {
@@ -601,7 +613,7 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     if ((0, creditReturnSkip_1.creditReturnBlocksDeliveryCreation)(importDoc)) {
         throw new https_1.HttpsError("failed-precondition", creditReturnSkip_1.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
     }
-    const businessRedirect = await (0, businessInvoiceIdentity_1.resolveApproveBusinessInvoiceRedirect)(getDb(), importId, importDoc);
+    const businessRedirect = await resolveApproveBusinessInvoiceRedirectSafe(getDb(), importId, importDoc);
     if (businessRedirect &&
         businessRedirect.canonicalImportId !== importId &&
         !businessRedirect.linkedDeliveryOrderId) {
