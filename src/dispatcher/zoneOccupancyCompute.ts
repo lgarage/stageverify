@@ -66,14 +66,14 @@ function locationIdsForMapColor(delivery: DeliveryOrder): string[] {
 }
 
 /**
- * Count unique active deliveries assigned to the Catch-all map location.
+ * Unique active deliveries assigned to the Catch-all map location.
  * Uses the same delivery and staging exclusions as map occupancy painting.
  */
-export function countCatchAllAssignedDeliveries(
+export function listCatchAllAssignedDeliveries(
   locations: StagingLocation[],
   deliveries: DeliveryOrder[],
   catchAllStagingLocationId?: string | null,
-): number {
+): DeliveryOrder[] {
   const configuredId = catchAllStagingLocationId?.trim() ?? "";
   const catchAllLocationIds = new Set(
     locations
@@ -86,9 +86,9 @@ export function countCatchAllAssignedDeliveries(
       )
       .map((location) => location.id),
   );
-  if (catchAllLocationIds.size === 0) return 0;
+  if (catchAllLocationIds.size === 0) return [];
 
-  const assignedDeliveryIds = new Set<string>();
+  const assignedById = new Map<string, DeliveryOrder>();
   for (const delivery of filterDeliveriesForBoardStagingOccupancy(deliveries)) {
     if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
     if (skipsShopStaging(delivery)) continue;
@@ -97,10 +97,26 @@ export function countCatchAllAssignedDeliveries(
         catchAllLocationIds.has(locationId),
       )
     ) {
-      assignedDeliveryIds.add(delivery.id);
+      assignedById.set(delivery.id, delivery);
     }
   }
-  return assignedDeliveryIds.size;
+  return [...assignedById.values()];
+}
+
+/**
+ * Count unique active deliveries assigned to the Catch-all map location.
+ * Uses the same delivery and staging exclusions as map occupancy painting.
+ */
+export function countCatchAllAssignedDeliveries(
+  locations: StagingLocation[],
+  deliveries: DeliveryOrder[],
+  catchAllStagingLocationId?: string | null,
+): number {
+  return listCatchAllAssignedDeliveries(
+    locations,
+    deliveries,
+    catchAllStagingLocationId,
+  ).length;
 }
 
 /**

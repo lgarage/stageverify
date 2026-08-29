@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 const {
   computeZoneOccupancyByCode,
   countCatchAllAssignedDeliveries,
+  listCatchAllAssignedDeliveries,
 } = await import("../src/dispatcher/zoneOccupancyCompute.ts");
 
 const now = new Date().toISOString();
@@ -60,6 +61,19 @@ const count = (deliveries) =>
     deliveries,
     "loc-ca-configured",
   );
+
+const list = (deliveries) =>
+  listCatchAllAssignedDeliveries(
+    locations,
+    deliveries,
+    "loc-ca-configured",
+  );
+
+const assertListMatchesCount = (deliveries, label) => {
+  const listed = list(deliveries);
+  assert.equal(listed.length, count(deliveries), `${label}: list.length === count`);
+  return listed;
+};
 
 assert.equal(
   count([delivery("non-ca", { stagingLocationId: "loc-g10" })]),
@@ -140,11 +154,30 @@ const g10Delivery = delivery("g10-independent", {
   stagingLocationId: "loc-g10",
 });
 assert.equal(count([caDelivery, g10Delivery]), 1);
+const mixedList = assertListMatchesCount([caDelivery, g10Delivery], "CA + G10");
+assert.deepEqual(
+  mixedList.map((d) => d.id),
+  ["ca-independent"],
+  "G10-only delivery is not in the list",
+);
 assert.equal(
   computeZoneOccupancyByCode(locations, [caDelivery, g10Delivery]).G10
     ?.deliveryId,
   "g10-independent",
   "G10 occupancy still paints independently from Catch-all count",
+);
+
+const threeCaDeliveries = [
+  delivery("actual-code", { stagingLocationId: "loc-ca-code" }),
+  delivery("actual-slot", { stagingLocationId: "loc-ca-slot" }),
+  delivery("actual-configured", { stagingLocationId: "loc-ca-configured" }),
+];
+assert.equal(count(threeCaDeliveries), 3);
+const threeList = assertListMatchesCount(threeCaDeliveries, "three CA");
+assert.deepEqual(
+  threeList.map((d) => d.id).sort(),
+  ["actual-code", "actual-configured", "actual-slot"],
+  "listed ids match expected CA deliveries",
 );
 
 const incrementCounterLookingSettings = {
@@ -163,4 +196,6 @@ console.log("PASS: picked_up / complete / installed excluded");
 console.log("PASS: skipsShopStaging / will-call excluded");
 console.log("PASS: item quantity does not inflate delivery count");
 console.log("PASS: G10 occupancy paints independently");
+console.log("PASS: list.length === count for fixtures");
+console.log("PASS: listed CA ids match expected; G10 excluded");
 console.log("PASS: increment-counter-looking settings field is irrelevant");

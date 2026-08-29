@@ -294,9 +294,20 @@ async function expectCallableError(fn, expectedSubstring) {
 
     if (gmailConnected === "false") {
       record(
-        "button disabled when Gmail disconnected",
-        (await btn.isDisabled()) === true,
+        "button enabled when Gmail disconnected (sheet opens)",
+        (await btn.isDisabled()) === false,
       );
+      await btn.click();
+      const sheet = page.getByTestId("catch-all-quick-sheet");
+      await sheet.waitFor({ state: "visible", timeout: 10_000 });
+      record("sheet opens when Gmail disconnected", true);
+      const sendAlert = page.getByTestId("catch-all-quick-sheet-send-alert");
+      record(
+        "send alert disabled when Gmail disconnected",
+        (await sendAlert.isDisabled()) === true,
+      );
+      await page.getByTestId("catch-all-quick-sheet-close").click();
+      await sheet.waitFor({ state: "detached", timeout: 10_000 });
       record("negative: cooldown active rejects notify", true, "skipped — Gmail off path");
     } else {
       let notifySucceeded = false;
@@ -323,8 +334,12 @@ async function expectCallableError(fn, expectedSubstring) {
       }
 
       if (notifySucceeded) {
-        page.once("dialog", (dialog) => dialog.accept());
         await btn.click();
+        const sheet = page.getByTestId("catch-all-quick-sheet");
+        await sheet.waitFor({ state: "visible", timeout: 10_000 });
+        record("UI opens quick sheet before notify", true);
+        page.once("dialog", (dialog) => dialog.accept());
+        await page.getByTestId("catch-all-quick-sheet-send-alert").click();
         const messageLocator = page.getByTestId("catch-all-delivery-message");
         await messageLocator.waitFor({ timeout: 15_000 });
         const msg = await messageLocator.textContent();

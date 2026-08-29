@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatcherPortal } from "./DispatcherPortalContext";
+import { CatchAllDeliveryQuickSheet } from "./CatchAllDeliveryQuickSheet";
 import {
   notifyCatchAllCheckers,
   subscribeAppSettings,
   updateAppSettings,
 } from "./firestoreService";
 import { useLiveZoneOccupancy } from "./useLiveZoneOccupancy";
-import { countCatchAllAssignedDeliveries } from "./zoneOccupancyCompute";
+import { listCatchAllAssignedDeliveries } from "./zoneOccupancyCompute";
 
 const NAVY = "#0a3161";
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -19,16 +20,18 @@ export function CatchAllDeliveryTopBarEntry() {
   const [parcelIntakeEnabled, setParcelIntakeEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const liveOccupancy = useLiveZoneOccupancy(Boolean(catchAllLocationId));
-  const catchAllAssignedCount = useMemo(
+  const catchAllAssignedDeliveries = useMemo(
     () =>
-      countCatchAllAssignedDeliveries(
+      listCatchAllAssignedDeliveries(
         liveOccupancy.zones,
         liveOccupancy.deliveries,
         catchAllLocationId,
       ),
     [catchAllLocationId, liveOccupancy.deliveries, liveOccupancy.zones],
   );
+  const catchAllAssignedCount = catchAllAssignedDeliveries.length;
 
   useEffect(() => {
     let healInFlight = false;
@@ -59,11 +62,24 @@ export function CatchAllDeliveryTopBarEntry() {
     return null;
   }
 
-  const disabled =
-    busy || !emailProviderConnected || !parcelIntakeEnabled;
+  const disabled = busy;
+
+  const sendAlertEnabled =
+    emailProviderConnected && parcelIntakeEnabled && !busy;
+
+  const sendAlertDisabledTitle = !parcelIntakeEnabled
+    ? "Catch-all intake is syncing — try again in a moment."
+    : !emailProviderConnected
+      ? "Connect Gmail in Settings to send catch-all alerts."
+      : undefined;
 
   const handleClick = () => {
     if (disabled) return;
+    setSheetOpen(true);
+  };
+
+  const handleSendAlert = () => {
+    if (!sendAlertEnabled || busy) return;
     const confirmed = window.confirm(
       "Send a catch-all delivery alert email to office receivers?\n\nThis notifies staff to check in — it does not mark any delivery as arrived.",
     );
@@ -77,6 +93,7 @@ export function CatchAllDeliveryTopBarEntry() {
           `Alert sent to ${result.emailsSent} receiver${result.emailsSent === 1 ? "" : "s"}.`,
         );
         window.setTimeout(() => setMessage(null), 5000);
+        setSheetOpen(false);
       })
       .catch((err: unknown) => {
         const text =
@@ -119,11 +136,7 @@ export function CatchAllDeliveryTopBarEntry() {
           data-gmail-connected={emailProviderConnected ? "true" : "false"}
           disabled={disabled}
           title={
-            !parcelIntakeEnabled
-              ? "Catch-all intake is syncing — try again in a moment."
-              : !emailProviderConnected
-                ? "Connect Gmail in Settings to send catch-all alerts."
-                : undefined
+            busy ? "Sending catch-all alert…" : undefined
           }
           onClick={handleClick}
           style={{
@@ -166,6 +179,15 @@ export function CatchAllDeliveryTopBarEntry() {
           {catchAllAssignedCount}
         </span>
       </div>
+      <CatchAllDeliveryQuickSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        deliveries={catchAllAssignedDeliveries}
+        sendAlertEnabled={sendAlertEnabled}
+        sendAlertBusy={busy}
+        sendAlertDisabledTitle={sendAlertDisabledTitle}
+        onSendAlert={handleSendAlert}
+      />
     </div>
   );
 }
