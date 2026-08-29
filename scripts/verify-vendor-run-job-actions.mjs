@@ -13,6 +13,7 @@ import { resolveAppBase } from "./resolveAppBase.mjs";
 import {
   assertReadableTextContrast,
   VENDOR_RUN_COMPLETED_DELIVERIES_CONTRAST_SPEC,
+  VENDOR_RUN_COMPLETE_CONFIRM_CONTRAST_SPEC,
   VENDOR_RUN_DELIVERED_ROW_CONTRAST_SPEC,
   VENDOR_RUN_LAYOUT_CONTRAST_SPEC,
   VENDOR_RUN_PARTIAL_ROW_CONTRAST_SPEC,
@@ -200,6 +201,7 @@ async function fulfillCallableWarmupInvalidArgument(route) {
     },
   ];
   let lastVendorRunCompleteIds = [];
+  let omitFromVendorRunList = new Set();
   const materialIssueRequests = [];
   const vendorReceiveDetailsIds = [];
   let vendorReceiveDetailsFinished = 0;
@@ -291,6 +293,9 @@ async function fulfillCallableWarmupInvalidArgument(route) {
     }
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 800));
     vendorRunDeliveriesFulfilled = true;
+    const visibleRows = vendorRunRows.filter(
+      (row) => !omitFromVendorRunList.has(row.deliveryId),
+    );
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -298,7 +303,7 @@ async function fulfillCallableWarmupInvalidArgument(route) {
         result: {
           vendorId: "vendor-verify-run",
           scannedStagingLocationCode: "G2",
-          deliveries: vendorRunRows,
+          deliveries: visibleRows,
         },
       }),
     });
@@ -307,6 +312,7 @@ async function fulfillCallableWarmupInvalidArgument(route) {
     const requestBody = JSON.parse(route.request().postData() ?? "{}");
     const deliveryIds = requestBody.data?.deliveryIds ?? [];
     lastVendorRunCompleteIds = deliveryIds;
+    omitFromVendorRunList = new Set(deliveryIds);
     vendorRunRows = vendorRunRows.map((row) =>
       deliveryIds.includes(row.deliveryId)
         ? {
@@ -963,22 +969,69 @@ async function fulfillCallableWarmupInvalidArgument(route) {
   );
 
   await page.getByTestId("vendor-run-toggle-verify-run-active-a").click();
+  for (const viewportWidth of [360, 375, 390]) {
+    await page.setViewportSize({ width: viewportWidth, height: 844 });
+    if (!(await detailsA.isVisible().catch(() => false))) {
+      await page.getByTestId("vendor-run-toggle-verify-run-active-a").click();
+    }
+    await page.getByTestId("vendor-run-complete-verify-run-active-a").click();
+    record(
+      `confirm prompt visible at ${viewportWidth}px`,
+      await page
+        .getByTestId("vendor-run-complete-confirm-verify-run-active-a")
+        .isVisible(),
+    );
+    record(
+      `Complete first tap writes nothing at ${viewportWidth}px`,
+      lastVendorRunCompleteIds.length === 0,
+    );
+    await assertReadableTextContrast(page, VENDOR_RUN_COMPLETE_CONFIRM_CONTRAST_SPEC);
+    record(`D-42 complete confirm contrast at ${viewportWidth}px`, true);
+    await page
+      .getByTestId("vendor-run-complete-confirm-no-verify-run-active-a")
+      .click();
+    record(
+      `confirm cancel keeps card expanded at ${viewportWidth}px`,
+      (await detailsA.isVisible()) &&
+        (await page
+          .getByTestId("vendor-run-complete-verify-run-active-a")
+          .isVisible()) &&
+        lastVendorRunCompleteIds.length === 0,
+    );
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.getByTestId("vendor-run-complete-verify-run-active-a").click();
+  record(
+    "confirm prompt visible before write",
+    await page
+      .getByTestId("vendor-run-complete-confirm-verify-run-active-a")
+      .isVisible(),
+  );
+  await page.screenshot({
+    path: "/opt/cursor/artifacts/after-vendor-run-confirm.png",
+    fullPage: false,
+  });
+  record(
+    "Complete first tap does not write",
+    lastVendorRunCompleteIds.length === 0,
+  );
+  await page
+    .getByTestId("vendor-run-complete-confirm-yes-verify-run-active-a")
+    .click();
   const expectedAfterComplete = [
     "verify-run-partial-d",
     "verify-run-active-c",
-    "verify-run-active-a",
     "verify-run-delivered-b",
+    "verify-run-active-a",
   ];
   await page.waitForFunction(
-    () =>
-      document
-        .querySelector('[data-testid="vendor-run-row-verify-run-active-a"]')
-        ?.getAttribute("data-delivered") === "true",
-    { timeout: 20_000 },
-  );
-  await page.waitForFunction(
     (expectedJson) => {
+      const activeRow = document.querySelector(
+        '[data-testid="vendor-run-row-verify-run-active-a"]',
+      );
+      if (activeRow?.getAttribute("data-delivered") !== "true") {
+        return false;
+      }
       const rows = [
         ...document.querySelectorAll(
           '[data-testid="vendor-run-card-list"] > [data-testid^="vendor-run-row-"]',
@@ -1002,11 +1055,26 @@ async function fulfillCallableWarmupInvalidArgument(route) {
     JSON.stringify(await rowOrder()) === JSON.stringify(expectedAfterComplete),
     (await rowOrder()).join(" → "),
   );
+  await page.screenshot({
+    path: "/opt/cursor/artifacts/after-vendor-run-complete.png",
+    fullPage: false,
+  });
   record(
     "other unfinished job stays unfinished",
     (await page
       .getByTestId("vendor-run-row-verify-run-active-c")
       .getAttribute("data-delivered")) === "false",
+  );
+  record(
+    "completed job stays on main list when CF omits it after complete",
+    JSON.stringify(await rowOrder()) === JSON.stringify(expectedAfterComplete),
+    (await rowOrder()).join(" → "),
+  );
+  record(
+    "CF omit merge keeps completed row delivered",
+    (await page
+      .getByTestId("vendor-run-row-verify-run-active-a")
+      .getAttribute("data-delivered")) === "true",
   );
 
   await page.getByTestId("vendor-run-toggle-verify-run-active-a").click();
