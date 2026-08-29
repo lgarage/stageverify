@@ -35,6 +35,7 @@ import { INVOICE_PAGE_BOUNDARY } from "../src/dispatcher/invoice/pdfTextAdapter.
 import {
   isCreditReturnImportDoc,
   isCreditReturnInvoice,
+  isHiddenExactDuplicateInvoiceImport,
 } from "../src/dispatcher/invoice/creditReturnSkip.ts";
 import { inferDocumentType } from "../src/dispatcher/invoice/inferDocumentType.ts";
 import { readFileSync } from "fs";
@@ -1354,6 +1355,52 @@ const dupFingerprint = processInvoicePage(INVOICE_FIXTURES[6], {
   byFingerprint: new Map([[pageTextFingerprint(INVOICE_FIXTURES[0]), INVOICE_FIXTURES[0].pageId]]),
 });
 if (!dupFingerprint.duplicate) failures.push("duplicate content fingerprint not detected");
+
+{
+  if (
+    !isHiddenExactDuplicateInvoiceImport({
+      skipReason: "duplicate_business_invoice",
+    })
+  ) {
+    failures.push("isHiddenExactDuplicateInvoiceImport: skipReason duplicate should hide");
+  }
+  if (
+    !isHiddenExactDuplicateInvoiceImport({
+      rejectedBy: "system:duplicate_business_invoice",
+    })
+  ) {
+    failures.push(
+      "isHiddenExactDuplicateInvoiceImport: rejectedBy system duplicate fallback should hide",
+    );
+  }
+  if (
+    isHiddenExactDuplicateInvoiceImport({
+      skipReason: "credit_return",
+      rejectedBy: "system:credit_return_skip",
+    })
+  ) {
+    failures.push("isHiddenExactDuplicateInvoiceImport: credit_return must not hide");
+  }
+  if (
+    isHiddenExactDuplicateInvoiceImport({
+      skipReason: "document_ignore",
+      rejectedBy: "system:document_ignore_skip",
+    })
+  ) {
+    failures.push("isHiddenExactDuplicateInvoiceImport: document_ignore must not hide");
+  }
+  if (
+    isHiddenExactDuplicateInvoiceImport({
+      reviewStatus: "pending_review",
+    })
+  ) {
+    failures.push("isHiddenExactDuplicateInvoiceImport: pending without skip must not hide");
+  }
+  if (isHiddenExactDuplicateInvoiceImport(undefined)) {
+    failures.push("isHiddenExactDuplicateInvoiceImport: undefined must not hide");
+  }
+  console.log("  PASS isHiddenExactDuplicateInvoiceImport — duplicate hides; other skips do not");
+}
 
 const scored = fixtureResults.length;
 const passedCount = fixtureResults.filter((r) => r.passed).length;

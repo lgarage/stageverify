@@ -33,6 +33,7 @@ import type { VendorInvoiceImportStatus } from "./types";
 import {
   creditReturnAdvisoryLabel,
   creditReturnSkipLabel,
+  isHiddenExactDuplicateInvoiceImport,
   isSystemAutoRejectedImport,
 } from "./creditReturnSkip";
 import {
@@ -504,29 +505,34 @@ export function InvoiceReviewPanel({
     }
   }, [syncedImports, refreshGeneration, backfillErrors, applyImports, loadQueue]);
 
+  const visibleImports = useMemo(
+    () => imports.filter((i) => !isHiddenExactDuplicateInvoiceImport(i)),
+    [imports],
+  );
+
   const filteredImports = useMemo(() => {
-    if (filter === "all") return imports;
+    if (filter === "all") return visibleImports;
     if (filter === "approved") {
-      return imports.filter((i) => i.reviewStatus === "approved");
+      return visibleImports.filter((i) => i.reviewStatus === "approved");
     }
     if (filter === "rejected") {
-      return imports.filter((i) => i.reviewStatus === "rejected");
+      return visibleImports.filter((i) => i.reviewStatus === "rejected");
     }
-    return imports.filter(
+    return visibleImports.filter(
       (i) =>
         i.reviewStatus === "pending_review" &&
         i.id !== dismissedApprovedImportIdRef.current,
     );
-  }, [imports, filter]);
+  }, [visibleImports, filter]);
 
   const approvedCount = useMemo(
-    () => imports.filter((i) => i.reviewStatus === "approved").length,
-    [imports],
+    () => visibleImports.filter((i) => i.reviewStatus === "approved").length,
+    [visibleImports],
   );
 
   const rejectedCount = useMemo(
-    () => imports.filter((i) => i.reviewStatus === "rejected").length,
-    [imports],
+    () => visibleImports.filter((i) => i.reviewStatus === "rejected").length,
+    [visibleImports],
   );
 
   const loadMatchForRow = useCallback(async (rowId: string) => {
@@ -875,7 +881,11 @@ export function InvoiceReviewPanel({
               : filter === "rejected"
                 ? "No rejected invoices yet. Rejected invoices appear here after you reject from the review queue."
               : filter === "pending" &&
-                  imports.some((i) => i.reviewStatus !== "pending_review")
+                  imports.some(
+                    (i) =>
+                      i.reviewStatus !== "pending_review" &&
+                      !isHiddenExactDuplicateInvoiceImport(i),
+                  )
                 ? "No pending imports — open Approved or Rejected invoices below, or switch to All imports."
                 : "No invoice imports in queue. Use Refresh Now to sync Gmail, then check All imports if a message was already processed without a queued invoice."}
           </p>
