@@ -122,6 +122,30 @@ async function fulfillCallableWarmupInvalidArgument(route) {
       items: [{ id: "item-c", description: "Condensing unit", qtyOrdered: 1 }],
     },
     {
+      deliveryId: "verify-run-staging-only-g1",
+      jobId: "job-staging",
+      jobName: "Staging Code Only Shop",
+      orderNumber: "ORDER-STG",
+      vendorInvoiceNumber: "INV-STG",
+      poNumber: "PO-STG",
+      stagingLocationCodes: ["G1"],
+      hasAssignableSpot: false,
+      vendorPhysicalDropoffConfirmed: false,
+      items: [{ id: "item-stg", description: "Duct kit", qtyOrdered: 1 }],
+    },
+    {
+      deliveryId: "verify-run-no-spot",
+      jobId: "job-nospot",
+      jobName: "No Spot Shop",
+      orderNumber: "ORDER-NS",
+      vendorInvoiceNumber: "INV-NS",
+      poNumber: "PO-NS",
+      stagingLocationCodes: [],
+      hasAssignableSpot: false,
+      vendorPhysicalDropoffConfirmed: false,
+      items: [{ id: "item-ns", description: "Filter", qtyOrdered: 1 }],
+    },
+    {
       deliveryId: "verify-run-partial-d",
       jobId: "job-d",
       jobName: "Partial Backorder Shop",
@@ -202,6 +226,8 @@ async function fulfillCallableWarmupInvalidArgument(route) {
   ];
   let lastVendorRunCompleteIds = [];
   let omitFromVendorRunList = new Set();
+  let bulkWriteCount = 0;
+  let bulkRouteDelayMs = 0;
   const materialIssueRequests = [];
   const vendorReceiveDetailsIds = [];
   let vendorReceiveDetailsFinished = 0;
@@ -309,8 +335,12 @@ async function fulfillCallableWarmupInvalidArgument(route) {
     });
   });
   await page.route("**/markVendorDeliveriesBulk", async (route) => {
+    if (bulkRouteDelayMs > 0) {
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, bulkRouteDelayMs));
+    }
     const requestBody = JSON.parse(route.request().postData() ?? "{}");
     const deliveryIds = requestBody.data?.deliveryIds ?? [];
+    bulkWriteCount += 1;
     lastVendorRunCompleteIds = deliveryIds;
     omitFromVendorRunList = new Set(deliveryIds);
     vendorRunRows = vendorRunRows.map((row) =>
@@ -661,11 +691,16 @@ async function fulfillCallableWarmupInvalidArgument(route) {
   );
   await page.waitForTimeout(400);
   const uniqueDetailIds = [...new Set(vendorReceiveDetailsIds)];
+  const expectedDetailIds = [
+    "verify-run-active-a",
+    "verify-run-active-c",
+    "verify-run-staging-only-g1",
+    "verify-run-no-spot",
+  ].sort();
   record(
     "getVendorReceiveDetails once per missing-qty job",
-    vendorReceiveDetailsIds.length === 2 &&
-      uniqueDetailIds.sort().join(",") ===
-        "verify-run-active-a,verify-run-active-c",
+    vendorReceiveDetailsIds.length === 4 &&
+      uniqueDetailIds.sort().join(",") === expectedDetailIds.join(","),
     vendorReceiveDetailsIds.join(","),
   );
 
@@ -801,6 +836,8 @@ async function fulfillCallableWarmupInvalidArgument(route) {
     "verify-run-partial-d",
     "verify-run-active-a",
     "verify-run-active-c",
+    "verify-run-staging-only-g1",
+    "verify-run-no-spot",
     "verify-run-delivered-b",
   ];
   record(
@@ -968,13 +1005,84 @@ async function fulfillCallableWarmupInvalidArgument(route) {
       lastVendorRunCompleteIds.length === 0,
   );
 
+  await page.getByTestId("vendor-run-toggle-verify-run-staging-only-g1").click();
+  const stagingOnlyComplete = page.getByTestId(
+    "vendor-run-complete-verify-run-staging-only-g1",
+  );
+  record(
+    "staging-only row Complete is not disabled when hasAssignableSpot false",
+    !(await stagingOnlyComplete.isDisabled()),
+  );
+  await stagingOnlyComplete.click();
+  record(
+    "staging-only Complete tap opens confirm despite hasAssignableSpot false",
+    await page
+      .getByTestId("vendor-run-complete-confirm-verify-run-staging-only-g1")
+      .isVisible() && lastVendorRunCompleteIds.length === 0,
+  );
+  await page
+    .getByTestId("vendor-run-complete-confirm-no-verify-run-staging-only-g1")
+    .click();
+
+  await page.getByTestId("vendor-run-toggle-verify-run-no-spot").click();
+  const noSpotComplete = page.getByTestId(
+    "vendor-run-complete-verify-run-no-spot",
+  );
+  record(
+    "no-spot row Complete is not disabled",
+    !(await noSpotComplete.isDisabled()),
+  );
+  await noSpotComplete.click();
+  record(
+    "no-spot Complete tap shows error not confirm",
+    !(await page
+      .getByTestId("vendor-run-complete-confirm-verify-run-no-spot")
+      .isVisible()
+      .catch(() => false)) &&
+      ((await page.getByRole("alert").textContent()) ?? "").includes(
+        "No assigned spot — ask dispatch.",
+      ) &&
+      lastVendorRunCompleteIds.length === 0,
+  );
+  await page.screenshot({
+    path: "/opt/cursor/artifacts/after-vendor-no-spot-error.png",
+    fullPage: false,
+  });
+  await page.getByTestId("vendor-run-toggle-verify-run-no-spot").click();
+
   await page.getByTestId("vendor-run-toggle-verify-run-active-a").click();
   for (const viewportWidth of [360, 375, 390]) {
     await page.setViewportSize({ width: viewportWidth, height: 844 });
     if (!(await detailsA.isVisible().catch(() => false))) {
       await page.getByTestId("vendor-run-toggle-verify-run-active-a").click();
     }
-    await page.getByTestId("vendor-run-complete-verify-run-active-a").click();
+    const completeBtn = page.getByTestId("vendor-run-complete-verify-run-active-a");
+    const completeBox = await completeBtn.boundingBox();
+    const cardBox = await page
+      .getByTestId("vendor-run-row-verify-run-active-a")
+      .boundingBox();
+    const scrollportBox = await page
+      .locator(".vendor-hub-scroll")
+      .first()
+      .boundingBox();
+    record(
+      `Complete button width >= 80 at ${viewportWidth}px`,
+      completeBox != null && completeBox.width >= 80,
+      completeBox ? `${Math.round(completeBox.width)}px` : "missing",
+    );
+    record(
+      `Complete button right edge inside card at ${viewportWidth}px`,
+      completeBox != null &&
+        cardBox != null &&
+        completeBox.x + completeBox.width <= cardBox.x + cardBox.width + 1,
+    );
+    record(
+      `Complete button right edge inside scrollport at ${viewportWidth}px`,
+      completeBox != null &&
+        scrollportBox != null &&
+        completeBox.x + completeBox.width <= scrollportBox.x + scrollportBox.width + 1,
+    );
+    await completeBtn.click();
     record(
       `confirm prompt visible at ${viewportWidth}px`,
       await page
@@ -1015,12 +1123,24 @@ async function fulfillCallableWarmupInvalidArgument(route) {
     "Complete first tap does not write",
     lastVendorRunCompleteIds.length === 0,
   );
-  await page
-    .getByTestId("vendor-run-complete-confirm-yes-verify-run-active-a")
-    .click();
+  bulkRouteDelayMs = 1500;
+  const bulkCountBeforeConfirm = bulkWriteCount;
+  const confirmYes = page.getByTestId(
+    "vendor-run-complete-confirm-yes-verify-run-active-a",
+  );
+  await confirmYes.click();
+  await confirmYes.click({ force: true }).catch(() => {});
+  record(
+    "second Confirm tap while loading does not double-write",
+    bulkWriteCount - bulkCountBeforeConfirm === 1,
+    `bulkWriteCount=${bulkWriteCount}`,
+  );
+  bulkRouteDelayMs = 0;
   const expectedAfterComplete = [
     "verify-run-partial-d",
     "verify-run-active-c",
+    "verify-run-staging-only-g1",
+    "verify-run-no-spot",
     "verify-run-delivered-b",
     "verify-run-active-a",
   ];
@@ -1230,10 +1350,9 @@ async function fulfillCallableWarmupInvalidArgument(route) {
   const uniqueDetailIdsFinal = [...new Set(vendorReceiveDetailsIds)];
   record(
     "complete/refresh does not add extra details fetches when list already has qty",
-    vendorReceiveDetailsIds.length === 2 &&
-      uniqueDetailIdsFinal.length === 2 &&
-      uniqueDetailIdsFinal.sort().join(",") ===
-        "verify-run-active-a,verify-run-active-c",
+    vendorReceiveDetailsIds.length === 4 &&
+      uniqueDetailIdsFinal.length === 4 &&
+      uniqueDetailIdsFinal.sort().join(",") === expectedDetailIds.join(","),
     vendorReceiveDetailsIds.join(","),
   );
 

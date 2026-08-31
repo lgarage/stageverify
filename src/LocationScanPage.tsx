@@ -107,6 +107,7 @@ import {
   orderVendorJobsDeliveredLast,
   partitionVendorRunDeliveries,
   patchVendorRunCompleteRows,
+  vendorRunCanComplete,
 } from "./dispatcher/vendorJobListOrder";
 import { reduceVendorCompleteConfirm } from "./dispatcher/vendorCompleteConfirm";
 import {
@@ -2038,7 +2039,7 @@ function LocationScanPageInner() {
           ? "Still loading…"
           : "Loading deliveries…";
     const renderVendorRunCard = (row: VendorRunDeliverySummary) => {
-      const canComplete = row.hasAssignableSpot;
+      const canComplete = vendorRunCanComplete(row);
       const expanded = expandedDeliveryIds.has(row.deliveryId);
       const delivered = row.vendorPhysicalDropoffConfirmed;
       const fulfillmentLabel = deriveVendorOrderFulfillmentLabel({
@@ -2187,7 +2188,7 @@ function LocationScanPageInner() {
                       <p className="text-center text-sm font-semibold text-[#fde68a]">
                         Complete this delivery?
                       </p>
-                      <div className="flex gap-3">
+                      <div className="vendor-run-complete-actions flex gap-3">
                         <button
                           type="button"
                           disabled={loading || !hasVendorRunSession}
@@ -2212,7 +2213,7 @@ function LocationScanPageInner() {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex gap-3">
+                    <div className="vendor-run-complete-actions flex gap-3">
                       <button
                         type="button"
                         disabled={loading || !hasVendorRunSession}
@@ -2224,8 +2225,14 @@ function LocationScanPageInner() {
                       </button>
                       <button
                         type="button"
-                        disabled={!canComplete || loading || !hasVendorRunSession}
-                        onClick={() => handleVendorCompleteTap(row.deliveryId)}
+                        disabled={loading || !hasVendorRunSession}
+                        onClick={() => {
+                          if (!canComplete) {
+                            setError("No assigned spot — ask dispatch.");
+                            return;
+                          }
+                          handleVendorCompleteTap(row.deliveryId);
+                        }}
                         className="action-btn action-btn-delivered flex-1 disabled:opacity-40"
                         style={{ backgroundColor: "#047857" }}
                         data-testid={`vendor-run-complete-${row.deliveryId}`}

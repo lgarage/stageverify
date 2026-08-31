@@ -6,6 +6,7 @@ import {
   partitionVendorRunDeliveries,
   patchVendorRunCompleteRows,
   classifyVendorRunDeliveryRow,
+  vendorRunCanComplete,
   VENDOR_COMPLETED_MS_24H,
   VENDOR_COMPLETED_MS_72H,
 } from "../src/dispatcher/vendorJobListOrder.ts";
@@ -421,4 +422,31 @@ assert.equal(
   "hydrated open complete patch classifies as recentCompleted",
 );
 
-console.log("PASS: test-vendor-job-list-order (39 cases)");
+assert.equal(
+  vendorRunCanComplete({ hasAssignableSpot: true, stagingLocationCodes: [] }),
+  true,
+  "vendorRunCanComplete true when hasAssignableSpot",
+);
+assert.equal(
+  vendorRunCanComplete({
+    hasAssignableSpot: false,
+    stagingLocationCodes: ["G1"],
+  }),
+  true,
+  "vendorRunCanComplete true when stagingLocationCodes has entry",
+);
+assert.equal(
+  vendorRunCanComplete({ hasAssignableSpot: false, stagingLocationCodes: [] }),
+  false,
+  "vendorRunCanComplete false when neither spot nor codes",
+);
+assert.equal(
+  vendorRunCanComplete({
+    hasAssignableSpot: false,
+    stagingLocationCodes: ["  "],
+  }),
+  false,
+  "vendorRunCanComplete false when codes are blank",
+);
+
+console.log("PASS: test-vendor-job-list-order (43 cases)");

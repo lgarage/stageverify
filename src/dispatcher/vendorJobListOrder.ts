@@ -23,6 +23,21 @@ export function isVendorJobCardDelivered(row: {
   return row.vendorPhysicalDropoffConfirmed === true;
 }
 
+/** Company-run Complete eligibility: CF spot flag OR visible staging codes on the card. */
+export function vendorRunCanComplete(row: {
+  hasAssignableSpot?: boolean | null;
+  stagingLocationCodes?: readonly string[] | null;
+}): boolean {
+  if (row.hasAssignableSpot === true) {
+    return true;
+  }
+  const codes = row.stagingLocationCodes;
+  if (!codes || codes.length === 0) {
+    return false;
+  }
+  return codes.some((code) => typeof code === "string" && code.trim().length > 0);
+}
+
 /**
  * Stable partition: unfinished/active first, delivered/completed last.
  * Relative order within each group is preserved. Does not mutate `rows`.

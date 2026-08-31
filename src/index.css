@@ -937,6 +937,13 @@ button:active {
   background: var(--color-accent-orange);
 }
 
+.vendor-run-complete-actions .action-btn {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 0;
+  touch-action: manipulation;
+}
+
 /* Scanner Animation */
 @keyframes scan-line {
   0%,
