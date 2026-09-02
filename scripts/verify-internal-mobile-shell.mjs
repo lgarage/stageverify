@@ -44,6 +44,11 @@ const ROUTES = {
     title: "Vendors",
     heading: "Vendors",
   },
+  customers: {
+    hash: "#/customers",
+    title: "Customers",
+    heading: "Customers",
+  },
   settings: {
     hash: "#/settings",
     title: "Settings",
@@ -55,6 +60,7 @@ const MOBILE_NAV_TEST_IDS = [
   "portal-mobile-nav-dispatcher",
   "portal-mobile-nav-zones",
   "portal-mobile-nav-vendors",
+  "portal-mobile-nav-customers",
   "portal-mobile-nav-settings",
 ];
 
@@ -604,6 +610,9 @@ async function verifyMobileAtWidth(browser, width) {
   await navigateFromDrawer(page, "portal-mobile-nav-vendors", ROUTES.vendors);
 
   await openAndAssertMobileDrawer(page, ROUTES.vendors);
+  await navigateFromDrawer(page, "portal-mobile-nav-customers", ROUTES.customers);
+
+  await openAndAssertMobileDrawer(page, ROUTES.customers);
   await navigateFromDrawer(page, "portal-mobile-nav-settings", ROUTES.settings);
 
   await openAndAssertMobileDrawer(page, ROUTES.settings);
@@ -679,6 +688,7 @@ async function verifyDesktop(browser) {
   for (const [label, route] of [
     ["Staging Map", ROUTES.zones],
     ["Vendors", ROUTES.vendors],
+    ["Customers", ROUTES.customers],
     ["Settings", ROUTES.settings],
     ["Dispatcher Dashboard", ROUTES.dispatcher],
   ]) {
