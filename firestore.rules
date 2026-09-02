@@ -362,5 +362,28 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if isAuthenticated();
     }
+
+    // Operator Console — Cloud Functions Admin SDK only (deny all client access).
+    match /operatorAccounts/{uid} {
+      allow read, write: if false;
+    }
+    match /operatorOperations/{opId} {
+      allow read, write: if false;
+    }
+    match /consoleCustomers/{customerId} {
+      allow read, write: if false;
+    }
+    match /consoleLocations/{locationId} {
+      allow read, write: if false;
+    }
+    match /consoleUsers/{userId} {
+      allow read, write: if false;
+    }
+    match /consoleActivityEvents/{eventId} {
+      allow read, write: if false;
+    }
+    match /operatorConsoleLocks/{lockId} {
+      allow read, write: if false;
+    }
   }
 }
