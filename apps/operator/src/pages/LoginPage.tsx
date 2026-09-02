@@ -4,9 +4,11 @@ import {
   signInWithEmailAndPassword,
 } from "firebase/auth";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  assertSafeBackend,
+  OperatorDevBackendBlockedError,
+} from "../api/assertSafeBackend";
 import { auth } from "../firebase";
-
-const RESET_CONTINUE_URL = "https://lgarage.github.io/stageverify/#/login";
 
 const FORGOT_SUCCESS_MESSAGE =
   "If that email is registered, a reset link has been sent.";
@@ -51,16 +53,21 @@ export function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
+      assertSafeBackend();
       await signInWithEmailAndPassword(auth, email.trim(), password);
       navigate(resolvePostLoginPath(searchParams.get("next")), {
         replace: true,
       });
     } catch (err: unknown) {
-      const code =
-        err instanceof Error && "code" in err
-          ? String((err as { code: string }).code)
-          : "unknown";
-      setError(authErrorMessage(code));
+      if (err instanceof OperatorDevBackendBlockedError) {
+        setError(err.message);
+      } else {
+        const code =
+          err instanceof Error && "code" in err
+            ? String((err as { code: string }).code)
+            : "unknown";
+        setError(authErrorMessage(code));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -68,17 +75,25 @@ export function LoginPage() {
 
   const handleForgotSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setError(null);
     setForgotSubmitting(true);
     try {
+      assertSafeBackend();
       await sendPasswordResetEmail(auth, forgotEmail.trim(), {
-        url: RESET_CONTINUE_URL,
+        url: `${window.location.origin}/#/login`,
         handleCodeInApp: false,
       });
-    } catch {
-      /* anti-enumeration */
+      setView("forgot-done");
+    } catch (err: unknown) {
+      if (err instanceof OperatorDevBackendBlockedError) {
+        setError(err.message);
+      }
+      /* anti-enumeration — other errors still show success */
+      else {
+        setView("forgot-done");
+      }
     } finally {
       setForgotSubmitting(false);
-      setView("forgot-done");
     }
   };
 
@@ -134,6 +149,11 @@ export function LoginPage() {
               value={forgotEmail}
               onChange={(e) => setForgotEmail(e.target.value)}
             />
+            {error ? (
+              <p className="operator-login-error" role="alert">
+                {error}
+              </p>
+            ) : null}
             <button type="submit" disabled={forgotSubmitting}>
               {forgotSubmitting ? "Sending…" : "Send reset link"}
             </button>

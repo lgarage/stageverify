@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { auth } from "./firebase";
+import { auth, isOperatorBackendAllowed } from "./firebase";
 
 type AuthContextValue = {
   user: User | null;
@@ -21,6 +21,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isOperatorBackendAllowed()) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
     return onAuthStateChanged(auth, (next) => {
       setUser(next);
       setLoading(false);

@@ -86,5 +86,32 @@ if (/function mutatingCall[\s\S]*?assertSafeBackend\(\)/.test(operatorApi)) {
   fail("operatorApi mutatingCall calls assertSafeBackend() (writes)");
 }
 
+const loginPage = readFileSync(
+  resolve(root, "apps/operator/src/pages/LoginPage.tsx"),
+  "utf8",
+);
+const authContext = readFileSync(
+  resolve(root, "apps/operator/src/AuthContext.tsx"),
+  "utf8",
+);
+
+if (/assertSafeBackend\(\)/.test(loginPage)) {
+  pass("LoginPage calls assertSafeBackend()");
+} else {
+  fail("LoginPage calls assertSafeBackend()");
+}
+
+if (!/lgarage\.github\.io/.test(loginPage)) {
+  pass("LoginPage does not reference lgarage.github.io");
+} else {
+  fail("LoginPage does not reference lgarage.github.io");
+}
+
+if (/isOperatorBackendAllowed/.test(authContext)) {
+  pass("AuthContext uses isOperatorBackendAllowed");
+} else {
+  fail("AuthContext uses isOperatorBackendAllowed");
+}
+
 console.log(`\n${passed} passed, ${failed} failed\n`);
 process.exit(failed ? 1 : 0);
