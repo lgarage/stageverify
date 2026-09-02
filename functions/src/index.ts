@@ -112,6 +112,17 @@ import { bootstrapFirstAdmin } from "./bootstrapFirstAdmin";
 import { getTechnicianReleasedJobs } from "./getTechnicianReleasedJobs";
 import { releaseJobsToTechnician } from "./releaseJobsToTechnician";
 import { recordTechnicianJobOpen } from "./recordTechnicianJobOpen";
+import {
+  getOperatorSession,
+  addOperatorAccount,
+  deactivateOperatorAccount,
+  createCustomerWithOnboarding,
+  addLocationToCustomer,
+  addUserToCustomer,
+  transitionLocationOnboarding,
+  listCustomersWithSummary,
+  getCustomerBundle,
+} from "./operatorConsole";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -329,4 +340,13 @@ export {
   dismissVendorEmailEventCallable,
   reopenVendorEmailEventCallable,
   applyVendorReplyClearBackorder,
+  getOperatorSession,
+  addOperatorAccount,
+  deactivateOperatorAccount,
+  createCustomerWithOnboarding,
+  addLocationToCustomer,
+  addUserToCustomer,
+  transitionLocationOnboarding,
+  listCustomersWithSummary,
+  getCustomerBundle,
 };

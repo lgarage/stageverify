@@ -4,7 +4,6 @@ import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
 import { AuthProvider, useAuth } from "./AuthContext";
 import { ProtectedRoute } from "./ProtectedRoute";
-import { OperatorProtectedRoute } from "./operator/OperatorProtectedRoute";
 import { DispatcherPortalRouteLayout } from "./DispatcherPortalRouteLayout";
 import { LoginPage } from "./LoginPage";
 import { NoAccessPage } from "./NoAccessPage";
@@ -43,16 +42,6 @@ const InvoiceReviewPage = lazy(() =>
   import("./InvoiceReviewPage").then((m) => ({ default: m.InvoiceReviewPage })),
 );
 const MobileHubPage = lazy(() => import("./MobileHubPage").then(m => ({ default: m.MobileHubPage })));
-const OperatorDashboardPage = lazy(() =>
-  import("./operator/OperatorDashboardPage").then((m) => ({
-    default: m.OperatorDashboardPage,
-  })),
-);
-const OperatorCustomersPage = lazy(() =>
-  import("./operator/OperatorCustomersPage").then((m) => ({
-    default: m.OperatorCustomersPage,
-  })),
-);
 const PickupPortalPage = lazy(() => import("./PickupPortalPage"));
 const VendorDemoScanPage = lazy(() =>
   import("./VendorDemoScanPage").then((m) => ({ default: m.VendorDemoScanPage })),
@@ -127,12 +116,6 @@ const renderApp = () => {
                   />
                 </Route>
                 <Route path="/hub" element={<MobileHubPage />} />
-              </Route>
-              <Route element={<OperatorProtectedRoute />}>
-                <Route path="/operator">
-                  <Route index element={<OperatorDashboardPage />} />
-                  <Route path="customers/*" element={<OperatorCustomersPage />} />
-                </Route>
               </Route>
               <Route path="/" element={<RootRedirect />} />
             </Routes>
