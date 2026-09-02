@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { connectAuthEmulator, getAuth } from "firebase/auth";
 import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
+import { isOperatorBackendAllowed as isOperatorBackendAllowedPure } from "./api/operatorBackendGate";
 
 const firebaseConfig = {
   apiKey: "AIzaSyALKllET2wQoAm7-3RiHrRJjMsVq315WaE",
@@ -23,8 +24,10 @@ if (useEmulators) {
   connectFunctionsEmulator(functions, "127.0.0.1", 5001);
 }
 
-/** True when mutating callables may be invoked (emulator-connected dev or production build). */
-export function isOperatorBackendMutationsAllowed(): boolean {
-  if (!import.meta.env.DEV) return true;
-  return import.meta.env.VITE_OPERATOR_USE_EMULATORS === "1";
+/** True when operator callables (reads and writes) may be invoked. */
+export function isOperatorBackendAllowed(): boolean {
+  return isOperatorBackendAllowedPure({
+    isDev: import.meta.env.DEV,
+    useEmulators: import.meta.env.VITE_OPERATOR_USE_EMULATORS === "1",
+  });
 }

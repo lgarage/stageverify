@@ -15,6 +15,7 @@ exports.OPERATOR_CALLABLE_CORS = [
     "http://127.0.0.1:5173",
     "http://localhost:5174",
     "http://127.0.0.1:5174",
-    "https://lgarage.github.io",
+    "https://stageverify-operator.web.app",
+    "https://stageverify-operator.firebaseapp.com",
 ];
 //# sourceMappingURL=operatorCollections.js.map

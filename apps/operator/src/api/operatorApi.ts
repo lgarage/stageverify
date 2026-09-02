@@ -51,6 +51,7 @@ function mutatingCall<TRequest extends object, TResponse>(
 }
 
 export async function listCustomersWithSummary(): Promise<CustomerSummary[]> {
+  assertSafeBackend();
   const callable = httpsCallable<Record<string, never>, CustomerSummary[]>(
     functions,
     "listCustomersWithSummary",
@@ -62,6 +63,7 @@ export async function listCustomersWithSummary(): Promise<CustomerSummary[]> {
 export async function getCustomerBundle(
   customerId: string,
 ): Promise<CustomerBundle> {
+  assertSafeBackend();
   const callable = httpsCallable<{ customerId: string }, CustomerBundle>(
     functions,
     "getCustomerBundle",
