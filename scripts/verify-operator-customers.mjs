@@ -22,11 +22,42 @@ const OPERATOR_STORE_KEY = "stageverify.operator.foundation.v1";
 
 loadEnvLocal();
 
+function assertOperatorAllowlistIncludesTestAccount() {
+  const testEmail = process.env.STAGEVERIFY_TEST_EMAIL?.trim().toLowerCase();
+  if (!testEmail) {
+    throw new Error(
+      "STAGEVERIFY_TEST_EMAIL must be set (e.g. in .env.local) for verify:operator-customers",
+    );
+  }
+  const allowlist = (process.env.VITE_OPERATOR_ALLOWED_EMAILS ?? "")
+    .split(",")
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean);
+  if (!allowlist.includes(testEmail)) {
+    throw new Error(
+      `VITE_OPERATOR_ALLOWED_EMAILS must include STAGEVERIFY_TEST_EMAIL (${testEmail}) — set in .env.local and restart dev server`,
+    );
+  }
+}
+
+assertOperatorAllowlistIncludesTestAccount();
+
 const baseUrl =
   process.argv.find((arg) => arg.startsWith("--base-url="))?.split("=")[1] ??
   process.env.STAGEVERIFY_BASE_URL ??
   "http://localhost:5173";
 const appBase = resolveAppBase(baseUrl);
+
+const OPERATOR_DASHBOARD_CONTRAST_SPEC = {
+  rootSelector: '[data-testid="operator-dashboard-page"]',
+  elements: [
+    {
+      name: "Dashboard heading",
+      selector: '[data-testid="operator-dashboard-page"] h1',
+      minRatio: MIN_LARGE_TEXT_CONTRAST,
+    },
+  ],
+};
 
 const OPERATOR_CUSTOMERS_CONTRAST_SPEC = {
   rootSelector: '[data-testid="operator-customers-page"]',
@@ -70,8 +101,43 @@ const OPERATOR_DETAIL_CONTRAST_SPEC = {
   ],
 };
 
+async function assertDispatcherChromeAbsent(page) {
+  const forbidden = [
+    "Vendor Comms",
+    "Catch-all",
+    "New Delivery",
+    "Dispatcher Portal",
+  ];
+  for (const label of forbidden) {
+    const count = await page.getByText(label, { exact: false }).count();
+    if (count > 0) {
+      throw new Error(`Dispatcher chrome present (expected absent): "${label}"`);
+    }
+  }
+}
+
+async function verifyOperatorDashboard(page) {
+  await page.goto(`${appBase}/#/operator`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await page
+    .getByTestId("operator-dashboard-page")
+    .waitFor({ state: "visible", timeout: 30_000 });
+  await page.getByText("Operator Dashboard").waitFor({ state: "visible" });
+  await page.getByText("StageVerify Operator Console").waitFor({ state: "visible" });
+
+  const sidebar = page.getByTestId("operator-sidebar");
+  await sidebar.getByRole("link", { name: "Dashboard" }).waitFor({ state: "visible" });
+  await sidebar.getByRole("link", { name: "Customers" }).waitFor({ state: "visible" });
+  await sidebar.getByRole("link", { name: "Onboarding" }).waitFor({ state: "visible" });
+
+  await assertDispatcherChromeAbsent(page);
+  await assertReadableTextContrast(page, OPERATOR_DASHBOARD_CONTRAST_SPEC);
+}
+
 async function createCustomerViaForm(page) {
-  await page.goto(`${appBase}/#/customers/new`, {
+  await page.goto(`${appBase}/#/operator/customers/new`, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
   });
@@ -133,7 +199,7 @@ async function createCustomerViaForm(page) {
   await user2Checks.nth(1).check();
 
   await page.getByTestId("operator-customer-create-submit").click();
-  await page.waitForURL(/\/#\/customers\/cus_/, { timeout: 30_000 });
+  await page.waitForURL(/\/#\/operator\/customers\/cus_/, { timeout: 30_000 });
   await page
     .getByTestId("operator-customer-detail")
     .waitFor({ state: "visible", timeout: 30_000 });
@@ -151,7 +217,9 @@ async function createCustomerViaForm(page) {
   try {
     await ensureAuthenticated(page, appBase);
 
-    await page.goto(`${appBase}/#/customers`, {
+    await verifyOperatorDashboard(page);
+
+    await page.goto(`${appBase}/#/operator/customers`, {
       waitUntil: "domcontentloaded",
       timeout: 45_000,
     });
@@ -194,7 +262,7 @@ async function createCustomerViaForm(page) {
       throw new Error("Operator store not persisted to localStorage");
     }
 
-    await page.goto(`${appBase}/#/customers`, {
+    await page.goto(`${appBase}/#/operator/customers`, {
       waitUntil: "domcontentloaded",
     });
     await page

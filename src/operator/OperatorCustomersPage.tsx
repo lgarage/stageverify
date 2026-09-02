@@ -1,6 +1,4 @@
 import { Link, Route, Routes, useNavigate } from "react-router-dom";
-import { PortalSidebar } from "../PortalSidebar";
-import { DispatcherPortalTopBar } from "../DispatcherPortalTopBar";
 import { PortalShell } from "../PortalShell";
 import {
   PORTAL_MAIN_CLASS,
@@ -9,6 +7,8 @@ import {
 import { listCustomersWithSummary } from "./operatorStore";
 import { OperatorCustomerDetail } from "./OperatorCustomerDetail";
 import { OperatorCustomerOnboardingForm } from "./OperatorCustomerOnboardingForm";
+import { OperatorSidebar } from "./OperatorSidebar";
+import { OperatorTopBar } from "./OperatorTopBar";
 import { useCallback, useEffect, useState } from "react";
 import type { CustomerSummary } from "./customerModels";
 
@@ -68,7 +68,7 @@ function CustomerListPage() {
           </p>
         </div>
         <Link
-          to="/customers/new"
+          to="/operator/customers/new"
           data-testid="operator-customers-new"
           style={{
             backgroundColor: "#bf0a30",
@@ -127,7 +127,7 @@ function CustomerListPage() {
                   key={row.customerId}
                   data-testid={`operator-customer-row-${row.customerId}`}
                   data-company={row.companyName}
-                  onClick={() => navigate(`/customers/${row.customerId}`)}
+                  onClick={() => navigate(`/operator/customers/${row.customerId}`)}
                   style={{
                     borderBottom: "1px solid var(--admin-border)",
                     cursor: "pointer",
@@ -135,7 +135,7 @@ function CustomerListPage() {
                 >
                   <td style={{ padding: "12px 16px", color: TEXT }}>
                     <Link
-                      to={`/customers/${row.customerId}`}
+                      to={`/operator/customers/${row.customerId}`}
                       style={{ color: NAVY, fontWeight: 600, textDecoration: "none" }}
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -164,17 +164,13 @@ function CustomerListPage() {
 export function OperatorCustomersPage() {
   return (
     <PortalShell style={{ fontFamily: FONT }}>
-      <PortalSidebar />
+      <OperatorSidebar />
 
       <div
         className={PORTAL_MAIN_CLASS}
         style={{ backgroundColor: "var(--admin-bg)" }}
       >
-        <DispatcherPortalTopBar
-          title="Customers"
-          subtitle="Operator console"
-          showNewDelivery={false}
-        />
+        <OperatorTopBar title="Customers" subtitle="Operator console" />
 
         <div
           className={PORTAL_SCROLL_CLASS}

@@ -167,7 +167,7 @@ export function OperatorCustomerDetail() {
     return (
       <div style={{ padding: 30 }}>
         <p style={{ color: MUTED }}>Customer not found.</p>
-        <Link to="/customers" style={{ color: NAVY }}>
+        <Link to="/operator/customers" style={{ color: NAVY }}>
           Back to customers
         </Link>
       </div>
@@ -189,7 +189,10 @@ export function OperatorCustomerDetail() {
       }}
     >
       <div>
-        <Link to="/customers" style={{ color: MUTED, fontSize: 13, textDecoration: "none" }}>
+        <Link
+          to="/operator/customers"
+          style={{ color: MUTED, fontSize: 13, textDecoration: "none" }}
+        >
           ← Customers
         </Link>
         <h1

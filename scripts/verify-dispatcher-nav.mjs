@@ -494,6 +494,13 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   }
   console.log("PASS: Invoice Review sidebar link absent.");
 
+  if (
+    (await nav.getByRole("link", { name: "Customers", exact: true }).count()) > 0
+  ) {
+    throw new Error("Customers sidebar link must not appear in dispatcher portal");
+  }
+  console.log("PASS: Customers sidebar link absent from dispatcher portal.");
+
   console.log("Sidebar: Staging Map…");
   await nav.getByRole("link", { name: "Staging Map", exact: true }).click();
   await page.waitForTimeout(400);

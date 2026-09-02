@@ -370,7 +370,7 @@ export function OperatorCustomerOnboardingForm() {
           locationIndexes: user.locationIndexes,
         })),
       });
-      navigate(`/customers/${bundle.customer.customerId}`);
+      navigate(`/operator/customers/${bundle.customer.customerId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create customer");
       setSubmitting(false);
