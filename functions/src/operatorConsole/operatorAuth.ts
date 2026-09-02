@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import type { Transaction } from "firebase-admin/firestore";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { OPERATOR_ACCOUNTS_COLLECTION } from "./operatorCollections";
 
@@ -66,5 +67,30 @@ export async function assertNotLastActiveOperator(
         "Cannot deactivate the last active operator account.",
       );
     }
+  }
+}
+
+/** Transaction-safe last-operator guard — query + target read inside the same tx. */
+export async function assertNotLastActiveOperatorInTransaction(
+  tx: Transaction,
+  targetUid: string,
+): Promise<void> {
+  const db = getDb();
+  const targetRef = db.collection(OPERATOR_ACCOUNTS_COLLECTION).doc(targetUid);
+  const targetSnap = await tx.get(targetRef);
+  const targetData = targetSnap.data() as OperatorAccountDoc | undefined;
+  if (!targetSnap.exists || targetData?.active !== true) {
+    throw new HttpsError("not-found", "Active operator account not found.");
+  }
+
+  const activeQuery = db
+    .collection(OPERATOR_ACCOUNTS_COLLECTION)
+    .where("active", "==", true);
+  const activeSnap = await tx.get(activeQuery);
+  if (activeSnap.size <= 1) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Cannot deactivate the last active operator account.",
+    );
   }
 }

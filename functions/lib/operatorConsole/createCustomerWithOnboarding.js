@@ -9,6 +9,7 @@ const operatorMutationCore_1 = require("./operatorMutationCore");
 const operatorIdempotency_1 = require("./operatorIdempotency");
 const operatorValidation_1 = require("./operatorValidation");
 Object.defineProperty(exports, "resolveClientOperationId", { enumerable: true, get: function () { return operatorValidation_1.resolveClientOperationId; } });
+const OPERATION_TYPE = "createCustomerWithOnboarding";
 exports.createCustomerWithOnboarding = (0, https_1.onCall)({
     region: "us-central1",
     cors: operatorCollections_1.OPERATOR_CALLABLE_CORS,
@@ -17,7 +18,7 @@ exports.createCustomerWithOnboarding = (0, https_1.onCall)({
     const data = (request.data ?? {});
     const operationId = (0, operatorIdempotency_1.mintOperationId)(data.clientOperationId);
     const db = (0, operatorAuth_1.getDb)();
-    const existing = await (0, operatorIdempotency_1.readIdempotentResult)(db, operationId);
+    const existing = await (0, operatorIdempotency_1.readIdempotentResult)(db, OPERATION_TYPE, operationId);
     if (existing) {
         return existing;
     }
@@ -63,7 +64,7 @@ exports.createCustomerWithOnboarding = (0, https_1.onCall)({
     }, nowIso);
     const bundle = (0, operatorMutationCore_1.buildCustomerBundle)(customer, locations, users, [event]);
     await db.runTransaction(async (tx) => {
-        const opRef = db.collection("operatorOperations").doc(operationId);
+        const opRef = (0, operatorIdempotency_1.operationMarkerRef)(db, OPERATION_TYPE, operationId);
         const opSnap = await tx.get(opRef);
         if (opSnap.exists) {
             return;
@@ -84,7 +85,7 @@ exports.createCustomerWithOnboarding = (0, https_1.onCall)({
             nowIso,
         });
     });
-    const replay = await (0, operatorIdempotency_1.readIdempotentResult)(db, operationId);
+    const replay = await (0, operatorIdempotency_1.readIdempotentResult)(db, OPERATION_TYPE, operationId);
     return replay ?? bundle;
 });
 //# sourceMappingURL=createCustomerWithOnboarding.js.map

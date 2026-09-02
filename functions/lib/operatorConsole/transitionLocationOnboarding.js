@@ -10,6 +10,7 @@ const operatorIdempotency_1 = require("./operatorIdempotency");
 const operatorValidation_1 = require("./operatorValidation");
 Object.defineProperty(exports, "resolveClientOperationId", { enumerable: true, get: function () { return operatorValidation_1.resolveClientOperationId; } });
 const onboardingTransitions_1 = require("./onboardingTransitions");
+const OPERATION_TYPE = "transitionLocationOnboarding";
 exports.transitionLocationOnboarding = (0, https_1.onCall)({
     region: "us-central1",
     cors: operatorCollections_1.OPERATOR_CALLABLE_CORS,
@@ -23,53 +24,53 @@ exports.transitionLocationOnboarding = (0, https_1.onCall)({
     }
     const to = (0, operatorValidation_1.parseOnboardingStatus)(data.to);
     const db = (0, operatorAuth_1.getDb)();
-    const existing = await (0, operatorIdempotency_1.readIdempotentResult)(db, operationId);
+    const existing = await (0, operatorIdempotency_1.readIdempotentResult)(db, OPERATION_TYPE, operationId);
     if (existing) {
         return existing;
     }
     const locationRef = db
         .collection(operatorCollections_1.CONSOLE_LOCATIONS_COLLECTION)
         .doc(locationId);
-    const locationSnap = await locationRef.get();
-    if (!locationSnap.exists) {
-        throw new https_1.HttpsError("not-found", "Location not found.");
-    }
-    const current = locationSnap.data();
-    let next;
-    try {
-        next = (0, onboardingTransitions_1.transitionOnboarding)(current, to, new Date().toISOString());
-    }
-    catch (err) {
-        throw new https_1.HttpsError("failed-precondition", err instanceof Error ? err.message : "Illegal onboarding transition.");
-    }
-    const nowIso = next.updatedAt;
-    const event = (0, operatorMutationCore_1.buildActivityEvent)({
-        customerId: current.customerId,
-        locationId,
-        type: "onboarding.transition",
-        message: `Location "${current.locationName}" onboarding ${current.onboardingStatus} → ${to}.`,
-        actorUid,
-    }, nowIso);
-    const customerRef = db
-        .collection(operatorCollections_1.CONSOLE_CUSTOMERS_COLLECTION)
-        .doc(current.customerId);
     await db.runTransaction(async (tx) => {
-        const opRef = db.collection("operatorOperations").doc(operationId);
+        const opRef = (0, operatorIdempotency_1.operationMarkerRef)(db, OPERATION_TYPE, operationId);
         const opSnap = await tx.get(opRef);
         if (opSnap.exists)
             return;
+        const locationSnap = await tx.get(locationRef);
+        if (!locationSnap.exists) {
+            throw new https_1.HttpsError("not-found", "Location not found.");
+        }
+        const current = locationSnap.data();
+        const nowIso = new Date().toISOString();
+        let next;
+        try {
+            next = (0, onboardingTransitions_1.transitionOnboarding)(current, to, nowIso);
+        }
+        catch (err) {
+            throw new https_1.HttpsError("failed-precondition", err instanceof Error ? err.message : "Illegal onboarding transition.");
+        }
+        const event = (0, operatorMutationCore_1.buildActivityEvent)({
+            customerId: current.customerId,
+            locationId,
+            type: "onboarding.transition",
+            message: `Location "${current.locationName}" onboarding ${current.onboardingStatus} → ${to}.`,
+            actorUid,
+        }, nowIso);
+        const customerRef = db
+            .collection(operatorCollections_1.CONSOLE_CUSTOMERS_COLLECTION)
+            .doc(current.customerId);
         tx.set(locationRef, next);
         tx.update(customerRef, { updatedAt: nowIso });
         tx.set(db.collection(operatorCollections_1.CONSOLE_ACTIVITY_EVENTS_COLLECTION).doc(event.eventId), (0, firestoreSerialize_1.stripUndefined)(event));
         (0, operatorIdempotency_1.writeOperationMarker)(tx, db, {
             operationId,
-            operationType: "transitionLocationOnboarding",
+            operationType: OPERATION_TYPE,
             actorUid,
             result: next,
             nowIso,
         });
     });
-    const replay = await (0, operatorIdempotency_1.readIdempotentResult)(db, operationId);
-    return replay ?? next;
+    const replay = await (0, operatorIdempotency_1.readIdempotentResult)(db, OPERATION_TYPE, operationId);
+    return replay ?? (await locationRef.get()).data();
 });
 //# sourceMappingURL=transitionLocationOnboarding.js.map

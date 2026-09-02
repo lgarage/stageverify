@@ -2,6 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.firestoreSafeJson = firestoreSafeJson;
 exports.mintOperationId = mintOperationId;
+exports.operationMarkerDocId = operationMarkerDocId;
+exports.operationMarkerRef = operationMarkerRef;
 exports.readIdempotentResult = readIdempotentResult;
 exports.writeOperationMarker = writeOperationMarker;
 const operatorCollections_1 = require("./operatorCollections");
@@ -15,18 +17,26 @@ function mintOperationId(raw) {
     const resolved = (0, operatorValidation_1.resolveClientOperationId)(raw);
     return resolved || (0, operatorIds_1.newServerOperationId)();
 }
-async function readIdempotentResult(db, operationId) {
-    const snap = await db
+/** Scope idempotency markers by operationType so clientOperationId cannot cross-callables. */
+function operationMarkerDocId(operationType, operationId) {
+    return `${operationType}:${operationId}`;
+}
+function operationMarkerRef(db, operationType, operationId) {
+    return db
         .collection(operatorCollections_1.OPERATOR_OPERATIONS_COLLECTION)
-        .doc(operationId)
-        .get();
+        .doc(operationMarkerDocId(operationType, operationId));
+}
+async function readIdempotentResult(db, operationType, operationId) {
+    const snap = await operationMarkerRef(db, operationType, operationId).get();
     if (!snap.exists)
         return null;
     const data = snap.data();
+    if (data.operationType !== operationType)
+        return null;
     return data.result;
 }
 function writeOperationMarker(tx, db, input) {
-    const ref = db.collection(operatorCollections_1.OPERATOR_OPERATIONS_COLLECTION).doc(input.operationId);
+    const ref = operationMarkerRef(db, input.operationType, input.operationId);
     tx.set(ref, {
         clientOperationId: input.operationId,
         operationType: input.operationType,

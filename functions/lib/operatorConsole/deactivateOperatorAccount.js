@@ -14,14 +14,13 @@ exports.deactivateOperatorAccount = (0, https_1.onCall)({
     if (!targetUid) {
         throw new https_1.HttpsError("invalid-argument", "targetUid is required.");
     }
-    await (0, operatorAuth_1.assertNotLastActiveOperator)(targetUid);
-    const ref = (0, operatorAuth_1.getDb)().collection(operatorCollections_1.OPERATOR_ACCOUNTS_COLLECTION).doc(targetUid);
-    const snap = await ref.get();
-    if (!snap.exists || snap.data()?.active !== true) {
-        throw new https_1.HttpsError("not-found", "Active operator account not found.");
-    }
+    const db = (0, operatorAuth_1.getDb)();
+    const ref = db.collection(operatorCollections_1.OPERATOR_ACCOUNTS_COLLECTION).doc(targetUid);
     const now = new Date().toISOString();
-    await ref.set({ active: false, updatedAt: now }, { merge: true });
+    await db.runTransaction(async (tx) => {
+        await (0, operatorAuth_1.assertNotLastActiveOperatorInTransaction)(tx, targetUid);
+        tx.set(ref, { active: false, updatedAt: now }, { merge: true });
+    });
     return { success: true, targetUid };
 });
 //# sourceMappingURL=deactivateOperatorAccount.js.map

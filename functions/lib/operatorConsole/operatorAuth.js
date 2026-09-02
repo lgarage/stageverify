@@ -5,6 +5,7 @@ exports.requireOperatorAuth = requireOperatorAuth;
 exports.isActiveOperator = isActiveOperator;
 exports.countActiveOperators = countActiveOperators;
 exports.assertNotLastActiveOperator = assertNotLastActiveOperator;
+exports.assertNotLastActiveOperatorInTransaction = assertNotLastActiveOperatorInTransaction;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
 const operatorCollections_1 = require("./operatorCollections");
@@ -53,6 +54,23 @@ async function assertNotLastActiveOperator(targetUid) {
         if (targetSnap.exists && targetData?.active === true) {
             throw new https_1.HttpsError("failed-precondition", "Cannot deactivate the last active operator account.");
         }
+    }
+}
+/** Transaction-safe last-operator guard — query + target read inside the same tx. */
+async function assertNotLastActiveOperatorInTransaction(tx, targetUid) {
+    const db = getDb();
+    const targetRef = db.collection(operatorCollections_1.OPERATOR_ACCOUNTS_COLLECTION).doc(targetUid);
+    const targetSnap = await tx.get(targetRef);
+    const targetData = targetSnap.data();
+    if (!targetSnap.exists || targetData?.active !== true) {
+        throw new https_1.HttpsError("not-found", "Active operator account not found.");
+    }
+    const activeQuery = db
+        .collection(operatorCollections_1.OPERATOR_ACCOUNTS_COLLECTION)
+        .where("active", "==", true);
+    const activeSnap = await tx.get(activeQuery);
+    if (activeSnap.size <= 1) {
+        throw new https_1.HttpsError("failed-precondition", "Cannot deactivate the last active operator account.");
     }
 }
 //# sourceMappingURL=operatorAuth.js.map

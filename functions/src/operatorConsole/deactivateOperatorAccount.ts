@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import {
-  assertNotLastActiveOperator,
+  assertNotLastActiveOperatorInTransaction,
   getDb,
   requireOperatorAuth,
 } from "./operatorAuth";
@@ -23,16 +23,15 @@ export const deactivateOperatorAccount = onCall(
       throw new HttpsError("invalid-argument", "targetUid is required.");
     }
 
-    await assertNotLastActiveOperator(targetUid);
-
-    const ref = getDb().collection(OPERATOR_ACCOUNTS_COLLECTION).doc(targetUid);
-    const snap = await ref.get();
-    if (!snap.exists || snap.data()?.active !== true) {
-      throw new HttpsError("not-found", "Active operator account not found.");
-    }
-
+    const db = getDb();
+    const ref = db.collection(OPERATOR_ACCOUNTS_COLLECTION).doc(targetUid);
     const now = new Date().toISOString();
-    await ref.set({ active: false, updatedAt: now }, { merge: true });
+
+    await db.runTransaction(async (tx) => {
+      await assertNotLastActiveOperatorInTransaction(tx, targetUid);
+      tx.set(ref, { active: false, updatedAt: now }, { merge: true });
+    });
+
     return { success: true, targetUid };
   },
 );

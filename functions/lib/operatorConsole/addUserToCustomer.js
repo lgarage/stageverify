@@ -9,6 +9,7 @@ const operatorMutationCore_1 = require("./operatorMutationCore");
 const operatorIdempotency_1 = require("./operatorIdempotency");
 const operatorIds_1 = require("./operatorIds");
 const operatorValidation_1 = require("./operatorValidation");
+const OPERATION_TYPE = "addUserToCustomer";
 exports.addUserToCustomer = (0, https_1.onCall)({
     region: "us-central1",
     cors: operatorCollections_1.OPERATOR_CALLABLE_CORS,
@@ -21,7 +22,7 @@ exports.addUserToCustomer = (0, https_1.onCall)({
         throw new https_1.HttpsError("invalid-argument", "customerId is required.");
     }
     const db = (0, operatorAuth_1.getDb)();
-    const existing = await (0, operatorIdempotency_1.readIdempotentResult)(db, operationId);
+    const existing = await (0, operatorIdempotency_1.readIdempotentResult)(db, OPERATION_TYPE, operationId);
     if (existing) {
         return existing;
     }
@@ -66,7 +67,7 @@ exports.addUserToCustomer = (0, https_1.onCall)({
         actorUid,
     }, nowIso);
     await db.runTransaction(async (tx) => {
-        const opRef = db.collection("operatorOperations").doc(operationId);
+        const opRef = (0, operatorIdempotency_1.operationMarkerRef)(db, OPERATION_TYPE, operationId);
         const opSnap = await tx.get(opRef);
         if (opSnap.exists)
             return;
@@ -81,7 +82,7 @@ exports.addUserToCustomer = (0, https_1.onCall)({
             nowIso,
         });
     });
-    const replay = await (0, operatorIdempotency_1.readIdempotentResult)(db, operationId);
+    const replay = await (0, operatorIdempotency_1.readIdempotentResult)(db, OPERATION_TYPE, operationId);
     return replay ?? user;
 });
 //# sourceMappingURL=addUserToCustomer.js.map

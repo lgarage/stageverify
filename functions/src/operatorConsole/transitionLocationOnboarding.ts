@@ -11,6 +11,7 @@ import {
 import { buildActivityEvent } from "./operatorMutationCore";
 import {
   mintOperationId,
+  operationMarkerRef,
   readIdempotentResult,
   writeOperationMarker,
 } from "./operatorIdempotency";
@@ -19,6 +20,8 @@ import {
   resolveClientOperationId,
 } from "./operatorValidation";
 import { transitionOnboarding } from "./onboardingTransitions";
+
+const OPERATION_TYPE = "transitionLocationOnboarding";
 
 export const transitionLocationOnboarding = onCall(
   {
@@ -39,6 +42,7 @@ export const transitionLocationOnboarding = onCall(
     const db = getDb();
     const existing = await readIdempotentResult<PhysicalLocation>(
       db,
+      OPERATION_TYPE,
       operationId,
     );
     if (existing) {
@@ -48,42 +52,43 @@ export const transitionLocationOnboarding = onCall(
     const locationRef = db
       .collection(CONSOLE_LOCATIONS_COLLECTION)
       .doc(locationId);
-    const locationSnap = await locationRef.get();
-    if (!locationSnap.exists) {
-      throw new HttpsError("not-found", "Location not found.");
-    }
-
-    const current = locationSnap.data() as PhysicalLocation;
-    let next: PhysicalLocation;
-    try {
-      next = transitionOnboarding(current, to, new Date().toISOString());
-    } catch (err) {
-      throw new HttpsError(
-        "failed-precondition",
-        err instanceof Error ? err.message : "Illegal onboarding transition.",
-      );
-    }
-
-    const nowIso = next.updatedAt;
-    const event = buildActivityEvent(
-      {
-        customerId: current.customerId,
-        locationId,
-        type: "onboarding.transition",
-        message: `Location "${current.locationName}" onboarding ${current.onboardingStatus} → ${to}.`,
-        actorUid,
-      },
-      nowIso,
-    );
-
-    const customerRef = db
-      .collection(CONSOLE_CUSTOMERS_COLLECTION)
-      .doc(current.customerId);
 
     await db.runTransaction(async (tx) => {
-      const opRef = db.collection("operatorOperations").doc(operationId);
+      const opRef = operationMarkerRef(db, OPERATION_TYPE, operationId);
       const opSnap = await tx.get(opRef);
       if (opSnap.exists) return;
+
+      const locationSnap = await tx.get(locationRef);
+      if (!locationSnap.exists) {
+        throw new HttpsError("not-found", "Location not found.");
+      }
+
+      const current = locationSnap.data() as PhysicalLocation;
+      const nowIso = new Date().toISOString();
+      let next: PhysicalLocation;
+      try {
+        next = transitionOnboarding(current, to, nowIso);
+      } catch (err) {
+        throw new HttpsError(
+          "failed-precondition",
+          err instanceof Error ? err.message : "Illegal onboarding transition.",
+        );
+      }
+
+      const event = buildActivityEvent(
+        {
+          customerId: current.customerId,
+          locationId,
+          type: "onboarding.transition",
+          message: `Location "${current.locationName}" onboarding ${current.onboardingStatus} → ${to}.`,
+          actorUid,
+        },
+        nowIso,
+      );
+
+      const customerRef = db
+        .collection(CONSOLE_CUSTOMERS_COLLECTION)
+        .doc(current.customerId);
 
       tx.set(locationRef, next);
       tx.update(customerRef, { updatedAt: nowIso });
@@ -93,15 +98,19 @@ export const transitionLocationOnboarding = onCall(
       );
       writeOperationMarker(tx, db, {
         operationId,
-        operationType: "transitionLocationOnboarding",
+        operationType: OPERATION_TYPE,
         actorUid,
         result: next,
         nowIso,
       });
     });
 
-    const replay = await readIdempotentResult<PhysicalLocation>(db, operationId);
-    return replay ?? next;
+    const replay = await readIdempotentResult<PhysicalLocation>(
+      db,
+      OPERATION_TYPE,
+      operationId,
+    );
+    return replay ?? (await locationRef.get()).data() as PhysicalLocation;
   },
 );
 

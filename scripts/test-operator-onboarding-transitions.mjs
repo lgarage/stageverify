@@ -116,5 +116,60 @@ if (advanced.data.onboardingStatus === "CONFIGURING") {
   fail("legal transition via callable");
 }
 
+// Reset location to NEW for concurrent transition test (emulator-only direct write)
+await initAdmin()
+  .collection("consoleLocations")
+  .doc(locationId)
+  .update({ onboardingStatus: "NEW", updatedAt: new Date().toISOString() });
+
+const concurrent = await Promise.allSettled([
+  callable(client.functions, "transitionLocationOnboarding")({
+    locationId,
+    to: "CONFIGURING",
+    clientOperationId: `op_conc_legal_${stamp}`,
+  }),
+  callable(client.functions, "transitionLocationOnboarding")({
+    locationId,
+    to: "ACTIVE",
+    clientOperationId: `op_conc_illegal_${stamp}`,
+  }),
+]);
+
+const concSuccess = concurrent.filter((r) => r.status === "fulfilled");
+const concFail = concurrent.filter((r) => r.status === "rejected");
+if (concSuccess.length >= 1 && concFail.length >= 1) {
+  pass("concurrent transitions: legal succeeds and illegal-from-fresh fails");
+} else {
+  fail(
+    "concurrent transitions: legal succeeds and illegal-from-fresh fails",
+    new Error(`success=${concSuccess.length} fail=${concFail.length}`),
+  );
+}
+
+const finalSnap = await initAdmin().collection("consoleLocations").doc(locationId).get();
+const finalStatus = finalSnap.data()?.onboardingStatus;
+if (finalStatus === "CONFIGURING" || finalStatus === "NEW") {
+  pass(`concurrent race ends in legal end-state (${finalStatus})`);
+} else {
+  fail(`concurrent race ends in legal end-state`, new Error(`got ${finalStatus}`));
+}
+
+// Same clientOperationId must not cross operation types
+const sharedOpId = `op_cross_type_${stamp}`;
+await callable(client.functions, "createCustomerWithOnboarding")({
+  ...sampleCreatePayload("Cross Type Co"),
+  clientOperationId: sharedOpId,
+});
+const crossTransition = await callable(client.functions, "transitionLocationOnboarding")({
+  locationId,
+  to: "LAYOUT_DRAFT",
+  clientOperationId: sharedOpId,
+});
+if (crossTransition.data?.onboardingStatus === "LAYOUT_DRAFT") {
+  pass("idempotency markers scoped by operationType (no cross-callable replay)");
+} else {
+  fail("idempotency markers scoped by operationType", new Error(JSON.stringify(crossTransition.data)));
+}
+
 console.log(`\n${passed} passed, ${failed} failed\n`);
 process.exit(failed ? 1 : 0);

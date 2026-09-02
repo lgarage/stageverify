@@ -4,6 +4,7 @@ exports.addOperatorAccount = void 0;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
 const operatorAuth_1 = require("./operatorAuth");
+const firestoreSerialize_1 = require("./firestoreSerialize");
 const operatorCollections_1 = require("./operatorCollections");
 exports.addOperatorAccount = (0, https_1.onCall)({
     region: "us-central1",
@@ -40,7 +41,7 @@ exports.addOperatorAccount = (0, https_1.onCall)({
     await (0, operatorAuth_1.getDb)()
         .collection(operatorCollections_1.OPERATOR_ACCOUNTS_COLLECTION)
         .doc(targetUid)
-        .set({
+        .set((0, firestoreSerialize_1.stripUndefined)({
         active: true,
         displayName: displayName || undefined,
         createdAt: existing.exists
@@ -48,7 +49,7 @@ exports.addOperatorAccount = (0, https_1.onCall)({
             : now,
         updatedAt: now,
         createdByUid: actorUid,
-    }, { merge: true });
+    }), { merge: true });
     return { success: true, targetUid };
 });
 //# sourceMappingURL=addOperatorAccount.js.map

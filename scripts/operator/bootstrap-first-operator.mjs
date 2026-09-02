@@ -48,31 +48,37 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 console.log(`projectId=${projectId} emulator=${emulatorHost ?? "none"}`);
 
-const activeSnap = await db
-  .collection("operatorAccounts")
-  .where("active", "==", true)
-  .limit(1)
-  .get();
-
-if (!activeSnap.empty) {
-  console.error("Refusing bootstrap: active operatorAccounts already exist.");
-  process.exit(1);
-}
-
 const lockRef = db.collection("operatorConsoleLocks").doc("first-operator-bootstrap");
-const lockSnap = await lockRef.get();
-if (lockSnap.exists) {
-  console.error("Refusing bootstrap: first-operator-bootstrap lock already claimed.");
+const operatorRef = db.collection("operatorAccounts").doc(uid);
+const now = new Date().toISOString();
+
+try {
+  await db.runTransaction(async (tx) => {
+    const lockSnap = await tx.get(lockRef);
+    if (lockSnap.exists) {
+      throw new Error("first-operator-bootstrap lock already claimed");
+    }
+
+    const activeQuery = db
+      .collection("operatorAccounts")
+      .where("active", "==", true)
+      .limit(1);
+    const activeSnap = await tx.get(activeQuery);
+    if (!activeSnap.empty) {
+      throw new Error("active operatorAccounts already exist");
+    }
+
+    tx.set(lockRef, { claimed: true, uid, claimedAt: now });
+    tx.set(operatorRef, {
+      active: true,
+      displayName: name,
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+} catch (err) {
+  console.error(`Refusing bootstrap: ${err instanceof Error ? err.message : err}`);
   process.exit(1);
 }
-
-const now = new Date().toISOString();
-await lockRef.set({ claimed: true, uid, claimedAt: now });
-await db.collection("operatorAccounts").doc(uid).set({
-  active: true,
-  displayName: name,
-  createdAt: now,
-  updatedAt: now,
-});
 
 console.log(`Bootstrapped first operator uid=${uid}`);

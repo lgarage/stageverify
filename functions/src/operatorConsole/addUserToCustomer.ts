@@ -15,11 +15,14 @@ import {
 } from "./operatorMutationCore";
 import {
   mintOperationId,
+  operationMarkerRef,
   readIdempotentResult,
   writeOperationMarker,
 } from "./operatorIdempotency";
 import { newUserId } from "./operatorIds";
 import { parseCreateCustomerUserInput } from "./operatorValidation";
+
+const OPERATION_TYPE = "addUserToCustomer";
 
 export const addUserToCustomer = onCall(
   {
@@ -37,7 +40,11 @@ export const addUserToCustomer = onCall(
     }
 
     const db = getDb();
-    const existing = await readIdempotentResult<OperatorUser>(db, operationId);
+    const existing = await readIdempotentResult<OperatorUser>(
+      db,
+      OPERATION_TYPE,
+      operationId,
+    );
     if (existing) {
       return existing;
     }
@@ -99,7 +106,7 @@ export const addUserToCustomer = onCall(
     );
 
     await db.runTransaction(async (tx) => {
-      const opRef = db.collection("operatorOperations").doc(operationId);
+      const opRef = operationMarkerRef(db, OPERATION_TYPE, operationId);
       const opSnap = await tx.get(opRef);
       if (opSnap.exists) return;
 
@@ -118,7 +125,11 @@ export const addUserToCustomer = onCall(
       });
     });
 
-    const replay = await readIdempotentResult<OperatorUser>(db, operationId);
+    const replay = await readIdempotentResult<OperatorUser>(
+      db,
+      OPERATION_TYPE,
+      operationId,
+    );
     return replay ?? user;
   },
 );

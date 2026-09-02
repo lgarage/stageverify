@@ -200,6 +200,7 @@
     "test:operator-tenant-isolation": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-operator-tenant-isolation.mjs\"",
     "test:operator-customer-onboarding": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-operator-customer-onboarding.mjs\"",
     "test:operator-auth-gate": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-operator-auth-gate.mjs\"",
+    "test:operator-deactivate-concurrent": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-operator-deactivate-concurrent.mjs\"",
     "test:firestore-rules-operator-console": "firebase emulators:exec --only firestore \"node scripts/test-firestore-rules-operator-console.mjs\"",
     "test:delivery-readiness-staging-parity": "npx tsx scripts/test-deliveryReadiness-staging-assignment-parity.mjs",
     "test:readiness-persistence": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-readiness-persistence.mjs\"",

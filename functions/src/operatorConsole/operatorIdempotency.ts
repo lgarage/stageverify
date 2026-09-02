@@ -23,16 +23,33 @@ export function mintOperationId(raw: unknown): string {
   return resolved || newServerOperationId();
 }
 
+/** Scope idempotency markers by operationType so clientOperationId cannot cross-callables. */
+export function operationMarkerDocId(
+  operationType: string,
+  operationId: string,
+): string {
+  return `${operationType}:${operationId}`;
+}
+
+export function operationMarkerRef(
+  db: Firestore,
+  operationType: string,
+  operationId: string,
+) {
+  return db
+    .collection(OPERATOR_OPERATIONS_COLLECTION)
+    .doc(operationMarkerDocId(operationType, operationId));
+}
+
 export async function readIdempotentResult<T>(
   db: Firestore,
+  operationType: string,
   operationId: string,
 ): Promise<T | null> {
-  const snap = await db
-    .collection(OPERATOR_OPERATIONS_COLLECTION)
-    .doc(operationId)
-    .get();
+  const snap = await operationMarkerRef(db, operationType, operationId).get();
   if (!snap.exists) return null;
   const data = snap.data() as OperatorOperationDoc;
+  if (data.operationType !== operationType) return null;
   return data.result as T;
 }
 
@@ -47,7 +64,7 @@ export function writeOperationMarker(
     nowIso: string;
   },
 ): void {
-  const ref = db.collection(OPERATOR_OPERATIONS_COLLECTION).doc(input.operationId);
+  const ref = operationMarkerRef(db, input.operationType, input.operationId);
   tx.set(ref, {
     clientOperationId: input.operationId,
     operationType: input.operationType,

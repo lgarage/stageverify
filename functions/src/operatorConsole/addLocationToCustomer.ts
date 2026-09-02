@@ -15,10 +15,13 @@ import {
 } from "./operatorMutationCore";
 import {
   mintOperationId,
+  operationMarkerRef,
   readIdempotentResult,
   writeOperationMarker,
 } from "./operatorIdempotency";
 import { parseCreateCustomerLocationInput } from "./operatorValidation";
+
+const OPERATION_TYPE = "addLocationToCustomer";
 
 export const addLocationToCustomer = onCall(
   {
@@ -38,6 +41,7 @@ export const addLocationToCustomer = onCall(
     const db = getDb();
     const existing = await readIdempotentResult<PhysicalLocation>(
       db,
+      OPERATION_TYPE,
       operationId,
     );
     if (existing) {
@@ -77,7 +81,7 @@ export const addLocationToCustomer = onCall(
     );
 
     await db.runTransaction(async (tx) => {
-      const opRef = db.collection("operatorOperations").doc(operationId);
+      const opRef = operationMarkerRef(db, OPERATION_TYPE, operationId);
       const opSnap = await tx.get(opRef);
       if (opSnap.exists) return;
 
@@ -99,7 +103,11 @@ export const addLocationToCustomer = onCall(
       });
     });
 
-    const replay = await readIdempotentResult<PhysicalLocation>(db, operationId);
+    const replay = await readIdempotentResult<PhysicalLocation>(
+      db,
+      OPERATION_TYPE,
+      operationId,
+    );
     return replay ?? location;
   },
 );

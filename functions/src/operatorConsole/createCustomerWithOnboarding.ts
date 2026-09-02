@@ -20,6 +20,7 @@ import {
 } from "./operatorMutationCore";
 import {
   mintOperationId,
+  operationMarkerRef,
   readIdempotentResult,
   writeOperationMarker,
 } from "./operatorIdempotency";
@@ -30,6 +31,8 @@ import {
   requireCompanyName,
   resolveClientOperationId,
 } from "./operatorValidation";
+
+const OPERATION_TYPE = "createCustomerWithOnboarding";
 
 export const createCustomerWithOnboarding = onCall(
   {
@@ -42,7 +45,11 @@ export const createCustomerWithOnboarding = onCall(
     const operationId = mintOperationId(data.clientOperationId);
 
     const db = getDb();
-    const existing = await readIdempotentResult<CustomerBundle>(db, operationId);
+    const existing = await readIdempotentResult<CustomerBundle>(
+      db,
+      OPERATION_TYPE,
+      operationId,
+    );
     if (existing) {
       return existing;
     }
@@ -125,7 +132,7 @@ export const createCustomerWithOnboarding = onCall(
     const bundle = buildCustomerBundle(customer, locations, users, [event]);
 
     await db.runTransaction(async (tx) => {
-      const opRef = db.collection("operatorOperations").doc(operationId);
+      const opRef = operationMarkerRef(db, OPERATION_TYPE, operationId);
       const opSnap = await tx.get(opRef);
       if (opSnap.exists) {
         return;
@@ -157,7 +164,11 @@ export const createCustomerWithOnboarding = onCall(
       });
     });
 
-    const replay = await readIdempotentResult<CustomerBundle>(db, operationId);
+    const replay = await readIdempotentResult<CustomerBundle>(
+      db,
+      OPERATION_TYPE,
+      operationId,
+    );
     return replay ?? bundle;
   },
 );

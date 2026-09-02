@@ -61,9 +61,17 @@ await expectHttpsError(
   fail,
 );
 
-await signIn(operatorClient.auth, operatorEmail);
 const session = await getSession({});
-pass(`getOperatorSession unauthenticated returns safe — skipped`);
+if (session.data?.isOperator === false) {
+  pass("getOperatorSession unauthenticated returns isOperator false");
+} else {
+  fail(
+    "getOperatorSession unauthenticated returns isOperator false",
+    new Error(JSON.stringify(session.data)),
+  );
+}
+
+await signIn(operatorClient.auth, operatorEmail);
 
 const opSession = await callable(operatorClient.functions, "getOperatorSession")({});
 if (opSession.data?.isOperator === true) {
