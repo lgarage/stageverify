@@ -57,6 +57,266 @@ type UserDraft = {
   locationIndexes: number[];
 };
 
+function LocationFields({
+  index,
+  draft,
+  onChange,
+}: {
+  index: number;
+  draft: LocationDraft;
+  onChange: (next: LocationDraft) => void;
+}) {
+  const updatePhysical = (field: keyof AddressFields, value: string) => {
+    const physicalAddress = { ...draft.physicalAddress, [field]: value };
+    const next: LocationDraft = { ...draft, physicalAddress };
+    if (draft.billingSameAsPhysical) {
+      next.billingAddress = { ...physicalAddress };
+    }
+    onChange(next);
+  };
+
+  const updateBilling = (field: keyof AddressFields, value: string) => {
+    onChange({
+      ...draft,
+      billingAddress: { ...draft.billingAddress, [field]: value },
+    });
+  };
+
+  return (
+    <div className="admin-card operator-form-section">
+      <h3 style={{ color: NAVY }}>Location {index + 1}</h3>
+      <label style={labelStyle}>Location name</label>
+      <input
+        style={inputStyle}
+        value={draft.locationName}
+        onChange={(e) => onChange({ ...draft, locationName: e.target.value })}
+      />
+      <label style={labelStyle}>Physical line1</label>
+      <input
+        style={inputStyle}
+        value={draft.physicalAddress.line1}
+        onChange={(e) => updatePhysical("line1", e.target.value)}
+      />
+      <label style={labelStyle}>City / region / postal</label>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+        <input
+          style={inputStyle}
+          placeholder="City"
+          value={draft.physicalAddress.city}
+          onChange={(e) => updatePhysical("city", e.target.value)}
+        />
+        <input
+          style={inputStyle}
+          placeholder="Region"
+          value={draft.physicalAddress.region}
+          onChange={(e) => updatePhysical("region", e.target.value)}
+        />
+        <input
+          style={inputStyle}
+          placeholder="Postal"
+          value={draft.physicalAddress.postalCode}
+          onChange={(e) => updatePhysical("postalCode", e.target.value)}
+        />
+      </div>
+      <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 8 }}>
+        <input
+          type="checkbox"
+          data-testid={`operator-billing-same-${index}`}
+          checked={draft.billingSameAsPhysical}
+          onChange={(e) => {
+            const billingSameAsPhysical = e.target.checked;
+            onChange({
+              ...draft,
+              billingSameAsPhysical,
+              billingAddress: billingSameAsPhysical
+                ? { ...draft.physicalAddress }
+                : draft.billingAddress,
+            });
+          }}
+        />
+        Billing same as physical
+      </label>
+      {!draft.billingSameAsPhysical ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <label style={labelStyle}>Billing line1</label>
+          <input
+            style={inputStyle}
+            data-testid={`operator-billing-line1-${index}`}
+            value={draft.billingAddress.line1}
+            onChange={(e) => updateBilling("line1", e.target.value)}
+          />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <div>
+              <label style={labelStyle}>Billing city</label>
+              <input
+                style={inputStyle}
+                data-testid={`operator-billing-city-${index}`}
+                value={draft.billingAddress.city}
+                onChange={(e) => updateBilling("city", e.target.value)}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Billing region</label>
+              <input
+                style={inputStyle}
+                data-testid={`operator-billing-region-${index}`}
+                value={draft.billingAddress.region}
+                onChange={(e) => updateBilling("region", e.target.value)}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Billing postal</label>
+              <input
+                style={inputStyle}
+                data-testid={`operator-billing-postal-${index}`}
+                value={draft.billingAddress.postalCode}
+                onChange={(e) => updateBilling("postalCode", e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 8 }}>
+        <div>
+          <label style={labelStyle}>Billing contact</label>
+          <input
+            style={inputStyle}
+            value={draft.billingContactName}
+            onChange={(e) => onChange({ ...draft, billingContactName: e.target.value })}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Billing email</label>
+          <input
+            style={inputStyle}
+            value={draft.billingEmail}
+            onChange={(e) => onChange({ ...draft, billingEmail: e.target.value })}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Billing phone</label>
+          <input
+            style={inputStyle}
+            value={draft.billingPhone}
+            onChange={(e) => onChange({ ...draft, billingPhone: e.target.value })}
+          />
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+        <div>
+          <label style={labelStyle}>Ground spots</label>
+          <input
+            type="number"
+            min={0}
+            style={inputStyle}
+            value={draft.groundSpotCount}
+            onChange={(e) =>
+              onChange({
+                ...draft,
+                groundSpotCount: Number.parseInt(e.target.value, 10) || 0,
+              })
+            }
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Shelf spots</label>
+          <input
+            type="number"
+            min={0}
+            style={inputStyle}
+            value={draft.shelfSpotCount}
+            onChange={(e) =>
+              onChange({
+                ...draft,
+                shelfSpotCount: Number.parseInt(e.target.value, 10) || 0,
+              })
+            }
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UserFields({
+  index,
+  draft,
+  locations,
+  onChange,
+}: {
+  index: number;
+  draft: UserDraft;
+  locations: LocationDraft[];
+  onChange: (next: UserDraft) => void;
+}) {
+  return (
+    <div className="admin-card operator-form-section" data-testid={`operator-user-draft-${index}`}>
+      <h3 style={{ color: NAVY }}>User {index + 1}</h3>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div>
+          <label style={labelStyle}>Name</label>
+          <input
+            style={inputStyle}
+            value={draft.name}
+            onChange={(e) => onChange({ ...draft, name: e.target.value })}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Email</label>
+          <input
+            style={inputStyle}
+            type="email"
+            value={draft.email}
+            onChange={(e) => onChange({ ...draft, email: e.target.value })}
+          />
+        </div>
+      </div>
+      <div style={{ marginTop: 8 }}>
+        <label style={labelStyle}>Role</label>
+        <select
+          style={inputStyle}
+          value={draft.role}
+          onChange={(e) => onChange({ ...draft, role: e.target.value as OperatorUserRole })}
+        >
+          <option value="customer_admin">Customer admin</option>
+          <option value="manager">Manager</option>
+          <option value="dispatcher">Dispatcher</option>
+          <option value="technician">Technician</option>
+        </select>
+      </div>
+      <fieldset style={{ border: "none", padding: 0, margin: "12px 0 0" }}>
+        <legend style={{ fontSize: 12, fontWeight: 600, color: MUTED }}>
+          Assigned locations
+        </legend>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 8 }}>
+          {locations.map((loc, locIdx) => {
+            const label = loc.locationName.trim() || `Location ${locIdx + 1}`;
+            return (
+              <label
+                key={locIdx}
+                style={{ display: "flex", alignItems: "center", gap: 6, color: TEXT }}
+              >
+                <input
+                  type="checkbox"
+                  data-testid={`operator-user-${index}-loc-${locIdx}`}
+                  checked={draft.locationIndexes.includes(locIdx)}
+                  onChange={(e) => {
+                    const locationIndexes = e.target.checked
+                      ? [...draft.locationIndexes, locIdx]
+                      : draft.locationIndexes.filter((i) => i !== locIdx);
+                    onChange({ ...draft, locationIndexes });
+                  }}
+                />
+                {label}
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
+    </div>
+  );
+}
+
 function newLocationDraft(): LocationDraft {
   return {
     locationName: "",
@@ -71,6 +331,15 @@ function newLocationDraft(): LocationDraft {
   };
 }
 
+function newUserDraft(locationCount: number): UserDraft {
+  return {
+    name: "",
+    email: "",
+    role: "dispatcher",
+    locationIndexes: locationCount > 0 ? [0] : [],
+  };
+}
+
 export function OperatorCustomerOnboardingForm() {
   const navigate = useNavigate();
   const [companyName, setCompanyName] = useState("");
@@ -78,7 +347,7 @@ export function OperatorCustomerOnboardingForm() {
   const [primaryContactEmail, setPrimaryContactEmail] = useState("");
   const [primaryContactPhone, setPrimaryContactPhone] = useState("");
   const [locations, setLocations] = useState<LocationDraft[]>([newLocationDraft()]);
-  const [users] = useState<UserDraft[]>([]);
+  const [users, setUsers] = useState<UserDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -155,152 +424,43 @@ export function OperatorCustomerOnboardingForm() {
           </button>
         </div>
         {locations.map((loc, index) => (
-          <div key={index} className="admin-card operator-form-section">
-            <h3 style={{ color: NAVY }}>Location {index + 1}</h3>
-            <label style={labelStyle}>Location name</label>
-            <input
-              style={inputStyle}
-              value={loc.locationName}
-              onChange={(e) =>
-                setLocations((prev) =>
-                  prev.map((item, i) => (i === index ? { ...item, locationName: e.target.value } : item)),
-                )
-              }
-            />
-            <label style={labelStyle}>Physical line1</label>
-            <input
-              style={inputStyle}
-              value={loc.physicalAddress.line1}
-              onChange={(e) =>
-                setLocations((prev) =>
-                  prev.map((item, i) =>
-                    i === index
-                      ? {
-                          ...item,
-                          physicalAddress: { ...item.physicalAddress, line1: e.target.value },
-                        }
-                      : item,
-                  ),
-                )
-              }
-            />
-            <label style={labelStyle}>City / region / postal</label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-              <input
-                style={inputStyle}
-                placeholder="City"
-                value={loc.physicalAddress.city}
-                onChange={(e) =>
-                  setLocations((prev) =>
-                    prev.map((item, i) =>
-                      i === index
-                        ? { ...item, physicalAddress: { ...item.physicalAddress, city: e.target.value } }
-                        : item,
-                    ),
-                  )
-                }
-              />
-              <input
-                style={inputStyle}
-                placeholder="Region"
-                value={loc.physicalAddress.region}
-                onChange={(e) =>
-                  setLocations((prev) =>
-                    prev.map((item, i) =>
-                      i === index
-                        ? { ...item, physicalAddress: { ...item.physicalAddress, region: e.target.value } }
-                        : item,
-                    ),
-                  )
-                }
-              />
-              <input
-                style={inputStyle}
-                placeholder="Postal"
-                value={loc.physicalAddress.postalCode}
-                onChange={(e) =>
-                  setLocations((prev) =>
-                    prev.map((item, i) =>
-                      i === index
-                        ? {
-                            ...item,
-                            physicalAddress: { ...item.physicalAddress, postalCode: e.target.value },
-                          }
-                        : item,
-                    ),
-                  )
-                }
-              />
-            </div>
-            <label style={labelStyle}>
-              <input
-                type="checkbox"
-                data-testid={`operator-billing-same-${index}`}
-                checked={loc.billingSameAsPhysical}
-                onChange={(e) =>
-                  setLocations((prev) =>
-                    prev.map((item, i) =>
-                      i === index
-                        ? {
-                            ...item,
-                            billingSameAsPhysical: e.target.checked,
-                            billingAddress: e.target.checked
-                              ? { ...item.physicalAddress }
-                              : item.billingAddress,
-                          }
-                        : item,
-                    ),
-                  )
-                }
-              />{" "}
-              Billing same as physical
-            </label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              <div>
-                <label style={labelStyle}>Ground spots</label>
-                <input
-                  type="number"
-                  min={0}
-                  style={inputStyle}
-                  value={loc.groundSpotCount}
-                  onChange={(e) =>
-                    setLocations((prev) =>
-                      prev.map((item, i) =>
-                        i === index
-                          ? {
-                              ...item,
-                              groundSpotCount: Number.parseInt(e.target.value, 10) || 0,
-                            }
-                          : item,
-                      ),
-                    )
-                  }
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>Shelf spots</label>
-                <input
-                  type="number"
-                  min={0}
-                  style={inputStyle}
-                  value={loc.shelfSpotCount}
-                  onChange={(e) =>
-                    setLocations((prev) =>
-                      prev.map((item, i) =>
-                        i === index
-                          ? {
-                              ...item,
-                              shelfSpotCount: Number.parseInt(e.target.value, 10) || 0,
-                            }
-                          : item,
-                      ),
-                    )
-                  }
-                />
-              </div>
-            </div>
-          </div>
+          <LocationFields
+            key={index}
+            index={index}
+            draft={loc}
+            onChange={(next) =>
+              setLocations((prev) => prev.map((item, i) => (i === index ? next : item)))
+            }
+          />
         ))}
+      </section>
+
+      <section>
+        <div className="operator-page-header">
+          <h2 style={{ color: NAVY }}>Users</h2>
+          <button
+            type="button"
+            data-testid="operator-add-user"
+            onClick={() => setUsers((prev) => [...prev, newUserDraft(locations.length)])}
+          >
+            + Add User
+          </button>
+        </div>
+        {users.length === 0 ? (
+          <p style={{ color: MUTED, fontSize: 13 }}>No users yet (optional).</p>
+        ) : (
+          users.map((user, index) => (
+            <UserFields
+              key={index}
+              index={index}
+              draft={user}
+              locations={locations}
+              onChange={(next) =>
+                setUsers((prev) => prev.map((item, i) => (i === index ? next : item)))
+              }
+            />
+          ))
+        )}
       </section>
 
       {error ? (
