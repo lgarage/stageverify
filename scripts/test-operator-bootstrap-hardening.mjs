@@ -27,6 +27,7 @@ function run(args, envOverrides = {}) {
   const env = { ...process.env, ...envOverrides };
   for (const key of [
     "FIRESTORE_EMULATOR_HOST",
+    "FIREBASE_AUTH_EMULATOR_HOST",
     "GOOGLE_APPLICATION_CREDENTIALS",
     "APPDATA",
   ]) {
@@ -107,6 +108,32 @@ if (
   pass("refuses missing ADC on production path");
 } else {
   fail("refuses missing ADC on production path", prodNoAdc.stderr || prodNoAdc.stdout);
+}
+
+const lookupFirestoreOnly = run(
+  ["--lookup-email", "test@example.com"],
+  {
+    GCLOUD_PROJECT: "stageverify-db",
+    FIRESTORE_EMULATOR_HOST: "127.0.0.1:8080",
+    FIREBASE_AUTH_EMULATOR_HOST: undefined,
+    GOOGLE_APPLICATION_CREDENTIALS: undefined,
+    APPDATA: undefined,
+    HOME: "/tmp/no-gcloud-home",
+  },
+);
+
+if (
+  lookupFirestoreOnly.status !== 0 &&
+  /FIRESTORE_EMULATOR_HOST alone can hit live production Auth/i.test(
+    lookupFirestoreOnly.stderr + lookupFirestoreOnly.stdout,
+  )
+) {
+  pass("--lookup-email refuses with Firestore emulator only (no Auth emulator, no ADC)");
+} else {
+  fail(
+    "--lookup-email refuses with Firestore emulator only (no Auth emulator, no ADC)",
+    lookupFirestoreOnly.stderr || lookupFirestoreOnly.stdout,
+  );
 }
 
 const confirmWithEmulator = run(

@@ -121,6 +121,20 @@ try {
     fail("HashRouter refresh (GET /) still serves index.html");
   }
 
+  const spaFallbackRes = await get("/customers");
+  if (
+    spaFallbackRes.status === 200 &&
+    spaFallbackRes.contentType.includes("text/html") &&
+    spaFallbackRes.body.includes("<!doctype html")
+  ) {
+    pass("GET /customers (missing file) returns index.html SPA fallback");
+  } else {
+    fail(
+      "GET /customers (missing file) returns index.html SPA fallback",
+      `${spaFallbackRes.status} ${spaFallbackRes.contentType}`,
+    );
+  }
+
   for (const src of assets.js) {
     const res = await get(src);
     if (res.status === 200 && res.contentType.includes("javascript")) {

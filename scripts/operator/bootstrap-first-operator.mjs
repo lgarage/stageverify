@@ -115,6 +115,30 @@ function refuseMissingAdc(credentialSource) {
   process.exit(1);
 }
 
+function hasAuthEmulator() {
+  return Boolean(process.env.FIREBASE_AUTH_EMULATOR_HOST?.trim());
+}
+
+function refuseUnsafeLookupEmail(credentialSource, adcPresent) {
+  if (hasAuthEmulator()) {
+    return;
+  }
+
+  if (emulatorHost) {
+    console.error(
+      "Refusing: --lookup-email with FIRESTORE_EMULATOR_HOST alone can hit live production Auth.",
+    );
+    console.error(
+      "Set FIREBASE_AUTH_EMULATOR_HOST for emulator Auth lookup, or unset FIRESTORE_EMULATOR_HOST and use ADC for production lookup.",
+    );
+    process.exit(1);
+  }
+
+  if (!adcPresent) {
+    refuseMissingAdc(credentialSource);
+  }
+}
+
 const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
 const projectId = resolveProjectId();
 const { source: credentialSource, adcPresent } = resolveCredentialSource();
@@ -122,9 +146,7 @@ const { source: credentialSource, adcPresent } = resolveCredentialSource();
 refuseProjectId(projectId);
 
 if (lookupEmail) {
-  if (!adcPresent) {
-    refuseMissingAdc(credentialSource);
-  }
+  refuseUnsafeLookupEmail(credentialSource, adcPresent);
   if (!admin.apps.length) {
     admin.initializeApp({ projectId });
   }
