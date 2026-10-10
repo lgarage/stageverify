@@ -426,6 +426,41 @@ async function runPickupTokenValidityFlow(page, browser, appBase, orderNumber) {
   await assertReadableTextContrast(page, DISPATCHER_TOPBAR_CONTRAST_SPEC);
   console.log("PASS: dispatcher top bar — no overlap; readable text.");
 
+  const gmailBanner = page.getByTestId("gmail-ingest-health-banner");
+  if (await gmailBanner.isVisible().catch(() => false)) {
+    await assertReadableTextContrast(page, {
+      rootSelector: '[data-testid="gmail-ingest-health-banner"]',
+      elements: [
+        { name: "gmail ingest banner title", selector: "strong" },
+        { name: "gmail ingest banner detail", selector: "span" },
+        { name: "gmail ingest banner link", selector: "a" },
+      ],
+    });
+    console.log("PASS: gmail ingest health banner readable (live unhealthy state).");
+  } else {
+    console.log(
+      "SKIP: gmail ingest health banner not visible on dispatcher (healthy).",
+    );
+  }
+
+  console.log("Gmail ingest banner (verify-only svGmailIngestBanner=1)…");
+  await page.goto(`${appBase}/#/dispatcher?svGmailIngestBanner=1`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+  await page.getByTestId("gmail-ingest-health-banner").waitFor({
+    timeout: 15_000,
+  });
+  await assertReadableTextContrast(page, {
+    rootSelector: '[data-testid="gmail-ingest-health-banner"]',
+    elements: [
+      { name: "gmail ingest banner title", selector: "strong" },
+      { name: "gmail ingest banner detail", selector: "span" },
+      { name: "gmail ingest banner link", selector: "a" },
+    ],
+  });
+  console.log("PASS: forced gmail ingest health banner contrast.");
+
   const catchAllBtn = page.getByTestId("catch-all-delivery-btn");
   if (await catchAllBtn.isVisible().catch(() => false)) {
     const topbarBox = await page

@@ -176,6 +176,15 @@ export type EmailProviderConnectionStatus =
   | "connected"
   | "token_expired";
 
+export type {
+  GmailIngestHealthErrorInfo,
+  GmailIngestHealthEvaluation,
+  GmailIngestHealthState,
+  GmailIngestUnhealthyReason,
+} from "./gmailIngestHealth";
+
+import type { GmailIngestHealthState } from "./gmailIngestHealth";
+
 export interface EmailProviderConnection {
   provider: EmailProviderId;
   status: EmailProviderConnectionStatus;
@@ -183,6 +192,7 @@ export interface EmailProviderConnection {
   connectedAt?: string;
   connectedByUid?: string;
   updatedAt: string;
+  ingestHealth?: GmailIngestHealthState;
 }
 
 /** Result from manual inbound Gmail sync callable (Refresh Now). */
