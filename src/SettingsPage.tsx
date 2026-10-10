@@ -42,7 +42,10 @@ import {
   isMapSlotPlaceholderStagingLocation,
 } from "./dispatcher/stagingMapSync";
 import type { ShopMapLayoutExtras } from "./dispatcher/shopMapLayout";
-import type { EmailProviderConnection } from "./dispatcher/models";
+import type {
+  DispatcherRoleDoc,
+  EmailProviderConnection,
+} from "./dispatcher/models";
 import { STAGEVERIFY_BOT_INBOX } from "./dispatcher/email/stageverifyBotInbox";
 import { PortalShell } from "./PortalShell";
 import {
@@ -57,6 +60,16 @@ import { PinAccessManagementPanel } from "./PinAccessManagementPanel";
 import { OfficeReceiversSettingsPanel } from "./OfficeReceiversSettingsPanel";
 import { ManagementSettingsPanel } from "./ManagementSettingsPanel";
 import { InvoiceFieldLessonsSettingsPanel } from "./InvoiceFieldLessonsSettingsPanel";
+
+function isActiveAdminRole(role: DispatcherRoleDoc | null): boolean {
+  if (!role) return false;
+  const removed = (role as DispatcherRoleDoc & { removed?: boolean }).removed;
+  return (
+    role.role === "admin" &&
+    role.active !== false &&
+    removed !== true
+  );
+}
 
 const NAVY = "#0a3161";
 const RED = "#bf0a30";
@@ -180,6 +193,7 @@ export function SettingsPage() {
   const [savingRevert, setSavingRevert] = useState(false);
   const [revertSaved, setRevertSaved] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
+  const [isEmailSettingsAdmin, setIsEmailSettingsAdmin] = useState(false);
   const [emailSaved, setEmailSaved] = useState(false);
   const [gmailConnection, setGmailConnection] = useState<EmailProviderConnection | null>(
     null,
@@ -234,6 +248,7 @@ export function SettingsPage() {
           role?.role === "admin" ||
           role?.role === "manager");
       setIsIgnoreRulesManager(elevated);
+      setIsEmailSettingsAdmin(isActiveAdminRole(role));
     });
   }, []);
 
@@ -303,6 +318,8 @@ export function SettingsPage() {
     connectedEmail: string,
   ): Promise<void> => {
     setMonitoringInboxEmail(connectedEmail);
+    const role = await getMyDispatcherRole();
+    if (!isActiveAdminRole(role)) return;
     const settings = await getAppSettings();
     if (settings.monitoringInboxEmail !== connectedEmail) {
       await updateAppSettings({ monitoringInboxEmail: connectedEmail });
@@ -410,6 +427,8 @@ export function SettingsPage() {
 
   const saveEmailSettings = async () => {
     if (savingEmail) return;
+    const role = await getMyDispatcherRole();
+    if (!isActiveAdminRole(role)) return;
     setSavingEmail(true);
     try {
       const inboxEmail = hasLinkedMailbox
@@ -2536,16 +2555,25 @@ export function SettingsPage() {
                       type="button"
                       data-testid="save-email-settings"
                       onClick={() => void saveEmailSettings()}
-                      disabled={savingEmail}
+                      disabled={savingEmail || !isEmailSettingsAdmin}
                       style={{
                         padding: "8px 18px",
                         borderRadius: 4,
                         border: "none",
-                        backgroundColor: savingEmail ? "var(--admin-surface-2)" : NAVY,
-                        color: savingEmail ? "var(--admin-text-muted)" : "var(--admin-on-navy)",
+                        backgroundColor:
+                          savingEmail || !isEmailSettingsAdmin
+                            ? "var(--admin-surface-2)"
+                            : NAVY,
+                        color:
+                          savingEmail || !isEmailSettingsAdmin
+                            ? "var(--admin-text-muted)"
+                            : "var(--admin-on-navy)",
                         fontWeight: 700,
                         fontSize: 13,
-                        cursor: savingEmail ? "not-allowed" : "pointer",
+                        cursor:
+                          savingEmail || !isEmailSettingsAdmin
+                            ? "not-allowed"
+                            : "pointer",
                         fontFamily: FONT,
                         outline: "none",
                       }}
@@ -2722,16 +2750,25 @@ export function SettingsPage() {
                       type="button"
                       data-testid="save-email-settings"
                       onClick={() => void saveEmailSettings()}
-                      disabled={savingEmail}
+                      disabled={savingEmail || !isEmailSettingsAdmin}
                       style={{
                         padding: "8px 18px",
                         borderRadius: 4,
                         border: "none",
-                        backgroundColor: savingEmail ? "var(--admin-surface-2)" : NAVY,
-                        color: savingEmail ? "var(--admin-text-muted)" : "var(--admin-on-navy)",
+                        backgroundColor:
+                          savingEmail || !isEmailSettingsAdmin
+                            ? "var(--admin-surface-2)"
+                            : NAVY,
+                        color:
+                          savingEmail || !isEmailSettingsAdmin
+                            ? "var(--admin-text-muted)"
+                            : "var(--admin-on-navy)",
                         fontWeight: 700,
                         fontSize: 13,
-                        cursor: savingEmail ? "not-allowed" : "pointer",
+                        cursor:
+                          savingEmail || !isEmailSettingsAdmin
+                            ? "not-allowed"
+                            : "pointer",
                         fontFamily: FONT,
                         outline: "none",
                       }}

@@ -208,6 +208,7 @@
     "test:set-field-lesson-status": "cd functions && npm run build && cd .. && node scripts/test-set-field-lesson-status.mjs",
     "test:field-lesson-no-parse-effect": "node scripts/test-field-lesson-no-parse-effect.mjs",
     "test:firestore-rules-field-lessons": "npx firebase-tools emulators:exec --only firestore \"node scripts/test-firestore-rules-field-lessons.mjs\"",
+    "test:firestore-rules-app-settings": "npx firebase-tools emulators:exec --only firestore \"node scripts/test-firestore-rules-app-settings.mjs\"",
     "test:invoice-fulfillment-override": "cd functions && npm run build && cd .. && node scripts/test-invoice-fulfillment-override.mjs",
     "test:will-call-staging-clear": "npx tsx scripts/test-will-call-staging-clear.mjs",
     "test:invoice-review-truth-state": "cd functions && npm run build && cd .. && node scripts/test-invoice-review-truth-state.mjs",

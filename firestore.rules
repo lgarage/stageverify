@@ -336,25 +336,91 @@ service cloud.firestore {
     }
 
     match /appSettings/{docId} {
+      // Public read (no auth) — required by pre-login/pre-PIN screens that
+      // read operational fields before Firebase Auth exists in-session:
+      // ReceivingPage (vendorDeliveryMode, vendorRevertWindowMinutes,
+      // vendorGeofenceEnforce, shopLatitude/Longitude/shopGeofenceRadiusMeters),
+      // LocationScanPage/LocationScanPinGate (parcelIntakeEnabled, geofence
+      // fields, *SessionMinutes), VendorPinGate/TechnicianPinGate/
+      // ManagementPinGate (*SessionMinutes), PickupPortalPage
+      // (autoSubmitMinutes, vendorDeliveryMode), VendorUnplannedDeliveryFlow
+      // (shopMapLayoutExtras). Firestore cannot filter fields on a document
+      // read, so appSettings stays all-or-nothing public read.
       allow read: if true;
-      allow create: if isAuthenticated()
-        && !('catchAllPendingCheckInCount' in request.resource.data)
-        && !('invoiceTrainingAdminPasswordConfigured' in request.resource.data)
-        && !('invoiceTrainingAlertEmailConfigured' in request.resource.data)
-        && !('invoiceTrainingAlertEmail' in request.resource.data)
-        && (!('invoiceAiShadowEnabled' in request.resource.data) || isDispatcher());
-      allow update: if isAuthenticated()
-        && !request.resource.data.diff(resource.data).affectedKeys()
-          .hasAny([
-            'catchAllPendingCheckInCount',
-            'invoiceTrainingAdminPasswordConfigured',
-            'invoiceTrainingAlertEmailConfigured',
-            'invoiceTrainingAlertEmail',
-          ])
+
+      // Writes: field-level role split on this one doc (no split doc).
+      // Dispatcher/manager/admin ("staff") keep writing operational fields;
+      // Gmail/integration + AI/billing fields are admin-only; CF-owned
+      // fields are denied to every client (Admin SDK bypasses rules).
+      // Inlined helpers (not top-level) per parallel-edit constraint.
+      // role/active/removed semantics mirror
+      // functions/src/inboundEmail/dispatcherAuth.ts hasAdminRole() /
+      // hasManagerRole(): dispatcherRoles/{uid} doc exists, active != false,
+      // removed != true; admin additionally requires role == 'admin'.
+      // Legacy { manager: true, no role } and legacy { active: true, no
+      // role } are STAFF, not admin — matches hasAdminRole()/isDispatcher().
+      function isActiveStaff() {
+        return isAuthenticated()
+          && exists(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid))
+          && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('active', true) != false
+          && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('removed', false) != true;
+      }
+
+      function isActiveAdmin() {
+        return isActiveStaff()
+          && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('role', '') == 'admin';
+      }
+
+      function operationalFields() {
+        return [
+          'vendorRevertWindowMinutes', 'autoSubmitMinutes', 'entrywayEslTagId',
+          'stageVerifyActivatedAt', 'vendorDeliveryMode', 'vendorSessionMinutes',
+          'technicianSessionMinutes', 'managementSessionMinutes', 'shopLatitude',
+          'shopLongitude', 'shopGeofenceRadiusMeters', 'vendorGeofenceEnforce',
+          'catchAllStagingLocationId', 'parcelIntakeEnabled', 'shopMapLayoutExtras'
+        ];
+      }
+
+      function riskyFields() {
+        return [
+          'monitoringInboxEmail', 'emailMonitoringEnabled',
+          'invoiceAiShadowEnabled', 'emailReplyIngestEnabled'
+        ];
+      }
+
+      function operationalAndRiskyFields() {
+        return operationalFields().concat(riskyFields());
+      }
+
+      function cfOwnedFields() {
+        return [
+          'catchAllPendingCheckInCount', 'invoiceTrainingAdminPasswordConfigured',
+          'invoiceTrainingAlertEmailConfigured', 'invoiceTrainingAlertEmail',
+          'managementPinHash', 'managementPinConfigured',
+          'updatedAt', 'emailReplyIngestSince'
+        ];
+      }
+
+      allow create: if docId == 'config'
+        && isActiveStaff()
+        && !request.resource.data.keys().hasAny(cfOwnedFields())
         && (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['invoiceAiShadowEnabled'])
-          || isDispatcher()
+          request.resource.data.keys().hasOnly(operationalFields())
+          || (isActiveAdmin()
+            && request.resource.data.keys().hasOnly(operationalAndRiskyFields()))
         );
+
+      allow update: if docId == 'config'
+        && isActiveStaff()
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(cfOwnedFields())
+        && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(operationalFields())
+          || (isActiveAdmin()
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(operationalAndRiskyFields()))
+        );
+
+      allow delete: if false;
     }
 
     // Phase 3: permanent shop-stock location directory — public read for pickup location labels.
