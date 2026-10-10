@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Security Review Model Gate (authoritative)
 
-> **RC-1 UI label:** Parent timeline may show **"Security Review — Composer 2.5 Fast"** — cosmetic only. Validity = **`security-gate-id`** + **`model:`** line + verdict + invocation evidence.
+> **RC-1 UI label:** Parent timeline may show **"Security Review — Composer 2.5 Fast"** — cosmetic only. Validity = valid **`security-gate-id`** + **`model:`** line (recommended) + verdict + invocation evidence; mechanical CI (`gate-check`) requires the id only when valid.
 
 **Security reviews use exactly one model per run, from this locked allowlist (preference order — D-38, amended 2026-08-08):**
 
@@ -18,6 +18,8 @@ Dispatch the FIRST slug in preference order that the platform accepts. Use a lat
 **Hard STOP (Dan 2026-08-08):** If the platform rejects **every** allowlist slug, **STOP** — report gate **NOT RUN** to Dan; do **not** push CF / auth / rules. Do **not** substitute Composer, Grok, Sol, Opus, or any non-allowlist slug (including retired Sonnet 4.6 slugs). New Sonnet 5 variants may join the allowlist **only** after Dan one-shot approval **and** one calibration run in `PROJECT_STATUS/verifier-log.jsonl` **and** `scripts/gate-check.mjs` `ALLOWED_GATE_MODELS` updated in the same commit (D-38) — new-model-release alone never reopens this list (D-16).
 
 **Prompt hygiene:** `Diff:` must be exactly `uncommitted changes` or `branch changes` — no prose after that line in the Diff field (extra text → subagent won't start).
+
+**Cloud agents (no `security-review` Task type):** record **`security-gate-id: bc-<uuid>`** from the security-review run / cloud agent id (example: `security-gate-id: bc-3594ac4e-aad0-57f6-be0a-5cb813a3f25d`). Not invented. Same lowercase UUID rules as Task returns.
 
 ## Mandatory invocation
 
@@ -38,8 +40,8 @@ Task({
 
 ## Valid completion (all required)
 
-1. **`security-gate-id`** — UUID from `Task` return (lowercase hex, 8-4-4-4-12). Not invented.
-2. **Model line:** `model: <the allowlist slug actually dispatched>` (+ `fallback-from:` when a higher slug was rejected).
+1. **`security-gate-id`** — Task return UUID (lowercase hex, 8-4-4-4-12) **or** cloud-agent review id `bc-<uuid>` when `security-review` Task type is unavailable. Not invented; `NOT RUN`, empty, and junk values are invalid.
+2. **Model line:** `model: <the allowlist slug actually dispatched>` (+ `fallback-from:` when a higher slug was rejected). Recommended in completion reports; mechanical CI (`gate-check`) does not require it when the id is valid.
 3. **`actual model invocation evidence: yes | no | unknown`** — UUID alone ≠ verified invocation.
 4. **Verdict:** PASS | MEDIUM | HIGH | NOT RUN.
 
@@ -51,7 +53,7 @@ Missing **`security-gate-id`** → **NOT RUN**, not PASS. Report block must incl
 - `security-review` Task with a model outside the D-38 allowlist (includes retired Sonnet 4.6 slugs and any non-listed Sonnet variant)
 - Silent fallback to Composer / Grok / Sol / Opus after allowlist rejection
 - `generalPurpose` / `explore` / any other subagent for the gate
-- Invented or non-UUID **`security-gate-id`**
+- Invented, non-UUID, **`NOT RUN`**, empty, or junk **`security-gate-id`** values
 - Treating UI label alone as NOT RUN or wrong model
 
 ## Hard stops

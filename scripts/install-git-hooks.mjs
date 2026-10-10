@@ -48,7 +48,7 @@ export function generatePrePushHook() {
     '  if ! node scripts/gate-check.mjs --base "$base" --head "$local_sha" --evidence-from-commits </dev/null; then',
     '    echo ""',
     '    echo "gate-check: push to main blocked - high-risk paths need the security-gate evidence block"',
-    '    echo "(security-gate-id + model line) in a commit message of the pushed range."',
+    '    echo "(security-gate-id: UUID or bc-<uuid>; model line optional) in a commit message of the pushed range."',
     '    echo "Bypass (advisory-vs-malice, D-28): GATE_SKIP=1 git push  OR  git push --no-verify"',
     "    exit 1",
     "  fi",
