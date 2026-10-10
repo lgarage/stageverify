@@ -9,6 +9,7 @@ exports.findPdfAttachments = findPdfAttachments;
 exports.fetchGmailMessage = fetchGmailMessage;
 exports.downloadGmailAttachment = downloadGmailAttachment;
 exports.archiveGmailMessageRemoveInbox = archiveGmailMessageRemoveInbox;
+exports.listInboxMessageIdsPaginated = listInboxMessageIdsPaginated;
 exports.listRecentInboxMessageIds = listRecentInboxMessageIds;
 exports.listGmailHistory = listGmailHistory;
 exports.getGmailProfile = getGmailProfile;
@@ -21,6 +22,7 @@ exports.decodeGmailBodyData = decodeGmailBodyData;
  * Server-side only; never log tokens or attachment bytes. Never trash/delete messages.
  */
 const gmailApi_1 = require("./gmailApi");
+const gmailInboundCatchUp_1 = require("./inboundEmail/gmailInboundCatchUp");
 const GMAIL_BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
 function gmailHeadersInit(accessToken) {
     return { Authorization: `Bearer ${accessToken}` };
@@ -205,30 +207,137 @@ async function archiveGmailMessageRemoveInbox(accessToken, messageId) {
         throw new Error(`gmail archive (remove INBOX) failed: ${res.status} ${text.slice(0, 200)}`);
     }
 }
-async function listRecentInboxMessageIds(accessToken, options) {
-    const maxResults = options?.maxResults ?? 25;
+async function listInboxMessageIdsPaginated(accessToken, options) {
     const query = options?.query ?? "has:attachment filename:pdf in:inbox";
-    const params = new URLSearchParams({
-        maxResults: String(maxResults),
-        q: query,
+    const listCap = options?.listCap ?? gmailInboundCatchUp_1.LIST_CAP;
+    const messages = [];
+    let pageToken;
+    let consecutiveEmptyPages = 0;
+    let finalEmptyPage = false;
+    let finalNextPageToken;
+    while (messages.length < listCap) {
+        const pageSize = Math.min(100, listCap - messages.length);
+        const params = new URLSearchParams({
+            maxResults: String(pageSize),
+            q: query,
+        });
+        if (pageToken)
+            params.set("pageToken", pageToken);
+        const listed = await gmailJson(accessToken, `/messages?${params.toString()}`);
+        const batch = listed.messages ?? [];
+        const emptyPage = batch.length === 0;
+        finalEmptyPage = emptyPage;
+        finalNextPageToken = listed.nextPageToken ?? null;
+        if (emptyPage) {
+            consecutiveEmptyPages += 1;
+            if (!listed.nextPageToken) {
+                break;
+            }
+            if (consecutiveEmptyPages >= 2) {
+                break;
+            }
+            pageToken = listed.nextPageToken;
+            continue;
+        }
+        consecutiveEmptyPages = 0;
+        messages.push(...batch);
+        if (messages.length >= listCap) {
+            break;
+        }
+        if (!listed.nextPageToken) {
+            break;
+        }
+        pageToken = listed.nextPageToken;
+    }
+    const trimmed = messages.slice(0, listCap);
+    const listingComplete = (0, gmailInboundCatchUp_1.isGmailListingComplete)({
+        listedCount: trimmed.length,
+        listCap,
+        nextPageToken: finalNextPageToken,
+        emptyPage: finalEmptyPage,
     });
-    const listed = await gmailJson(accessToken, `/messages?${params.toString()}`);
-    return listed.messages ?? [];
+    return { messages: trimmed, listingComplete };
+}
+async function listRecentInboxMessageIds(accessToken, options) {
+    const listCap = options?.maxResults ?? gmailInboundCatchUp_1.LIST_CAP;
+    const { messages } = await listInboxMessageIdsPaginated(accessToken, {
+        query: options?.query,
+        listCap,
+    });
+    return messages;
+}
+function countUniqueHistoryMessageIds(records) {
+    const ids = new Set();
+    for (const record of records) {
+        for (const added of record.messagesAdded ?? []) {
+            if (added.message?.id)
+                ids.add(added.message.id);
+        }
+        for (const msg of record.messages ?? []) {
+            if (msg.id)
+                ids.add(msg.id);
+        }
+    }
+    return ids.size;
 }
 async function listGmailHistory(accessToken, startHistoryId) {
-    const params = new URLSearchParams({
-        startHistoryId,
-        historyTypes: "messageAdded",
-        labelId: "INBOX",
-    });
     try {
-        const result = await gmailJson(accessToken, `/history?${params.toString()}`);
-        return { history: result.history ?? [], historyId: result.historyId };
+        const history = [];
+        let historyId;
+        let pageToken;
+        let consecutiveEmptyPages = 0;
+        let finalEmptyPage = false;
+        let finalNextPageToken;
+        while (true) {
+            const params = new URLSearchParams({
+                startHistoryId,
+                historyTypes: "messageAdded",
+                labelId: "INBOX",
+                maxResults: "100",
+            });
+            if (pageToken)
+                params.set("pageToken", pageToken);
+            const result = await gmailJson(accessToken, `/history?${params.toString()}`);
+            if (result.historyId)
+                historyId = result.historyId;
+            const pageRecords = result.history ?? [];
+            const emptyPage = pageRecords.length === 0;
+            finalEmptyPage = emptyPage;
+            finalNextPageToken = result.nextPageToken ?? null;
+            if (emptyPage) {
+                consecutiveEmptyPages += 1;
+                if (!result.nextPageToken) {
+                    break;
+                }
+                if (consecutiveEmptyPages >= 2) {
+                    break;
+                }
+                pageToken = result.nextPageToken;
+                continue;
+            }
+            consecutiveEmptyPages = 0;
+            history.push(...pageRecords);
+            if (countUniqueHistoryMessageIds(history) >= gmailInboundCatchUp_1.LIST_CAP) {
+                break;
+            }
+            if (!result.nextPageToken) {
+                break;
+            }
+            pageToken = result.nextPageToken;
+        }
+        const listedCount = countUniqueHistoryMessageIds(history);
+        const listingComplete = (0, gmailInboundCatchUp_1.isGmailListingComplete)({
+            listedCount,
+            listCap: gmailInboundCatchUp_1.LIST_CAP,
+            nextPageToken: finalNextPageToken,
+            emptyPage: finalEmptyPage,
+        });
+        return { history, historyId, listingComplete };
     }
     catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (message.includes("404")) {
-            return { history: [] };
+            return { history: [], listingComplete: true };
         }
         throw err;
     }
