@@ -16,6 +16,7 @@ const gmailInbound_1 = require("./gmailInbound");
 const gmailInboundCatchUp_1 = require("./inboundEmail/gmailInboundCatchUp");
 const processInboundGmailMessage_1 = require("./inboundEmail/processInboundGmailMessage");
 const loadOutboundEmailContext_1 = require("./email/loadOutboundEmailContext");
+const gmailIngestHealth_1 = require("./gmailIngestHealth");
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const INBOUND_COLLECTION = "inboundEmailProcessing";
 const PROVIDER_ID = "gmail";
@@ -153,6 +154,28 @@ async function runInboundGmailSync(options) {
     const db = getDb();
     if (!(0, gmailInbound_1.gmailOAuthSecretsConfigured)()) {
         console.log("syncInboundGmail: OAuth secrets not configured — skipping");
+        const connSnap = await connectionRef(db).get();
+        const status = connSnap.exists
+            ? connSnap.data().status
+            : undefined;
+        if (status === "connected" || status === "token_expired") {
+            const now = new Date().toISOString();
+            const existing = connSnap.data();
+            const existingHealth = existing?.ingestHealth;
+            await connectionRef(db).set({
+                ingestHealth: {
+                    ...existingHealth,
+                    lastAttemptAt: now,
+                    lastError: {
+                        code: "oauth_unconfigured",
+                        message: "Gmail OAuth client credentials not configured.",
+                        at: now,
+                    },
+                    staleAfterHours: existingHealth?.staleAfterHours ?? 2,
+                },
+                updatedAt: now,
+            }, { merge: true });
+        }
         return {
             processed: 0,
             skipped: 0,
@@ -176,10 +199,49 @@ async function runInboundGmailSync(options) {
             errorDetails: [],
         };
     }
-    const accessToken = await (0, gmailInbound_1.getGmailAccessTokenForProvider)(refreshToken);
     const connSnap = await connectionRef(db).get();
     const connData = connSnap.data();
     const inboundSync = connData?.inboundSync ?? {};
+    const existingIngestHealth = connData?.ingestHealth;
+    let accessToken;
+    try {
+        accessToken = await (0, gmailInbound_1.getGmailAccessTokenForProvider)(refreshToken);
+    }
+    catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("syncInboundGmail token refresh failed:", message);
+        const now = new Date().toISOString();
+        const connectionWrite = {
+            updatedAt: now,
+            ingestHealth: {
+                ...existingIngestHealth,
+                lastTokenRefreshFailureAt: now,
+                tokenRefreshFailed: true,
+                lastAttemptAt: now,
+                lastError: {
+                    code: "token_refresh_failed",
+                    message: (0, gmailIngestHealth_1.sanitizeIngestErrorMessage)(message),
+                    at: now,
+                },
+                staleAfterHours: existingIngestHealth?.staleAfterHours ?? 2,
+                lastSuccessfulSyncAt: existingIngestHealth?.lastSuccessfulSyncAt,
+            },
+        };
+        if ((0, gmailIngestHealth_1.shouldPersistTokenExpired)(message)) {
+            connectionWrite.provider = PROVIDER_ID;
+            connectionWrite.status = "token_expired";
+        }
+        await connectionRef(db).set(connectionWrite, { merge: true });
+        return {
+            processed: 0,
+            skipped: 0,
+            errors: 0,
+            invoicesQueued: 0,
+            skippedByStatus: {},
+            skippedReviewCounts: {},
+            errorDetails: [],
+        };
+    }
     let latestHistoryId = inboundSync.lastHistoryId;
     const nowMs = Date.now();
     const replySettings = await (0, loadOutboundEmailContext_1.loadReplyIngestSettings)();
@@ -279,6 +341,13 @@ async function runInboundGmailSync(options) {
                 : {}),
         },
         updatedAt: now,
+        ingestHealth: {
+            ...existingIngestHealth,
+            lastSuccessfulSyncAt: now,
+            lastAttemptAt: now,
+            tokenRefreshFailed: false,
+            staleAfterHours: existingIngestHealth?.staleAfterHours ?? 2,
+        },
     }, { merge: true });
     console.log(`syncInboundGmail: catchUpListed=${catchUpIds.length} catchUpUnprocessed=${unprocessedCatchUpIds.length} catchUpProcessNow=${processNow.length} remainder=${remainderCount} listingComplete=${listingComplete} advanceCursor=${advanceCursor} processed=${processed} skipped=${skipped} errors=${errors}`);
     return {

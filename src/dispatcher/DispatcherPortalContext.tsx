@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import type {
+  EmailProviderConnection,
   StagingLocation,
   ShopStockLocationMapping,
   Vendor,
@@ -24,6 +25,7 @@ export type DispatcherZonesSnapshot = {
 
 type DispatcherPortalContextValue = {
   emailProviderConnected: boolean;
+  emailProviderConnection: EmailProviderConnection | null;
   refreshBusy: boolean;
   gmailSyncMessage: string | null;
   invoiceShellBackfillErrors: string[] | null;
@@ -66,7 +68,10 @@ async function fetchZonesSnapshot(): Promise<DispatcherZonesSnapshot> {
 }
 
 export function DispatcherPortalProvider({ children }: { children: ReactNode }) {
-  const [emailProviderConnected, setEmailProviderConnected] = useState(false);
+  const [emailProviderConnection, setEmailProviderConnection] =
+    useState<EmailProviderConnection | null>(null);
+  const emailProviderConnected =
+    emailProviderConnection?.status === "connected";
   const [refreshBusy, setRefreshBusy] = useState(false);
   const [gmailSyncMessage, setGmailSyncMessage] = useState<string | null>(null);
   const [invoiceShellBackfillErrors, setInvoiceShellBackfillErrors] = useState<
@@ -80,24 +85,19 @@ export function DispatcherPortalProvider({ children }: { children: ReactNode }) 
   const [zonesSnapshot, setZonesSnapshot] =
     useState<DispatcherZonesSnapshot | null>(null);
 
-  useEffect(() => {
-    void import("./firestoreService")
-      .then(({ getEmailProviderConnection }) => getEmailProviderConnection())
-      .then((connection) => {
-        setEmailProviderConnected(connection.status === "connected");
-      })
-      .catch(() => setEmailProviderConnected(false));
-  }, []);
-
   const refreshSharedData = useCallback(async () => {
-    const { listVendors, scheduleInvoiceShellBackfill } = await import(
-      "./firestoreService"
-    );
-    const [items, vendorList, zones] = await Promise.all([
+    const {
+      listVendors,
+      scheduleInvoiceShellBackfill,
+      getEmailProviderConnection,
+    } = await import("./firestoreService");
+    const [items, vendorList, zones, connection] = await Promise.all([
       fetchInvoiceImports(),
       listVendors(),
       fetchZonesSnapshot(),
+      getEmailProviderConnection().catch(() => null),
     ]);
+    setEmailProviderConnection(connection);
     setInvoiceImports(items);
     setVendors(vendorList);
     setZonesSnapshot(zones);
@@ -155,6 +155,7 @@ export function DispatcherPortalProvider({ children }: { children: ReactNode }) 
     <DispatcherPortalContext.Provider
       value={{
         emailProviderConnected,
+        emailProviderConnection,
         refreshBusy,
         gmailSyncMessage,
         invoiceShellBackfillErrors,

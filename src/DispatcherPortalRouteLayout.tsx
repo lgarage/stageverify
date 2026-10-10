@@ -2,6 +2,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { AdminAppearanceProvider } from "./adminAppearance";
 import { AdminAppearanceToggle } from "./AdminAppearanceToggle";
 import { DispatcherPortalProvider } from "./dispatcher/DispatcherPortalContext";
+import { GmailIngestHealthBanner } from "./dispatcher/GmailIngestHealthBanner";
 
 function isPrintAdminRoute(pathname: string): boolean {
   return (
@@ -19,6 +20,7 @@ export function DispatcherPortalRouteLayout() {
   return (
     <AdminAppearanceProvider forceLight={printRoute}>
       <DispatcherPortalProvider>
+        {!printRoute && <GmailIngestHealthBanner />}
         <Outlet />
         {!printRoute && <AdminAppearanceToggle />}
       </DispatcherPortalProvider>
