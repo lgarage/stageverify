@@ -13,7 +13,7 @@ export function isGmailListingComplete(options: {
   nextPageToken?: string | null;
   emptyPage: boolean;
 }): boolean {
-  if (options.listedCount >= options.listCap) return false;
+  if (options.listedCount >= options.listCap && options.nextPageToken) return false;
   if (options.emptyPage) return !options.nextPageToken;
   return !options.nextPageToken;
 }

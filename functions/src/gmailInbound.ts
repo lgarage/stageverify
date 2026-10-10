@@ -424,7 +424,7 @@ export async function listGmailHistory(
     return { history, historyId, listingComplete };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("404")) {
+    if (/: 404\b$/.test(message)) {
       return { history: [], listingComplete: true };
     }
     throw err;

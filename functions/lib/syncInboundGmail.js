@@ -193,11 +193,8 @@ async function runInboundGmailSync(options) {
             latestHistoryId = historyResult.latestHistoryId;
         }
     }
-    const historyEmptyComplete = Boolean(inboundSync.lastHistoryId) &&
-        historyMessageIds.length === 0 &&
-        historyListingComplete;
     const catchUpQuery = (0, gmailInboundCatchUp_1.buildInboxCatchUpQuery)({
-        lastSyncAt: historyEmptyComplete ? undefined : inboundSync.lastSyncAt,
+        lastSyncAt: inboundSync.lastSyncAt,
         replyEnabled: replySettings.enabled,
         nowMs,
     });
@@ -217,7 +214,7 @@ async function runInboundGmailSync(options) {
         cap: gmailInboundCatchUp_1.PROCESS_CAP,
     });
     const listingComplete = historyListingComplete && afterListingComplete;
-    if (historyEmptyComplete || !latestHistoryId) {
+    if (!latestHistoryId) {
         const profile = await (0, gmailInbound_1.getGmailProfile)(accessToken);
         if (profile.historyId)
             latestHistoryId = profile.historyId;

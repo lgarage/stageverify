@@ -15,7 +15,7 @@ exports.PROCESS_CAP = 40;
 /** Max inbox/history ids listed per pass before cursor advance is blocked. */
 exports.LIST_CAP = 500;
 function isGmailListingComplete(options) {
-    if (options.listedCount >= options.listCap)
+    if (options.listedCount >= options.listCap && options.nextPageToken)
         return false;
     if (options.emptyPage)
         return !options.nextPageToken;

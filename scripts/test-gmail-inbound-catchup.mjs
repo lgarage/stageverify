@@ -132,8 +132,8 @@ const LAST_SYNC = "2026-04-10T10:00:00.000Z";
       nextPageToken: undefined,
       emptyPage: false,
     }),
-    false,
-    "isGmailListingComplete: cap hit false without nextPageToken",
+    true,
+    "isGmailListingComplete: cap hit complete when no nextPageToken",
   );
   assertEqual(
     isGmailListingComplete({
