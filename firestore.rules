@@ -336,25 +336,45 @@ service cloud.firestore {
     }
 
     match /appSettings/{docId} {
+      // Public read (no auth) — required by pre-login/pre-PIN screens that
+      // read operational fields before Firebase Auth exists in-session:
+      // ReceivingPage (vendorDeliveryMode, vendorRevertWindowMinutes,
+      // vendorGeofenceEnforce, shopLatitude/Longitude/shopGeofenceRadiusMeters),
+      // LocationScanPage/LocationScanPinGate (parcelIntakeEnabled, geofence
+      // fields, *SessionMinutes), VendorPinGate/TechnicianPinGate/
+      // ManagementPinGate (*SessionMinutes), PickupPortalPage
+      // (autoSubmitMinutes, vendorDeliveryMode), VendorUnplannedDeliveryFlow
+      // (shopMapLayoutExtras). Firestore cannot filter fields on a document
+      // read, so appSettings stays all-or-nothing public read.
       allow read: if true;
+
+      // Writes: Admin role only. Inlined (not a top-level isAdmin() helper,
+      // per parallel-edit constraint) — mirrors
+      // functions/src/inboundEmail/dispatcherAuth.ts hasAdminRole():
+      // dispatcherRoles/{uid} doc exists, active != false, removed != true,
+      // role == 'admin' (manager flag alone is NOT admin).
+      // Map.get defaults match hasAdminRole() missing-field semantics.
       allow create: if isAuthenticated()
+        && exists(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid))
+        && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('active', true) != false
+        && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('removed', false) != true
+        && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('role', '') == 'admin'
         && !('catchAllPendingCheckInCount' in request.resource.data)
         && !('invoiceTrainingAdminPasswordConfigured' in request.resource.data)
         && !('invoiceTrainingAlertEmailConfigured' in request.resource.data)
-        && !('invoiceTrainingAlertEmail' in request.resource.data)
-        && (!('invoiceAiShadowEnabled' in request.resource.data) || isDispatcher());
+        && !('invoiceTrainingAlertEmail' in request.resource.data);
       allow update: if isAuthenticated()
+        && exists(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid))
+        && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('active', true) != false
+        && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('removed', false) != true
+        && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('role', '') == 'admin'
         && !request.resource.data.diff(resource.data).affectedKeys()
           .hasAny([
             'catchAllPendingCheckInCount',
             'invoiceTrainingAdminPasswordConfigured',
             'invoiceTrainingAlertEmailConfigured',
             'invoiceTrainingAlertEmail',
-          ])
-        && (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['invoiceAiShadowEnabled'])
-          || isDispatcher()
-        );
+          ]);
     }
 
     // Phase 3: permanent shop-stock location directory — public read for pickup location labels.
