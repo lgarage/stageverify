@@ -281,7 +281,7 @@ After every substantive code/config change, brief audit before reporting done.
 | Change | Archetype | Tier | Worker | Scouts parallel? | Escalation review? | Verdict |
 ```
 
-When security gate triggered: `security-gate-id: <uuid>`, `model: <Sonnet gate slug per security-review-gate.mdc D-38 allowlist>`, `actual model invocation evidence: yes/no/unknown`, `verdict: PASS|MEDIUM|HIGH|NOT RUN`. No UUID → **NOT RUN**, not PASS.
+When security gate triggered: `security-gate-id: <uuid or bc-<uuid>>`, `model: <Sonnet gate slug per security-review-gate.mdc D-38 allowlist>` (recommended; mechanical `gate-check` CI does not require `model:` when the id is valid), `actual model invocation evidence: yes/no/unknown`, `verdict: PASS|MEDIUM|HIGH|NOT RUN`. No valid id → **NOT RUN**, not PASS.
 
 Complete ship loop (`ship-loop.mdc`) before declaring done for code/config changes.
 

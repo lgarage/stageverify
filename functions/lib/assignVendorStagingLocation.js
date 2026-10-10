@@ -8,6 +8,7 @@ const admin = require("firebase-admin");
 const firestore_1 = require("firebase-admin/firestore");
 const https_1 = require("firebase-functions/v2/https");
 const vendorSessionValidation_1 = require("./vendorSessionValidation");
+const stagingOccupancyGuard_1 = require("./stagingOccupancyGuard");
 function getDb() {
     return admin.firestore();
 }
@@ -29,22 +30,6 @@ function deliveryUsesStagingLocation(delivery, locationId) {
         return true;
     const extra = delivery.additionalStagingLocationIds;
     return Array.isArray(extra) && extra.includes(locationId);
-}
-async function assertStagingLocationAvailable(locationId, deliveryId) {
-    const locSnap = await getDb().collection("stagingLocations").doc(locationId).get();
-    if (!locSnap.exists) {
-        throw new https_1.HttpsError("not-found", "Staging location not found.");
-    }
-    const occupiedSnap = await getDb()
-        .collection("deliveries")
-        .where("stagingLocationId", "==", locationId)
-        .limit(5)
-        .get();
-    for (const doc of occupiedSnap.docs) {
-        if (doc.id !== deliveryId) {
-            throw new https_1.HttpsError("failed-precondition", "Staging location is occupied by another delivery.");
-        }
-    }
 }
 exports.assignVendorStagingLocation = (0, https_1.onCall)({
     region: "us-central1",
@@ -69,37 +54,47 @@ exports.assignVendorStagingLocation = (0, https_1.onCall)({
         throw new https_1.HttpsError("invalid-argument", "stagingLocationId is required.");
     }
     await (0, vendorSessionValidation_1.assertVendorSessionValid)(sessionToken, deliveryId);
-    const deliveryRef = getDb().collection("deliveries").doc(deliveryId);
-    const deliverySnap = await deliveryRef.get();
-    if (!deliverySnap.exists) {
-        throw new https_1.HttpsError("not-found", "Delivery not found.");
-    }
-    const delivery = deliverySnap.data();
-    const status = delivery.status;
-    if (status === "picked_up" || status === "installed") {
-        throw new https_1.HttpsError("failed-precondition", "Delivery is no longer active.");
-    }
-    const now = new Date().toISOString();
-    if (mode === "additional") {
-        if (deliveryUsesStagingLocation(delivery, stagingLocationId)) {
-            return { deliveryId, stagingLocationId, mode };
+    const db = getDb();
+    const deliveryRef = db.collection("deliveries").doc(deliveryId);
+    let response = null;
+    await db.runTransaction(async (tx) => {
+        const deliverySnap = await tx.get(deliveryRef);
+        if (!deliverySnap.exists) {
+            throw new https_1.HttpsError("not-found", "Delivery not found.");
         }
-        await assertStagingLocationAvailable(stagingLocationId, deliveryId);
-        await deliveryRef.update({
-            additionalStagingLocationIds: firestore_1.FieldValue.arrayUnion(stagingLocationId),
+        const delivery = deliverySnap.data();
+        const status = delivery.status;
+        if (status === "picked_up" || status === "installed") {
+            throw new https_1.HttpsError("failed-precondition", "Delivery is no longer active.");
+        }
+        const now = new Date().toISOString();
+        if (mode === "additional") {
+            if (deliveryUsesStagingLocation(delivery, stagingLocationId)) {
+                response = { deliveryId, stagingLocationId, mode };
+                return;
+            }
+            await (0, stagingOccupancyGuard_1.assertStagingLocationAvailableInTransaction)(tx, db, stagingLocationId, deliveryId);
+            tx.update(deliveryRef, {
+                additionalStagingLocationIds: firestore_1.FieldValue.arrayUnion(stagingLocationId),
+                updatedAt: now,
+            });
+            response = { deliveryId, stagingLocationId, mode };
+            return;
+        }
+        if (stagingLocationId) {
+            if (!deliveryUsesStagingLocation(delivery, stagingLocationId)) {
+                await (0, stagingOccupancyGuard_1.assertStagingLocationAvailableInTransaction)(tx, db, stagingLocationId, deliveryId);
+            }
+        }
+        tx.update(deliveryRef, {
+            stagingLocationId: stagingLocationId ?? "",
             updatedAt: now,
         });
-        return { deliveryId, stagingLocationId, mode };
-    }
-    if (stagingLocationId) {
-        if (!deliveryUsesStagingLocation(delivery, stagingLocationId)) {
-            await assertStagingLocationAvailable(stagingLocationId, deliveryId);
-        }
-    }
-    await deliveryRef.update({
-        stagingLocationId: stagingLocationId ?? "",
-        updatedAt: now,
+        response = { deliveryId, stagingLocationId, mode };
     });
-    return { deliveryId, stagingLocationId, mode };
+    if (!response) {
+        throw new https_1.HttpsError("internal", "Staging assignment did not complete.");
+    }
+    return response;
 });
 //# sourceMappingURL=assignVendorStagingLocation.js.map
