@@ -13,8 +13,17 @@ import {
   getGmailProfile,
   gmailOAuthSecretsConfigured,
   listGmailHistory,
-  listRecentInboxMessageIds,
+  listInboxMessageIdsPaginated,
 } from "./gmailInbound";
+import {
+  applyCatchUpCap,
+  buildInboxCatchUpQuery,
+  LIST_CAP,
+  oldestFirstInboxIds,
+  PROCESS_CAP,
+  shouldAdvanceInboundSyncCursor,
+  uniquePreserveOrder,
+} from "./inboundEmail/gmailInboundCatchUp";
 import { processInboundGmailMessage, shouldReprocessExistingDoc } from "./inboundEmail/processInboundGmailMessage";
 import { loadReplyIngestSettings } from "./email/loadOutboundEmailContext";
 import type { InboundEmailProcessingDoc, VendorInvoiceImportDoc } from "./inboundEmail/types";
@@ -146,8 +155,15 @@ async function loadRefreshToken(db: admin.firestore.Firestore): Promise<string |
 async function collectMessageIdsFromHistory(
   accessToken: string,
   startHistoryId: string,
-): Promise<{ messageIds: string[]; latestHistoryId?: string }> {
-  const { history, historyId } = await listGmailHistory(accessToken, startHistoryId);
+): Promise<{
+  messageIds: string[];
+  latestHistoryId?: string;
+  listingComplete: boolean;
+}> {
+  const { history, historyId, listingComplete } = await listGmailHistory(
+    accessToken,
+    startHistoryId,
+  );
   const ids = new Set<string>();
   for (const record of history) {
     for (const added of record.messagesAdded ?? []) {
@@ -157,7 +173,36 @@ async function collectMessageIdsFromHistory(
       if (msg.id) ids.add(msg.id);
     }
   }
-  return { messageIds: [...ids], latestHistoryId: historyId };
+  return {
+    messageIds: [...ids],
+    latestHistoryId: historyId,
+    listingComplete: listingComplete ?? true,
+  };
+}
+
+function inboundProcessingDocId(gmailMessageId: string): string {
+  return `inbound-${gmailMessageId}`;
+}
+
+async function filterUnprocessedCatchUpMessageIds(
+  db: admin.firestore.Firestore,
+  gmailMessageIds: string[],
+): Promise<string[]> {
+  const unprocessed: string[] = [];
+  const chunkSize = 100;
+  for (let i = 0; i < gmailMessageIds.length; i += chunkSize) {
+    const chunk = gmailMessageIds.slice(i, i + chunkSize);
+    const refs = chunk.map((id) =>
+      db.collection(INBOUND_COLLECTION).doc(inboundProcessingDocId(id)),
+    );
+    const snaps = await db.getAll(...refs);
+    for (let j = 0; j < chunk.length; j += 1) {
+      if (!snaps[j]?.exists) {
+        unprocessed.push(chunk[j]!);
+      }
+    }
+  }
+  return unprocessed;
 }
 
 export interface InboundGmailSyncErrorDetail {
@@ -216,36 +261,59 @@ export async function runInboundGmailSync(
   const connData = connSnap.data() as { inboundSync?: InboundSyncState } | undefined;
   const inboundSync = connData?.inboundSync ?? {};
 
-  let messageIds: string[] = [];
   let latestHistoryId = inboundSync.lastHistoryId;
+  const nowMs = Date.now();
+  const replySettings = await loadReplyIngestSettings();
+
+  let historyMessageIds: string[] = [];
+  let historyListingComplete = true;
 
   if (inboundSync.lastHistoryId) {
     const historyResult = await collectMessageIdsFromHistory(
       accessToken,
       inboundSync.lastHistoryId,
     );
-    messageIds = historyResult.messageIds;
+    historyMessageIds = historyResult.messageIds;
+    historyListingComplete = historyResult.listingComplete;
     if (historyResult.latestHistoryId) {
       latestHistoryId = historyResult.latestHistoryId;
     }
   }
 
-  if (messageIds.length === 0) {
-    const replySettings = await loadReplyIngestSettings();
-    const fallbackQuery = replySettings.enabled
-      ? "in:inbox (has:attachment filename:pdf OR -has:attachment)"
-      : "has:attachment filename:pdf in:inbox";
-    const recent = await listRecentInboxMessageIds(accessToken, {
-      maxResults: 15,
-      query: fallbackQuery,
-    });
-    messageIds = recent.map((m) => m.id);
-  }
+  const catchUpQuery = buildInboxCatchUpQuery({
+    lastSyncAt: inboundSync.lastSyncAt,
+    replyEnabled: replySettings.enabled,
+    nowMs,
+  });
+  const afterListResult = await listInboxMessageIdsPaginated(accessToken, {
+    query: catchUpQuery,
+    listCap: LIST_CAP,
+  });
+  const afterMessageIdsOldestFirst = oldestFirstInboxIds(
+    afterListResult.messages.map((m) => m.id),
+  );
+  const afterListingComplete = afterListResult.listingComplete;
+
+  const catchUpIds = uniquePreserveOrder([
+    ...historyMessageIds,
+    ...afterMessageIdsOldestFirst,
+  ]);
+
+  const unprocessedCatchUpIds = await filterUnprocessedCatchUpMessageIds(db, catchUpIds);
+
+  const { processNow, remainderCount } = applyCatchUpCap({
+    listedIds: unprocessedCatchUpIds,
+    cap: PROCESS_CAP,
+  });
+
+  const listingComplete = historyListingComplete && afterListingComplete;
 
   if (!latestHistoryId) {
     const profile = await getGmailProfile(accessToken);
     if (profile.historyId) latestHistoryId = profile.historyId;
   }
+
+  let messageIds = [...processNow];
 
   let reparseStaleReviewIds = await collectStaleIssueImportMessageIds(db);
   messageIds = [...new Set([...messageIds, ...reparseStaleReviewIds])];
@@ -293,12 +361,21 @@ export async function runInboundGmailSync(
   }
 
   const now = new Date().toISOString();
+  const advanceCursor = shouldAdvanceInboundSyncCursor({
+    listingComplete,
+    remainderCount,
+  });
+
   await connectionRef(db).set(
     {
       inboundSync: {
         ...inboundSync,
-        lastHistoryId: latestHistoryId ?? inboundSync.lastHistoryId,
-        lastSyncAt: now,
+        ...(advanceCursor
+          ? {
+              lastHistoryId: latestHistoryId ?? inboundSync.lastHistoryId,
+              lastSyncAt: now,
+            }
+          : {}),
       },
       updatedAt: now,
     },
@@ -306,7 +383,7 @@ export async function runInboundGmailSync(
   );
 
   console.log(
-    `syncInboundGmail: processed=${processed} skipped=${skipped} errors=${errors}`,
+    `syncInboundGmail: catchUpListed=${catchUpIds.length} catchUpUnprocessed=${unprocessedCatchUpIds.length} catchUpProcessNow=${processNow.length} remainder=${remainderCount} listingComplete=${listingComplete} advanceCursor=${advanceCursor} processed=${processed} skipped=${skipped} errors=${errors}`,
   );
   return {
     processed,
