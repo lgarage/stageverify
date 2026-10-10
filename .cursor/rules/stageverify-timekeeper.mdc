@@ -1,8 +1,7 @@
 ---
-description: StageVerify Timekeeper (D-72) — project alwaysApply mirror so cloud/desktop agents honor anti-thrash without marketplace install.
-alwaysApply: true
+description: StageVerify Timekeeper (D-72) anti-thrash checkpoints. Advise-only.
+alwaysApply: false
 ---
-
 # StageVerify Timekeeper (D-72) — project mirror
 
 Canonical detail: `plugins/stageverify-timekeeper/rules/timekeeper.mdc` + skill `stageverify-timekeeper`.

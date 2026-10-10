@@ -1,7 +1,8 @@
 ---
-description: Pre-present quality gate — challenge-revise-present before Dan sees substantive replies.
-alwaysApply: true
+description: Pre-present quality gate for plans, handoffs, and ranked options.
+alwaysApply: false
 ---
+> **D-94:** Review lanes, merge/deploy, and always-loaded context live in `.cursor/rules/lean-agent-process.mdc`. If this file conflicts, **D-94 wins**. Do not run `sonnet-instruct`, `high-risk-adversarial`, `sonnet-verify`, `solution-verifier`, `build-checker`, or `ship-verifier`.
 
 # Answer Quality Gate (pre-present)
 

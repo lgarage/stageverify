@@ -25,10 +25,39 @@ describe("classifyPath", () => {
     assert.deepEqual(classifyPath("firestore.rules"), ["high-risk"]);
   });
 
-  it("flags functions/src as dual high-risk and substantive-ship", () => {
+  it("does not flag non-core-loop functions/src as high-risk (D-94 MEDIUM)", () => {
     const tags = classifyPath("functions/src/index.ts");
-    assert.ok(tags.includes("high-risk"));
+    assert.ok(!tags.includes("high-risk"));
     assert.ok(tags.includes("substantive-ship"));
+  });
+
+  it("flags core-loop write CFs as high-risk", () => {
+    for (const p of [
+      "functions/src/approveVendorInvoiceImport.ts",
+      "functions/src/assignVendorStagingLocation.ts",
+      "functions/src/reassignDeliveryStagingLocation.ts",
+      "functions/src/markVendorDelivered.ts",
+      "functions/src/markVendorDeliveriesBulk.ts",
+      "functions/src/recordPickupEvent.ts",
+      "functions/src/releasePlannedStagingLocation.ts",
+    ]) {
+      assert.ok(classifyPath(p).includes("high-risk"), p);
+    }
+  });
+
+  it("flags PIN/auth CF files as high-risk", () => {
+    assert.ok(classifyPath("functions/src/setAccessPin.ts").includes("high-risk"));
+    assert.ok(classifyPath("functions/src/resolveLocationScanPin.ts").includes("high-risk"));
+  });
+
+  it("does not flag unrelated CF files as high-risk", () => {
+    assert.ok(!classifyPath("functions/src/getVendorRunDeliveries.ts").includes("high-risk"));
+    assert.ok(!classifyPath("functions/src/inboundEmail/sanitizeParsedLines.ts").includes("high-risk"));
+  });
+
+  it("flags gate-check and install-git-hooks as high-risk CI/gate config", () => {
+    assert.ok(classifyPath("scripts/gate-check.mjs").includes("high-risk"));
+    assert.ok(classifyPath("scripts/install-git-hooks.mjs").includes("high-risk"));
   });
 
   it("excludes functions/lib from high-risk", () => {
@@ -42,9 +71,10 @@ describe("classifyPath", () => {
     assert.ok(classifyPath("firebase.json").includes("high-risk"));
   });
 
-  it("hits src auth heuristic", () => {
+  it("hits src auth heuristic including pin/role", () => {
     assert.ok(classifyPath("src/auth/login.tsx").includes("high-risk"));
     assert.ok(classifyPath("src/dispatcher/sessionStore.ts").includes("high-risk"));
+    assert.ok(classifyPath("src/vendor/VendorPinGate.tsx").includes("high-risk"));
   });
 
   it("misses src paths outside auth heuristic for high-risk", () => {

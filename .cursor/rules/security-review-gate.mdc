@@ -1,9 +1,11 @@
 ---
-description: Security reviews MUST use Sonnet 5 D-38 allowlist only — never Composer, never silent non-allowlist substitutes.
-alwaysApply: true
+description: HIGH-tier Sonnet 5 security review (D-38 / D-94) — record security-gate-id on the final diff.
+alwaysApply: false
+globs: firestore.rules,functions/src/**,firebase.json,.github/workflows/**,scripts/gate-check.mjs,scripts/install-git-hooks.mjs
 ---
+# Security Review Model Gate (authoritative — D-94 HIGH review)
 
-# Security Review Model Gate (authoritative)
+**D-94:** This is the **only** AI security review on HIGH PRs. It replaces `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`. Run once on the **final** diff. MEDIUM/LOW PRs do not use this gate.
 
 > **RC-1 UI label:** Parent timeline may show **"Security Review — Composer 2.5 Fast"** — cosmetic only. Validity = valid **`security-gate-id`** + **`model:`** line (recommended) + verdict + invocation evidence; mechanical CI (`gate-check`) requires the id only when valid.
 

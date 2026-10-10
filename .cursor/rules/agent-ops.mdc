@@ -1,8 +1,7 @@
 ---
-description: Enforce the agent-ops efficiency loop in stageverify (outcome logging, brain repo).
-alwaysApply: true
+description: agent-ops outcome logging pointer for stageverify.
+alwaysApply: false
 ---
-
 # agent-ops loop (stageverify)
 
 This repo uses the **agent-ops** skill (`~/.cursor/skills/agent-ops`, git `C:\Projects\cursor-agent-brain`).

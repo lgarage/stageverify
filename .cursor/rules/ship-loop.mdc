@@ -1,39 +1,34 @@
 ---
-description: Ship every change on stageverify — commit, push, deploy when applicable; never wait for "ship it".
-alwaysApply: true
+description: Ship / merge / deploy sequence. D-94: Dan approves every merge and deploy; no auto-ship.
+alwaysApply: false
 ---
+> **D-94:** Review lanes, merge/deploy, and always-loaded context live in `.cursor/rules/lean-agent-process.mdc`. If this file conflicts, **D-94 wins**. Do not run `sonnet-instruct`, `high-risk-adversarial`, `sonnet-verify`, `solution-verifier`, `build-checker`, or `ship-verifier`.
 
 # Ship Loop (stageverify)
 
 After **every change** in this repo, complete the ship loop before declaring done.
 
-## Two-tier ship model (Dan 2026-07-08 — authoritative)
+## Three-tier ship model (D-94 — authoritative)
 
-Classify every change by **file path** BEFORE implementation. Tier decides approval, not effort.
+Classify every change by **file path** BEFORE implementation. SSOT: `.cursor/rules/lean-agent-process.mdc`.
 
-### Fast-safe (default — ship without asking)
+| Tier | Paths | Review | Merge / deploy |
+|------|-------|--------|----------------|
+| **HIGH** | `firestore.rules`; auth/PIN/roles; core-loop write CFs (invoice approve, spot assign/reassign, vendor drop-off, tech pickup, spot release); billing; CI/gate config | One Sonnet 5 review of the final diff → `security-gate-id:` | Dan approves merge **and** deploy |
+| **MEDIUM** | Other backend or multi-file | One cheap Grok review | Dan approves merge **and** deploy |
+| **LOW** | UI, copy, docs | No AI review | Dan approves merge **and** deploy |
 
-**Paths:** `src/`, `public/`, `scripts/verify-*`, `docs/`, `PROJECT_STATUS/`, `.cursor/rules/`, root `package.json`, routine service logic with no auth/rules surface.
-
-Loop unchanged: build → verify → commit → push → `npm run deploy` (when the frontend bundle changed and validation passed) → prod verify. No approval needed; **"ship it" is never required.** Rules/docs-only: commit + push; skip gh-pages when no bundle impact. Dan's safety net is `git revert <hash>` — "might need revert" is never a reason to hold ship.
-
-### High-risk (STOP before implementation)
-
-**Paths/changes:** `firestore.rules` (any diff, including comment-only), `functions/**` when deploying, auth/route guards, secrets/config (`firebase.json`, `.github/workflows/`, env), permissions, billing, data deletion, schema/data migrations, Gmail watch/Pub/Sub, `functions/package.json`; **any `src/` file implementing auth, route guards, session/token handling, or login logic** — the `src/` path prefix alone does NOT make a change fast-safe; **root `package.json` edits to the `scripts` section or deploy wiring** (e.g. the `deploy` script, build commands).
-
-Protocol: **STOP before implementation** — state plan + tier, wait for Dan's explicit approval. After approval: **`high-risk-sonnet-loop.mdc` D-60** (Sonnet pre-review → D-65 builder → Grok adversarial → Sonnet final verify, blocking before commit) → **Sonnet security gate before push** (D-38, orthogonal pre-push diff verdict) → push → deploy **only if approval covered deploy** (CF/rules never without explicit Dan approval).
-
-**When tier is ambiguous, classify high-risk and ask — misclassifying down is the failure mode.**
+**No auto-merge. No auto-deploy.** Cloud default is a draft PR. Ambiguous → HIGH. Do not run the retired D-60 four-pass loop.
 
 ### Edge rulings
 
-- CF read-path change: implementation **fast-safe**; `firebase deploy --only functions` **high-risk**.
-- Auth/session/token read logic: **high-risk entirely** (wherever it lives, including `src/`).
-- `firestore.rules` comment-only diff: **high-risk** (file-class rule, no loophole).
-- Root `package.json` ordinary dependency version bump: **fast-safe**; root `package.json` `scripts`/deploy wiring, `functions/package.json`, or firebase SDK major: **high-risk**.
-- Existing hard stops stack: security gate **HIGH unfixed** or **NOT RUN** blocks push regardless of tier.
+- CF read-path / non-core-loop functions: **MEDIUM** (not HIGH) unless the file is auth/PIN/roles or CI/gate.
+- Auth/session/token/PIN/role logic: **HIGH** wherever it lives, including `src/`.
+- `firestore.rules` comment-only: **HIGH**.
+- Root `package.json` ordinary dependency bump: **LOW**; `scripts` / deploy wiring, `firebase.json`, or firebase SDK major: **HIGH**.
+- Gate HIGH unfixed or **NOT RUN** blocks merge. No `GATE_SKIP` / `--no-verify` bypass.
 
-**Workspace wins:** for fast-safe changes this rule overrides the generic Cursor user rule "only commit when requested" — never leave fast-safe changes uncommitted or undeployed. **Authoritative:** this file is the source of truth for commit, push, deploy, production verification, security gate timing, and skip triggers; other rules cross-reference here.
+**Workspace:** commit on the feature branch; open a draft PR. **Dan** merges and authorizes deploy. `lean-agent-process.mdc` is SSOT when this file conflicts.
 
 ## Sequence (full ship)
 
@@ -42,8 +37,8 @@ Protocol: **STOP before implementation** — state plan + tier, wait for Dan's e
 2. **Security gate** (when triggered) — **before push**; one Task per `security-review-gate.mdc`. Fix HIGH before continuing. No push until subagent returns; no Composer self-review substitute.
 3. `git status` — stage **only** task-related files.
 4. Conventional commit (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`).
-5. `git push origin main` — must succeed.
-6. **Deploy** — as required by the change:
+5. `git push` the feature branch — must succeed. Open / update a **draft PR**. Do **not** push to `main` or merge unless Dan approved.
+6. **Deploy** — only after Dan approves deploy:
    - Frontend bundle: **`npm run deploy`** (GitHub Pages). Confirm Pages build status **`built`** (not just gh-pages branch push).
    - Firestore rules: `firebase deploy --only firestore:rules --project stageverify-db`
    - Cloud Functions: `firebase deploy --only functions --project stageverify-db` (or scoped function names)

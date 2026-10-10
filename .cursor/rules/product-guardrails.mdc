@@ -1,8 +1,8 @@
 ---
-description: Minew NDA hard stops + vendor phone-test QR requirements.
-alwaysApply: true
+description: Minew NDA hard stops + vendor phone-test QR. Lean process also carries a one-line NDA.
+alwaysApply: false
+globs: functions/src/**,src/**/*Receiv*,src/**/*Pickup*
 ---
-
 # Product Guardrails
 
 ## Minew NDA (hard prohibitions)

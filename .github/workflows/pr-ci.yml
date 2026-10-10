@@ -1,0 +1,49 @@
+# PR safety net (D-94): build + tsc + Firestore emulator suites.
+# Does not replace gate-check.yml (security-gate-id on HIGH paths).
+name: pr-ci
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  build-and-emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@3a4f6e1f74802837f40732047e21cc32c90176fe # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install root and functions deps
+        run: |
+          npm ci
+          npm ci --prefix functions
+      - name: Typecheck app
+        run: npx tsc -b --pretty false
+      - name: Build app
+        run: npm run build
+      - name: Build functions
+        run: npm run build:functions
+      - name: Install firebase-tools
+        run: npm install -g firebase-tools
+      - name: Firestore emulator suites
+        # Scripts hard-code projectId stageverify-db — pass the same --project.
+        # One emulator boot for assign / reassign / vendor delivered / rules.
+        # Omitted: test:firestore-rules-app-settings (script does not exist);
+        # field-lesson rules tests; pickup-authority (auth-heavy / slower).
+        run: >
+          firebase emulators:exec
+          --only auth,firestore,functions
+          --project stageverify-db
+          "node scripts/test-assign-vendor-staging-location.mjs
+          && node scripts/test-reassign-staging-location.mjs
+          && node scripts/test-mark-vendor-delivered.mjs
+          && node scripts/test-delivery-status-transitions.mjs
+          && node scripts/test-access-pin-rules.mjs"

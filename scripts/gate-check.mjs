@@ -1,35 +1,30 @@
 #!/usr/bin/env node
 /**
- * PR evidence gate checker — mechanical presence-only verification for high-risk diffs.
+ * PR evidence gate checker — mechanical presence-only verification for HIGH-tier diffs (D-94).
  *
- * Intentionally stricter than ship-loop.mdc (fail-up): CF read-path implementation is
- * fast-safe per ship-loop, but a PR with functions/ changes precedes a possible deploy;
- * misclassifying down is the failure mode.
+ * HIGH (security-gate-id required): firestore.rules; auth/PIN/roles; core-loop write CFs
+ * (invoice approve, spot assign/reassign, vendor drop-off, tech pickup, spot release);
+ * billing; CI/gate config (.github/workflows, firebase.json, gate-check, install-git-hooks,
+ * root package.json scripts / firebase major).
  *
- * src/** auth heuristic (/auth|session|token|guard|login/i) is approximate fail-up —
- * false positives accepted.
+ * Other functions/ and backend files are MEDIUM — no security-gate-id.
+ * UI / copy / docs are LOW — no security-gate-id.
  *
- * Root package.json: high-risk on scripts diff or firebase MAJOR bump only; other
- * non-scripts deploy wiring documented as v1 out-of-scope in this header.
+ * src/** auth heuristic (/auth|session|token|guard|login|pin|role/i) is approximate fail-up.
  *
  * The check does not validate verdict PASS/HIGH — presence-only by design (D-28).
  * The **security-gate-id value** must be a lowercase UUID or `bc-<uuid>`; `NOT RUN`,
- * empty, and junk id values fail. Cloud-agent review ids (`bc-…`) accepted when the
- * platform has no `security-review` Task type.
+ * empty, and junk id values fail.
  *
- * Model line (D-38): if present, must match ALLOWED_GATE_MODELS — preference order is
- * enforced by harness rules. Missing model does **not** fail mechanical CI when the id
- * is valid (optional warning only).
+ * Model line (D-38): if present, must match ALLOWED_GATE_MODELS. Missing model does
+ * **not** fail mechanical CI when the id is valid (optional warning only).
  *
  * Self-bypass caveat: a fork PR can modify gate-check.mjs itself to neuter the check on
- * the merge ref — this gate is advisory-vs-malice, protective-vs-honest-mistakes; branch
- * protection + human review remain the backstop for hostile PRs.
+ * the merge ref — this gate is advisory-vs-malice; branch protection + human review
+ * remain the backstop for hostile PRs. No GATE_SKIP in this script.
  *
  * Run: npm run gate:check [-- --base <ref> --head <ref> --pr-body-file <path> | --evidence-from-commits]
  * Evidence priority: env GATE_PR_BODY > --pr-body-file > --evidence-from-commits > empty.
- * --evidence-from-commits reads `git log --format=%B base..head` — direct pushes to main
- * (desktop, pre-push hook) carry the evidence block in commit messages; same presence-only
- * contract as PR bodies.
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -106,7 +101,14 @@ export function hasAllowedGateModel(prBody) {
   return ALLOWED_GATE_MODELS.some((slug) => prBody.includes(`model: ${slug}`));
 }
 
-const AUTH_HEURISTIC = /auth|session|token|guard|login/i;
+const AUTH_HEURISTIC = /auth|session|token|guard|login|pin|role/i;
+
+/** Core-loop write Cloud Functions — HIGH (D-94). Not all of functions/. */
+export const HIGH_CORE_LOOP_CF_RE =
+  /(?:^|\/)(?:approveVendorInvoiceImport|assignVendorStagingLocation|reassignDeliveryStagingLocation|markVendorDelivered|markVendorDeliveriesBulk|recordPickupEvent|releasePlannedStagingLocation|approveIdempotentReplay)(?:\.|$)/i;
+
+export const HIGH_GATE_CONFIG_RE =
+  /^(?:\.github\/workflows\/|firebase\.json$|scripts\/gate-check\.mjs$|scripts\/install-git-hooks\.mjs$|scripts\/ship-evidence-preflight\.mjs$)/;
 
 /**
  * @param {string} filePath
@@ -131,17 +133,20 @@ export function classifyPath(filePath) {
   if (p === "firestore.rules") {
     tags.push("high-risk");
   }
-  if (p.startsWith("functions/") && !p.startsWith("functions/lib/")) {
-    tags.push("high-risk");
-  }
-  if (p.startsWith(".github/workflows/")) {
-    tags.push("high-risk");
-  }
-  if (p === "firebase.json") {
+  if (HIGH_GATE_CONFIG_RE.test(p)) {
     tags.push("high-risk");
   }
   if (p.startsWith("src/") && AUTH_HEURISTIC.test(p)) {
     tags.push("high-risk");
+  }
+  if (p.startsWith("functions/") && !p.startsWith("functions/lib/")) {
+    const base = p.split("/").pop() ?? p;
+    if (HIGH_CORE_LOOP_CF_RE.test(base) || AUTH_HEURISTIC.test(base) || /billing/i.test(p)) {
+      tags.push("high-risk");
+    }
+  }
+  if (/billing/i.test(p) && (p.startsWith("src/") || p.startsWith("functions/"))) {
+    if (!tags.includes("high-risk")) tags.push("high-risk");
   }
 
   if (p.startsWith("src/")) {
@@ -419,7 +424,7 @@ export function runGateCheck(base, head, prBody) {
 
   if (hasSubstantiveShip) {
     console.log(
-      "NOTE: substantive-ship paths changed — ship-verifier: line required post-ship (post-push, not enforced at PR time)",
+      "NOTE: product paths changed — D-94: no ship-verifier. HIGH needs security-gate-id; MEDIUM needs one Grok review; LOW none.",
     );
   }
 

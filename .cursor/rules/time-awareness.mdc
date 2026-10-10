@@ -1,8 +1,7 @@
 ---
-description: Time constraints bind every reply — budget filter, no out-of-budget CTAs, remaining-time options
-alwaysApply: true
+description: Time-window budget filter and remaining-time options when Dan states a clock.
+alwaysApply: false
 ---
-
 # Time Awareness (Dan standing preference)
 
 ## Time constraints (summary)

@@ -1,8 +1,7 @@
 ---
-description: End every action turn with exactly one terminal status block (DONE/BLOCKED/FAILED/PARTIAL).
-alwaysApply: true
+description: Terminal status block DONE|BLOCKED|FAILED|PARTIAL (D-66).
+alwaysApply: false
 ---
-
 # Terminal status block (D-61 / D-66)
 
 **Authority:** Dan 2026-08-05 (D-61); amended Dan 2026-08-08 (D-66). Platform parity (D-32).

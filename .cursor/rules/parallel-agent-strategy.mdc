@@ -1,7 +1,8 @@
 ---
-description: Parallel scouts and file-ownership batches — Composer coordinates, cheap agents scan, executors merge once.
-alwaysApply: true
+description: Parallel scouts vs serial implementers. D-94: one small job; no reviewer swarms.
+alwaysApply: false
 ---
+> **D-94:** Review lanes, merge/deploy, and always-loaded context live in `.cursor/rules/lean-agent-process.mdc`. If this file conflicts, **D-94 wins**. Do not run `sonnet-instruct`, `high-risk-adversarial`, `sonnet-verify`, `solution-verifier`, `build-checker`, or `ship-verifier`.
 
 # Parallel Agent Strategy (stageverify)
 

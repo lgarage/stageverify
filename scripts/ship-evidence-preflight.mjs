@@ -1,15 +1,13 @@
 #!/usr/bin/env node
 /**
- * D-65 — Mechanical ship-evidence preflight (cheap; no model).
+ * D-94 — Mechanical ship-evidence preflight (cheap; no model).
  *
- * Confirms required evidence tokens exist in stdin or --file before dispatching
- * Grok Ship Verifier. Fail here → fix evidence formatting without a Ship Task
- * (does NOT count as Ship FAIL toward D-54/D-55).
+ * HIGH class requires a valid security-gate-id only.
+ * Dropped tokens (do not require): sonnet-instruct, high-risk-adversarial,
+ * sonnet-verify, solution-verifier, build-checker, ship-verifier.
  *
  * Usage:
  *   node scripts/ship-evidence-preflight.mjs --file path/to/report.txt
- *   node scripts/ship-evidence-preflight.mjs --stdin < report.txt
- *   node scripts/ship-evidence-preflight.mjs --class tiny-fast-safe --file …
  *   node scripts/ship-evidence-preflight.mjs --class high-risk --file …
  *
  * Exit 0 = PASS; exit 1 = FAIL (missing tokens).
@@ -28,10 +26,10 @@ const { values } = parseArgs({
 });
 
 if (values.help) {
-  console.log(`ship-evidence-preflight.mjs (D-65)
+  console.log(`ship-evidence-preflight.mjs (D-94)
   --file <path>     Report text to scan
   --stdin           Read report from stdin
-  --class <name>    tiny-fast-safe | default | high-risk | t2-prod-sensitive
+  --class <name>    tiny-fast-safe | default | high-risk | t2-prod-sensitive | medium | low
 `);
   process.exit(0);
 }
@@ -50,58 +48,37 @@ const shipClass = values.class || "default";
 
 /** @type {Record<string, string[]>} */
 const REQUIRED = {
-  "tiny-fast-safe": [
-    "ui-before-after:", // or N/A — checked loosely below
-  ],
-  default: [
-    "ship-verifier:", // may be N/A after this preflight for tiny — still require intent line in report
-  ],
-  "t2-prod-sensitive": ["ship-verifier:", "build-checker:"],
-  "high-risk": [
-    "sonnet-instruct:",
-    "high-risk-adversarial:",
-    "sonnet-verify:",
-    "security-gate-id",
-    "ship-verifier:",
-  ],
+  "tiny-fast-safe": [],
+  low: [],
+  default: [],
+  medium: [],
+  "t2-prod-sensitive": [],
+  "high-risk": ["security-gate-id"],
 };
 
-const patterns = {
-  "ui-before-after:": /ui-before-after:\s*\S+/i,
-  "ship-verifier:": /ship-verifier:\s*\S+/i,
-  "build-checker:": /build-checker:\s*\S+/i,
-  "sonnet-instruct:": /sonnet-instruct:\s*\S+/i,
-  "high-risk-adversarial:": /high-risk-adversarial:\s*\S+/i,
-  "sonnet-verify:": /sonnet-verify:\s*\S+/i,
-  "security-gate-id": /security-gate-id:\s*[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
-  "model:": /model:\s*\S+/i,
-};
+const VALID_GATE_ID =
+  /security-gate-id:\s*[`"'*\s]*(?:bc-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 const needed = REQUIRED[shipClass] || REQUIRED.default;
 const missing = [];
 
 for (const key of needed) {
-  const re = patterns[key];
-  if (!re) continue;
-  if (!re.test(body)) missing.push(key);
-}
-
-// High-risk also needs model line near security gate
-if (shipClass === "high-risk" && /security-gate-id:/i.test(body) && !/model:\s*claude-sonnet-5-thinking-high/i.test(body)) {
-  missing.push("model: claude-sonnet-5-thinking-high (near security gate)");
-}
-
-// UUID-shaped gate id when security-gate-id present
-if (/security-gate-id:/i.test(body) && !patterns["security-gate-id"].test(body)) {
-  if (!missing.includes("security-gate-id")) missing.push("security-gate-id (UUID format)");
+  if (key === "security-gate-id") {
+    if (/security-gate-id:\s*[`"'*\s]*not\s+run\b/i.test(body)) {
+      missing.push("security-gate-id (NOT RUN rejected)");
+      continue;
+    }
+    if (!VALID_GATE_ID.test(body)) {
+      missing.push("security-gate-id");
+    }
+  }
 }
 
 if (missing.length) {
   console.error("ship-evidence-preflight: FAIL");
   console.error("Missing or malformed:");
   for (const m of missing) console.error(`  - ${m}`);
-  console.error("Fix evidence in the completion report, then re-run preflight.");
-  console.error("Do NOT dispatch Ship Verifier yet (D-65 — preflight fail ≠ Ship FAIL).");
+  console.error("HIGH requires security-gate-id (UUID or bc-<uuid>). Dropped D-60/D-65 tokens are not required.");
   process.exit(1);
 }
 

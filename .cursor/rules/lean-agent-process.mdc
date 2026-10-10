@@ -1,0 +1,52 @@
+---
+description: Lean agent process (D-94) — three risk tiers, one HIGH security review, tests as the safety net.
+alwaysApply: true
+---
+
+# StageVerify lean agent process (D-94)
+
+SSOT for review lanes, merge/deploy, and always-loaded rules. **Supersedes D-60 and D-65.** Amends D-92 / D-93 (Composer still codes; extra model passes run only when this file says so). Older `.cursor/rules/*` files are on-demand — if they conflict with this file, **this file wins**.
+
+## One job
+
+One small job per agent. PR body: what changed, why, how to test, rollback. No reviewer swarms.
+
+## Risk tiers (classify by path before you edit)
+
+**HIGH** — `firestore.rules`; auth / PIN / roles (client or CF); Cloud Functions that **write** core-loop data (invoice approve, spot assign / reassign, vendor drop-off, tech pickup, spot release); billing; CI / gate config (`.github/workflows/`, `firebase.json`, `scripts/gate-check.mjs`, `scripts/install-git-hooks.mjs`, root `package.json` scripts / deploy wiring). Ambiguous → HIGH.
+
+**MEDIUM** — other backend or multi-file changes that are not HIGH.
+
+**LOW** — UI, copy, docs, `PROJECT_STATUS/`, on-demand rules.
+
+## Reviews
+
+- Composer 2.5 Fast does all routine coding (UI and non-UI).
+- **HIGH:** one Sonnet 5 review of the **final** diff (`claude-sonnet-5-thinking-high`). Record `security-gate-id:` (lowercase UUID or `bc-<uuid>`). Reject `NOT RUN`, empty, and junk. This **replaces** `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`.
+- **MEDIUM:** one cheap Grok review of the final diff. No `security-gate-id`.
+- **LOW:** no AI review.
+- **Dropped:** `solution-verifier`, `build-checker`, `ship-verifier`. Do not run them.
+- **UI screenshots:** only for **big** visual changes (theme, contrast, complex layout, redesign). Not for copy, labels, or small CSS.
+
+HIGH review how-to (on-demand): `.cursor/rules/security-review-gate.mdc`. Cloud agents may record `security-gate-id: bc-<uuid>` from a real security-review run — do not invent ids.
+
+## Tests are the safety net
+
+CI on every PR must pass: `npm ci`, app build, functions build, `tsc`, and the Firestore emulator suites in `.github/workflows/pr-ci.yml`. Do not merge on red CI.
+
+## Non-negotiables
+
+1. A **real recorded** Sonnet review on every HIGH PR (`security-gate-id:`).
+2. Tests and the build pass before merge.
+3. **Dan approves every merge and every deploy.** No auto-merge. No auto-deploy. Draft PRs are the default from cloud.
+4. A **rollback point** (commit hash / prior CF revision) before every deploy, and a **smoke test** after.
+5. **No gate bypass.** Do not use `GATE_SKIP`, `--no-verify`, or forged ids to skip HIGH review.
+6. One small job per agent; notes in the PR body.
+
+## Merge and deploy
+
+Branch + PR. Dan merges. Dan authorizes deploy (gh-pages, Cloud Functions, Firestore rules) separately. After deploy: smoke the path you changed; keep the rollback hash ready.
+
+## Minew / NDA
+
+Never commit or paste Minew API docs, credentials, or platform internals. HTTP calls server-side only (`functions/src/`). Public UI uses StageVerify QR URLs (`#/r?`, `#/p?`) only.

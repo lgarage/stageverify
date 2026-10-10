@@ -1,8 +1,7 @@
 ---
-description: Mandatory MVP completion % in work replies — all agents, all clients (desktop PC, mobile, cloud).
-alwaysApply: true
+description: MVP completion percent line when shipping MVP-scoped work (D-25).
+alwaysApply: false
 ---
-
 # MVP Completion Report (mandatory)
 
 **Authority:** `PROJECT_STATUS/MVP_PATH.md` (SSOT for %, exit criteria, increments). **Platform parity (D-20, D-25):** desktop PC, mobile Cursor, and cloud VM — identical behavior.
