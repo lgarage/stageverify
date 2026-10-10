@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-java@3a4f6e1f74802837f40732047e21cc32c90176fe # v4.7.1
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
           distribution: temurin
           java-version: "21"
