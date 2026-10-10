@@ -10,7 +10,10 @@ import {
   ALLOWED_GATE_MODELS,
   REQUIRED_MODEL_LINE,
   MISSING_MODEL_LINE_HINT,
+  MISSING_SECURITY_GATE_ID_HINT,
   hasAllowedGateModel,
+  extractSecurityGateIdValue,
+  hasValidSecurityGateId,
   classifyPath,
   packageJsonHighRisk,
   checkEvidence,
@@ -82,14 +85,61 @@ describe("SECURITY_GATE_ID_RE", () => {
     assert.ok(SECURITY_GATE_ID_RE.test(body));
   });
 
+  it("accepts bc- prefixed lowercase uuid", () => {
+    const body = "security-gate-id: bc-3594ac4e-aad0-57f6-be0a-5cb813a3f25d";
+    assert.ok(SECURITY_GATE_ID_RE.test(body));
+  });
+
   it("rejects uppercase uuid", () => {
     const body = "security-gate-id: A1B2C3D4-E5F6-7890-ABCD-EF1234567890";
+    assert.ok(!SECURITY_GATE_ID_RE.test(body));
+  });
+
+  it("rejects uppercase bc- uuid", () => {
+    const body = "security-gate-id: bc-A1B2C3D4-E5F6-7890-ABCD-EF1234567890";
     assert.ok(!SECURITY_GATE_ID_RE.test(body));
   });
 
   it("rejects short invalid id", () => {
     const body = "security-gate-id: deadbeef";
     assert.ok(!SECURITY_GATE_ID_RE.test(body));
+  });
+});
+
+describe("extractSecurityGateIdValue / hasValidSecurityGateId", () => {
+  const bareUuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+  const bcUuid = "bc-3594ac4e-aad0-57f6-be0a-5cb813a3f25d";
+
+  it("parses bare uuid", () => {
+    assert.equal(extractSecurityGateIdValue(`security-gate-id: ${bareUuid}`), bareUuid);
+    assert.equal(hasValidSecurityGateId(`security-gate-id: ${bareUuid}`), true);
+  });
+
+  it("parses bc- uuid without model", () => {
+    assert.equal(extractSecurityGateIdValue(`security-gate-id: ${bcUuid}`), bcUuid);
+    assert.equal(hasValidSecurityGateId(`security-gate-id: ${bcUuid}`), true);
+  });
+
+  it("parses #255-style backticks and middle-dot inline model", () => {
+    const body =
+      "- `security-gate-id:` bc-3594ac4e-aad0-57f6-be0a-5cb813a3f25d · `model: claude-sonnet-5-thinking-high` · verdict PASS";
+    assert.equal(extractSecurityGateIdValue(body), "bc-3594ac4e-aad0-57f6-be0a-5cb813a3f25d");
+    assert.equal(hasValidSecurityGateId(body), true);
+  });
+
+  it("rejects NOT RUN", () => {
+    assert.equal(hasValidSecurityGateId("security-gate-id: NOT RUN"), false);
+    assert.equal(hasValidSecurityGateId("security-gate-id:  not  run"), false);
+  });
+
+  it("rejects empty value", () => {
+    assert.equal(hasValidSecurityGateId("security-gate-id:"), false);
+    assert.equal(hasValidSecurityGateId("security-gate-id:   "), false);
+  });
+
+  it("rejects deadbeef and bc-deadbeef", () => {
+    assert.equal(hasValidSecurityGateId("security-gate-id: deadbeef"), false);
+    assert.equal(hasValidSecurityGateId("security-gate-id: bc-deadbeef"), false);
   });
 });
 
@@ -150,6 +200,7 @@ describe("packageJsonHighRisk", () => {
 
 describe("checkEvidence", () => {
   const gateId = "security-gate-id: a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+  const bcGateId = "security-gate-id: bc-3594ac4e-aad0-57f6-be0a-5cb813a3f25d";
 
   const validBodySonnet5 = [gateId, REQUIRED_MODEL_LINE, "actual model invocation evidence: yes"].join(
     "\n",
@@ -168,11 +219,73 @@ describe("checkEvidence", () => {
     assert.ok(result.missing.some((m) => m.includes("security-gate-id")));
   });
 
-  it("fails when model line missing", () => {
+  it("passes when model line missing but valid uuid id present", () => {
     const body = gateId;
     const result = checkEvidence(body, true);
+    assert.equal(result.pass, true);
+    assert.deepEqual(result.missing, []);
+    assert.ok(result.warnings.some((w) => w.includes("model:")));
+  });
+
+  it("passes bc- uuid without model", () => {
+    const result = checkEvidence(bcGateId, true);
+    assert.equal(result.pass, true);
+    assert.deepEqual(result.missing, []);
+  });
+
+  it("passes bc- uuid with allowlisted model on next line", () => {
+    const body = [bcGateId, REQUIRED_MODEL_LINE].join("\n");
+    const result = checkEvidence(body, true);
+    assert.equal(result.pass, true);
+    assert.deepEqual(result.missing, []);
+  });
+
+  it("passes #255-style backticks and middle-dot inline model", () => {
+    const body =
+      "- `security-gate-id:` bc-3594ac4e-aad0-57f6-be0a-5cb813a3f25d · `model: claude-sonnet-5-thinking-high` · verdict PASS";
+    const result = checkEvidence(body, true);
+    assert.equal(result.pass, true);
+    assert.deepEqual(result.missing, []);
+  });
+
+  it("rejects security-gate-id NOT RUN", () => {
+    const result = checkEvidence("security-gate-id: NOT RUN", true);
     assert.equal(result.pass, false);
-    assert.ok(result.missing.includes(MISSING_MODEL_LINE_HINT));
+    assert.ok(result.missing.includes(MISSING_SECURITY_GATE_ID_HINT));
+  });
+
+  it("rejects empty security-gate-id value", () => {
+    const result = checkEvidence("security-gate-id:", true);
+    assert.equal(result.pass, false);
+  });
+
+  it("rejects deadbeef id", () => {
+    const result = checkEvidence("security-gate-id: deadbeef", true);
+    assert.equal(result.pass, false);
+  });
+
+  it("rejects bc-deadbeef id", () => {
+    const result = checkEvidence("security-gate-id: bc-deadbeef", true);
+    assert.equal(result.pass, false);
+  });
+
+  it("rejects uppercase bc- uuid", () => {
+    const result = checkEvidence(
+      "security-gate-id: bc-A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+      true,
+    );
+    assert.equal(result.pass, false);
+  });
+
+  it("fails #254-style body with no security-gate-id line", () => {
+    const body254 = [
+      "## Summary",
+      "functions-change evidence",
+      "verdict: PASS",
+    ].join("\n");
+    const result = checkEvidence(body254, true);
+    assert.equal(result.pass, false);
+    assert.ok(result.missing.some((m) => m.includes("security-gate-id")));
   });
 
   it("passes when Sonnet 5 model line present", () => {
@@ -192,18 +305,18 @@ describe("checkEvidence", () => {
     assert.deepEqual(result.missing, []);
   });
 
-  it("fails when non-allowlist model line present", () => {
+  it("passes when non-allowlist model line present (id valid; model not enforced by CI)", () => {
     const body = [gateId, "model: claude-fable-5-thinking-high"].join("\n");
     const result = checkEvidence(body, true);
-    assert.equal(result.pass, false);
-    assert.ok(result.missing.includes(MISSING_MODEL_LINE_HINT));
+    assert.equal(result.pass, true);
+    assert.deepEqual(result.missing, []);
   });
 
-  it("fails when retired Sonnet 4.6 model line present", () => {
+  it("passes when retired Sonnet 4.6 model line present (id valid)", () => {
     const body = [gateId, "model: claude-4.6-sonnet-medium-thinking"].join("\n");
     const result = checkEvidence(body, true);
-    assert.equal(result.pass, false);
-    assert.ok(result.missing.includes(MISSING_MODEL_LINE_HINT));
+    assert.equal(result.pass, true);
+    assert.deepEqual(result.missing, []);
   });
 });
 
