@@ -5,7 +5,7 @@ globs: firestore.rules,functions/src/**,firebase.json,.github/workflows/**,scrip
 ---
 # Security Review Model Gate (authoritative — D-94 HIGH review)
 
-**D-94:** This is the **only** required AI security review on HIGH PRs. It replaces `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`. Run once on the **final** diff. MEDIUM/LOW PRs do not use this gate.
+**D-94:** Required on HIGH PRs. The Grok accuracy review of Composer code may **double** as this security review if it covers security — record `security-gate-id:` + `model:`. It replaces `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`. MEDIUM/LOW still get a Grok accuracy review but do not need `security-gate-id`.
 
 Validity = valid **`security-gate-id:`** + **`model:`** (allowlisted) + verdict + invocation evidence. Mechanical CI (`gate-check`) requires the id **and** the model line on HIGH.
 

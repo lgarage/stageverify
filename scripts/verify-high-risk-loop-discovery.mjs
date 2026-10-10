@@ -29,6 +29,7 @@ function read(rel) {
 const lean = read(".cursor/rules/lean-agent-process.mdc");
 record(/^alwaysApply:\s*true\s*$/m.test(lean), "lean-alwaysApply");
 record(/security-gate-id:/i.test(lean) && /cursor-grok-4\.6-high/.test(lean), "high-one-grok");
+record(/ladder-step:/i.test(lean) && /Coding ladder/i.test(lean), "coding-ladder");
 record(/sonnet-instruct/i.test(lean) && /replaces/i.test(lean), "d60-replaced");
 record(/No gate bypass/i.test(lean) || /No \*\*gate bypass/i.test(lean), "no-bypass");
 record(/Dan approves every merge/i.test(lean), "dan-approves-merge");

@@ -15,7 +15,7 @@ alwaysApply: false
 | Phase | Who | When |
 |-------|-----|------|
 | **1 — Implement** | Composer 2.5 Fast (all routine UI and non-UI) | Always. Big visual changes may still use Sol inspect + Composer pixels. |
-| **2 — Review** | HIGH → one Grok top model (`security-gate-id:` + `model:`). MEDIUM → one cheap Grok. LOW → none. Sonnet escalation only. | After the final diff. Dropped: solution-verifier, build-checker, ship-verifier, sonnet-instruct, high-risk-adversarial, sonnet-verify. |
+| **2 — Review** | Grok reviews all Composer code (including LOW). HIGH: may double as `security-gate-id:` + `model:` if it covers security. Sonnet backup / ladder-5 only. | After the final diff. Record `ladder-step:`. Dropped: solution-verifier, build-checker, ship-verifier, sonnet-instruct, high-risk-adversarial, sonnet-verify. |
 | **3 — Ship** | Orchestrator opens a PR; **Dan** merges and authorizes deploy | Tests + build green. Rollback hash before deploy; smoke after. |
 
 **Ship lock (hard STOP — D-92 paired):** Implementer workers (Composer/Sol/Grok-as-D-50/Grok-as-D-92-takeover) never commit, push, or deploy. Orchestrator role owns ship. Grok-as-orchestrator may ship; Grok-as-implementer never ships. Ship permission ≠ implement permission.

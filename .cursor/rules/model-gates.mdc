@@ -20,7 +20,7 @@ Single authoritative model-routing definition. Other harness files pointer-refer
 
 - **Verifier:** Grok family when a D-65 lane actually fires. Mechanical Task slug remains repo-approved `cursor-grok-4.5-high-fast`. If rejected → fallback `cursor-grok-4.6-high-fast`. Parent Grok 4.6 may in-session review when it is the parent. **Parent Grok in-session review does not create or replace a D-65 Task lane.** Do not reintroduce mandatory multi-Grok stacks.
 
-- **Security/HIGH authority (D-94):** Grok top model (`cursor-grok-4.6-high`) owns **one** final-diff review recorded as `security-gate-id:` + `model:`. This replaces `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`. MEDIUM = one cheap Grok review. LOW = no AI review. Sonnet 5 is optional escalation only (`firestore.rules` / auth/PIN/roles / billing, Grok FAIL/HIGH, or Dan asks). Do not downgrade HIGH to Composer.
+- **Security/HIGH authority (D-94):** Grok always reviews all Composer-written code (including LOW). HIGH: that review may double as `security-gate-id:` + `model:` if it covers security. This replaces `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`. Sonnet 5 is optional backup only (`firestore.rules` / auth/PIN/roles / billing, Grok FAIL/HIGH, ladder-5, or Dan asks). Do not downgrade HIGH to Composer.
 
 ### Implementer lock (hard STOP)
 
