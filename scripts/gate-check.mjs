@@ -12,11 +12,14 @@
  * Root package.json: high-risk on scripts diff or firebase MAJOR bump only; other
  * non-scripts deploy wiring documented as v1 out-of-scope in this header.
  *
- * The check does not validate the verdict value — a PR body with `verdict: HIGH` or
- * `NOT RUN` still passes the presence check. Known v1 gap, presence-only by design (D-28).
+ * The check does not validate verdict PASS/HIGH — presence-only by design (D-28).
+ * The **security-gate-id value** must be a lowercase UUID or `bc-<uuid>`; `NOT RUN`,
+ * empty, and junk id values fail. Cloud-agent review ids (`bc-…`) accepted when the
+ * platform has no `security-review` Task type.
  *
- * Model line (D-38): accepts any slug in ALLOWED_GATE_MODELS — preference order is
- * enforced by harness rules, not by this mechanical presence check.
+ * Model line (D-38): if present, must match ALLOWED_GATE_MODELS — preference order is
+ * enforced by harness rules. Missing model does **not** fail mechanical CI when the id
+ * is valid (optional warning only).
  *
  * Self-bypass caveat: a fork PR can modify gate-check.mjs itself to neuter the check on
  * the merge ref — this gate is advisory-vs-malice, protective-vs-honest-mistakes; branch
@@ -33,8 +36,57 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+/** Matches label + optional wrap punctuation + bare or bc- prefixed lowercase UUID. */
 export const SECURITY_GATE_ID_RE =
-  /security-gate-id:\s*[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+  /security-gate-id:\s*[`"'*\s]*(?:bc-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+
+const VALID_GATE_ID_VALUE_RE =
+  /^(?:bc-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+export const MISSING_SECURITY_GATE_ID_HINT =
+  "security-gate-id: <lowercase-hex UUID 8-4-4-4-12 or bc-<uuid>>";
+
+/**
+ * @param {string} prBody
+ * @returns {string | null} first token after security-gate-id: or null
+ */
+export function extractSecurityGateIdValue(prBody) {
+  const labelIdx = prBody.search(/security-gate-id:/i);
+  if (labelIdx === -1) {
+    return null;
+  }
+  let rest = prBody.slice(labelIdx);
+  const colonMatch = rest.match(/^security-gate-id:\s*/i);
+  if (!colonMatch) {
+    return null;
+  }
+  rest = rest.slice(colonMatch[0].length).replace(/^[`"'*\s]+/, "");
+  const tokenMatch = rest.match(/^([^\s·|,;]+)/);
+  if (!tokenMatch) {
+    return null;
+  }
+  return tokenMatch[1].replace(/^[`"'*]+|[`"'*]+$/g, "") || null;
+}
+
+/**
+ * @param {string} prBody
+ * @returns {boolean}
+ */
+export function hasValidSecurityGateId(prBody) {
+  const labelIdx = prBody.search(/security-gate-id:/i);
+  if (labelIdx === -1) {
+    return false;
+  }
+  const afterColon = prBody.slice(labelIdx).replace(/^security-gate-id:\s*/i, "");
+  if (/^[`"'*\s]*not\s+run\b/i.test(afterColon)) {
+    return false;
+  }
+  const value = extractSecurityGateIdValue(prBody);
+  if (!value) {
+    return false;
+  }
+  return VALID_GATE_ID_VALUE_RE.test(value);
+}
 
 /** Preference order (D-38 amend 2026-08-08): Sonnet 5 primary — Sonnet 4.6 retired from active gates. */
 export const ALLOWED_GATE_MODELS = [
@@ -172,11 +224,10 @@ export function checkEvidence(prBody, hasHighRisk) {
     return { pass: true, missing, warnings };
   }
 
-  if (!SECURITY_GATE_ID_RE.test(prBody)) {
-    missing.push("security-gate-id: <lowercase-hex UUID 8-4-4-4-12>");
-  }
-  if (!hasAllowedGateModel(prBody)) {
-    missing.push(MISSING_MODEL_LINE_HINT);
+  if (!hasValidSecurityGateId(prBody)) {
+    missing.push(MISSING_SECURITY_GATE_ID_HINT);
+  } else if (!hasAllowedGateModel(prBody)) {
+    warnings.push(`optional: ${MISSING_MODEL_LINE_HINT}`);
   }
   if (!/actual model invocation evidence:/i.test(prBody)) {
     warnings.push("actual model invocation evidence: line absent");
