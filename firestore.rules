@@ -359,19 +359,16 @@ service cloud.firestore {
       // removed != true; admin additionally requires role == 'admin'.
       // Legacy { manager: true, no role } and legacy { active: true, no
       // role } are STAFF, not admin — matches hasAdminRole()/isDispatcher().
-      function roleData() {
-        return get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data;
-      }
-
       function isActiveStaff() {
         return isAuthenticated()
           && exists(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid))
-          && roleData().get('active', true) != false
-          && roleData().get('removed', false) != true;
+          && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('active', true) != false
+          && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('removed', false) != true;
       }
 
       function isActiveAdmin() {
-        return isActiveStaff() && roleData().get('role', '') == 'admin';
+        return isActiveStaff()
+          && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('role', '') == 'admin';
       }
 
       function operationalFields() {
@@ -392,26 +389,20 @@ service cloud.firestore {
       }
 
       function operationalAndRiskyFields() {
-        return [
-          'vendorRevertWindowMinutes', 'autoSubmitMinutes', 'entrywayEslTagId',
-          'stageVerifyActivatedAt', 'vendorDeliveryMode', 'vendorSessionMinutes',
-          'technicianSessionMinutes', 'managementSessionMinutes', 'shopLatitude',
-          'shopLongitude', 'shopGeofenceRadiusMeters', 'vendorGeofenceEnforce',
-          'catchAllStagingLocationId', 'parcelIntakeEnabled', 'shopMapLayoutExtras',
-          'monitoringInboxEmail', 'emailMonitoringEnabled',
-          'invoiceAiShadowEnabled', 'emailReplyIngestEnabled'
-        ];
+        return operationalFields().concat(riskyFields());
       }
 
       function cfOwnedFields() {
         return [
           'catchAllPendingCheckInCount', 'invoiceTrainingAdminPasswordConfigured',
           'invoiceTrainingAlertEmailConfigured', 'invoiceTrainingAlertEmail',
-          'managementPinHash', 'managementPinConfigured'
+          'managementPinHash', 'managementPinConfigured',
+          'updatedAt', 'emailReplyIngestSince'
         ];
       }
 
-      allow create: if isActiveStaff()
+      allow create: if docId == 'config'
+        && isActiveStaff()
         && !request.resource.data.keys().hasAny(cfOwnedFields())
         && (
           request.resource.data.keys().hasOnly(operationalFields())
@@ -419,7 +410,8 @@ service cloud.firestore {
             && request.resource.data.keys().hasOnly(operationalAndRiskyFields()))
         );
 
-      allow update: if isActiveStaff()
+      allow update: if docId == 'config'
+        && isActiveStaff()
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(cfOwnedFields())
         && (
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(operationalFields())
@@ -427,6 +419,8 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(operationalAndRiskyFields()))
         );
+
+      allow delete: if false;
     }
 
     // Phase 3: permanent shop-stock location directory — public read for pickup location labels.

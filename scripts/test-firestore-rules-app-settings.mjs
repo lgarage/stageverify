@@ -1,6 +1,6 @@
 /**
  * Firestore rules — appSettings public read, staff operational writes, admin risky writes.
- * Usage: npx firebase-tools emulators:exec --only firestore "node scripts/test-firestore-rules-app-settings.mjs"
+ * Usage: npm run test:firestore-rules-app-settings
  */
 import { readFileSync } from "fs";
 import { resolve } from "path";
@@ -9,7 +9,14 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import {
+  deleteDoc,
+  deleteField,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
 
 const PROJECT_ID = "stageverify-db";
 const RULES_PATH = resolve(process.cwd(), "firestore.rules");
@@ -30,6 +37,15 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   });
   await setDoc(doc(db, "dispatcherRoles", "disp-1"), {
     active: true,
+    role: "dispatcher",
+  });
+  await setDoc(doc(db, "dispatcherRoles", "disp-inactive"), {
+    active: false,
+    role: "dispatcher",
+  });
+  await setDoc(doc(db, "dispatcherRoles", "disp-removed"), {
+    active: true,
+    removed: true,
     role: "dispatcher",
   });
   await setDoc(doc(db, "dispatcherRoles", "mgr-1"), {
@@ -56,6 +72,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 
 const configRef = (db) => doc(db, "appSettings", "config");
 const freshRef = (db, id) => doc(db, "appSettings", id);
+const roleRef = (db, uid) => doc(db, "dispatcherRoles", uid);
 
 const unauth = testEnv.unauthenticatedContext().firestore();
 await assertSucceeds(getDoc(configRef(unauth)));
@@ -124,7 +141,96 @@ await assertFails(
   updateDoc(configRef(adminRemoved), { vendorSessionMinutes: 45 }),
 );
 
-// --- create paths ---
+const dispInactive = testEnv.authenticatedContext("disp-inactive").firestore();
+await assertFails(
+  updateDoc(configRef(dispInactive), { vendorSessionMinutes: 45 }),
+);
+
+const dispRemoved = testEnv.authenticatedContext("disp-removed").firestore();
+await assertFails(
+  updateDoc(configRef(dispRemoved), { vendorSessionMinutes: 45 }),
+);
+
+await assertFails(
+  setDoc(roleRef(disp, "disp-1"), { active: true, role: "admin" }),
+);
+await assertFails(
+  updateDoc(roleRef(disp, "disp-1"), { role: "admin" }),
+);
+
+await assertSucceeds(
+  updateDoc(configRef(disp), { shopMapLayoutExtras: { a: 1 } }),
+);
+await assertSucceeds(
+  updateDoc(configRef(disp), { catchAllStagingLocationId: "spot-1" }),
+);
+await assertSucceeds(
+  updateDoc(configRef(disp), { parcelIntakeEnabled: true }),
+);
+
+await assertSucceeds(
+  updateDoc(configRef(admin), { monitoringInboxEmail: "admin@example.com" }),
+);
+
+await assertFails(
+  updateDoc(configRef(disp), { notARealField: "x" }),
+);
+await assertFails(
+  updateDoc(configRef(admin), { notARealField: "x" }),
+);
+await assertFails(
+  setDoc(configRef(disp), { notARealField: "x" }, { merge: true }),
+);
+await assertFails(
+  setDoc(configRef(admin), { notARealField: "x" }, { merge: true }),
+);
+
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const db = ctx.firestore();
+  await setDoc(
+    configRef(db),
+    { monitoringInboxEmail: "seed@example.com", vendorSessionMinutes: 30 },
+    { merge: true },
+  );
+});
+await assertFails(
+  setDoc(configRef(disp), { vendorSessionMinutes: 1 }),
+);
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const db = ctx.firestore();
+  await setDoc(
+    configRef(db),
+    {
+      catchAllPendingCheckInCount: 3,
+      vendorSessionMinutes: 30,
+      monitoringInboxEmail: "seed@example.com",
+    },
+    { merge: true },
+  );
+});
+await assertFails(
+  setDoc(configRef(admin), {
+    vendorSessionMinutes: 30,
+    monitoringInboxEmail: "seed@example.com",
+    emailMonitoringEnabled: true,
+  }),
+);
+
+await assertFails(
+  updateDoc(configRef(disp), { monitoringInboxEmail: deleteField() }),
+);
+await assertSucceeds(
+  updateDoc(configRef(admin), { monitoringInboxEmail: deleteField() }),
+);
+await assertFails(
+  updateDoc(configRef(admin), {
+    catchAllPendingCheckInCount: deleteField(),
+  }),
+);
+
+await assertFails(deleteDoc(configRef(admin)));
+
+// --- create paths (non-config doc ids must fail) ---
 await assertFails(
   setDoc(freshRef(unauth, "fresh-unauth"), { vendorSessionMinutes: 15 }),
 );
@@ -132,7 +238,7 @@ await assertFails(
   setDoc(freshRef(noRole, "fresh-norole"), { vendorSessionMinutes: 15 }),
 );
 
-await assertSucceeds(
+await assertFails(
   setDoc(freshRef(disp, "fresh-disp"), { vendorSessionMinutes: 15 }),
 );
 await assertFails(
@@ -140,7 +246,7 @@ await assertFails(
     monitoringInboxEmail: "a@b.com",
   }),
 );
-await assertSucceeds(
+await assertFails(
   setDoc(
     freshRef(disp, "fresh-disp-merge"),
     { parcelIntakeEnabled: true },
@@ -148,14 +254,14 @@ await assertSucceeds(
   ),
 );
 
-await assertSucceeds(
+await assertFails(
   setDoc(freshRef(mgr, "fresh-mgr"), { technicianSessionMinutes: 20 }),
 );
-await assertSucceeds(
+await assertFails(
   setDoc(freshRef(admin, "fresh-admin"), { managementSessionMinutes: 25 }),
 );
 
-await assertSucceeds(
+await assertFails(
   setDoc(freshRef(admin, "fresh-admin-risky"), {
     vendorSessionMinutes: 15,
     emailMonitoringEnabled: true,
@@ -165,6 +271,25 @@ await assertFails(
   setDoc(freshRef(admin, "fresh-admin-cf"), {
     invoiceTrainingAlertEmail: "x@y.com",
   }),
+);
+await assertFails(
+  setDoc(freshRef(admin, "other"), { vendorSessionMinutes: 15 }),
+);
+
+// --- create-on-missing-config (last — deletes config) ---
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const db = ctx.firestore();
+  await deleteDoc(configRef(db));
+});
+
+await assertFails(setDoc(configRef(disp), { notARealField: "x" }));
+await assertFails(setDoc(configRef(admin), { notARealField: "x" }));
+
+await assertFails(
+  setDoc(configRef(unauth), { vendorSessionMinutes: 20 }),
+);
+await assertSucceeds(
+  setDoc(configRef(disp), { vendorSessionMinutes: 20 }),
 );
 
 await testEnv.cleanup();
