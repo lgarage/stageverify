@@ -1,5 +1,5 @@
 ---
-description: Lean agent process (D-94) — three risk tiers, one HIGH security review, tests as the safety net.
+description: Lean agent process (D-94) — three risk tiers, one HIGH Grok security review, tests as the safety net.
 alwaysApply: true
 ---
 
@@ -22,9 +22,10 @@ One small job per agent. PR body: what changed, why, how to test, rollback. No r
 ## Reviews
 
 - Composer 2.5 Fast does all routine coding (UI and non-UI).
-- **HIGH:** one Sonnet 5 review of the **final** diff (`claude-sonnet-5-thinking-high`). Record `security-gate-id:` (lowercase UUID or `bc-<uuid>`). Reject `NOT RUN`, empty, and junk. This **replaces** `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`.
+- **HIGH:** one Grok top-model review of the **final** diff (`cursor-grok-4.6-high`; `cursor-grok-4.6-xhigh` also allowed). Record `security-gate-id:` (lowercase UUID or `bc-<uuid>`) **and** `model: <slug used>`. Reject `NOT RUN`, empty, and junk. This **replaces** `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`.
 - **MEDIUM:** one cheap Grok review of the final diff. No `security-gate-id`.
 - **LOW:** no AI review.
+- **Sonnet escalation (optional — never default):** `claude-sonnet-5-thinking-high` only for `firestore.rules`, auth/PIN/roles, or billing/money; **or** when the Grok HIGH review returns FAIL / a HIGH finding; **or** when Dan asks. No other default Sonnet use.
 - **Dropped:** `solution-verifier`, `build-checker`, `ship-verifier`. Do not run them.
 - **UI screenshots:** only for **big** visual changes (theme, contrast, complex layout, redesign). Not for copy, labels, or small CSS.
 
@@ -36,7 +37,7 @@ CI on every PR must pass: `npm ci`, app build, functions build, `tsc`, and the F
 
 ## Non-negotiables
 
-1. A **real recorded** Sonnet review on every HIGH PR (`security-gate-id:`).
+1. A **real recorded** HIGH review (`security-gate-id:` + `model:`).
 2. Tests and the build pass before merge.
 3. **Dan approves every merge and every deploy.** No auto-merge. No auto-deploy. Draft PRs are the default from cloud.
 4. A **rollback point** (commit hash / prior CF revision) before every deploy, and a **smoke test** after.

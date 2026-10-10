@@ -1,5 +1,5 @@
 /**
- * Discovery checks for D-94 lean HIGH review (one Sonnet final-diff review).
+ * Discovery checks for D-94 lean HIGH review (one Grok final-diff review).
  *
  * Usage: node scripts/verify-high-risk-loop-discovery.mjs
  * Exit 0 on PASS, 1 on FAIL. No network.
@@ -28,7 +28,7 @@ function read(rel) {
 
 const lean = read(".cursor/rules/lean-agent-process.mdc");
 record(/^alwaysApply:\s*true\s*$/m.test(lean), "lean-alwaysApply");
-record(/security-gate-id:/i.test(lean) && /HIGH/i.test(lean), "high-one-sonnet");
+record(/security-gate-id:/i.test(lean) && /cursor-grok-4\.6-high/.test(lean), "high-one-grok");
 record(/sonnet-instruct/i.test(lean) && /replaces/i.test(lean), "d60-replaced");
 record(/No gate bypass/i.test(lean) || /No \*\*gate bypass/i.test(lean), "no-bypass");
 record(/Dan approves every merge/i.test(lean), "dan-approves-merge");

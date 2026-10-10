@@ -6,7 +6,7 @@
 
 1. `PROJECT_STATUS/CURRENT_STATE.md` — always first: phase, blockers, last shipped.
 2. `PROJECT_STATUS/MEMORY.md` — this router + narrow "what's next".
-3. **D-94 lean process:** classify HIGH / MEDIUM / LOW from `.cursor/rules/lean-agent-process.mdc` (the only alwaysApply rule). HIGH → one Sonnet `security-gate-id:`. MEDIUM → one Grok. LOW → no AI review. Composer codes. Dan approves merge/deploy.
+3. **D-94 lean process:** classify HIGH / MEDIUM / LOW from `.cursor/rules/lean-agent-process.mdc` (the only alwaysApply rule). HIGH → one Grok `security-gate-id:` + `model:`. MEDIUM → one Grok. LOW → no AI review. Sonnet escalation only. Composer codes. Dan approves merge/deploy.
 
 **On demand (not session start):** `svscope_simple.md` (scope disputes) · **`PROJECT_STATUS/MVP_PATH.md`** (MVP %, fastest path, planning/priority) · **`npm run away:next -- --packet`** (coding sessions — queue brief + dossier slices first) · `npm run dossier:slice -- --tag <tag>` (MODEL_DOSSIER § — not full file).
 
@@ -55,7 +55,7 @@ Answer **only** from `npm run away:next` (JSON brief) or `PROJECT_STATUS/CURRENT
 
 | Concern | File / command | When |
 | ------- | -------------- | ---- |
-| **Security gate (HIGH)** | `security-review-gate.mdc` + `lean-agent-process.mdc` (D-94) | HIGH: one Sonnet review of the final diff (`security-gate-id:`). Dan approves merge and deploy. |
+| **Security gate (HIGH)** | `security-review-gate.mdc` + `lean-agent-process.mdc` (D-94) | HIGH: one Grok review of the final diff (`security-gate-id:` + `model:`). Sonnet escalation only. Dan approves merge and deploy. |
 | Parallel builds (disjoint) | `parallel-agent-strategy.mdc` § Dan standing preference | Multi-domain; parallel Composer 2.5 when paths disjoint |
 | Location-first transition (QR/PIN/pickup rework) | `docs/location-first-transition-spec.md` § Phase Tracker | Read tracker first. **Vendor PIN = job-scoped by default (D14)** — § Job-scoped vendor PIN before PIN/scan work; vendor/company-scoped visibility REJECTED unless dispatcher enables `companyWideSessionEnabled` (D-09 amended 2026-07-20) |
 | ESL / Minew | `ESL_INTEGRATION_PLAN.md` | **Not in MVP scope (D-26)** — post-MVP only |

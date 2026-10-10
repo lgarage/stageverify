@@ -16,7 +16,7 @@ Same harness as cloud — **D-94** `lean-agent-process.mdc` is the only alwaysAp
 
 Scripts use `path.join` + repo-relative paths — identical on Windows and Linux. `readText()` normalizes CRLF.
 
-`npm ci`/`npm install` auto-installs the pre-push gate hook (`scripts/install-git-hooks.mjs` via npm `prepare`); high-risk direct-to-main commits must carry `security-gate-id:` as a lowercase UUID or `bc-<uuid>` in the commit message; optional `model:` line (D-28/D-29).
+`npm ci`/`npm install` auto-installs the pre-push gate hook (`scripts/install-git-hooks.mjs` via npm `prepare`); HIGH commits/PRs must carry `security-gate-id:` as a lowercase UUID or `bc-<uuid>` **and** `model:` matching the D-94 allowlist (`cursor-grok-4.6-high` primary).
 Bypass exists (advisory-vs-malice; use only when Dan approves): `git push --no-verify` works in every shell; the env form is shell-specific — bash `GATE_SKIP=1 git push`, PowerShell `$env:GATE_SKIP="1"; git push`, cmd `set GATE_SKIP=1 && git push` (the hook runs under Git's sh and reads the inherited env on all three).
 
 ## Cursor Cloud specific instructions
@@ -29,7 +29,7 @@ Bypass exists (advisory-vs-malice; use only when Dan approves): `git push --no-v
 ### Session start
 
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` and `PROJECT_STATUS/MEMORY.md` before coding.
-2. **D-94 lean process — the only alwaysApply rule:** `.cursor/rules/lean-agent-process.mdc` — classify HIGH / MEDIUM / LOW; Composer codes; HIGH = one Sonnet `security-gate-id:`; MEDIUM = one Grok; LOW = no AI review; Dan approves every merge and deploy. Other `.cursor/rules/*` are on-demand.
+2. **D-94 lean process — the only alwaysApply rule:** `.cursor/rules/lean-agent-process.mdc` — classify HIGH / MEDIUM / LOW; Composer codes; HIGH = one Grok `security-gate-id:` + `model:`; MEDIUM = one Grok; LOW = no AI review; Sonnet escalation only; Dan approves every merge and deploy. Other `.cursor/rules/*` are on-demand.
 3. **Planning questions** (“what’s next”, “what can mobile do”, ranked options): **`git fetch origin main && git pull origin main`** first.
 4. Desktop, mobile Cursor, and cloud VM share the same repo rules (D-32). **Environment is auto-detected (D-35)** — never keyed to Dan saying "phone/mobile". No mobile-lite orchestration.
 5. For scope disputes, load `PROJECT_STATUS/svscope_simple.md` on demand only.
@@ -45,7 +45,7 @@ Differs from desktop **only** where physically impossible — document here, not
 
 - Prefer a **feature branch + draft PR**. Do **not** push to `main` or merge unless Dan approved (D-94).
 - After Dan approves deploy: `npm run deploy` for the FE bundle; CF/rules only when that approval named those targets. Rollback hash before deploy; smoke after.
-- **HIGH** (D-94): `firestore.rules`, auth/PIN/roles, core-loop write CFs, billing, CI/gate — one Sonnet `security-gate-id:` on the final diff. No D-60 four-pass loop.
+- **HIGH** (D-94): `firestore.rules`, auth/PIN/roles, core-loop write CFs, billing, CI/gate — one Grok `security-gate-id:` + `model:` on the final diff. Sonnet escalation only (rules / auth/PIN/roles / billing, Grok FAIL/HIGH, or Dan asks). No D-60 four-pass loop.
 
 ### Required secrets (names only — set in Cursor Environments dashboard)
 

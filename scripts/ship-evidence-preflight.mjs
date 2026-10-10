@@ -2,7 +2,7 @@
 /**
  * D-94 — Mechanical ship-evidence preflight (cheap; no model).
  *
- * HIGH class requires a valid security-gate-id only.
+ * HIGH class requires a valid security-gate-id and an allowlisted model: line.
  * Dropped tokens (do not require): sonnet-instruct, high-risk-adversarial,
  * sonnet-verify, solution-verifier, build-checker, ship-verifier.
  *
@@ -53,8 +53,14 @@ const REQUIRED = {
   default: [],
   medium: [],
   "t2-prod-sensitive": [],
-  "high-risk": ["security-gate-id"],
+  "high-risk": ["security-gate-id", "model"],
 };
+
+const ALLOWED_MODELS = [
+  "cursor-grok-4.6-high",
+  "cursor-grok-4.6-xhigh",
+  "claude-sonnet-5-thinking-high",
+];
 
 const VALID_GATE_ID =
   /security-gate-id:\s*[`"'*\s]*(?:bc-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
@@ -71,6 +77,10 @@ for (const key of needed) {
     if (!VALID_GATE_ID.test(body)) {
       missing.push("security-gate-id");
     }
+  } else if (key === "model") {
+    if (!ALLOWED_MODELS.some((slug) => body.includes(`model: ${slug}`))) {
+      missing.push(`model: <${ALLOWED_MODELS.join(" | ")}>`);
+    }
   }
 }
 
@@ -78,7 +88,7 @@ if (missing.length) {
   console.error("ship-evidence-preflight: FAIL");
   console.error("Missing or malformed:");
   for (const m of missing) console.error(`  - ${m}`);
-  console.error("HIGH requires security-gate-id (UUID or bc-<uuid>). Dropped D-60/D-65 tokens are not required.");
+  console.error("HIGH requires security-gate-id (UUID or bc-<uuid>) and an allowlisted model: line. Dropped D-60/D-65 tokens are not required.");
   process.exit(1);
 }
 

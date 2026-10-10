@@ -26,15 +26,21 @@ function run(body, cls) {
 }
 
 describe("ship-evidence-preflight (D-94)", () => {
-  it("PASS high-risk with only a valid security-gate-id", () => {
+  it("FAIL high-risk with only a valid security-gate-id (model required)", () => {
     const body = `security-gate-id: 12345678-1234-1234-1234-123456789abc\n`;
     const r = run(body, "high-risk");
-    assert.equal(r.status, 0, r.stderr);
-    assert.match(r.stdout, /PASS/);
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /model:/);
   });
 
-  it("PASS high-risk with bc- uuid and no dropped D-60 tokens", () => {
-    const body = `security-gate-id: bc-3594ac4e-aad0-57f6-be0a-5cb813a3f25d\n`;
+  it("PASS high-risk with bc- uuid and Grok model", () => {
+    const body = `security-gate-id: bc-3594ac4e-aad0-57f6-be0a-5cb813a3f25d\nmodel: cursor-grok-4.6-high\n`;
+    const r = run(body, "high-risk");
+    assert.equal(r.status, 0, r.stderr);
+  });
+
+  it("PASS high-risk with Sonnet escalation model", () => {
+    const body = `security-gate-id: 12345678-1234-1234-1234-123456789abc\nmodel: claude-sonnet-5-thinking-high\n`;
     const r = run(body, "high-risk");
     assert.equal(r.status, 0, r.stderr);
   });

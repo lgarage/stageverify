@@ -16,8 +16,9 @@
  * The **security-gate-id value** must be a lowercase UUID or `bc-<uuid>`; `NOT RUN`,
  * empty, and junk id values fail.
  *
- * Model line (D-38): if present, must match ALLOWED_GATE_MODELS. Missing model does
- * **not** fail mechanical CI when the id is valid (optional warning only).
+ * Model line (D-94 / D-38): HIGH requires `model:` matching ALLOWED_GATE_MODELS
+ * (primary `cursor-grok-4.6-high`; `cursor-grok-4.6-xhigh`; Sonnet escalation).
+ * Missing or non-allowlist model fails mechanical CI.
  *
  * Self-bypass caveat: a fork PR can modify gate-check.mjs itself to neuter the check on
  * the merge ref — this gate is advisory-vs-malice; branch protection + human review
@@ -83,8 +84,10 @@ export function hasValidSecurityGateId(prBody) {
   return VALID_GATE_ID_VALUE_RE.test(value);
 }
 
-/** Preference order (D-38 amend 2026-08-08): Sonnet 5 primary — Sonnet 4.6 retired from active gates. */
+/** Preference order (D-94): Grok top model primary; Sonnet 5 escalation only. */
 export const ALLOWED_GATE_MODELS = [
+  "cursor-grok-4.6-high",
+  "cursor-grok-4.6-xhigh",
   "claude-sonnet-5-thinking-high",
 ];
 
@@ -231,8 +234,9 @@ export function checkEvidence(prBody, hasHighRisk) {
 
   if (!hasValidSecurityGateId(prBody)) {
     missing.push(MISSING_SECURITY_GATE_ID_HINT);
-  } else if (!hasAllowedGateModel(prBody)) {
-    warnings.push(`optional: ${MISSING_MODEL_LINE_HINT}`);
+  }
+  if (!hasAllowedGateModel(prBody)) {
+    missing.push(MISSING_MODEL_LINE_HINT);
   }
   if (!/actual model invocation evidence:/i.test(prBody)) {
     warnings.push("actual model invocation evidence: line absent");
@@ -419,12 +423,12 @@ export function runGateCheck(base, head, prBody) {
   }
 
   console.log(
-    "Contract: this check verifies string PRESENCE only — it does not prove the Sonnet Task ran (RC-3); forks can forge evidence lines.",
+    "Contract: this check verifies string PRESENCE only — it does not prove the Grok (or escalation) review ran (RC-3); forks can forge evidence lines.",
   );
 
   if (hasSubstantiveShip) {
     console.log(
-      "NOTE: product paths changed — D-94: no ship-verifier. HIGH needs security-gate-id; MEDIUM needs one Grok review; LOW none.",
+      "NOTE: product paths changed — D-94: no ship-verifier. HIGH needs security-gate-id + model:; MEDIUM needs one Grok review; LOW none.",
     );
   }
 

@@ -16,8 +16,8 @@
 | `encode-qr` | building QR URLs | `buildEslTagQrUrl` + `EslQrCode` — dispatcher print = zone e-tag; `forPrint` → prod base; long `#/receive?` / `#/pickup?` forms emitted (compact `#/r?` / `#/p?` parse-only legacy) |
 | `html5-qr-type` | camera scanner | `Html5QrcodeInstance` from `qrScannerTypes.ts` — no `any` |
 | `delivery-status` | new `DeliveryStatus` | update `RECEIVE_BLOCKED` and `ZONE_CLEARED` in same change |
-| `backend-critical` | rules, CF writes, schema, auth/PIN, security-sensitive | **D-94 HIGH:** one Sonnet review of the final diff (`security-gate-id:`). Dan approves merge and deploy. |
-| `billing` | model / tier pick | **D-94:** Composer codes; HIGH = one Sonnet; MEDIUM = one Grok; LOW = none. D-92/D-93 amended (no D-60/D-65 stacks). |
+| `backend-critical` | rules, CF writes, schema, auth/PIN, security-sensitive | **D-94 HIGH:** one Grok review of the final diff (`security-gate-id:` + `model:`). Sonnet escalation only. Dan approves merge and deploy. |
+| `billing` | model / tier pick | **D-94:** Composer codes; HIGH = one Grok; MEDIUM = one Grok; LOW = none; Sonnet escalation only. D-92/D-93 amended (no D-60/D-65 stacks). |
 | `agent-lessons` | repeating mistakes, QR/hash races, "say fixed" too early | Read **§ agent-lessons** (+ Diagnose before tweak) before public routes / scan fixes |
 | `delivery-display-wiring` | list filter, drawer status, partial @ qty=0, unit counts | Read **§ delivery-display-wiring** before dispatcher list/drawer readiness edits |
 | `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
@@ -43,11 +43,11 @@
 - Occupancy map: `mapActiveZoneOccupancyByCode`.
 
 ## § billing
-- **D-94:** Composer 2.5 Fast does routine coding. HIGH = one Sonnet 5 `security-gate-id:` on the final diff. MEDIUM = one cheap Grok review. LOW = no AI review. D-92/D-93 amended — no D-60 four-pass and no D-65 verifier stack.
+- **D-94:** Composer 2.5 Fast does routine coding. HIGH = one Grok top-model `security-gate-id:` + `model:` on the final diff. MEDIUM = one cheap Grok review. LOW = no AI review. Sonnet 5 is optional escalation only (rules / auth/PIN/roles / billing, Grok FAIL/HIGH, or Dan asks). D-92/D-93 amended — no D-60 four-pass and no D-65 verifier stack.
 - **Public Firestore writes / CF deploy:** Dan approves merge and deploy. `npm run deploy` (gh-pages) does not ship rules.
 
 ## § backend-critical
-- **D-94 HIGH:** one Sonnet 5 review of the final diff (`security-gate-id:` UUID or `bc-<uuid>`). Replaces `sonnet-instruct` / `high-risk-adversarial` / `sonnet-verify`.
+- **D-94 HIGH:** one Grok top-model review of the final diff (`security-gate-id:` UUID or `bc-<uuid>` + `model: cursor-grok-4.6-high`). Replaces `sonnet-instruct` / `high-risk-adversarial` / `sonnet-verify`. Sonnet escalation only.
 - Dan approves every merge and every CF/rules deploy. Rollback hash before deploy; smoke after. No gate bypass.
 - SSOT: `.cursor/rules/lean-agent-process.mdc`; discovery: `node scripts/verify-high-risk-loop-discovery.mjs`.
 

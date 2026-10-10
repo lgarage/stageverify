@@ -174,7 +174,15 @@ describe("extractSecurityGateIdValue / hasValidSecurityGateId", () => {
 });
 
 describe("hasAllowedGateModel", () => {
-  it("accepts Sonnet 5 thinking-high slug", () => {
+  it("accepts Grok 4.6 high (primary HIGH reviewer)", () => {
+    assert.equal(hasAllowedGateModel("model: cursor-grok-4.6-high"), true);
+  });
+
+  it("accepts Grok 4.6 xhigh", () => {
+    assert.equal(hasAllowedGateModel("model: cursor-grok-4.6-xhigh"), true);
+  });
+
+  it("accepts Sonnet 5 thinking-high (escalation)", () => {
     assert.equal(hasAllowedGateModel("model: claude-sonnet-5-thinking-high"), true);
   });
 
@@ -190,7 +198,7 @@ describe("hasAllowedGateModel", () => {
     assert.equal(hasAllowedGateModel("model: claude-fable-5-thinking-high"), false);
   });
 
-  it("rejects Composer / Grok substitutes", () => {
+  it("rejects Composer / cheaper Grok substitutes", () => {
     assert.equal(hasAllowedGateModel("model: composer-2.5-fast"), false);
     assert.equal(hasAllowedGateModel("model: cursor-grok-4.5-high-fast"), false);
   });
@@ -249,28 +257,35 @@ describe("checkEvidence", () => {
     assert.ok(result.missing.some((m) => m.includes("security-gate-id")));
   });
 
-  it("passes when model line missing but valid uuid id present", () => {
+  it("fails when model line missing but valid uuid id present", () => {
     const body = gateId;
     const result = checkEvidence(body, true);
-    assert.equal(result.pass, true);
-    assert.deepEqual(result.missing, []);
-    assert.ok(result.warnings.some((w) => w.includes("model:")));
+    assert.equal(result.pass, false);
+    assert.ok(result.missing.some((m) => m.includes("model:")));
   });
 
-  it("passes bc- uuid without model", () => {
+  it("fails bc- uuid without model", () => {
     const result = checkEvidence(bcGateId, true);
-    assert.equal(result.pass, true);
-    assert.deepEqual(result.missing, []);
+    assert.equal(result.pass, false);
+    assert.ok(result.missing.some((m) => m.includes("model:")));
   });
 
-  it("passes bc- uuid with allowlisted model on next line", () => {
+  it("passes bc- uuid with allowlisted Grok model on next line", () => {
     const body = [bcGateId, REQUIRED_MODEL_LINE].join("\n");
     const result = checkEvidence(body, true);
     assert.equal(result.pass, true);
     assert.deepEqual(result.missing, []);
   });
 
-  it("passes #255-style backticks and middle-dot inline model", () => {
+  it("passes #255-style backticks and middle-dot inline Grok model", () => {
+    const body =
+      "- `security-gate-id:` bc-3594ac4e-aad0-57f6-be0a-5cb813a3f25d · `model: cursor-grok-4.6-high` · verdict PASS";
+    const result = checkEvidence(body, true);
+    assert.equal(result.pass, true);
+    assert.deepEqual(result.missing, []);
+  });
+
+  it("passes Sonnet escalation model with valid id", () => {
     const body =
       "- `security-gate-id:` bc-3594ac4e-aad0-57f6-be0a-5cb813a3f25d · `model: claude-sonnet-5-thinking-high` · verdict PASS";
     const result = checkEvidence(body, true);
@@ -318,7 +333,7 @@ describe("checkEvidence", () => {
     assert.ok(result.missing.some((m) => m.includes("security-gate-id")));
   });
 
-  it("passes when Sonnet 5 model line present", () => {
+  it("passes when primary Grok model line present", () => {
     const result = checkEvidence(validBodySonnet5, true);
     assert.equal(result.pass, true);
     assert.deepEqual(result.missing, []);
@@ -335,18 +350,25 @@ describe("checkEvidence", () => {
     assert.deepEqual(result.missing, []);
   });
 
-  it("passes when non-allowlist model line present (id valid; model not enforced by CI)", () => {
+  it("fails when non-allowlist model line present even if id valid", () => {
     const body = [gateId, "model: claude-fable-5-thinking-high"].join("\n");
     const result = checkEvidence(body, true);
-    assert.equal(result.pass, true);
-    assert.deepEqual(result.missing, []);
+    assert.equal(result.pass, false);
+    assert.ok(result.missing.some((m) => m.includes("model:")));
   });
 
-  it("passes when retired Sonnet 4.6 model line present (id valid)", () => {
+  it("fails when retired Sonnet 4.6 model line present even if id valid", () => {
     const body = [gateId, "model: claude-4.6-sonnet-medium-thinking"].join("\n");
     const result = checkEvidence(body, true);
-    assert.equal(result.pass, true);
-    assert.deepEqual(result.missing, []);
+    assert.equal(result.pass, false);
+    assert.ok(result.missing.some((m) => m.includes("model:")));
+  });
+
+  it("fails when Composer model line present even if id valid", () => {
+    const body = [gateId, "model: composer-2.5-fast"].join("\n");
+    const result = checkEvidence(body, true);
+    assert.equal(result.pass, false);
+    assert.ok(result.missing.some((m) => m.includes("model:")));
   });
 });
 

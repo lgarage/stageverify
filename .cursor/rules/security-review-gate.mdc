@@ -1,36 +1,40 @@
 ---
-description: HIGH-tier Sonnet 5 security review (D-38 / D-94) — record security-gate-id on the final diff.
+description: HIGH-tier Grok security review (D-38 / D-94) — record security-gate-id + model: on the final diff.
 alwaysApply: false
 globs: firestore.rules,functions/src/**,firebase.json,.github/workflows/**,scripts/gate-check.mjs,scripts/install-git-hooks.mjs
 ---
 # Security Review Model Gate (authoritative — D-94 HIGH review)
 
-**D-94:** This is the **only** AI security review on HIGH PRs. It replaces `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`. Run once on the **final** diff. MEDIUM/LOW PRs do not use this gate.
+**D-94:** This is the **only** required AI security review on HIGH PRs. It replaces `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`. Run once on the **final** diff. MEDIUM/LOW PRs do not use this gate.
 
-> **RC-1 UI label:** Parent timeline may show **"Security Review — Composer 2.5 Fast"** — cosmetic only. Validity = valid **`security-gate-id`** + **`model:`** line (recommended) + verdict + invocation evidence; mechanical CI (`gate-check`) requires the id only when valid.
+Validity = valid **`security-gate-id:`** + **`model:`** (allowlisted) + verdict + invocation evidence. Mechanical CI (`gate-check`) requires the id **and** the model line on HIGH.
 
-**Security reviews use exactly one model per run, from this locked allowlist (preference order — D-38, amended 2026-08-08):**
+**Security reviews use exactly one model per run, from this locked allowlist (preference order — D-94):**
 
-1. `claude-sonnet-5-thinking-high` (platform-accepted primary — Sonnet 5)
+1. `cursor-grok-4.6-high` (primary HIGH reviewer)
+2. `cursor-grok-4.6-xhigh` (optional stronger Grok)
+3. `claude-sonnet-5-thinking-high` (Sonnet escalation only — see below)
 
-Dispatch the FIRST slug in preference order that the platform accepts. Use a later preference-order slug ONLY after a real Task rejection of every earlier preference — record `fallback-from: <rejected slug(s)>` in the evidence block. Inventing slugs or substituting any non-allowlist model = gate NOT RUN.
+Dispatch the FIRST slug in preference order that the platform accepts, except when **Sonnet escalation** applies. Use a later preference-order slug ONLY after a real Task rejection of every earlier preference — record `fallback-from: <rejected slug(s)>`. Inventing slugs or substituting any non-allowlist model = gate NOT RUN.
 
-**Task start failures count as rejection:** UI **"Couldn't start"** / Task **"Invalid model selection"** / **"Model could not be resolved"** → immediately retry the next allowlist slug (`fallback-from:`). Do not stop the gate loop on the first failed start.
+**Sonnet escalation (optional — never default):** use `claude-sonnet-5-thinking-high` only for `firestore.rules`, auth/PIN/roles, or billing/money; **or** when the Grok HIGH review returns FAIL / a HIGH finding; **or** when Dan asks. No other default Sonnet use.
 
-**Hard STOP (Dan 2026-08-08):** If the platform rejects **every** allowlist slug, **STOP** — report gate **NOT RUN** to Dan; do **not** push CF / auth / rules. Do **not** substitute Composer, Grok, Sol, Opus, or any non-allowlist slug (including retired Sonnet 4.6 slugs). New Sonnet 5 variants may join the allowlist **only** after Dan one-shot approval **and** one calibration run in `PROJECT_STATUS/verifier-log.jsonl` **and** `scripts/gate-check.mjs` `ALLOWED_GATE_MODELS` updated in the same commit (D-38) — new-model-release alone never reopens this list (D-16).
+**Task start failures count as rejection:** UI **"Couldn't start"** / Task **"Invalid model selection"** / **"Model could not be resolved"** → immediately retry the next allowlist slug (`fallback-from:`).
 
-**Prompt hygiene:** `Diff:` must be exactly `uncommitted changes` or `branch changes` — no prose after that line in the Diff field (extra text → subagent won't start).
+**Hard STOP:** If the platform rejects **every** allowlist slug, **STOP** — report gate **NOT RUN** to Dan; do **not** push CF / auth / rules. Do **not** substitute Composer, Sol, Opus, or cheaper Grok slugs. New allowlist slugs only after Dan one-shot approval **and** `ALLOWED_GATE_MODELS` updated in the same commit.
 
-**Cloud agents (no `security-review` Task type):** record **`security-gate-id: bc-<uuid>`** from the security-review run / cloud agent id (example: `security-gate-id: bc-3594ac4e-aad0-57f6-be0a-5cb813a3f25d`). Not invented. Same lowercase UUID rules as Task returns.
+**Prompt hygiene:** `Diff:` must be exactly `uncommitted changes` or `branch changes`.
+
+**Cloud agents (no `security-review` Task type):** record **`security-gate-id: bc-<uuid>`** from the security-review run / cloud agent id. Not invented.
 
 ## Mandatory invocation
 
-Exactly **one** `Task` per ship cycle — **before push** when the security gate triggers:
+Exactly **one** `Task` per HIGH PR — on the **final** diff:
 
 ```text
 Task({
   subagent_type: "security-review",
-  model: "<first accepted allowlist slug per D-38>",  // actual slug used must appear in evidence
+  model: "cursor-grok-4.6-high",
   readonly: true,
   run_in_background: false,
   description: "Security Review",
@@ -38,39 +42,32 @@ Task({
 })
 ```
 
-`model` is **not optional**. Omitting it or substituting another slug = gate **NOT RUN** — do not push CF/auth/rules.
+`model` is **not optional**. Omitting it or substituting another slug = gate **NOT RUN**.
 
 ## Valid completion (all required)
 
-1. **`security-gate-id`** — Task return UUID (lowercase hex, 8-4-4-4-12) **or** cloud-agent review id `bc-<uuid>` when `security-review` Task type is unavailable. Not invented; `NOT RUN`, empty, and junk values are invalid.
-2. **Model line:** `model: <the allowlist slug actually dispatched>` (+ `fallback-from:` when a higher slug was rejected). Recommended in completion reports; mechanical CI (`gate-check`) does not require it when the id is valid.
-3. **`actual model invocation evidence: yes | no | unknown`** — UUID alone ≠ verified invocation.
+1. **`security-gate-id`** — Task return UUID (lowercase hex, 8-4-4-4-12) **or** `bc-<uuid>`. Not invented; `NOT RUN`, empty, and junk values are invalid.
+2. **Model line:** `model: <the allowlist slug actually dispatched>` (+ `fallback-from:` when a higher slug was rejected). **Required** by mechanical CI.
+3. **`actual model invocation evidence: yes | no | unknown`**
 4. **Verdict:** PASS | MEDIUM | HIGH | NOT RUN.
 
-Missing **`security-gate-id`** → **NOT RUN**, not PASS. Report block must include evidence path when available.
+Missing **`security-gate-id`** or allowlisted **`model:`** → **NOT RUN**, not PASS.
 
 ## Forbidden (never counts as security gate)
 
 - Composer 2.5 inline PASS/MEDIUM/HIGH (self-review bypass)
-- `security-review` Task with a model outside the D-38 allowlist (includes retired Sonnet 4.6 slugs and any non-listed Sonnet variant)
-- Silent fallback to Composer / Grok / Sol / Opus after allowlist rejection
-- `generalPurpose` / `explore` / any other subagent for the gate
+- `security-review` Task with a model outside the allowlist (includes retired Sonnet 4.6 and cheaper Grok slugs)
+- Silent fallback to Composer / Sol / Opus after allowlist rejection
 - Invented, non-UUID, **`NOT RUN`**, empty, or junk **`security-gate-id`** values
-- Treating UI label alone as NOT RUN or wrong model
 
 ## Hard stops
 
-- **NEVER** push CF / auth / Firestore-rules without a **D-38 allowlist** subagent verdict.
+- **NEVER** push CF / auth / Firestore-rules without a valid allowlist review (`security-gate-id:` + `model:`).
 - **NEVER** treat a non-allowlist model as a valid security gate.
-- **NEVER** launch duplicate security Tasks in one turn. A platform **rejection** of a higher allowlist slug followed by retry with the next slug is ONE gate cycle (record `fallback-from:`), not a forbidden duplicate — only parallel or repeated *accepted* dispatches are.
-- Workers/multitask/away-batch: paste Task block verbatim; await gate; include id + model + evidence + verdict in ship report.
-
-### RC-3 model param caveat (unverified)
-
-If `security-review` ignores `model` param, note **`model execution: unverified`**. RC-3 does **not** authorize non-allowlist slugs. Missing **`security-gate-id`** or non-allowlist model still blocks ship.
+- **NEVER** launch duplicate accepted security Tasks in one turn.
 
 ## Relation
 
-`model-gates.mdc` and `composer-orchestrator.mdc` point here. On conflict about which model runs security-review, **this file wins**.
+`.cursor/rules/lean-agent-process.mdc` is SSOT for when this gate fires. On conflict about which model runs HIGH review, **lean-agent-process.mdc wins**; this file is the how-to.
 
-**D-60 high-risk loop:** `high-risk-sonnet-loop.mdc` Phase 1 (Sonnet pre-review) + Phase 3 (`high-risk-adversarial:`) + Phase 4 (`sonnet-verify:`) run **before commit**; this gate is **Phase 5 pre-push** — the sole **pre-push security diff verdict** — distinct Task, distinct evidence (`security-gate-id` vs `sonnet-instruct:` / `high-risk-adversarial:` / `sonnet-verify:`).
+D-60 four-pass (`sonnet-instruct` / `high-risk-adversarial` / `sonnet-verify`) is **superseded by D-94**.
