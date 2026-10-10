@@ -8,6 +8,7 @@ import {
   refreshGmailAccessToken,
   trimSecret,
 } from "./gmailApi";
+import { isGmailListingComplete, LIST_CAP } from "./inboundEmail/gmailInboundCatchUp";
 import type { GmailMessage, GmailMessageHeader, GmailMessagePart } from "./inboundEmail/types";
 
 const GMAIL_BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
@@ -253,21 +254,82 @@ export interface ListedGmailMessage {
   threadId?: string;
 }
 
+export async function listInboxMessageIdsPaginated(
+  accessToken: string,
+  options?: { query?: string; listCap?: number },
+): Promise<{ messages: ListedGmailMessage[]; listingComplete: boolean }> {
+  const query = options?.query ?? "has:attachment filename:pdf in:inbox";
+  const listCap = options?.listCap ?? LIST_CAP;
+  const messages: ListedGmailMessage[] = [];
+  let pageToken: string | undefined;
+  let consecutiveEmptyPages = 0;
+  let finalEmptyPage = false;
+  let finalNextPageToken: string | null | undefined;
+
+  while (messages.length < listCap) {
+    const pageSize = Math.min(100, listCap - messages.length);
+    const params = new URLSearchParams({
+      maxResults: String(pageSize),
+      q: query,
+    });
+    if (pageToken) params.set("pageToken", pageToken);
+
+    const listed = await gmailJson<{
+      messages?: ListedGmailMessage[];
+      nextPageToken?: string;
+    }>(accessToken, `/messages?${params.toString()}`);
+
+    const batch = listed.messages ?? [];
+    const emptyPage = batch.length === 0;
+    finalEmptyPage = emptyPage;
+    finalNextPageToken = listed.nextPageToken ?? null;
+
+    if (emptyPage) {
+      consecutiveEmptyPages += 1;
+      if (!listed.nextPageToken) {
+        break;
+      }
+      if (consecutiveEmptyPages >= 2) {
+        break;
+      }
+      pageToken = listed.nextPageToken;
+      continue;
+    }
+
+    consecutiveEmptyPages = 0;
+    messages.push(...batch);
+
+    if (messages.length >= listCap) {
+      break;
+    }
+
+    if (!listed.nextPageToken) {
+      break;
+    }
+    pageToken = listed.nextPageToken;
+  }
+
+  const trimmed = messages.slice(0, listCap);
+  const listingComplete = isGmailListingComplete({
+    listedCount: trimmed.length,
+    listCap,
+    nextPageToken: finalNextPageToken,
+    emptyPage: finalEmptyPage,
+  });
+
+  return { messages: trimmed, listingComplete };
+}
+
 export async function listRecentInboxMessageIds(
   accessToken: string,
   options?: { maxResults?: number; query?: string },
 ): Promise<ListedGmailMessage[]> {
-  const maxResults = options?.maxResults ?? 25;
-  const query = options?.query ?? "has:attachment filename:pdf in:inbox";
-  const params = new URLSearchParams({
-    maxResults: String(maxResults),
-    q: query,
+  const listCap = options?.maxResults ?? LIST_CAP;
+  const { messages } = await listInboxMessageIdsPaginated(accessToken, {
+    query: options?.query,
+    listCap,
   });
-  const listed = await gmailJson<{ messages?: ListedGmailMessage[] }>(
-    accessToken,
-    `/messages?${params.toString()}`,
-  );
-  return listed.messages ?? [];
+  return messages;
 }
 
 export interface GmailHistoryRecord {
@@ -276,25 +338,94 @@ export interface GmailHistoryRecord {
   messagesAdded?: Array<{ message?: ListedGmailMessage }>;
 }
 
+function countUniqueHistoryMessageIds(records: GmailHistoryRecord[]): number {
+  const ids = new Set<string>();
+  for (const record of records) {
+    for (const added of record.messagesAdded ?? []) {
+      if (added.message?.id) ids.add(added.message.id);
+    }
+    for (const msg of record.messages ?? []) {
+      if (msg.id) ids.add(msg.id);
+    }
+  }
+  return ids.size;
+}
+
 export async function listGmailHistory(
   accessToken: string,
   startHistoryId: string,
-): Promise<{ history: GmailHistoryRecord[]; historyId?: string }> {
-  const params = new URLSearchParams({
-    startHistoryId,
-    historyTypes: "messageAdded",
-    labelId: "INBOX",
-  });
+): Promise<{
+  history: GmailHistoryRecord[];
+  historyId?: string;
+  listingComplete?: boolean;
+}> {
   try {
-    const result = await gmailJson<{ history?: GmailHistoryRecord[]; historyId?: string }>(
-      accessToken,
-      `/history?${params.toString()}`,
-    );
-    return { history: result.history ?? [], historyId: result.historyId };
+    const history: GmailHistoryRecord[] = [];
+    let historyId: string | undefined;
+    let pageToken: string | undefined;
+    let consecutiveEmptyPages = 0;
+    let finalEmptyPage = false;
+    let finalNextPageToken: string | null | undefined;
+
+    while (true) {
+      const params = new URLSearchParams({
+        startHistoryId,
+        historyTypes: "messageAdded",
+        labelId: "INBOX",
+        maxResults: "100",
+      });
+      if (pageToken) params.set("pageToken", pageToken);
+
+      const result = await gmailJson<{
+        history?: GmailHistoryRecord[];
+        historyId?: string;
+        nextPageToken?: string;
+      }>(accessToken, `/history?${params.toString()}`);
+
+      if (result.historyId) historyId = result.historyId;
+      const pageRecords = result.history ?? [];
+      const emptyPage = pageRecords.length === 0;
+      finalEmptyPage = emptyPage;
+      finalNextPageToken = result.nextPageToken ?? null;
+
+      if (emptyPage) {
+        consecutiveEmptyPages += 1;
+        if (!result.nextPageToken) {
+          break;
+        }
+        if (consecutiveEmptyPages >= 2) {
+          break;
+        }
+        pageToken = result.nextPageToken;
+        continue;
+      }
+
+      consecutiveEmptyPages = 0;
+      history.push(...pageRecords);
+
+      if (countUniqueHistoryMessageIds(history) >= LIST_CAP) {
+        break;
+      }
+
+      if (!result.nextPageToken) {
+        break;
+      }
+      pageToken = result.nextPageToken;
+    }
+
+    const listedCount = countUniqueHistoryMessageIds(history);
+    const listingComplete = isGmailListingComplete({
+      listedCount,
+      listCap: LIST_CAP,
+      nextPageToken: finalNextPageToken,
+      emptyPage: finalEmptyPage,
+    });
+
+    return { history, historyId, listingComplete };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("404")) {
-      return { history: [] };
+    if (/: 404\b$/.test(message)) {
+      return { history: [], listingComplete: true };
     }
     throw err;
   }

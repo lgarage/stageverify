@@ -1693,6 +1693,55 @@ const DEFAULT_EMAIL_PROVIDER_CONNECTION: EmailProviderConnection = {
   updatedAt: new Date(0).toISOString(),
 };
 
+function parseIngestHealth(
+  raw: unknown,
+): EmailProviderConnection["ingestHealth"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  const h = raw as Record<string, unknown>;
+  const staleRaw = h.staleAfterHours;
+  const staleAfterHours =
+    typeof staleRaw === "number" && Number.isFinite(staleRaw)
+      ? staleRaw
+      : typeof staleRaw === "string" && staleRaw.trim() !== ""
+        ? Number(staleRaw)
+        : 2;
+  if (!Number.isFinite(staleAfterHours)) return undefined;
+
+  let lastError: import("./gmailIngestHealth").GmailIngestHealthErrorInfo | undefined;
+  const errRaw = h.lastError;
+  if (errRaw && typeof errRaw === "object") {
+    const e = errRaw as Record<string, unknown>;
+    const code = e.code;
+    const message = e.message;
+    const at = e.at;
+    if (
+      (code === "oauth_unconfigured" || code === "token_refresh_failed") &&
+      typeof message === "string" &&
+      typeof at === "string"
+    ) {
+      lastError = {
+        code,
+        message: message.slice(0, 300),
+        at,
+      };
+    }
+  }
+
+  const str = (key: string) =>
+    typeof h[key] === "string" ? (h[key] as string) : undefined;
+  const bool = (key: string) =>
+    typeof h[key] === "boolean" ? (h[key] as boolean) : undefined;
+
+  return {
+    staleAfterHours,
+    lastAttemptAt: str("lastAttemptAt"),
+    lastSuccessfulSyncAt: str("lastSuccessfulSyncAt"),
+    lastTokenRefreshFailureAt: str("lastTokenRefreshFailureAt"),
+    tokenRefreshFailed: bool("tokenRefreshFailed"),
+    lastError,
+  };
+}
+
 export function parseEmailProviderConnection(
   data: Record<string, unknown> | undefined,
 ): EmailProviderConnection {
@@ -1703,6 +1752,12 @@ export function parseEmailProviderConnection(
     "connected",
     "token_expired",
   ];
+  let ingestHealth: EmailProviderConnection["ingestHealth"];
+  try {
+    ingestHealth = parseIngestHealth(data.ingestHealth);
+  } catch {
+    ingestHealth = undefined;
+  }
   return {
     provider: (data.provider as EmailProviderId) ?? "gmail",
     status:
@@ -1719,6 +1774,7 @@ export function parseEmailProviderConnection(
       typeof data.updatedAt === "string"
         ? data.updatedAt
         : new Date().toISOString(),
+    ingestHealth,
   };
 }
 

@@ -13,8 +13,10 @@ const admin = require("firebase-admin");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const gmailApi_1 = require("./gmailApi");
 const gmailInbound_1 = require("./gmailInbound");
+const gmailInboundCatchUp_1 = require("./inboundEmail/gmailInboundCatchUp");
 const processInboundGmailMessage_1 = require("./inboundEmail/processInboundGmailMessage");
 const loadOutboundEmailContext_1 = require("./email/loadOutboundEmailContext");
+const gmailIngestHealth_1 = require("./gmailIngestHealth");
 const REVIEW_COLLECTION = "vendorInvoiceImports";
 const INBOUND_COLLECTION = "inboundEmailProcessing";
 const PROVIDER_ID = "gmail";
@@ -112,7 +114,7 @@ async function loadRefreshToken(db) {
     return refreshToken?.trim() || null;
 }
 async function collectMessageIdsFromHistory(accessToken, startHistoryId) {
-    const { history, historyId } = await (0, gmailInbound_1.listGmailHistory)(accessToken, startHistoryId);
+    const { history, historyId, listingComplete } = await (0, gmailInbound_1.listGmailHistory)(accessToken, startHistoryId);
     const ids = new Set();
     for (const record of history) {
         for (const added of record.messagesAdded ?? []) {
@@ -124,12 +126,56 @@ async function collectMessageIdsFromHistory(accessToken, startHistoryId) {
                 ids.add(msg.id);
         }
     }
-    return { messageIds: [...ids], latestHistoryId: historyId };
+    return {
+        messageIds: [...ids],
+        latestHistoryId: historyId,
+        listingComplete: listingComplete ?? true,
+    };
+}
+function inboundProcessingDocId(gmailMessageId) {
+    return `inbound-${gmailMessageId}`;
+}
+async function filterUnprocessedCatchUpMessageIds(db, gmailMessageIds) {
+    const unprocessed = [];
+    const chunkSize = 100;
+    for (let i = 0; i < gmailMessageIds.length; i += chunkSize) {
+        const chunk = gmailMessageIds.slice(i, i + chunkSize);
+        const refs = chunk.map((id) => db.collection(INBOUND_COLLECTION).doc(inboundProcessingDocId(id)));
+        const snaps = await db.getAll(...refs);
+        for (let j = 0; j < chunk.length; j += 1) {
+            if (!snaps[j]?.exists) {
+                unprocessed.push(chunk[j]);
+            }
+        }
+    }
+    return unprocessed;
 }
 async function runInboundGmailSync(options) {
     const db = getDb();
     if (!(0, gmailInbound_1.gmailOAuthSecretsConfigured)()) {
         console.log("syncInboundGmail: OAuth secrets not configured — skipping");
+        const connSnap = await connectionRef(db).get();
+        const status = connSnap.exists
+            ? connSnap.data().status
+            : undefined;
+        if (status === "connected" || status === "token_expired") {
+            const now = new Date().toISOString();
+            const existing = connSnap.data();
+            const existingHealth = existing?.ingestHealth;
+            await connectionRef(db).set({
+                ingestHealth: {
+                    ...existingHealth,
+                    lastAttemptAt: now,
+                    lastError: {
+                        code: "oauth_unconfigured",
+                        message: "Gmail OAuth client credentials not configured.",
+                        at: now,
+                    },
+                    staleAfterHours: existingHealth?.staleAfterHours ?? 2,
+                },
+                updatedAt: now,
+            }, { merge: true });
+        }
         return {
             processed: 0,
             skipped: 0,
@@ -153,35 +199,89 @@ async function runInboundGmailSync(options) {
             errorDetails: [],
         };
     }
-    const accessToken = await (0, gmailInbound_1.getGmailAccessTokenForProvider)(refreshToken);
     const connSnap = await connectionRef(db).get();
     const connData = connSnap.data();
     const inboundSync = connData?.inboundSync ?? {};
-    let messageIds = [];
+    const existingIngestHealth = connData?.ingestHealth;
+    let accessToken;
+    try {
+        accessToken = await (0, gmailInbound_1.getGmailAccessTokenForProvider)(refreshToken);
+    }
+    catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("syncInboundGmail token refresh failed:", message);
+        const now = new Date().toISOString();
+        const connectionWrite = {
+            updatedAt: now,
+            ingestHealth: {
+                ...existingIngestHealth,
+                lastTokenRefreshFailureAt: now,
+                tokenRefreshFailed: true,
+                lastAttemptAt: now,
+                lastError: {
+                    code: "token_refresh_failed",
+                    message: (0, gmailIngestHealth_1.sanitizeIngestErrorMessage)(message),
+                    at: now,
+                },
+                staleAfterHours: existingIngestHealth?.staleAfterHours ?? 2,
+                lastSuccessfulSyncAt: existingIngestHealth?.lastSuccessfulSyncAt,
+            },
+        };
+        if ((0, gmailIngestHealth_1.shouldPersistTokenExpired)(message)) {
+            connectionWrite.provider = PROVIDER_ID;
+            connectionWrite.status = "token_expired";
+        }
+        await connectionRef(db).set(connectionWrite, { merge: true });
+        return {
+            processed: 0,
+            skipped: 0,
+            errors: 0,
+            invoicesQueued: 0,
+            skippedByStatus: {},
+            skippedReviewCounts: {},
+            errorDetails: [],
+        };
+    }
     let latestHistoryId = inboundSync.lastHistoryId;
+    const nowMs = Date.now();
+    const replySettings = await (0, loadOutboundEmailContext_1.loadReplyIngestSettings)();
+    let historyMessageIds = [];
+    let historyListingComplete = true;
     if (inboundSync.lastHistoryId) {
         const historyResult = await collectMessageIdsFromHistory(accessToken, inboundSync.lastHistoryId);
-        messageIds = historyResult.messageIds;
+        historyMessageIds = historyResult.messageIds;
+        historyListingComplete = historyResult.listingComplete;
         if (historyResult.latestHistoryId) {
             latestHistoryId = historyResult.latestHistoryId;
         }
     }
-    if (messageIds.length === 0) {
-        const replySettings = await (0, loadOutboundEmailContext_1.loadReplyIngestSettings)();
-        const fallbackQuery = replySettings.enabled
-            ? "in:inbox (has:attachment filename:pdf OR -has:attachment)"
-            : "has:attachment filename:pdf in:inbox";
-        const recent = await (0, gmailInbound_1.listRecentInboxMessageIds)(accessToken, {
-            maxResults: 15,
-            query: fallbackQuery,
-        });
-        messageIds = recent.map((m) => m.id);
-    }
+    const catchUpQuery = (0, gmailInboundCatchUp_1.buildInboxCatchUpQuery)({
+        lastSyncAt: inboundSync.lastSyncAt,
+        replyEnabled: replySettings.enabled,
+        nowMs,
+    });
+    const afterListResult = await (0, gmailInbound_1.listInboxMessageIdsPaginated)(accessToken, {
+        query: catchUpQuery,
+        listCap: gmailInboundCatchUp_1.LIST_CAP,
+    });
+    const afterMessageIdsOldestFirst = (0, gmailInboundCatchUp_1.oldestFirstInboxIds)(afterListResult.messages.map((m) => m.id));
+    const afterListingComplete = afterListResult.listingComplete;
+    const catchUpIds = (0, gmailInboundCatchUp_1.uniquePreserveOrder)([
+        ...historyMessageIds,
+        ...afterMessageIdsOldestFirst,
+    ]);
+    const unprocessedCatchUpIds = await filterUnprocessedCatchUpMessageIds(db, catchUpIds);
+    const { processNow, remainderCount } = (0, gmailInboundCatchUp_1.applyCatchUpCap)({
+        listedIds: unprocessedCatchUpIds,
+        cap: gmailInboundCatchUp_1.PROCESS_CAP,
+    });
+    const listingComplete = historyListingComplete && afterListingComplete;
     if (!latestHistoryId) {
         const profile = await (0, gmailInbound_1.getGmailProfile)(accessToken);
         if (profile.historyId)
             latestHistoryId = profile.historyId;
     }
+    let messageIds = [...processNow];
     let reparseStaleReviewIds = await collectStaleIssueImportMessageIds(db);
     messageIds = [...new Set([...messageIds, ...reparseStaleReviewIds])];
     if (options?.retryOnError) {
@@ -226,15 +326,30 @@ async function runInboundGmailSync(options) {
         }
     }
     const now = new Date().toISOString();
+    const advanceCursor = (0, gmailInboundCatchUp_1.shouldAdvanceInboundSyncCursor)({
+        listingComplete,
+        remainderCount,
+    });
     await connectionRef(db).set({
         inboundSync: {
             ...inboundSync,
-            lastHistoryId: latestHistoryId ?? inboundSync.lastHistoryId,
-            lastSyncAt: now,
+            ...(advanceCursor
+                ? {
+                    lastHistoryId: latestHistoryId ?? inboundSync.lastHistoryId,
+                    lastSyncAt: now,
+                }
+                : {}),
         },
         updatedAt: now,
+        ingestHealth: {
+            ...existingIngestHealth,
+            lastSuccessfulSyncAt: now,
+            lastAttemptAt: now,
+            tokenRefreshFailed: false,
+            staleAfterHours: existingIngestHealth?.staleAfterHours ?? 2,
+        },
     }, { merge: true });
-    console.log(`syncInboundGmail: processed=${processed} skipped=${skipped} errors=${errors}`);
+    console.log(`syncInboundGmail: catchUpListed=${catchUpIds.length} catchUpUnprocessed=${unprocessedCatchUpIds.length} catchUpProcessNow=${processNow.length} remainder=${remainderCount} listingComplete=${listingComplete} advanceCursor=${advanceCursor} processed=${processed} skipped=${skipped} errors=${errors}`);
     return {
         processed,
         skipped,
