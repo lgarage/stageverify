@@ -1,5 +1,5 @@
 /**
- * Firestore rules — appSettings admin-only writes, public read.
+ * Firestore rules — appSettings public read, staff operational writes, admin risky writes.
  * Usage: npx firebase-tools emulators:exec --only firestore "node scripts/test-firestore-rules-app-settings.mjs"
  */
 import { readFileSync } from "fs";
@@ -36,6 +36,9 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     active: true,
     manager: true,
   });
+  await setDoc(doc(db, "dispatcherRoles", "legacy-staff-1"), {
+    active: true,
+  });
   await setDoc(doc(db, "dispatcherRoles", "admin-1"), {
     active: true,
     role: "admin",
@@ -52,37 +55,63 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 });
 
 const configRef = (db) => doc(db, "appSettings", "config");
+const freshRef = (db, id) => doc(db, "appSettings", id);
 
 const unauth = testEnv.unauthenticatedContext().firestore();
 await assertSucceeds(getDoc(configRef(unauth)));
-await assertFails(
-  setDoc(configRef(unauth), { vendorSessionMinutes: 99 }),
-);
-await assertFails(
-  updateDoc(configRef(unauth), { vendorSessionMinutes: 99 }),
-);
+await assertFails(setDoc(configRef(unauth), { vendorSessionMinutes: 99 }));
+await assertFails(updateDoc(configRef(unauth), { vendorSessionMinutes: 99 }));
+
+const vendorPin = testEnv.authenticatedContext("vendor-pin-user").firestore();
+await assertFails(updateDoc(configRef(vendorPin), { vendorSessionMinutes: 40 }));
+
+const techPin = testEnv.authenticatedContext("tech-pin-user").firestore();
+await assertFails(updateDoc(configRef(techPin), { vendorSessionMinutes: 41 }));
 
 const noRole = testEnv.authenticatedContext("no-role-user").firestore();
-await assertFails(
-  updateDoc(configRef(noRole), { vendorSessionMinutes: 45 }),
-);
+await assertFails(updateDoc(configRef(noRole), { vendorSessionMinutes: 45 }));
 
 const disp = testEnv.authenticatedContext("disp-1").firestore();
-await assertFails(
+await assertSucceeds(
   updateDoc(configRef(disp), { vendorSessionMinutes: 45 }),
+);
+await assertFails(
+  updateDoc(configRef(disp), { monitoringInboxEmail: "ops@example.com" }),
+);
+await assertFails(
+  updateDoc(configRef(disp), { catchAllPendingCheckInCount: 1 }),
+);
+await assertFails(
+  updateDoc(configRef(disp), {
+    vendorSessionMinutes: 46,
+    emailMonitoringEnabled: true,
+  }),
 );
 
 const mgr = testEnv.authenticatedContext("mgr-1").firestore();
+await assertSucceeds(
+  updateDoc(configRef(mgr), { autoSubmitMinutes: 12 }),
+);
 await assertFails(
-  updateDoc(configRef(mgr), { vendorSessionMinutes: 45 }),
+  updateDoc(configRef(mgr), { invoiceAiShadowEnabled: true }),
+);
+
+const legacyStaff = testEnv.authenticatedContext("legacy-staff-1").firestore();
+await assertSucceeds(
+  updateDoc(configRef(legacyStaff), {
+    vendorDeliveryMode: "full_checkin",
+  }),
 );
 
 const admin = testEnv.authenticatedContext("admin-1").firestore();
 await assertSucceeds(
-  updateDoc(configRef(admin), { vendorSessionMinutes: 45 }),
+  updateDoc(configRef(admin), {
+    vendorSessionMinutes: 50,
+    emailReplyIngestEnabled: true,
+  }),
 );
 await assertFails(
-  updateDoc(configRef(admin), { invoiceTrainingAlertEmail: "x@y.com" }),
+  updateDoc(configRef(admin), { managementPinHash: "deadbeef" }),
 );
 
 const adminInactive = testEnv.authenticatedContext("admin-inactive").firestore();
@@ -95,23 +124,47 @@ await assertFails(
   updateDoc(configRef(adminRemoved), { vendorSessionMinutes: 45 }),
 );
 
-const freshRef = (db, id) => doc(db, "appSettings", id);
-
-// unauth / no-role / dispatcher / manager cannot CREATE a new appSettings doc
-await assertFails(setDoc(freshRef(unauth, "fresh-unauth"), { vendorSessionMinutes: 15 }));
-await assertFails(setDoc(freshRef(noRole, "fresh-norole"), { vendorSessionMinutes: 15 }));
-await assertFails(setDoc(freshRef(disp, "fresh-disp"), { vendorSessionMinutes: 15 }));
-await assertFails(setDoc(freshRef(mgr, "fresh-mgr"), { vendorSessionMinutes: 15 }));
-
-// admin can create a new doc with a normal field
-await assertSucceeds(setDoc(freshRef(admin, "fresh-admin"), { vendorSessionMinutes: 15 }));
-
-// admin cannot create with denylisted CF field
-await assertFails(setDoc(freshRef(admin, "fresh-admin-deny"), { invoiceTrainingAlertEmail: "x@y.com" }));
-
-// dispatcher setDoc merge cannot create missing config-like doc (mirrors client write)
+// --- create paths ---
 await assertFails(
-  setDoc(freshRef(disp, "config-missing"), { vendorSessionMinutes: 15 }, { merge: true }),
+  setDoc(freshRef(unauth, "fresh-unauth"), { vendorSessionMinutes: 15 }),
+);
+await assertFails(
+  setDoc(freshRef(noRole, "fresh-norole"), { vendorSessionMinutes: 15 }),
+);
+
+await assertSucceeds(
+  setDoc(freshRef(disp, "fresh-disp"), { vendorSessionMinutes: 15 }),
+);
+await assertFails(
+  setDoc(freshRef(disp, "fresh-disp-risky"), {
+    monitoringInboxEmail: "a@b.com",
+  }),
+);
+await assertSucceeds(
+  setDoc(
+    freshRef(disp, "fresh-disp-merge"),
+    { parcelIntakeEnabled: true },
+    { merge: true },
+  ),
+);
+
+await assertSucceeds(
+  setDoc(freshRef(mgr, "fresh-mgr"), { technicianSessionMinutes: 20 }),
+);
+await assertSucceeds(
+  setDoc(freshRef(admin, "fresh-admin"), { managementSessionMinutes: 25 }),
+);
+
+await assertSucceeds(
+  setDoc(freshRef(admin, "fresh-admin-risky"), {
+    vendorSessionMinutes: 15,
+    emailMonitoringEnabled: true,
+  }),
+);
+await assertFails(
+  setDoc(freshRef(admin, "fresh-admin-cf"), {
+    invoiceTrainingAlertEmail: "x@y.com",
+  }),
 );
 
 await testEnv.cleanup();

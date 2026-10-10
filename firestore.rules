@@ -348,33 +348,85 @@ service cloud.firestore {
       // read, so appSettings stays all-or-nothing public read.
       allow read: if true;
 
-      // Writes: Admin role only. Inlined (not a top-level isAdmin() helper,
-      // per parallel-edit constraint) — mirrors
-      // functions/src/inboundEmail/dispatcherAuth.ts hasAdminRole():
-      // dispatcherRoles/{uid} doc exists, active != false, removed != true,
-      // role == 'admin' (manager flag alone is NOT admin).
-      // Map.get defaults match hasAdminRole() missing-field semantics.
-      allow create: if isAuthenticated()
-        && exists(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid))
-        && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('active', true) != false
-        && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('removed', false) != true
-        && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('role', '') == 'admin'
-        && !('catchAllPendingCheckInCount' in request.resource.data)
-        && !('invoiceTrainingAdminPasswordConfigured' in request.resource.data)
-        && !('invoiceTrainingAlertEmailConfigured' in request.resource.data)
-        && !('invoiceTrainingAlertEmail' in request.resource.data);
-      allow update: if isAuthenticated()
-        && exists(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid))
-        && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('active', true) != false
-        && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('removed', false) != true
-        && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('role', '') == 'admin'
-        && !request.resource.data.diff(resource.data).affectedKeys()
-          .hasAny([
-            'catchAllPendingCheckInCount',
-            'invoiceTrainingAdminPasswordConfigured',
-            'invoiceTrainingAlertEmailConfigured',
-            'invoiceTrainingAlertEmail',
-          ]);
+      // Writes: field-level role split on this one doc (no split doc).
+      // Dispatcher/manager/admin ("staff") keep writing operational fields;
+      // Gmail/integration + AI/billing fields are admin-only; CF-owned
+      // fields are denied to every client (Admin SDK bypasses rules).
+      // Inlined helpers (not top-level) per parallel-edit constraint.
+      // role/active/removed semantics mirror
+      // functions/src/inboundEmail/dispatcherAuth.ts hasAdminRole() /
+      // hasManagerRole(): dispatcherRoles/{uid} doc exists, active != false,
+      // removed != true; admin additionally requires role == 'admin'.
+      // Legacy { manager: true, no role } and legacy { active: true, no
+      // role } are STAFF, not admin — matches hasAdminRole()/isDispatcher().
+      function roleData() {
+        return get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data;
+      }
+
+      function isActiveStaff() {
+        return isAuthenticated()
+          && exists(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid))
+          && roleData().get('active', true) != false
+          && roleData().get('removed', false) != true;
+      }
+
+      function isActiveAdmin() {
+        return isActiveStaff() && roleData().get('role', '') == 'admin';
+      }
+
+      function operationalFields() {
+        return [
+          'vendorRevertWindowMinutes', 'autoSubmitMinutes', 'entrywayEslTagId',
+          'stageVerifyActivatedAt', 'vendorDeliveryMode', 'vendorSessionMinutes',
+          'technicianSessionMinutes', 'managementSessionMinutes', 'shopLatitude',
+          'shopLongitude', 'shopGeofenceRadiusMeters', 'vendorGeofenceEnforce',
+          'catchAllStagingLocationId', 'parcelIntakeEnabled', 'shopMapLayoutExtras'
+        ];
+      }
+
+      function riskyFields() {
+        return [
+          'monitoringInboxEmail', 'emailMonitoringEnabled',
+          'invoiceAiShadowEnabled', 'emailReplyIngestEnabled'
+        ];
+      }
+
+      function operationalAndRiskyFields() {
+        return [
+          'vendorRevertWindowMinutes', 'autoSubmitMinutes', 'entrywayEslTagId',
+          'stageVerifyActivatedAt', 'vendorDeliveryMode', 'vendorSessionMinutes',
+          'technicianSessionMinutes', 'managementSessionMinutes', 'shopLatitude',
+          'shopLongitude', 'shopGeofenceRadiusMeters', 'vendorGeofenceEnforce',
+          'catchAllStagingLocationId', 'parcelIntakeEnabled', 'shopMapLayoutExtras',
+          'monitoringInboxEmail', 'emailMonitoringEnabled',
+          'invoiceAiShadowEnabled', 'emailReplyIngestEnabled'
+        ];
+      }
+
+      function cfOwnedFields() {
+        return [
+          'catchAllPendingCheckInCount', 'invoiceTrainingAdminPasswordConfigured',
+          'invoiceTrainingAlertEmailConfigured', 'invoiceTrainingAlertEmail',
+          'managementPinHash', 'managementPinConfigured'
+        ];
+      }
+
+      allow create: if isActiveStaff()
+        && !request.resource.data.keys().hasAny(cfOwnedFields())
+        && (
+          request.resource.data.keys().hasOnly(operationalFields())
+          || (isActiveAdmin()
+            && request.resource.data.keys().hasOnly(operationalAndRiskyFields()))
+        );
+
+      allow update: if isActiveStaff()
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(cfOwnedFields())
+        && (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(operationalFields())
+          || (isActiveAdmin()
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(operationalAndRiskyFields()))
+        );
     }
 
     // Phase 3: permanent shop-stock location directory — public read for pickup location labels.
