@@ -2189,7 +2189,9 @@ export async function mapActiveZoneOccupancyByCode(): Promise<
 > {
   const locations = await fetchAllStagingLocations();
   const deliveries = await fetchAll<DeliveryOrder>("deliveries");
-  return computeZoneOccupancyByCode(locations, deliveries);
+  // Authoritative occupant set matches stagingOccupancyGuard (actual + planned;
+  // ZONE_CLEARED = complete/picked_up/installed; will-call leftovers included).
+  return computeZoneOccupancyByCode(locations, deliveries, "authoritative");
 }
 
 export interface StagingLocationOccupant {

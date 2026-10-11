@@ -160,6 +160,8 @@
     "test:mark-vendor-delivered": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-mark-vendor-delivered.mjs\"",
     "test:vendor-delivered-item-truth": "npx tsx scripts/test-vendor-delivered-item-truth.mjs",
     "test:reassign-staging-location": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-reassign-staging-location.mjs\"",
+    "test:apply-vendor-reply-clear-backorder": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-apply-vendor-reply-clear-backorder.mjs\"",
+    "test:release-planned-staging-location": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-release-planned-staging-location.mjs\"",
     "test:vendor-unplanned-delivery": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-vendor-unplanned-delivery.mjs\"",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"node scripts/test-delivery-status-transitions.mjs\"",
     "test:access-pin-secrets": "npm run build:functions && node scripts/test-access-pin-secrets.mjs",

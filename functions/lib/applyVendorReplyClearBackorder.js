@@ -11,6 +11,7 @@ const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const pickupMaterialIssueReadback_1 = require("./pickupMaterialIssueReadback");
 const clearActiveStagingOnWillCall_1 = require("./invoice/clearActiveStagingOnWillCall");
+const stagingOccupancyGuard_1 = require("./stagingOccupancyGuard");
 function getDb() {
     return admin.firestore();
 }
@@ -52,24 +53,6 @@ function deliveryUsesStagingLocation(delivery, locationId) {
         return true;
     const extra = delivery.additionalStagingLocationIds;
     return Array.isArray(extra) && extra.includes(locationId);
-}
-async function assertStagingLocationAvailableInTransaction(tx, db, locationId, deliveryId) {
-    const locRef = db.collection("stagingLocations").doc(locationId);
-    const locSnap = await tx.get(locRef);
-    if (!locSnap.exists) {
-        throw new https_1.HttpsError("not-found", "Staging location not found.");
-    }
-    const code = String(locSnap.data()?.code ?? "").trim();
-    const occupiedSnap = await tx.get(db
-        .collection("deliveries")
-        .where("stagingLocationId", "==", locationId)
-        .limit(5));
-    for (const doc of occupiedSnap.docs) {
-        if (doc.id !== deliveryId) {
-            throw new https_1.HttpsError("failed-precondition", "Staging location is occupied by another delivery.");
-        }
-    }
-    return code || locationId;
 }
 exports.applyVendorReplyClearBackorder = (0, https_1.onCall)({
     region: "us-central1",
@@ -158,7 +141,7 @@ exports.applyVendorReplyClearBackorder = (0, https_1.onCall)({
         const delivery = liveDelivery.data();
         if (action === "shop_location" && stagingLocationId) {
             if (!deliveryUsesStagingLocation(delivery, stagingLocationId)) {
-                stagingCode = await assertStagingLocationAvailableInTransaction(tx, db, stagingLocationId, deliveryOrderId);
+                stagingCode = (await (0, stagingOccupancyGuard_1.assertStagingLocationAvailableInTransaction)(tx, db, stagingLocationId, deliveryOrderId)).code;
             }
             else {
                 const locSnap = await tx.get(db.collection("stagingLocations").doc(stagingLocationId));
