@@ -16,7 +16,7 @@ Same harness as cloud — **D-94** `lean-agent-process.mdc` is the only alwaysAp
 
 Scripts use `path.join` + repo-relative paths — identical on Windows and Linux. `readText()` normalizes CRLF.
 
-`npm ci`/`npm install` auto-installs the pre-push gate hook (`scripts/install-git-hooks.mjs` via npm `prepare`); HIGH commits/PRs must carry `security-gate-id:` as a lowercase UUID or `bc-<uuid>` **and** `model:` matching the D-94 allowlist (`cursor-grok-4.6-high` primary).
+`npm ci`/`npm install` auto-installs the pre-push gate hook (`scripts/install-git-hooks.mjs` via npm `prepare`); HIGH commits/PRs must carry `security-gate-id:` as a lowercase UUID or `bc-<uuid>` **and** `model: grok-4.7-high` (**Grok 4.7, reasoning_effort HIGH, fast OFF, context 256k**). Grandfathered `cursor-grok-4.6-high` only when CI sets `GATE_PR_NUMBER` to **258** or **259**. No agent may exceed a 256k context window.
 Bypass exists (advisory-vs-malice; use only when Dan approves): `git push --no-verify` works in every shell; the env form is shell-specific — bash `GATE_SKIP=1 git push`, PowerShell `$env:GATE_SKIP="1"; git push`, cmd `set GATE_SKIP=1 && git push` (the hook runs under Git's sh and reads the inherited env on all three). **CI never honors `GATE_SKIP` or `--no-verify`** — PR `gate-check` always runs the real evidence check.
 
 ## Cursor Cloud specific instructions
@@ -28,8 +28,8 @@ Bypass exists (advisory-vs-malice; use only when Dan approves): `git push --no-v
 
 ### Session start
 
-1. Read `PROJECT_STATUS/CURRENT_STATE.md` and `PROJECT_STATUS/MEMORY.md` before coding.
-2. **D-94 lean process — the only alwaysApply rule:** `.cursor/rules/lean-agent-process.mdc` — classify HIGH / MEDIUM / LOW; Composer codes first (ladder 1–5); Grok reviews all Composer code including LOW; HIGH Grok review may double as `security-gate-id:` + `model:` if it covers security; Sonnet backup only (rules / auth/PIN / money, Grok FAIL/HIGH, ladder-5, or Dan); record `ladder-step:`; Dan approves every merge and deploy. Other `.cursor/rules/*` are on-demand.
+1. Read **PR #257 process** `.cursor/rules/lean-agent-process.mdc` and `PROJECT_STATUS/STATE_SUMMARY.md` before coding. Open `CURRENT_STATE.md`, `MEMORY.md`, or `DECISIONS.md` only when the task needs them.
+2. Before work: **`git fetch origin main && git pull origin main`**, then confirm `a69dc81c` is an ancestor of HEAD (`git merge-base --is-ancestor a69dc81c HEAD`). Run **`npm run gate:tier`** on planned paths before coding (tier from paths, not Composer self-label). **Sonnet** stays required on today’s `requiresSonnetBackup()` paths with **no end date**; harness never auto-drops Sonnet. Dan approves every merge and deploy. Other `.cursor/rules/*` are on-demand.
 3. **Planning questions** (“what’s next”, “what can mobile do”, ranked options): **`git fetch origin main && git pull origin main`** first.
 4. Desktop, mobile Cursor, and cloud VM share the same repo rules (D-32). **Environment is auto-detected (D-35)** — never keyed to Dan saying "phone/mobile". No mobile-lite orchestration.
 5. For scope disputes, load `PROJECT_STATUS/svscope_simple.md` on demand only.

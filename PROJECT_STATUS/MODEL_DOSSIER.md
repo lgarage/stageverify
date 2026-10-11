@@ -47,7 +47,7 @@
 - **Public Firestore writes / CF deploy:** Dan approves merge and deploy. `npm run deploy` (gh-pages) does not ship rules.
 
 ## § backend-critical
-- **D-94 HIGH:** Grok reviews the final diff. That review may double as `security-gate-id:` + `model: cursor-grok-4.6-high` if it covers security. Replaces `sonnet-instruct` / `high-risk-adversarial` / `sonnet-verify`. Sonnet backup only. Coding ladder + `ladder-step:` in `lean-agent-process.mdc`.
+- **D-94 HIGH:** Grok reviews the final diff (**Grok 4.7, reasoning_effort HIGH, fast OFF, context 256k** → `model: grok-4.7-high`). That review may double as `security-gate-id:` + `model:` if it covers security. Grandfathered `cursor-grok-4.6-high` only on PR **#258** / **#259**. Replaces `sonnet-instruct` / `high-risk-adversarial` / `sonnet-verify`. Sonnet backup only. Coding ladder + `ladder-step:` in `lean-agent-process.mdc`.
 - Dan approves every merge and every CF/rules deploy. Rollback hash before deploy; smoke after. No gate bypass.
 - SSOT: `.cursor/rules/lean-agent-process.mdc`; discovery: `node scripts/verify-high-risk-loop-discovery.mjs`.
 

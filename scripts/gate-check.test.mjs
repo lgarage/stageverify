@@ -22,10 +22,21 @@ import {
   requiresSonnetBackup,
   packageJsonHighRisk,
   checkEvidence,
+  REQUIRED_REVIEWER_SLUG,
+  LEGACY_REVIEWER_SLUG,
+  isLegacyReviewerPr,
+  isAcceptedGrokReviewerSlug,
   resolveEvidence,
   shouldHonorGateSkip,
   honorsGateSkip,
   extractAuthorAgentIds,
+  classifyDiffTier,
+  extractReviewedCommit,
+  extractPostReviewCommits,
+  isTestFixturePath,
+  shaEquals,
+  evaluateReviewedCommit,
+  MISSING_REVIEWED_COMMIT_HINT,
 } from "./gate-check.mjs";
 
 describe("classifyPath", () => {
@@ -84,6 +95,7 @@ describe("classifyPath", () => {
 
   it("flags .github/workflows and firebase.json", () => {
     assert.ok(classifyPath(".github/workflows/ci.yml").includes("high-risk"));
+    assert.ok(classifyPath(".github/workflows/nested/dir/x.yml").includes("high-risk"));
     assert.ok(classifyPath("firebase.json").includes("high-risk"));
   });
 
@@ -191,12 +203,32 @@ describe("extractSecurityGateIdValue / hasValidSecurityGateId", () => {
 });
 
 describe("hasAllowedGateModel", () => {
-  it("accepts Grok 4.6 high (primary HIGH reviewer)", () => {
+  it("accepts Grok 4.7 high (primary HIGH reviewer)", () => {
+    assert.equal(hasAllowedGateModel("model: grok-4.7-high"), true);
+  });
+
+  it("rejects grok-4.7-xhigh (not allowlisted)", () => {
+    assert.equal(hasAllowedGateModel("model: grok-4.7-xhigh"), false);
+    assert.deepEqual(extractGateModelSlugs("model: grok-4.7-xhigh"), []);
+  });
+
+  it("rejects -fast suffix on grok-4.7-high", () => {
+    assert.equal(hasAllowedGateModel("model: grok-4.7-high-fast"), false);
+    assert.deepEqual(extractGateModelSlugs("model: grok-4.7-high-fast"), []);
+  });
+
+  it("rejects -fast suffix on grok-4.7-xhigh", () => {
+    assert.equal(hasAllowedGateModel("model: grok-4.7-xhigh-fast"), false);
+    assert.deepEqual(extractGateModelSlugs("model: grok-4.7-xhigh-fast"), []);
+  });
+
+  it("accepts Grok 4.6 high (grandfathered HIGH reviewer)", () => {
     assert.equal(hasAllowedGateModel("model: cursor-grok-4.6-high"), true);
   });
 
-  it("accepts Grok 4.6 xhigh", () => {
-    assert.equal(hasAllowedGateModel("model: cursor-grok-4.6-xhigh"), true);
+  it("rejects cursor-grok-4.6-xhigh (not allowlisted)", () => {
+    assert.equal(hasAllowedGateModel("model: cursor-grok-4.6-xhigh"), false);
+    assert.deepEqual(extractGateModelSlugs("model: cursor-grok-4.6-xhigh"), []);
   });
 
   it("accepts Sonnet 5 thinking-high (escalation)", () => {
@@ -230,9 +262,8 @@ describe("hasAllowedGateModel", () => {
     assert.deepEqual(extractGateModelSlugs("model: cursor-grok-4.6-xhigh-fast"), []);
   });
 
-  it("accepts exact cursor-grok-4.6-high and xhigh slugs", () => {
+  it("parses exact cursor-grok-4.6-high slug for extract list", () => {
     assert.equal(hasAllowedGateModel("model: cursor-grok-4.6-high"), true);
-    assert.equal(hasAllowedGateModel("model: cursor-grok-4.6-xhigh"), true);
   });
 
   it("rejects model line only inside inline code spans", () => {
@@ -247,9 +278,140 @@ describe("requiresSonnetBackup", () => {
     assert.equal(requiresSonnetBackup("functions/src/setAccessPin.ts"), true);
   });
 
+  it("false for vendor-session callable without auth path heuristic", () => {
+    assert.equal(requiresSonnetBackup("functions/src/releasePlannedStagingLocation.ts"), false);
+  });
+
   it("false for gate-config-only HIGH", () => {
     assert.equal(requiresSonnetBackup("scripts/gate-check.mjs"), false);
     assert.equal(requiresSonnetBackup(".github/workflows/pr-ci.yml"), false);
+  });
+});
+
+describe("classifyDiffTier", () => {
+  it("returns HIGH for high-risk paths and packageJsonHighRisk", () => {
+    assert.equal(classifyDiffTier(["firestore.rules"]), "HIGH");
+    assert.equal(classifyDiffTier(["docs/foo.md"], { packageJsonHighRisk: true }), "HIGH");
+  });
+
+  it("returns MEDIUM for two substantive-ship files", () => {
+    assert.equal(
+      classifyDiffTier(["src/a.tsx", "src/b.tsx"]),
+      "MEDIUM",
+    );
+  });
+
+  it("returns LOW for excluded-only diff", () => {
+    assert.equal(classifyDiffTier(["docs/a.md", "PROJECT_STATUS/x.md"]), "LOW");
+  });
+
+  it("returns LOW for single non-auth src UI", () => {
+    assert.equal(classifyDiffTier(["src/components/Button.tsx"]), "LOW");
+  });
+
+  it("returns HIGH for ambiguous untagged path", () => {
+    assert.equal(classifyDiffTier(["mystery-file.bin"]), "HIGH");
+  });
+
+  it("returns HIGH for package.json path in diff (fail-up until scripts diff resolved)", () => {
+    assert.equal(classifyDiffTier(["package.json"]), "HIGH");
+  });
+});
+
+describe("reviewed-commit policy", () => {
+  const head = "abcdef0123456789abcdef0123456789abcdef0";
+
+  it("extractReviewedCommit from review evidence section", () => {
+    const body = ["## Review evidence", `reviewed-commit: ${head.slice(0, 7)}`].join("\n");
+    assert.equal(extractReviewedCommit(body), head.slice(0, 7));
+  });
+
+  it("passes when reviewed-commit equals head", () => {
+    const result = evaluateReviewedCommit({
+      reviewedCommit: head,
+      headSha: head,
+      commitsAfter: [],
+      listedPostReviewCommits: [],
+    });
+    assert.equal(result.pass, true);
+  });
+
+  it("fails when reviewed-commit missing on HIGH policy", () => {
+    const result = evaluateReviewedCommit({
+      reviewedCommit: null,
+      headSha: head,
+      commitsAfter: [],
+      listedPostReviewCommits: [],
+    });
+    assert.equal(result.pass, false);
+    assert.equal(result.reason, MISSING_REVIEWED_COMMIT_HINT);
+  });
+
+  it("fails on mismatch with product file change", () => {
+    const result = evaluateReviewedCommit({
+      reviewedCommit: "aaaaaaa",
+      headSha: head,
+      commitsAfter: [{ sha: "bbbbbbb", files: ["src/foo.tsx"] }],
+      listedPostReviewCommits: [],
+    });
+    assert.equal(result.pass, false);
+  });
+
+  it("fails on mismatch with test.mjs (not fixture-only)", () => {
+    const result = evaluateReviewedCommit({
+      reviewedCommit: "aaaaaaa",
+      headSha: head,
+      commitsAfter: [{ sha: "bbbbbbb", files: ["scripts/gate-check.test.mjs"] }],
+      listedPostReviewCommits: ["bbbbbbb"],
+    });
+    assert.equal(result.pass, false);
+  });
+
+  it("passes fixture-only listed post-review commit", () => {
+    const fixtureSha = "ccccccc1234567890ccccccc1234567890cccccc";
+    const result = evaluateReviewedCommit({
+      reviewedCommit: "aaaaaaa",
+      headSha: head,
+      commitsAfter: [{ sha: fixtureSha, files: ["scripts/fixtures/sample.json"] }],
+      listedPostReviewCommits: [fixtureSha.slice(0, 7)],
+    });
+    assert.equal(result.pass, true);
+  });
+
+  it("fails fixture-only commit when not listed", () => {
+    const result = evaluateReviewedCommit({
+      reviewedCommit: "aaaaaaa",
+      headSha: head,
+      commitsAfter: [{ sha: "ddddddd", files: ["testdata/x.json"] }],
+      listedPostReviewCommits: [],
+    });
+    assert.equal(result.pass, false);
+  });
+
+  it("shaEquals is prefix-safe at 7+ hex", () => {
+    assert.equal(shaEquals("abcdef0", "abcdef0123456"), true);
+    assert.equal(shaEquals("abc", "abcdef0"), false);
+  });
+});
+
+describe("isTestFixturePath", () => {
+  it("true for fixtures and testdata paths", () => {
+    assert.equal(isTestFixturePath("scripts/fixtures/a.json"), true);
+    assert.equal(isTestFixturePath("pkg/testdata/x"), true);
+    assert.equal(isTestFixturePath("src/__fixtures__/y"), true);
+    assert.equal(isTestFixturePath("my-fixture-data.json"), true);
+  });
+
+  it("false for gate-check tests and functions/src", () => {
+    assert.equal(isTestFixturePath("scripts/gate-check.test.mjs"), false);
+    assert.equal(isTestFixturePath("functions/src/setAccessPin.ts"), false);
+  });
+});
+
+describe("classify mode (no evidence required)", () => {
+  it("checkEvidence passes with empty body when not high-risk", () => {
+    const result = checkEvidence("", false);
+    assert.equal(result.pass, true);
   });
 });
 
@@ -436,14 +598,26 @@ describe("checkEvidence", () => {
     assert.ok(result.missing.includes(MISSING_SONNET_BACKUP_HINT));
   });
 
-  it("passes Grok plus Sonnet when Sonnet backup required", () => {
+  it("passes Grok 4.7 plus Sonnet when Sonnet backup required", () => {
     const body = [
       gateId,
-      "model: cursor-grok-4.6-high",
+      `model: ${REQUIRED_REVIEWER_SLUG}`,
       "model: claude-sonnet-5-thinking-high",
     ].join("\n");
     const result = checkEvidence(body, true, { requiresSonnetBackup: true });
     assert.equal(result.pass, true);
+  });
+
+  it("passes legacy 4.6-high plus Sonnet on PR 258 only", () => {
+    const body = [
+      gateId,
+      `model: ${LEGACY_REVIEWER_SLUG}`,
+      "model: claude-sonnet-5-thinking-high",
+    ].join("\n");
+    assert.equal(checkEvidence(body, true, { requiresSonnetBackup: true, prNumber: 258 }).pass, true);
+    assert.equal(checkEvidence(body, true, { requiresSonnetBackup: true, prNumber: 259 }).pass, true);
+    assert.equal(checkEvidence(body, true, { requiresSonnetBackup: true, prNumber: 260 }).pass, false);
+    assert.equal(checkEvidence(body, true, { requiresSonnetBackup: true }).pass, false);
   });
 
   it("fails VendorPinGate Grok-only when Sonnet backup required", () => {
@@ -530,6 +704,70 @@ describe("checkEvidence", () => {
     const result = checkEvidence(body, true);
     assert.equal(result.pass, false);
     assert.ok(result.missing.some((m) => m.includes("model:")));
+  });
+
+  it("passes grok-4.7-high on new work (no pr number)", () => {
+    const body = [gateId, `model: ${REQUIRED_REVIEWER_SLUG}`].join("\n");
+    const result = checkEvidence(body, true);
+    assert.equal(result.pass, true);
+  });
+
+  it("rejects grok-4.7-high-fast, xhigh, and xhigh-fast", () => {
+    for (const slug of [
+      "grok-4.7-high-fast",
+      "grok-4.7-xhigh",
+      "grok-4.7-xhigh-fast",
+    ]) {
+      const body = [gateId, `model: ${slug}`].join("\n");
+      const result = checkEvidence(body, true);
+      assert.equal(result.pass, false, slug);
+    }
+  });
+
+  it("rejects legacy fast/xhigh slugs even on PR 258", () => {
+    for (const slug of ["cursor-grok-4.6-xhigh", "cursor-grok-4.6-high-fast"]) {
+      const body = [gateId, `model: ${slug}`].join("\n");
+      const result = checkEvidence(body, true, { prNumber: 258 });
+      assert.equal(result.pass, false, slug);
+    }
+  });
+
+  it("legacy cursor-grok-4.6-high fails without PR or on 260/1; passes on 258/259", () => {
+    const body = [gateId, `model: ${LEGACY_REVIEWER_SLUG}`].join("\n");
+    for (const pr of [null, undefined, 260, 1]) {
+      const result = checkEvidence(body, true, { prNumber: pr });
+      assert.equal(result.pass, false, `pr=${String(pr)}`);
+    }
+    assert.equal(checkEvidence(body, true, { prNumber: 258 }).pass, true);
+    assert.equal(checkEvidence(body, true, { prNumber: 259 }).pass, true);
+  });
+
+  it("Sonnet backup requires grok-4.7-high and Sonnet on new work", () => {
+    const sonnetOnly = [gateId, "model: claude-sonnet-5-thinking-high"].join("\n");
+    assert.equal(checkEvidence(sonnetOnly, true, { requiresSonnetBackup: true }).pass, false);
+    const grokOnly = [gateId, `model: ${REQUIRED_REVIEWER_SLUG}`].join("\n");
+    assert.equal(checkEvidence(grokOnly, true, { requiresSonnetBackup: true }).pass, false);
+    const both = [
+      gateId,
+      `model: ${REQUIRED_REVIEWER_SLUG}`,
+      "model: claude-sonnet-5-thinking-high",
+    ].join("\n");
+    assert.equal(checkEvidence(both, true, { requiresSonnetBackup: true }).pass, true);
+  });
+});
+
+describe("isAcceptedGrokReviewerSlug / isLegacyReviewerPr", () => {
+  it("accepts grok-4.7-high always", () => {
+    assert.equal(isAcceptedGrokReviewerSlug(REQUIRED_REVIEWER_SLUG, null), true);
+    assert.equal(isAcceptedGrokReviewerSlug(REQUIRED_REVIEWER_SLUG, 260), true);
+  });
+
+  it("legacy 4.6-high only on PR 258/259", () => {
+    assert.equal(isLegacyReviewerPr(258), true);
+    assert.equal(isLegacyReviewerPr(259), true);
+    assert.equal(isLegacyReviewerPr(260), false);
+    assert.equal(isAcceptedGrokReviewerSlug(LEGACY_REVIEWER_SLUG, 258), true);
+    assert.equal(isAcceptedGrokReviewerSlug(LEGACY_REVIEWER_SLUG, 260), false);
   });
 });
 
