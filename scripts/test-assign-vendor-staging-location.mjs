@@ -7,7 +7,7 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import { initializeTestEnvironment } from "@firebase/rules-unit-testing";
 import { initializeApp } from "firebase/app";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, writeBatch } from "firebase/firestore";
 import {
   connectFunctionsEmulator,
   getFunctions,
@@ -100,6 +100,36 @@ async function seedDelivery(db, id, extra = {}) {
   });
 }
 
+const CLEARED_DELIVERY_BASE = {
+  jobId: "job-avsl",
+  vendorId: "vendor-avsl",
+  status: "picked_up",
+  createdAt: "2026-01-01T00:00:00Z",
+  updatedAt: "2026-01-01T00:00:00Z",
+};
+
+/** Seed many ZONE_CLEARED deliveries on one primary staging location (batched). */
+async function seedClearedPrimaryOnLocation(db, locationId, count, idPrefix) {
+  const CHUNK = 400;
+  let written = 0;
+  while (written < count) {
+    const batch = writeBatch(db);
+    const chunkSize = Math.min(CHUNK, count - written);
+    for (let i = 0; i < chunkSize; i += 1) {
+      const idx = written + i;
+      const id = `${idPrefix}-${idx}`;
+      batch.set(doc(db, "deliveries", id), {
+        ...CLEARED_DELIVERY_BASE,
+        id,
+        orderNumber: `ORD-${id}`,
+        stagingLocationId: locationId,
+      });
+    }
+    await batch.commit();
+    written += chunkSize;
+  }
+}
+
 async function assignPrimary(deliveryId, stagingLocationId) {
   return assignStaging({
     deliveryId,
@@ -131,6 +161,8 @@ await seed(async (db) => {
   await seedLocation(db, "avsl-loc-planned", "PL");
   await seedLocation(db, "avsl-loc-cleared", "CL");
   await seedLocation(db, "avsl-loc-page", "PG");
+  await seedLocation(db, "avsl-loc-cap-over", "CO");
+  await seedLocation(db, "avsl-loc-cap-exact", "CE");
 });
 
 // 1. Happy path primary
@@ -397,7 +429,62 @@ try {
   }
 }
 
-// 12. No session token
+// 12. Occupancy cap — >25 full pages fails closed (520 cleared)
+await seed(async (db) => {
+  await seedDelivery(db, "avsl-del-cap-over-src", { stagingLocationId: "" });
+  await seedClearedPrimaryOnLocation(
+    db,
+    "avsl-loc-cap-over",
+    520,
+    "avsl-del-cap-over-fill",
+  );
+  await seedVendorSession(db, "avsl-del-cap-over-src");
+});
+try {
+  await assignPrimary("avsl-del-cap-over-src", "avsl-loc-cap-over");
+  fail("cap over — assign should reject with safety cap");
+} catch (err) {
+  const after = await readDelivery("avsl-del-cap-over-src");
+  if (
+    /safety cap/i.test(msgOf(err)) &&
+    (after?.stagingLocationId ?? "") === ""
+  ) {
+    pass("cap over — safety cap rejects, assignee unchanged");
+  } else {
+    fail("cap over", err);
+  }
+}
+
+// 13. Occupancy cap — exactly 25 full pages (500 cleared) succeeds
+await seed(async (db) => {
+  await seedDelivery(db, "avsl-del-cap-exact-src", { stagingLocationId: "" });
+  await seedClearedPrimaryOnLocation(
+    db,
+    "avsl-loc-cap-exact",
+    500,
+    "avsl-del-cap-exact-fill",
+  );
+  await seedVendorSession(db, "avsl-del-cap-exact-src");
+});
+try {
+  const result = await assignPrimary(
+    "avsl-del-cap-exact-src",
+    "avsl-loc-cap-exact",
+  );
+  const after = await readDelivery("avsl-del-cap-exact-src");
+  if (
+    result.data?.stagingLocationId === "avsl-loc-cap-exact" &&
+    after?.stagingLocationId === "avsl-loc-cap-exact"
+  ) {
+    pass("cap exact — 500 cleared, assign succeeds without safety cap");
+  } else {
+    fail("cap exact", JSON.stringify({ d: result.data, after }));
+  }
+} catch (err) {
+  fail("cap exact — should not throw safety cap", err);
+}
+
+// 14. No session token
 await seed(async (db) => {
   await seedDelivery(db, "avsl-del-no-session", { stagingLocationId: "" });
   await seedVendorSession(db, "avsl-del-no-session");
@@ -422,7 +509,7 @@ try {
   }
 }
 
-// 13. Bad vendor token (unknown 64-hex)
+// 15. Bad vendor token (unknown 64-hex)
 await seed(async (db) => {
   await seedDelivery(db, "avsl-del-bad-token", { stagingLocationId: "" });
   await seedVendorSession(db, "avsl-del-bad-token");
@@ -448,7 +535,7 @@ try {
   }
 }
 
-// 14. Expired vendor session
+// 16. Expired vendor session
 await seed(async (db) => {
   await seedDelivery(db, "avsl-del-expired", { stagingLocationId: "" });
   await seedExpiredVendorSession(db, "avsl-del-expired");
@@ -469,7 +556,7 @@ try {
   }
 }
 
-// 15. Vendor-scoped session on another vendor's delivery
+// 17. Vendor-scoped session on another vendor's delivery
 await seed(async (db) => {
   await seedDelivery(db, "avsl-del-other-vendor", {
     stagingLocationId: "",

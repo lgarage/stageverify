@@ -56,10 +56,15 @@ export async function assertNoActiveOccupantInQuery(
     }
     if (snap.size < OCCUPANCY_PAGE_SIZE) return;
     if (pageCount >= OCCUPANCY_MAX_PAGES && snap.size === OCCUPANCY_PAGE_SIZE) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Occupancy lookup exceeded safety cap.",
-      );
+      const lastDoc = snap.docs[snap.docs.length - 1];
+      const probeSnap = await tx.get(baseQuery.limit(1).startAfter(lastDoc));
+      if (!probeSnap.empty) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Occupancy lookup exceeded safety cap.",
+        );
+      }
+      return;
     }
     last = snap.docs[snap.docs.length - 1];
   }

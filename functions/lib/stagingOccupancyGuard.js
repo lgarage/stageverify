@@ -51,7 +51,12 @@ async function assertNoActiveOccupantInQuery(tx, baseQuery, deliveryId) {
         if (snap.size < exports.OCCUPANCY_PAGE_SIZE)
             return;
         if (pageCount >= exports.OCCUPANCY_MAX_PAGES && snap.size === exports.OCCUPANCY_PAGE_SIZE) {
-            throw new https_1.HttpsError("failed-precondition", "Occupancy lookup exceeded safety cap.");
+            const lastDoc = snap.docs[snap.docs.length - 1];
+            const probeSnap = await tx.get(baseQuery.limit(1).startAfter(lastDoc));
+            if (!probeSnap.empty) {
+                throw new https_1.HttpsError("failed-precondition", "Occupancy lookup exceeded safety cap.");
+            }
+            return;
         }
         last = snap.docs[snap.docs.length - 1];
     }
