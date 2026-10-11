@@ -14,7 +14,12 @@
  */
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { extractGateModelSlugs, hasValidSecurityGateId } from "./gate-check.mjs";
+import {
+  extractGateModelSlugs,
+  hasValidSecurityGateId,
+  isAcceptedGrokReviewerSlug,
+  REQUIRED_REVIEWER_SLUG,
+} from "./gate-check.mjs";
 
 const { values } = parseArgs({
   options: {
@@ -70,8 +75,12 @@ for (const key of needed) {
       missing.push("security-gate-id");
     }
   } else if (key === "model") {
-    if (extractGateModelSlugs(body).length === 0) {
-      missing.push("model: <allowlisted slug — exact match; -fast suffixes rejected>");
+    const slugs = extractGateModelSlugs(body);
+    const hasAcceptedGrok = slugs.some((s) => isAcceptedGrokReviewerSlug(s, null));
+    if (!hasAcceptedGrok) {
+      missing.push(
+        `model: ${REQUIRED_REVIEWER_SLUG} (exact slug; preflight has no PR — legacy 4.6 only via CI GATE_PR_NUMBER on #258/#259)`,
+      );
     }
   }
 }

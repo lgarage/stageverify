@@ -31,6 +31,12 @@ jobs:
         run: npm run build
       - name: Build functions
         run: npm run build:functions
+      - name: Assert functions/lib matches build output
+        run: |
+          if ! git diff --exit-code -- functions/lib; then
+            echo "functions/lib is out of date — run npm run build:functions and commit functions/lib/"
+            exit 1
+          fi
       - name: Install firebase-tools
         run: npm install -g firebase-tools@15.33.0
       - name: Firestore emulator suites
