@@ -24,12 +24,13 @@ One small job / one small PR per agent. Read only the files you need. PR body mu
 - `job-type:` one of `firestore-rules/auth` | `money/billing` | `cloud-functions-logic` | `ui-change` | `tests-only` | `ci/gate` | `docs/process`
 - `risk-tier:` `HIGH` | `MEDIUM` | `LOW` (from `gate:tier`, not Composer)
 - `builder-model:` and `ladder-step:`
-- `reviewer-models:` exact allowlisted slugs used (e.g. `grok-4.7-high` — Grok 4.7, reasoning_effort HIGH, fast OFF, context 256k) so MODEL EVIDENCE distinguishes Grok versions
-- `context-used:` peak tokens, or `n/a` if not visible (report-only; CI does not check token counts)
-- `sonnet-ran:` `required` | `optional` | `no`
+- `reviewer-models:` exact allowlisted gate slugs used (e.g. `grok-4.7-high` — Grok 4.7, reasoning_effort HIGH, fast OFF, context 256k) so MODEL EVIDENCE distinguishes Grok versions
+- `model:` in review evidence is the **gate slug only** (example `grok-4.7-high`). The reviewer's self-reported model is a separate line `model-self-report:`. `model-self-report:` does **not** satisfy `model:`. CI does not require `model-self-report:`.
+- `context-used:` peak token total Cursor shows for that reviewer run. Read it in the **Agents** window: click the **context ring** next to the prompt input; the tray lists token totals (system prompt, tools, rules, skills, MCP, subagents, summarized conversation, conversation). Record the **highest overall total** shown during the review. Use `n/a` only when that ring, or another Cursor usage readout for the same run, shows no number — do not guess. This cloud run-info API does not return token counts. CI does not check the value.
+- `sonnet-ran:` `required` | `no` only. Never `optional`.
 - `sonnet-unique-findings:` `Y` or `N` plus brief what
 
-**Sonnet policy:** Sonnet stays **required wherever it is required today, with no end date** — same as `requiresSonnetBackup()` in `gate-check.mjs`: `firestore.rules`; `src/` or `functions/` paths matching auth/PIN/roles heuristic; billing/money in product paths; plus ladder step 5, Grok FAIL/HIGH finding, or Dan asks. CI/gate-config-only HIGH does **not** require Sonnet. Vendor-session-gated callables do **not** trigger Sonnet unless the **path** matches that heuristic (do not expand or shrink the heuristic).
+**Sonnet policy (Dan 2026-10-11):** Sonnet stays **required, no end date**, on the same paths as `requiresSonnetBackup()` in `gate-check.mjs`: `firestore.rules`; `src/` or `functions/` paths matching auth/PIN/roles heuristic; billing/money in product paths; plus ladder step 5, Grok FAIL/HIGH finding, or Dan asks. When the gate requires Sonnet, **run it without asking** — no optional Sonnet runs. Every Sonnet run records that run's `job-type:` and `sonnet-unique-findings:` (what Sonnet caught that Grok missed). CI/gate-config-only HIGH does **not** require Sonnet. Vendor-session-gated callables do **not** trigger Sonnet unless the **path** matches that heuristic (do not expand or shrink the heuristic).
 
 **MODEL EVIDENCE tally (Dan only):** After **10 clean jobs of the same `job-type`** (Sonnet ran and caught nothing Grok missed; any Sonnet-only catch resets that type’s count to 0), the tally may **SUGGEST** dropping Sonnet for that type. **Dan decides. Nothing in the harness drops Sonnet automatically.** No counters or auto-switch in CI.
 
@@ -59,7 +60,7 @@ Record the highest step reached in the PR body as `ladder-step: 1` … `ladder-s
 - **Parent/orchestrator** checks **scope and stray files only** (planned paths vs diff). The **separate** HIGH/accuracy reviewer does the deep read.
 - Reviewers **cite CI results** instead of re-running full suites unless CI is unavailable. The independent reviewer still reads the **full diff**. CI must still pass; gate-check unchanged.
 - **Grok always reviews all Composer-written code** for accuracy before a PR is marked ready — **every tier, including LOW**.
-- **HIGH:** Grok review may **double** as the required security review if it covers security. Record `security-gate-id:` (lowercase UUID or `bc-<uuid>`) **and** `model: <exact slug used>`. Required reviewer: **Grok 4.7, reasoning_effort HIGH, fast OFF, context 256k** — dispatch / `model:` slug **`grok-4.7-high`**. Grandfathered `cursor-grok-4.6-high` only on GitHub PR **#258** or **#259** (mechanical `GATE_PR_NUMBER`). Reject `NOT RUN`, empty, and junk. `-fast`, `xhigh`, 500k/max context, and non-allowlist Grok slugs never count. This **replaces** `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`. If the accuracy review did not cover security, run a separate Grok security review and record the same lines.
+- **HIGH:** Grok review may **double** as the required security review if it covers security. Record `security-gate-id:` (lowercase UUID or `bc-<uuid>`) **and** `model: <exact gate slug>` (`model-self-report:` is separate and does not count). Required reviewer: **Grok 4.7, reasoning_effort HIGH, fast OFF, context 256k** — dispatch / `model:` slug **`grok-4.7-high`**. Grandfathered `cursor-grok-4.6-high` only on GitHub PR **#258** or **#259** (mechanical `GATE_PR_NUMBER`). Reject `NOT RUN`, empty, and junk. `-fast`, `xhigh`, 500k/max context, and non-allowlist Grok slugs never count. This **replaces** `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`. If the accuracy review did not cover security, run a separate Grok security review and record the same lines.
 - **Sonnet on rules/auth/billing/money:** record **both** Grok allowlisted `model:` and `claude-sonnet-5-thinking-high` when `requiresSonnetBackup()` applies — **required, no end date** (gate-check enforced). Also Sonnet when Grok returns FAIL/HIGH, ladder step 5, or Dan asks.
 - **MEDIUM / LOW:** Grok accuracy review. No `security-gate-id` unless the change is HIGH.
 - **Dropped:** `solution-verifier`, `build-checker`, `ship-verifier`. Do not run them.
@@ -72,6 +73,14 @@ Order: **commit → HIGH review of that exact SHA → open the draft PR** with t
 After HIGH review, **later commits require re-review** unless they are **test-fixture only** (`**/fixtures/**`, `**/testdata/**`, `**/__fixtures__/**`, or `*fixture*` in the filename). `*.test.mjs` and test-logic changes are **not** fixture-only. Fixture-only follow-ups must be listed in the PR body as `post-review-commits: <sha> …` and CI must stay green. Merge still requires green PR CI.
 
 HIGH review how-to (on-demand): `.cursor/rules/security-review-gate.mdc`. Cloud agents may record `security-gate-id: bc-<uuid>` from a real security-review run — do not invent ids.
+
+### Open PRs before a gate or process merge
+
+Merge or close open PRs before a gate or process change merges, or batch that change into those PRs, so open PRs are not forced into a re-review. As of 2026-10-11, GitHub PRs **#258** and **#259** are open.
+
+### CI watch
+
+The builder stops after handing off the PR. Builders never subscribe to CI on their own PR. Only the orchestrator, or Spot, watches CI.
 
 ## Tests are the safety net
 
