@@ -1,35 +1,31 @@
 #!/usr/bin/env node
 /**
- * PR evidence gate checker — mechanical presence-only verification for high-risk diffs.
+ * PR evidence gate checker — mechanical presence-only verification for HIGH-tier diffs (D-94).
  *
- * Intentionally stricter than ship-loop.mdc (fail-up): CF read-path implementation is
- * fast-safe per ship-loop, but a PR with functions/ changes precedes a possible deploy;
- * misclassifying down is the failure mode.
+ * HIGH (security-gate-id required): all `functions/` except `lib/` (D-28); firestore.rules;
+ * auth/PIN/roles; billing; CI/gate config (.github/workflows, firebase.json, gate-check,
+ * install-git-hooks, ship-evidence-preflight, root package.json scripts / firebase major).
  *
- * src/** auth heuristic (/auth|session|token|guard|login/i) is approximate fail-up —
- * false positives accepted.
+ * Sonnet backup (Grok + claude-sonnet model lines) mechanically required on firestore.rules,
+ * auth/PIN/roles, and billing/money paths — not on gate-config-only HIGH.
+ * UI / copy / docs are LOW — no security-gate-id.
  *
- * Root package.json: high-risk on scripts diff or firebase MAJOR bump only; other
- * non-scripts deploy wiring documented as v1 out-of-scope in this header.
+ * src/** auth heuristic (/auth|session|token|guard|login|pin|role/i) is approximate fail-up.
  *
  * The check does not validate verdict PASS/HIGH — presence-only by design (D-28).
  * The **security-gate-id value** must be a lowercase UUID or `bc-<uuid>`; `NOT RUN`,
- * empty, and junk id values fail. Cloud-agent review ids (`bc-…`) accepted when the
- * platform has no `security-review` Task type.
+ * empty, and junk id values fail.
  *
- * Model line (D-38): if present, must match ALLOWED_GATE_MODELS — preference order is
- * enforced by harness rules. Missing model does **not** fail mechanical CI when the id
- * is valid (optional warning only).
+ * Model line (D-94 / D-38): HIGH requires `model:` matching ALLOWED_GATE_MODELS
+ * (primary `cursor-grok-4.6-high`; `cursor-grok-4.6-xhigh`; Sonnet escalation).
+ * Missing or non-allowlist model fails mechanical CI.
  *
  * Self-bypass caveat: a fork PR can modify gate-check.mjs itself to neuter the check on
- * the merge ref — this gate is advisory-vs-malice, protective-vs-honest-mistakes; branch
- * protection + human review remain the backstop for hostile PRs.
+ * the merge ref — this gate is advisory-vs-malice; branch protection + human review
+ * remain the backstop for hostile PRs. GATE_SKIP is never honored in this script (CI or local).
  *
  * Run: npm run gate:check [-- --base <ref> --head <ref> --pr-body-file <path> | --evidence-from-commits]
  * Evidence priority: env GATE_PR_BODY > --pr-body-file > --evidence-from-commits > empty.
- * --evidence-from-commits reads `git log --format=%B base..head` — direct pushes to main
- * (desktop, pre-push hook) carry the evidence block in commit messages; same presence-only
- * contract as PR bodies.
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -88,8 +84,10 @@ export function hasValidSecurityGateId(prBody) {
   return VALID_GATE_ID_VALUE_RE.test(value);
 }
 
-/** Preference order (D-38 amend 2026-08-08): Sonnet 5 primary — Sonnet 4.6 retired from active gates. */
+/** Preference order (D-94): Grok top model primary; Sonnet 5 escalation only. */
 export const ALLOWED_GATE_MODELS = [
+  "cursor-grok-4.6-high",
+  "cursor-grok-4.6-xhigh",
   "claude-sonnet-5-thinking-high",
 ];
 
@@ -98,15 +96,120 @@ export const REQUIRED_MODEL_LINE = `model: ${ALLOWED_GATE_MODELS[0]}`;
 
 export const MISSING_MODEL_LINE_HINT = `model: <allowlisted slug per D-38 (${ALLOWED_GATE_MODELS.join(" | ")})>`;
 
+export const MISSING_GROK_MODEL_HINT =
+  "model: cursor-grok-4.6-high (or cursor-grok-4.6-xhigh) — required with Sonnet on rules/auth/billing paths";
+
+export const MISSING_SONNET_BACKUP_HINT =
+  "model: claude-sonnet-5-thinking-high — required in addition to Grok on rules/auth/billing paths";
+
+export const AUTHOR_GATE_ID_HINT =
+  "security-gate-id must not equal the PR author agent id (use reviewer Task id or bc-<uuid>)";
+
+const GROK_GATE_MODELS = ["cursor-grok-4.6-high", "cursor-grok-4.6-xhigh"];
+
+const SONNET_GATE_MODEL = "claude-sonnet-5-thinking-high";
+
+/** @param {string} slug */
+function escapeRegExp(slug) {
+  return slug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Exact whole-slug match after `model:` — suffixes like `-fast` must not match shorter slugs.
+ * @param {string} text
+ * @returns {string[]} allowlisted slugs found (deduped, preference order)
+ */
+export function extractGateModelSlugs(text) {
+  /** @type {string[]} */
+  const found = [];
+  for (const slug of ALLOWED_GATE_MODELS) {
+    const re = new RegExp(`model:\\s*${escapeRegExp(slug)}(?![a-z0-9.-])`, "i");
+    if (re.test(text) && !found.includes(slug)) {
+      found.push(slug);
+    }
+  }
+  return found;
+}
+
 /**
  * @param {string} prBody
  * @returns {boolean}
  */
 export function hasAllowedGateModel(prBody) {
-  return ALLOWED_GATE_MODELS.some((slug) => prBody.includes(`model: ${slug}`));
+  return extractGateModelSlugs(extractReviewEvidenceText(prBody)).length > 0;
 }
 
-const AUTH_HEURISTIC = /auth|session|token|guard|login/i;
+/**
+ * Review evidence only — not docs/examples in code spans or fenced blocks.
+ * @param {string} rawBody
+ * @returns {string}
+ */
+export function extractReviewEvidenceText(rawBody) {
+  const htmlMatch = rawBody.match(
+    /<!--\s*review-evidence\s*-->([\s\S]*?)<!--\s*\/review-evidence\s*-->/i,
+  );
+  if (htmlMatch) {
+    return htmlMatch[1].trim();
+  }
+
+  const headingRe = /^##\s+Review evidence[ \t]*$/im;
+  const headingMatch = headingRe.exec(rawBody);
+  if (headingMatch) {
+    const afterHeading = rawBody.slice(headingMatch.index + headingMatch[0].length);
+    const nextHeading = afterHeading.search(/^##\s/m);
+    const section = nextHeading === -1 ? afterHeading : afterHeading.slice(0, nextHeading);
+    return section.trim();
+  }
+
+  let stripped = rawBody.replace(/```[\s\S]*?```/g, "");
+  stripped = stripped.replace(/`[^`]*`/g, "");
+  return stripped;
+}
+
+/**
+ * @param {string} id
+ * @returns {string}
+ */
+export function normalizeAgentId(id) {
+  return id.replace(/^bc-/i, "").toLowerCase();
+}
+
+/**
+ * @param {string} rawBody PR body (for footer agent links)
+ * @param {string | null | undefined} envAuthor GATE_PR_AUTHOR_AGENT
+ * @returns {Set<string>} normalized uuid hex (no bc- prefix)
+ */
+export function extractAuthorAgentIds(rawBody, envAuthor) {
+  /** @type {Set<string>} */
+  const ids = new Set();
+  if (envAuthor && String(envAuthor).trim()) {
+    ids.add(normalizeAgentId(String(envAuthor).trim()));
+  }
+  const linkRe =
+    /cursor\.com\/(?:agents|background-agent)\/(?:bc-)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi;
+  let m;
+  while ((m = linkRe.exec(rawBody)) !== null) {
+    ids.add(normalizeAgentId(m[1]));
+  }
+  return ids;
+}
+
+/**
+ * @param {string} gateIdValue raw id token (may include bc-)
+ * @param {Set<string>} authorIds normalized ids
+ * @returns {boolean}
+ */
+export function gateIdEqualsAuthor(gateIdValue, authorIds) {
+  if (!gateIdValue || authorIds.size === 0) {
+    return false;
+  }
+  return authorIds.has(normalizeAgentId(gateIdValue));
+}
+
+const AUTH_HEURISTIC = /auth|session|token|guard|login|pin|role/i;
+
+export const HIGH_GATE_CONFIG_RE =
+  /^(?:\.github\/workflows\/|firebase\.json$|scripts\/gate-check\.mjs$|scripts\/install-git-hooks\.mjs$|scripts\/ship-evidence-preflight\.mjs$)/;
 
 /**
  * @param {string} filePath
@@ -131,17 +234,17 @@ export function classifyPath(filePath) {
   if (p === "firestore.rules") {
     tags.push("high-risk");
   }
-  if (p.startsWith("functions/") && !p.startsWith("functions/lib/")) {
-    tags.push("high-risk");
-  }
-  if (p.startsWith(".github/workflows/")) {
-    tags.push("high-risk");
-  }
-  if (p === "firebase.json") {
+  if (HIGH_GATE_CONFIG_RE.test(p)) {
     tags.push("high-risk");
   }
   if (p.startsWith("src/") && AUTH_HEURISTIC.test(p)) {
     tags.push("high-risk");
+  }
+  if (p.startsWith("functions/") && !p.startsWith("functions/lib/")) {
+    tags.push("high-risk");
+  }
+  if (/billing/i.test(p) && (p.startsWith("src/") || p.startsWith("functions/"))) {
+    if (!tags.includes("high-risk")) tags.push("high-risk");
   }
 
   if (p.startsWith("src/")) {
@@ -161,6 +264,39 @@ export function classifyPath(filePath) {
   }
 
   return tags;
+}
+
+/**
+ * Sonnet backup (Grok + Sonnet model lines) — rules, auth/PIN/roles, billing/money only.
+ * @param {string} filePath
+ * @returns {boolean}
+ */
+export function requiresSonnetBackup(filePath) {
+  const p = filePath.replace(/\\/g, "/").replace(/^(\.\/)+/, "");
+  if (p === "firestore.rules") {
+    return true;
+  }
+  const inProduct = p.startsWith("src/") || p.startsWith("functions/");
+  if (!inProduct) {
+    return false;
+  }
+  if (AUTH_HEURISTIC.test(p)) {
+    return true;
+  }
+  return /billing|money/i.test(p);
+}
+
+/**
+ * @param {boolean} envValue
+ * @returns {boolean} gate-check never honors GATE_SKIP (testable)
+ */
+export function shouldHonorGateSkip(_env = process.env) {
+  return false;
+}
+
+/** @returns {boolean} */
+export function honorsGateSkip() {
+  return false;
 }
 
 /**
@@ -210,11 +346,12 @@ export function packageJsonHighRisk(baseJson, headJson) {
 }
 
 /**
- * @param {string} prBody
+ * @param {string} prBody raw PR body or evidence text
  * @param {boolean} hasHighRisk
+ * @param {{ requiresSonnetBackup?: boolean, authorAgentIds?: Set<string>, useRawBody?: boolean }} [options]
  * @returns {{ pass: boolean, missing: string[], warnings: string[] }}
  */
-export function checkEvidence(prBody, hasHighRisk) {
+export function checkEvidence(prBody, hasHighRisk, options = {}) {
   /** @type {string[]} */
   const missing = [];
   /** @type {string[]} */
@@ -224,12 +361,35 @@ export function checkEvidence(prBody, hasHighRisk) {
     return { pass: true, missing, warnings };
   }
 
-  if (!hasValidSecurityGateId(prBody)) {
+  const evidenceText = options.useRawBody ? prBody : extractReviewEvidenceText(prBody);
+  const authorIds = options.authorAgentIds ?? new Set();
+
+  if (!hasValidSecurityGateId(evidenceText)) {
     missing.push(MISSING_SECURITY_GATE_ID_HINT);
-  } else if (!hasAllowedGateModel(prBody)) {
-    warnings.push(`optional: ${MISSING_MODEL_LINE_HINT}`);
+  } else {
+    const gateValue = extractSecurityGateIdValue(evidenceText);
+    if (gateValue && gateIdEqualsAuthor(gateValue, authorIds)) {
+      missing.push(AUTHOR_GATE_ID_HINT);
+    }
   }
-  if (!/actual model invocation evidence:/i.test(prBody)) {
+
+  const slugs = extractGateModelSlugs(evidenceText);
+  const needsSonnet = options.requiresSonnetBackup === true;
+
+  if (needsSonnet) {
+    const hasGrok = slugs.some((s) => GROK_GATE_MODELS.includes(s));
+    const hasSonnet = slugs.includes(SONNET_GATE_MODEL);
+    if (!hasGrok) {
+      missing.push(MISSING_GROK_MODEL_HINT);
+    }
+    if (!hasSonnet) {
+      missing.push(MISSING_SONNET_BACKUP_HINT);
+    }
+  } else if (slugs.length === 0) {
+    missing.push(MISSING_MODEL_LINE_HINT);
+  }
+
+  if (!/actual model invocation evidence:/i.test(evidenceText)) {
     warnings.push("actual model invocation evidence: line absent");
   }
 
@@ -414,16 +574,26 @@ export function runGateCheck(base, head, prBody) {
   }
 
   console.log(
-    "Contract: this check verifies string PRESENCE only — it does not prove the Sonnet Task ran (RC-3); forks can forge evidence lines.",
+    "Contract: this check verifies string PRESENCE only — it does not prove the Grok (or escalation) review ran (RC-3); forks can forge evidence lines.",
   );
+
+  const needsSonnetBackup = changedFiles.some((file) => requiresSonnetBackup(file));
 
   if (hasSubstantiveShip) {
     console.log(
-      "NOTE: substantive-ship paths changed — ship-verifier: line required post-ship (post-push, not enforced at PR time)",
+      "NOTE: product paths changed — D-94: no ship-verifier. HIGH needs security-gate-id + model:; MEDIUM and LOW need one Grok accuracy review of Composer code.",
     );
   }
 
-  const evidence = checkEvidence(prBody, hasHighRisk);
+  const authorAgentIds = extractAuthorAgentIds(
+    prBody,
+    process.env.GATE_PR_AUTHOR_AGENT ?? null,
+  );
+
+  const evidence = checkEvidence(prBody, hasHighRisk, {
+    requiresSonnetBackup: needsSonnetBackup,
+    authorAgentIds,
+  });
   for (const warning of evidence.warnings) {
     console.log(`WARN: ${warning}`);
   }
@@ -446,6 +616,11 @@ export function runGateCheck(base, head, prBody) {
 }
 
 function main() {
+  if (process.env.GATE_SKIP === "1") {
+    const where = process.env.CI ? "CI" : "local";
+    console.log(`WARN: GATE_SKIP=1 ignored — gate-check always runs (${where})`);
+  }
+
   const { base, head, prBodyFile, evidenceFromCommits } = parseArgs(process.argv.slice(2));
   const prBody = resolveEvidence({
     envBody: process.env.GATE_PR_BODY ?? null,

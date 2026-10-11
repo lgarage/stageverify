@@ -1,17 +1,17 @@
 ---
-description: Mandatory before/after screenshots on visible UI edits (D-51) — complements Playwright + D-45 + D-42.
-alwaysApply: true
+description: Before/after screenshots for BIG visual changes only (D-94). Theme/layout/redesign — not copy or small CSS.
+alwaysApply: false
+globs: src/**/*.tsx,src/**/*.css
 ---
-
 # UI before/after screenshot gate (D-51)
 
 **Authority:** Dan 2026-07-24 standing preference. **Platform parity:** D-32 — desktop PC, mobile Cursor, cloud VM identical.
 
-## Trigger
+## Trigger (D-94 — big visual changes only)
 
-Any task that will edit **visible UI** in `src/` (layout, copy, colors, components users see, add/remove buttons/fields/nav chrome). Same surface class as D-42, D-45, and `composer-orchestrator.mdc` § UI Verification Protocol.
+Run before/after screenshots only for **big** visual changes: theme, contrast, dark/light, complex layout, or redesign.
 
-**Skip:** TypeScript-only, service logic, no rendered output; rules/docs-only commits with no `src/` UI diff.
+**Skip:** copy, labels, column swaps, small CSS, TypeScript-only, service logic, docs/rules-only, and any UI tweak that is not a visual redesign.
 
 ## Hard sequence (additive — does not replace Playwright)
 

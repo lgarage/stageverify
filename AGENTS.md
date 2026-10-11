@@ -6,7 +6,7 @@ Repository for the StageVerify staging/verification app (React + Firebase). Clou
 
 ## Desktop Windows PC (Cursor)
 
-Same harness as cloud — `.cursor/rules/` **alwaysApply** on desktop (D-20 platform parity). No separate mobile-lite orchestration. **Rule updates:** commit `.cursor/rules/` to the repo; desktop and cloud share the same files on pull — including `mvp-completion-report.mdc` (D-25 MVP % in work replies).
+Same harness as cloud — **D-94** `lean-agent-process.mdc` is the only alwaysApply rule; other `.cursor/rules/` are on-demand (D-32 parity). **Rule updates:** commit `.cursor/rules/` to the repo so desktop and cloud share the same files on pull.
 
 | Task | Command (from `C:\Projects\stageverify`) |
 |------|----------------------------------------|
@@ -16,8 +16,8 @@ Same harness as cloud — `.cursor/rules/` **alwaysApply** on desktop (D-20 plat
 
 Scripts use `path.join` + repo-relative paths — identical on Windows and Linux. `readText()` normalizes CRLF.
 
-`npm ci`/`npm install` auto-installs the pre-push gate hook (`scripts/install-git-hooks.mjs` via npm `prepare`); high-risk direct-to-main commits must carry `security-gate-id:` as a lowercase UUID or `bc-<uuid>` in the commit message; optional `model:` line (D-28/D-29).
-Bypass exists (advisory-vs-malice; use only when Dan approves): `git push --no-verify` works in every shell; the env form is shell-specific — bash `GATE_SKIP=1 git push`, PowerShell `$env:GATE_SKIP="1"; git push`, cmd `set GATE_SKIP=1 && git push` (the hook runs under Git's sh and reads the inherited env on all three).
+`npm ci`/`npm install` auto-installs the pre-push gate hook (`scripts/install-git-hooks.mjs` via npm `prepare`); HIGH commits/PRs must carry `security-gate-id:` as a lowercase UUID or `bc-<uuid>` **and** `model:` matching the D-94 allowlist (`cursor-grok-4.6-high` primary).
+Bypass exists (advisory-vs-malice; use only when Dan approves): `git push --no-verify` works in every shell; the env form is shell-specific — bash `GATE_SKIP=1 git push`, PowerShell `$env:GATE_SKIP="1"; git push`, cmd `set GATE_SKIP=1 && git push` (the hook runs under Git's sh and reads the inherited env on all three). **CI never honors `GATE_SKIP` or `--no-verify`** — PR `gate-check` always runs the real evidence check.
 
 ## Cursor Cloud specific instructions
 
@@ -29,9 +29,9 @@ Bypass exists (advisory-vs-malice; use only when Dan approves): `git push --no-v
 ### Session start
 
 1. Read `PROJECT_STATUS/CURRENT_STATE.md` and `PROJECT_STATUS/MEMORY.md` before coding.
-2. **97 rule (D-47) — alwaysApply:** `.cursor/rules/confidence-gate.mdc` — classify → cheapest sufficient model → honest conf ≥ 97% before any file edit **and** before DONE; never inflate conf; ≥97% does not waive D-38/D-60/ship gates. No reminder required.
-3. **Planning questions** (“what’s next”, “what can mobile do”, ranked options): **`git fetch origin main && git pull origin main`** first — then follow `.cursor/rules/parallel-agent-strategy.mdc` § Planning question protocol.
-4. Follow `.cursor/rules/` **alwaysApply** rules identically to desktop — ship-loop tiers, repair loop, planning verify loop, Q&A verify loop, hot-tier auto-sync (D-23), verification ladder, security gate, stall-advisor, **MVP completion % reporting** (`mvp-completion-report.mdc`, D-25), and mandatory evidence lines (`model-gates.mdc` § Platform parity, D-20 onward incl. D-32/D-35). **Parity is the default for every new rule (D-32)** — new rules bind desktop PC, mobile Cursor, and cloud VM identically from creation; only physically-impossible exceptions, documented here. **Environment is auto-detected (D-35)** — never keyed to Dan saying "phone/mobile"; device mentions are ergonomic context only. No mobile-lite orchestration.
+2. **D-94 lean process — the only alwaysApply rule:** `.cursor/rules/lean-agent-process.mdc` — classify HIGH / MEDIUM / LOW; Composer codes first (ladder 1–5); Grok reviews all Composer code including LOW; HIGH Grok review may double as `security-gate-id:` + `model:` if it covers security; Sonnet backup only (rules / auth/PIN / money, Grok FAIL/HIGH, ladder-5, or Dan); record `ladder-step:`; Dan approves every merge and deploy. Other `.cursor/rules/*` are on-demand.
+3. **Planning questions** (“what’s next”, “what can mobile do”, ranked options): **`git fetch origin main && git pull origin main`** first.
+4. Desktop, mobile Cursor, and cloud VM share the same repo rules (D-32). **Environment is auto-detected (D-35)** — never keyed to Dan saying "phone/mobile". No mobile-lite orchestration.
 5. For scope disputes, load `PROJECT_STATUS/svscope_simple.md` on demand only.
 
 ### Harness parity exceptions (mobile/cloud only)
@@ -39,14 +39,13 @@ Bypass exists (advisory-vs-malice; use only when Dan approves): `git push --no-v
 Differs from desktop **only** where physically impossible — document here, not in separate rule files:
 
 - **Secrets** — Dan must set `STAGEVERIFY_TEST_EMAIL`, `STAGEVERIFY_TEST_PASSWORD`, and optional `FIREBASE_TOKEN` in Cursor Environments UI (see below).
-- **Ship to main / gh-pages** — default: feature branch + PR from cloud. **Exception (D-27):** **mobile UI changes** → always merge to `main` + `npm run deploy` after verify (see `.cursor/rules/mobile-ui-ship.mdc`). Dan may still say “PR only” or “hold deploy” to override.
+- **Ship to main / gh-pages** — default: feature branch + **draft PR**. **D-94:** Dan approves every merge and deploy (including mobile UI). No auto-merge. No auto-deploy.
 
 ### Ship workflow from cloud
 
-- Prefer a **feature branch + PR** for non-mobile UI work; do **not** push to `main` unless Dan explicitly says so or **mobile-ui-ship.mdc** applies.
-- **Mobile UI (D-27):** merge to `main`, push, `npm run deploy` — Dan tests on iPhone at https://lgarage.github.io/stageverify.
-- Full local ship-loop (build → Playwright → commit → push → `npm run deploy`) on cloud is branch/PR-only unless mobile UI rule or explicit prompt allows main push; **desktop Windows PC** runs the full loop locally by default.
-- **High-risk** changes still need Dan approval **before** implement/deploy: Cloud Functions (`functions/**`), `firestore.rules`, auth/session/route guards, Gmail watch/Pub/Sub, secrets/config, schema migrations.
+- Prefer a **feature branch + draft PR**. Do **not** push to `main` or merge unless Dan approved (D-94).
+- After Dan approves deploy: `npm run deploy` for the FE bundle; CF/rules only when that approval named those targets. Rollback hash before deploy; smoke after.
+- **HIGH** (D-94): `firestore.rules`, auth/PIN/roles, core-loop write CFs, billing, CI/gate — Grok reviews the final diff; that review may double as `security-gate-id:` + `model:` if it covers security. Sonnet backup only (rules / auth/PIN/roles / billing, Grok FAIL/HIGH, ladder-5, or Dan asks). Record `ladder-step:`. No D-60 four-pass loop.
 
 ### Required secrets (names only — set in Cursor Environments dashboard)
 

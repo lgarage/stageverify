@@ -16,17 +16,17 @@
 | `encode-qr` | building QR URLs | `buildEslTagQrUrl` + `EslQrCode` — dispatcher print = zone e-tag; `forPrint` → prod base; long `#/receive?` / `#/pickup?` forms emitted (compact `#/r?` / `#/p?` parse-only legacy) |
 | `html5-qr-type` | camera scanner | `Html5QrcodeInstance` from `qrScannerTypes.ts` — no `any` |
 | `delivery-status` | new `DeliveryStatus` | update `RECEIVE_BLOCKED` and `ZONE_CLEARED` in same change |
-| `backend-critical` | rules, CF writes, schema, auth/PIN, security-sensitive | archetype `backend-write-critical` / T3; **D-60** Sonnet pre → builder → Grok adversarial → Sonnet final → **D-38**; CF/rules deploy need Dan approval |
-| `billing` | model / tier pick | D-92: Grok 4.6 preferred orch; Composer default implementer; D-93 capable-model plan/verify + Composer implement; Sol visual; Sonnet 5 PROTECTED D-60/D-38; D-65 ≤1 Grok on routine T1; one Composer repair then Grok takeover of same verified defect |
+| `backend-critical` | rules, CF writes, schema, auth/PIN, security-sensitive | **D-94 HIGH:** Grok reviews the final diff (`security-gate-id:` + `model:` if it covers security). Sonnet backup only. Coding ladder in `lean-agent-process.mdc`. |
+| `billing` | model / tier pick | **D-94:** Composer codes first (ladder); Grok reviews all Composer code including LOW; HIGH review may double as security; Sonnet backup only. |
 | `agent-lessons` | repeating mistakes, QR/hash races, "say fixed" too early | Read **§ agent-lessons** (+ Diagnose before tweak) before public routes / scan fixes |
 | `delivery-display-wiring` | list filter, drawer status, partial @ qty=0, unit counts | Read **§ delivery-display-wiring** before dispatcher list/drawer readiness edits |
 | `scope-rejections` | portal nav, Settings vs Vendors, duplicate sidebar | **≤8 rows** in `USER_SCOPE_REJECTIONS.md` only when editing that nav |
-| `composer-trace` | 1st fail → self-trace prep; 2nd same fingerprint → Grok stall-advisor; **3rd fail same scope → D-50** stuck Agree + Grok implement | **§ Composer without Sonnet** — see `model-gates.mdc` § 2-fail + § 3-fail + § Grok stall-advisor |
+| `composer-trace` | Composer check-fail → coding ladder | **D-94 ladder** in `lean-agent-process.mdc`: Composer checks → Grok iterates → exact instruct + one try → Grok writes → Sonnet only if Grok cannot |
 | `stall-advisor` | 2nd consecutive same-failure stall mid-task | **§ Stall Advisor — Grok 4.5 Fast** (tier 1b) — SSOT in `model-gates.mdc` § Grok stall-advisor auto-invoke |
 | `critical-reviewer` | major architecture/harness/workflow decisions pre-finalize | **§ Critical Reviewer — Grok 4.5 Fast** — triggers in `model-gates.mdc` § Critical Reviewer auto-invoke |
 | `work-verifier` | Fable-spec phase boundaries, Ship Verifier escalations, "fable verify" | **§ Work Verifier — Fable 5** (tier 3 only) — triggers in `model-gates.mdc` § Work Verifier auto-invoke |
-| `ship-verifier` | post-ship verification after every substantive ship | **§ Ship Verifier — Grok 4.5 Fast** (tier 1) — SSOT in `model-gates.mdc` § Ship Verifier auto-invoke |
-| `build-checker` | pre-commit check that Composer’s uncommitted diff matches agreed solution | **§ Build Checker — Grok 4.5 Fast** (tier 1g) — SSOT in `model-gates.mdc` § Solution deliberation Phase 3 / D-43; PASS before `git commit` |
+| `ship-verifier` | dropped (D-94) | Do not run. Tests + PR CI are the safety net. |
+| `build-checker` | dropped (D-94) | Do not run. |
 | `ui-playwright-verifier` | visible UI edit in `src/` — Playwright route verify + D-42 judgment before commit | **§ UI Playwright Verifier — Grok 4.5 Fast** (tier 1h) — SSOT in `model-gates.mdc` § UI Playwright Verifier / D-45; D-63 readability + Grok independent pass; PASS before `git commit` on UI ships |
 | `ui-ux-routing` | UI implementer pick, Sol vs Composer, readability evidence | **D-63/D-65/D-93** — simple UI Composer; visual-judgment Sol inspect/instruct/verify, Composer implements; SSOT `ui-model-routing.json` v4 |
 
@@ -43,16 +43,13 @@
 - Occupancy map: `mapActiveZoneOccupancyByCode`.
 
 ## § billing
-- **D-92:** Grok 4.6 preferred orchestrator; Composer 2.5 Fast default implementer; Sol (`gpt-5.6-sol-high`) visual-judgment authority; Sonnet 5 PROTECTED D-60/D-38. Grok reviews the actual Composer diff; one Composer repair; same verified defect still open → Grok takeover of that scope only (does not bypass Sonnet; does not steal Sol).
-- **D-93:** When an existing higher-model gate fires, that capable model plans+verifies; Composer implements after the instruction packet (Sol inspect/instruct/verify for visual-judgment UI).
-- **D-65:** Simple UI → Composer + mechanical verify; visual-judgment UI → Sol Task inspect+instruct, Composer implements; do not stack 3–4 Grok lanes on routine T1.
-- Sonnet 5 (`claude-sonnet-5-thinking-high`) = **PROTECTED** D-38 + D-60 (on-demand). D-65 must not N/A the T3 loop.
-- **Public Firestore writes:** code fix + `firebase deploy --only firestore:rules` in the same session — `npm run deploy` (gh-pages) does not ship rules. CF/rules deploy still need explicit Dan approval.
+- **D-94:** Composer 2.5 Fast codes first (ladder 1–5). Grok always reviews all Composer-written code, including LOW. HIGH: that review may double as `security-gate-id:` + `model:` if it covers security. Sonnet 5 is optional backup only (rules / auth/PIN/roles / billing, Grok FAIL/HIGH, ladder-5, or Dan asks). Record `ladder-step:`.
+- **Public Firestore writes / CF deploy:** Dan approves merge and deploy. `npm run deploy` (gh-pages) does not ship rules.
 
 ## § backend-critical
-- **D-60 sequence (mandatory):** Sonnet 5 pre-review (`sonnet-instruct:`) → cheapest D-65 builder → Grok adversarial (`high-risk-adversarial:`) + iterate → Sonnet 5 final (`sonnet-verify:` PASS|FAIL|PARTIAL) → D-38 (`security-gate-id`) → Dan deploy approval for CF/rules.
-- Fail-closed if any mandatory reviewer cannot run; do not downgrade to cheap path.
-- SSOT: `.cursor/rules/high-risk-sonnet-loop.mdc`; discovery: `node scripts/verify-high-risk-loop-discovery.mjs`.
+- **D-94 HIGH:** Grok reviews the final diff. That review may double as `security-gate-id:` + `model: cursor-grok-4.6-high` if it covers security. Replaces `sonnet-instruct` / `high-risk-adversarial` / `sonnet-verify`. Sonnet backup only. Coding ladder + `ladder-step:` in `lean-agent-process.mdc`.
+- Dan approves every merge and every CF/rules deploy. Rollback hash before deploy; smoke after. No gate bypass.
+- SSOT: `.cursor/rules/lean-agent-process.mdc`; discovery: `node scripts/verify-high-risk-loop-discovery.mjs`.
 
 ## § agent-lessons (2026-06-02 — pickup portal arc)
 

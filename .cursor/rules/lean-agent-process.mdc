@@ -1,0 +1,63 @@
+---
+description: Lean agent process (D-94) — three risk tiers, coding ladder, Grok reviews all Composer code.
+alwaysApply: true
+---
+
+# StageVerify lean agent process (D-94)
+
+SSOT for review lanes, merge/deploy, and always-loaded rules. **Supersedes D-60 and D-65.** Amends D-92 / D-93 (Composer still codes first; extra model passes run only when this file says so). Older `.cursor/rules/*` files are on-demand — if they conflict with this file, **this file wins**.
+
+## One job
+
+One small job per agent. PR body: what changed, why, how to test, rollback, `ladder-step:`. No reviewer swarms.
+
+## Risk tiers (classify by path before you edit)
+
+**HIGH** — `firestore.rules`; auth / PIN / roles (client or CF); **all Cloud Functions under `functions/` except `functions/lib/`** (D-28); billing; CI / gate config (`.github/workflows/`, `firebase.json`, `scripts/gate-check.mjs`, `scripts/install-git-hooks.mjs`, `scripts/ship-evidence-preflight.mjs`, root `package.json` scripts / deploy wiring). Ambiguous → HIGH.
+
+**MEDIUM** — other backend or multi-file changes that are not HIGH.
+
+**LOW** — UI, copy, docs, `PROJECT_STATUS/`, on-demand rules.
+
+## Coding ladder (Composer first)
+
+Record the highest step reached in the PR body as `ladder-step: 1` … `ladder-step: 5`.
+
+1. Composer writes the code and runs its own checks (build, tests, self-check).
+2. If those checks fail **once**, escalate to Grok, who iterates with Composer.
+3. If Composer still fails, Grok gives **exact, specific** instructions and Composer gets **one** more attempt.
+4. If that fails, Grok writes the code for **that issue** itself and verifies it.
+5. Grok escalates to Sonnet **only** after Grok has tried and determined it cannot solve the problem.
+
+## Reviews
+
+- Composer 2.5 Fast does all routine coding (UI and non-UI).
+- **Grok always reviews all Composer-written code** for accuracy before a PR is marked ready — **every tier, including LOW**.
+- **HIGH:** that Grok review may **double** as the required security review if it covers security. Record `security-gate-id:` (lowercase UUID or `bc-<uuid>`) **and** `model: <slug used>` (`cursor-grok-4.6-high` primary; `cursor-grok-4.6-xhigh` allowed). Reject `NOT RUN`, empty, and junk. This **replaces** `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`. If the accuracy review did not cover security, run a separate Grok security review and record the same lines.
+- **MEDIUM / LOW:** Grok accuracy review. No `security-gate-id` unless the change is HIGH.
+- **Sonnet backup (required in addition to Grok on rules/auth/billing — gate-check enforced):** record **both** a Grok allowlisted `model:` and `claude-sonnet-5-thinking-high` for `firestore.rules`, auth/PIN/roles, or billing/money. Also use Sonnet when the Grok HIGH review returns FAIL / a HIGH finding, ladder step 5, or when Dan asks. CI/gate-config-only HIGH does not require Sonnet backup.
+- **Dropped:** `solution-verifier`, `build-checker`, `ship-verifier`. Do not run them.
+- **UI screenshots:** only for **big** visual changes (theme, contrast, complex layout, redesign). Not for copy, labels, or small CSS.
+
+HIGH review how-to (on-demand): `.cursor/rules/security-review-gate.mdc`. Cloud agents may record `security-gate-id: bc-<uuid>` from a real security-review run — do not invent ids.
+
+## Tests are the safety net
+
+CI on every PR must pass: `npm ci`, app build, functions build, `tsc`, and the Firestore emulator suites in `.github/workflows/pr-ci.yml`. Do not merge on red CI.
+
+## Non-negotiables
+
+1. A **real recorded** HIGH review (`security-gate-id:` + `model:`).
+2. Tests and the build pass before merge.
+3. **Dan approves every merge and every deploy.** No auto-merge. No auto-deploy. Draft PRs are the default from cloud.
+4. A **rollback point** (commit hash / prior CF revision) before every deploy, and a **smoke test** after.
+5. **No gate bypass.** Do not use `GATE_SKIP`, `--no-verify`, or forged ids to skip HIGH review. Local `GATE_SKIP` / `--no-verify` only affect the optional pre-push hook — **CI `gate-check` always runs** and never honors `GATE_SKIP`.
+6. One small job per agent; notes in the PR body including `ladder-step:`.
+
+## Merge and deploy
+
+Branch + PR. Dan merges. Dan authorizes deploy (gh-pages, Cloud Functions, Firestore rules) separately. After deploy: smoke the path you changed; keep the rollback hash ready.
+
+## Minew / NDA
+
+Never commit or paste Minew API docs, credentials, or platform internals. HTTP calls server-side only (`functions/src/`). Public UI uses StageVerify QR URLs (`#/r?`, `#/p?`) only.

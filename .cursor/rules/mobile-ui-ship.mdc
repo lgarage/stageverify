@@ -1,8 +1,8 @@
 ---
-description: Dan standing preference — mobile UI requests ship merge+deploy to gh-pages for phone testing.
-alwaysApply: true
+description: Phone-first UI surfaces. D-94: Dan still approves merge and deploy.
+alwaysApply: false
+globs: src/**/*Pickup*,src/**/*Receiv*,src/**/*Vendor*,src/**/*LocationScan*
 ---
-
 # Mobile UI — merge and deploy (Dan standing preference)
 
 **Authority:** D-27. Overrides cloud branch-only default (`AGENTS.md`) and generic “wait for merge/deploy ask” for this class only. `ship-loop.mdc` still governs build, verify, tiers, and deploy gates.
@@ -22,13 +22,13 @@ Dan asks for a **mobile UI change** — layout, copy, buttons, colors, visibilit
 
 ## Mandatory completion (all clients — desktop, mobile Cursor, cloud VM)
 
-When implementation is **fast-safe** and validation passes, finish with **merge + deploy** without Dan saying “merge”, “deploy”, or “ship it”:
+When implementation is **LOW** and validation passes, open a draft PR and wait for **Dan to approve merge and deploy** (D-94). Do not auto-merge or auto-deploy:
 
 1. **Before/after (D-51)** — per `.cursor/rules/ui-before-after.mdc` on the affected mobile route(s) before first edit and after build.
 2. **Build** — `npm run build` clean.
 3. **Verify** — Playwright on the affected mobile route (`verify:pickup`, `verify:vendor-delivered`, demo flow, or route script). UI change without passing verify = not done.
-4. **Merge** — if work is on a feature branch, merge to `main` and push (cloud agents: **do not** stop at draft PR).
-5. **Deploy** — `npm run deploy`; confirm live bundle matches `dist/` (retry after 15s if gh-pages propagation lag).
+4. **PR** — feature branch + draft PR. Dan merges.
+5. **Deploy** — only after Dan approves deploy; then `npm run deploy` and confirm live bundle matches `dist/`.
 6. **Reply** — live URL `https://lgarage.github.io/stageverify` + phone test link (vendor: `product-guardrails.mdc` § Vendor phone test).
 
 ## Hard stops (unchanged)

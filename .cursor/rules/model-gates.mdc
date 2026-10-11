@@ -1,7 +1,8 @@
 ---
-description: Pre-edit dispatch + post-change model audit — archetype, tier, escalation, security pointer.
-alwaysApply: true
+description: Historical model-routing detail. D-94 lean-agent-process.mdc is SSOT for review lanes.
+alwaysApply: false
 ---
+> **D-94:** Review lanes, merge/deploy, and always-loaded context live in `.cursor/rules/lean-agent-process.mdc`. If this file conflicts, **D-94 wins**. Do not run `sonnet-instruct`, `high-risk-adversarial`, `sonnet-verify`, `solution-verifier`, `build-checker`, or `ship-verifier`.
 
 # Model Gates (pre-edit + post-change)
 
@@ -19,7 +20,7 @@ Single authoritative model-routing definition. Other harness files pointer-refer
 
 - **Verifier:** Grok family when a D-65 lane actually fires. Mechanical Task slug remains repo-approved `cursor-grok-4.5-high-fast`. If rejected → fallback `cursor-grok-4.6-high-fast`. Parent Grok 4.6 may in-session review when it is the parent. **Parent Grok in-session review does not create or replace a D-65 Task lane.** Do not reintroduce mandatory multi-Grok stacks.
 
-- **Security/high-risk authority:** Sonnet 5 (`claude-sonnet-5-thinking-high`) owns D-60 `sonnet-instruct:` + `sonnet-verify:` and D-38 `security-gate-id`. Grok 4.6 orchestrates but does **not** replace Sonnet. Grok adversarial remains Grok (`high-risk-adversarial:`). Composer may implement mechanical code under Sonnet constraints. Do not downgrade any Sonnet gate to Grok. Retired Sonnet 4.6 Task slugs are unavailable (D-38 2026-08-08) — authority **is** Sonnet 5; do not call Sonnet 5 a “preferred Sonnet 4.6”.
+- **Security/HIGH authority (D-94):** Grok always reviews all Composer-written code (including LOW). HIGH: that review may double as `security-gate-id:` + `model:` if it covers security. This replaces `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`. Sonnet 5 is optional backup only (`firestore.rules` / auth/PIN/roles / billing, Grok FAIL/HIGH, ladder-5, or Dan asks). Do not downgrade HIGH to Composer.
 
 ### Implementer lock (hard STOP)
 
@@ -56,7 +57,7 @@ Applies when parent is **Grok 4.6** and implementer is **Composer 2.5 Fast** (ro
 
 Parent Grok in-session review of the actual diff **is** this review — it does **not** create or replace a D-65 Task lane. This is an explicit D-50-style exception, **not** permission for Grok to implement routine work from the start.
 
-**Does not bypass** D-60 / Sonnet 5 / D-38. High-risk takeover still needs `sonnet-instruct:` / `high-risk-adversarial:` / `sonnet-verify:` / `security-gate-id`. Grok must not self-approve protected security-sensitive changes.
+**Does not bypass** D-94 HIGH review / D-38. HIGH takeover still needs a real `security-gate-id:` on the final diff. Grok must not self-approve HIGH changes.
 
 **vs D-50/D-55:** this loop is the Composer-implementation-review path only. D-50 remains for other counted fails (build / Playwright / Ship Verifier / mixed). Do not require a second Composer retry after this loop already handed the same defect to Grok. Do not skip D-50 Agree when the fail class is D-50’s (e.g. 2× Ship Verifier).
 
@@ -81,7 +82,7 @@ Does **not** dispatch extra premium models on cheap Composer-only T0/T1 that D-6
 Role instances (authority unchanged; implementation typing defaults to Composer):
 - **Composer 2.5 Fast:** normal implementer; receives the instruction packet when a higher-model gate is active.
 - **Grok 4.6:** architecture/system/cross-system reasoning authority where existing routing invokes Grok; inspects evidence first; writes Composer instructions; verifies actual output; existing D-92 one-repair takeover unchanged.
-- **Sonnet 5 (`claude-sonnet-5-thinking-high`):** remains the protected D-60/D-38/security/data-integrity authority. Sonnet inspects the protected scope and writes Composer’s protected implementation instructions (`sonnet-instruct:`); Composer implements only inside that packet; D-60 Grok adversarial remains between builder and Sonnet final; Sonnet verifies the actual protected diff (`sonnet-verify:`); Composer repairs; Sonnet re-verifies. Fail-closed + explicit Dan CF/rules deploy approval remain fully intact. Do not downgrade any Sonnet gate to Grok.
+- **Grok 4.6 (`cursor-grok-4.6-high`):** D-94 HIGH review — one final-diff security review (`security-gate-id:` + `model:`). Do not run `sonnet-instruct` / Grok adversarial / `sonnet-verify`. **Sonnet 5** is optional escalation only. Dan still approves every CF/rules deploy.
 - **Sol (`gpt-5.6-sol-high`):** remains visual UI/UX authority where the existing visual gate applies. Sol inspects screenshots/current UI/reference evidence; writes Composer’s concrete UI instructions; Composer makes the UI edits; Sol inspects the **actual** before/after; Sol writes repair instructions as needed; repeat until Sol explicitly PASSes under existing D-51/D-42/D-63/97 requirements. Silent Composer on visual-judgment UI (no Sol inspect+instruct) = **NOT RUN**. Parent already Sol Medium may implement visual-judgment UI inline. Grok must not self-approve Sol visual pass/fail.
 
 Preserve: universal 97-confidence, D-65, D-60, D-38, D-69, D-50/D-55/D-62, fail-closed, Dan deploy authorization, current-main, scope locks, ship/testing requirements.
@@ -298,8 +299,7 @@ Complete ship loop (`ship-loop.mdc`) before declaring done for code/config chang
 | 1f (cheap) | Grok 4.5 Fast — **Solution Verifier** | Pre-implementation approach agreement | Only when multiple paths / unclear SoT / ambiguous data model / multi-file diverge risk (§ D-36; D-65) |
 | 1g (cheap) | Grok 4.5 Fast — **Build Checker** | Judgment on uncommitted diff vs scope | When interpretation/diagnosis/moderate-high/cross-boundary — **not** to re-run green mechanical build (§ D-65) |
 | 1h (cheap) | Grok 4.5 Fast — **UI Playwright Verifier** | UI judgment from logs/screenshots; live re-run only when criteria met | Visual-judgment UI or incomplete evidence — **not** auto re-run after worker verify PASS (§ D-45; D-65). High-risk → N/A (D-60) |
-| 2a (security) | Sonnet 5 + Grok — **High-risk iterative review (D-60)** | Sonnet pre-review Agree → builder → Grok adversarial (iterate) → Sonnet final PASS\|FAIL\|PARTIAL | High-risk/T3 per `high-risk-sonnet-loop.mdc`; evidence `sonnet-instruct:` + `high-risk-adversarial:` + `sonnet-verify:` |
-| 2 (security) | Sonnet 5 | **D-38 security gate** pre-push diff verdict per `security-review-gate.mdc` | Existing triggers, PLUS Ship Verifier flags security-relevant diff without `security-gate-id` |
+| 2 (security) | Sonnet 5 | **D-94 HIGH review** of the final diff per `security-review-gate.mdc` | HIGH paths only. Evidence `security-gate-id:`. Replaces D-60 four-pass + separate D-38 stack. |
 | 3 (rare) | Fable 5 — **Work Verifier** | Deep verification: spec phase boundaries, escalations, Dan-invoked | Fable-spec phase boundary; Ship Verifier escalates ambiguity/architecture; Dan says "fable verify" |
 
 Evidence standard (every tier): Task id + model line in the report, else **NOT RUN**. After each verifier/gate verdict, log via `npm run verifier:log -- --role <role> --verdict <verdict> --task-id <id> --model <slug>`; `--real yes|no` labels non-PASS findings only (real vs noise; PASS rows stay `na`); `npm run verifier:stats` finding-precision output is admissible evidence for Harness V1 Freeze (D-16) decisions.
