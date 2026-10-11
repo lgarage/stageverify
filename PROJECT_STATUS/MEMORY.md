@@ -4,9 +4,9 @@
 
 ## Session start (hot tier — STOP)
 
-1. `PROJECT_STATUS/CURRENT_STATE.md` — always first: phase, blockers, last shipped.
-2. `PROJECT_STATUS/MEMORY.md` — this router + narrow "what's next".
-3. **D-94 lean process:** classify HIGH / MEDIUM / LOW from `.cursor/rules/lean-agent-process.mdc`. Composer codes first (ladder). Grok reviews all Composer code including LOW. HIGH review may double as `security-gate-id:` + exact `model:` (Grok + Sonnet on rules/auth/billing). CI gate-check ignores GATE_SKIP. Record `ladder-step:`. Dan approves merge/deploy.
+1. **PR #257 process:** `.cursor/rules/lean-agent-process.mdc` + `PROJECT_STATUS/STATE_SUMMARY.md` only at start.
+2. `git fetch origin main && git pull origin main`; `git merge-base --is-ancestor a69dc81c HEAD`. `npm run gate:tier` before coding. Open `CURRENT_STATE.md` / this file / `DECISIONS.md` only when needed.
+3. Grok reviews all Composer code; Sonnet **required** on rules/auth/billing paths (no end date); Dan approves merge/deploy.
 
 **On demand (not session start):** `svscope_simple.md` (scope disputes) · **`PROJECT_STATUS/MVP_PATH.md`** (MVP %, fastest path, planning/priority) · **`npm run away:next -- --packet`** (coding sessions — queue brief + dossier slices first) · `npm run dossier:slice -- --tag <tag>` (MODEL_DOSSIER § — not full file).
 

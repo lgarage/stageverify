@@ -4,6 +4,7 @@
 name: gate-check
 on:
   pull_request:
+    # edited: re-run when PR body changes (reviewed-commit vs head, post-review-commits)
     types: [opened, edited, synchronize, reopened]
     branches: [main]
 permissions:

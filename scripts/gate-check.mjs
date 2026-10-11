@@ -345,6 +345,287 @@ export function packageJsonHighRisk(baseJson, headJson) {
   return false;
 }
 
+export const MISSING_REVIEWED_COMMIT_HINT = "reviewed-commit: <7-40 hex sha of reviewed commit>";
+
+/**
+ * @param {string} rawBody
+ * @returns {string | null}
+ */
+export function extractReviewedCommit(rawBody) {
+  const evidence = extractReviewEvidenceText(rawBody);
+  const m = evidence.match(/reviewed-commit:\s*([0-9a-f]{7,40})/i);
+  return m ? m[1].toLowerCase() : null;
+}
+
+/**
+ * @param {string} rawBody
+ * @returns {string[]}
+ */
+export function extractPostReviewCommits(rawBody) {
+  const evidence = extractReviewEvidenceText(rawBody);
+  const m = evidence.match(/post-review-commits:\s*([^\n]+)/i);
+  if (!m) {
+    return [];
+  }
+  return m[1]
+    .split(/\s+/)
+    .map((s) => s.replace(/[,;`]/g, "").trim())
+    .filter((s) => /^[0-9a-f]{7,40}$/i.test(s))
+    .map((s) => s.toLowerCase());
+}
+
+/**
+ * Test fixture paths only — not *.test.mjs or general test logic.
+ * @param {string} p
+ * @returns {boolean}
+ */
+export function isTestFixturePath(p) {
+  const norm = p.replace(/\\/g, "/").replace(/^(\.\/)+/, "");
+  if (/(?:^|\/)(?:fixtures|testdata|__fixtures__)(?:\/|$)/i.test(norm)) {
+    return true;
+  }
+  const base = norm.split("/").pop() ?? norm;
+  return /fixture/i.test(base);
+}
+
+/**
+ * Prefix-safe SHA compare (minimum 7 hex).
+ * @param {string | null | undefined} a
+ * @param {string | null | undefined} b
+ * @returns {boolean}
+ */
+export function shaEquals(a, b) {
+  if (!a || !b) {
+    return false;
+  }
+  const na = a.toLowerCase();
+  const nb = b.toLowerCase();
+  if (na === nb) {
+    return true;
+  }
+  const shorter = na.length <= nb.length ? na : nb;
+  const longer = na.length <= nb.length ? nb : na;
+  if (shorter.length < 7) {
+    return false;
+  }
+  return longer.startsWith(shorter);
+}
+
+/**
+ * @param {string | null | undefined} listedSha
+ * @param {string} commitSha
+ * @param {string[]} listedPostReviewCommits
+ * @returns {boolean}
+ */
+function postReviewCommitListed(listedSha, commitSha, listedPostReviewCommits) {
+  if (listedSha && shaEquals(listedSha, commitSha)) {
+    return true;
+  }
+  return listedPostReviewCommits.some((s) => shaEquals(s, commitSha));
+}
+
+/**
+ * HIGH-tier reviewed-commit policy (presence + fixture-only follow-ups).
+ * @param {{
+ *   reviewedCommit: string | null,
+ *   headSha: string | null,
+ *   commitsAfter: { sha: string, files: string[] }[] | null,
+ *   listedPostReviewCommits: string[],
+ * }} input
+ * @returns {{ pass: boolean, reason?: string }}
+ */
+export function evaluateReviewedCommit(input) {
+  const { reviewedCommit, headSha, commitsAfter, listedPostReviewCommits } = input;
+
+  if (!reviewedCommit) {
+    return { pass: false, reason: MISSING_REVIEWED_COMMIT_HINT };
+  }
+  if (headSha && shaEquals(reviewedCommit, headSha)) {
+    return { pass: true };
+  }
+  if (commitsAfter === null) {
+    return { pass: false, reason: "reviewed-commit: cannot resolve commits after reviewed SHA (fail-up)" };
+  }
+  if (commitsAfter.length === 0) {
+    return { pass: false, reason: MISSING_REVIEWED_COMMIT_HINT };
+  }
+
+  for (const commit of commitsAfter) {
+    const files = commit.files.filter(Boolean);
+    if (files.length === 0) {
+      continue;
+    }
+    const allFixture = files.every((f) => isTestFixturePath(f));
+    if (!allFixture) {
+      return {
+        pass: false,
+        reason: `reviewed-commit: non-fixture changes after review (${commit.sha.slice(0, 7)})`,
+      };
+    }
+    if (!postReviewCommitListed(null, commit.sha, listedPostReviewCommits)) {
+      return {
+        pass: false,
+        reason: "post-review-commits: list every fixture-only commit after reviewed-commit",
+      };
+    }
+  }
+
+  return { pass: true };
+}
+
+/**
+ * @param {string[]} filePaths
+ * @returns {boolean}
+ */
+function isLowSingleSrcUiDiff(filePaths) {
+  let substantiveSrcCount = 0;
+  for (const file of filePaths) {
+    const tags = classifyPath(file);
+    if (tags.includes("high-risk")) {
+      return false;
+    }
+    if (tags.includes("excluded")) {
+      continue;
+    }
+    const p = file.replace(/\\/g, "/").replace(/^(\.\/)+/, "");
+    if (p.startsWith("src/") && tags.includes("substantive-ship")) {
+      substantiveSrcCount++;
+      continue;
+    }
+    return false;
+  }
+  return substantiveSrcCount === 1;
+}
+
+/**
+ * @param {string[]} filePaths
+ * @param {{ packageJsonHighRisk?: boolean }} [options]
+ * @returns {"HIGH" | "MEDIUM" | "LOW"}
+ */
+export function classifyDiffTier(filePaths, options = {}) {
+  if (options.packageJsonHighRisk === true) {
+    return "HIGH";
+  }
+  if (!filePaths?.length) {
+    return "LOW";
+  }
+
+  let substantiveCount = 0;
+  for (const file of filePaths) {
+    const tags = classifyPath(file);
+    if (tags.includes("high-risk")) {
+      return "HIGH";
+    }
+    if (tags.includes("substantive-ship")) {
+      substantiveCount++;
+    }
+    if (tags.length === 0) {
+      return "HIGH";
+    }
+    const p = file.replace(/\\/g, "/").replace(/^(\.\/)+/, "");
+    if (p === "package.json" && !tags.includes("excluded")) {
+      return "HIGH";
+    }
+  }
+
+  const allExcluded = filePaths.every((f) => classifyPath(f).includes("excluded"));
+  if (allExcluded) {
+    return "LOW";
+  }
+  if (substantiveCount >= 2) {
+    return "MEDIUM";
+  }
+  if (isLowSingleSrcUiDiff(filePaths)) {
+    return "LOW";
+  }
+
+  const hasNonExcluded = filePaths.some((f) => !classifyPath(f).includes("excluded"));
+  if (hasNonExcluded) {
+    return "MEDIUM";
+  }
+
+  return "LOW";
+}
+
+/**
+ * @param {string} ref
+ * @returns {string | null}
+ */
+function resolveGitSha(ref) {
+  try {
+    return execFileSync("git", ["rev-parse", ref], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    })
+      .trim()
+      .toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @param {string | null} reviewedCommit
+ * @param {string} headRef
+ * @returns {{ sha: string, files: string[] }[] | null}
+ */
+function resolveCommitsAfterReview(reviewedCommit, headRef) {
+  if (!reviewedCommit) {
+    return null;
+  }
+  const headSha = resolveGitSha(headRef);
+  if (!headSha) {
+    return null;
+  }
+  if (shaEquals(reviewedCommit, headSha)) {
+    return [];
+  }
+  /** @type {string} */
+  let range;
+  try {
+    execFileSync("git", ["merge-base", "--is-ancestor", reviewedCommit, headSha], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    range = `${reviewedCommit}..${headSha}`;
+  } catch {
+    return null;
+  }
+  let out;
+  try {
+    out = execFileSync("git", ["rev-list", "--reverse", range], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch {
+    return null;
+  }
+  const shas = out
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  /** @type {{ sha: string, files: string[] }[]} */
+  const commits = [];
+  for (const sha of shas) {
+    let filesOut;
+    try {
+      filesOut = execFileSync("git", ["diff-tree", "--no-commit-id", "--name-only", "-r", sha], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch {
+      return null;
+    }
+    commits.push({
+      sha: sha.toLowerCase(),
+      files: filesOut
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean),
+    });
+  }
+  return commits;
+}
+
 /**
  * @param {string} prBody raw PR body or evidence text
  * @param {boolean} hasHighRisk
@@ -443,7 +724,14 @@ function getChangedFiles(base, head) {
 
 /**
  * @param {string[]} args
- * @returns {{ base: string, head: string, prBodyFile: string | null, evidenceFromCommits: boolean }}
+ * @returns {{
+ *   base: string,
+ *   head: string,
+ *   prBodyFile: string | null,
+ *   evidenceFromCommits: boolean,
+ *   classifyOnly: boolean,
+ *   classifyFiles: string | null,
+ * }}
  */
 function parseArgs(args) {
   let base = "origin/main";
@@ -451,6 +739,9 @@ function parseArgs(args) {
   /** @type {string | null} */
   let prBodyFile = null;
   let evidenceFromCommits = false;
+  let classifyOnly = false;
+  /** @type {string | null} */
+  let classifyFiles = null;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -462,10 +753,14 @@ function parseArgs(args) {
       prBodyFile = args[++i];
     } else if (arg === "--evidence-from-commits") {
       evidenceFromCommits = true;
+    } else if (arg === "--classify") {
+      classifyOnly = true;
+    } else if (arg === "--files" && args[i + 1]) {
+      classifyFiles = args[++i];
     }
   }
 
-  return { base, head, prBodyFile, evidenceFromCommits };
+  return { base, head, prBodyFile, evidenceFromCommits, classifyOnly, classifyFiles };
 }
 
 /**
@@ -518,6 +813,45 @@ function getCommitEvidence(base, head) {
       return "";
     }
   }
+}
+
+/**
+ * @param {string} base
+ * @param {string} head
+ * @param {string | null} classifyFiles comma-separated paths
+ * @returns {number}
+ */
+export function runClassifyTier(base, head, classifyFiles) {
+  /** @type {string[]} */
+  let filePaths;
+  if (classifyFiles) {
+    filePaths = classifyFiles
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  } else {
+    const changed = getChangedFiles(base, head);
+    filePaths = changed ?? [];
+  }
+
+  let pkgHighRiskFlag = false;
+  if (filePaths.includes("package.json")) {
+    const basePkg = readPackageJsonAtRef(base);
+    const headPkg = readPackageJsonAtRef(head);
+    if (!basePkg || !headPkg) {
+      pkgHighRiskFlag = true;
+    } else {
+      pkgHighRiskFlag = packageJsonHighRisk(basePkg, headPkg);
+    }
+  }
+
+  const tier = classifyDiffTier(filePaths, { packageJsonHighRisk: pkgHighRiskFlag });
+  console.log(`tier: ${tier}`);
+  for (const file of [...filePaths].sort((a, b) => a.localeCompare(b))) {
+    const tags = classifyPath(file);
+    console.log(`  ${file} → ${tags.length ? tags.join(", ") : "(none)"}`);
+  }
+  return 0;
 }
 
 /**
@@ -611,6 +945,22 @@ export function runGateCheck(base, head, prBody) {
     return 1;
   }
 
+  const headSha = resolveGitSha(head);
+  const reviewedCommit = extractReviewedCommit(prBody);
+  const listedPostReview = extractPostReviewCommits(prBody);
+  const commitsAfter = resolveCommitsAfterReview(reviewedCommit, head);
+  const reviewed = evaluateReviewedCommit({
+    reviewedCommit,
+    headSha,
+    commitsAfter,
+    listedPostReviewCommits: listedPostReview,
+  });
+  if (!reviewed.pass) {
+    console.log(`MISSING: ${reviewed.reason ?? MISSING_REVIEWED_COMMIT_HINT}`);
+    console.log(`gate-check: FAIL — reviewed-commit policy (${reviewed.reason ?? "invalid"})`);
+    return 1;
+  }
+
   console.log("gate-check: PASS");
   return 0;
 }
@@ -621,7 +971,14 @@ function main() {
     console.log(`WARN: GATE_SKIP=1 ignored — gate-check always runs (${where})`);
   }
 
-  const { base, head, prBodyFile, evidenceFromCommits } = parseArgs(process.argv.slice(2));
+  const { base, head, prBodyFile, evidenceFromCommits, classifyOnly, classifyFiles } = parseArgs(
+    process.argv.slice(2),
+  );
+
+  if (classifyOnly) {
+    process.exit(runClassifyTier(base, head, classifyFiles));
+  }
+
   const prBody = resolveEvidence({
     envBody: process.env.GATE_PR_BODY ?? null,
     prBodyFile,

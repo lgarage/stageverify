@@ -57,6 +57,11 @@ exports.getJobVendorDeliveries = (0, https_1.onCall)({
     }
     const session = await assertVendorSessionValidForJob(sessionToken, jobId);
     const db = getDb();
+    const jobSnap = await db.collection("jobs").doc(jobId).get();
+    const rawJobName = jobSnap.data()?.jobName;
+    const jobName = typeof rawJobName === "string" && rawJobName.trim()
+        ? rawJobName.trim()
+        : "Job";
     const deliveriesSnap = await db
         .collection("deliveries")
         .where("jobId", "==", jobId)
@@ -86,12 +91,18 @@ exports.getJobVendorDeliveries = (0, https_1.onCall)({
         }
         summaries.push({
             deliveryId: docSnap.id,
+            jobName,
             orderNumber: String(delivery.orderNumber ?? docSnap.id),
+            vendorInvoiceNumber: typeof delivery.vendorInvoiceNumber === "string" &&
+                delivery.vendorInvoiceNumber.trim()
+                ? delivery.vendorInvoiceNumber.trim()
+                : undefined,
             poNumber,
             vendorName: typeof delivery.vendorName === "string" && delivery.vendorName.trim()
                 ? delivery.vendorName.trim()
                 : "Vendor",
             status,
+            vendorPhysicalDropoffConfirmed: delivery.vendorPhysicalDropoffConfirmed === true,
             stagingLocationCodes,
             scannedStagingLocationCode: session.scannedStagingLocationCode,
         });

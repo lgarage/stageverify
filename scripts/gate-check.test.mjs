@@ -26,6 +26,13 @@ import {
   shouldHonorGateSkip,
   honorsGateSkip,
   extractAuthorAgentIds,
+  classifyDiffTier,
+  extractReviewedCommit,
+  extractPostReviewCommits,
+  isTestFixturePath,
+  shaEquals,
+  evaluateReviewedCommit,
+  MISSING_REVIEWED_COMMIT_HINT,
 } from "./gate-check.mjs";
 
 describe("classifyPath", () => {
@@ -84,6 +91,7 @@ describe("classifyPath", () => {
 
   it("flags .github/workflows and firebase.json", () => {
     assert.ok(classifyPath(".github/workflows/ci.yml").includes("high-risk"));
+    assert.ok(classifyPath(".github/workflows/nested/dir/x.yml").includes("high-risk"));
     assert.ok(classifyPath("firebase.json").includes("high-risk"));
   });
 
@@ -247,9 +255,140 @@ describe("requiresSonnetBackup", () => {
     assert.equal(requiresSonnetBackup("functions/src/setAccessPin.ts"), true);
   });
 
+  it("false for vendor-session callable without auth path heuristic", () => {
+    assert.equal(requiresSonnetBackup("functions/src/releasePlannedStagingLocation.ts"), false);
+  });
+
   it("false for gate-config-only HIGH", () => {
     assert.equal(requiresSonnetBackup("scripts/gate-check.mjs"), false);
     assert.equal(requiresSonnetBackup(".github/workflows/pr-ci.yml"), false);
+  });
+});
+
+describe("classifyDiffTier", () => {
+  it("returns HIGH for high-risk paths and packageJsonHighRisk", () => {
+    assert.equal(classifyDiffTier(["firestore.rules"]), "HIGH");
+    assert.equal(classifyDiffTier(["docs/foo.md"], { packageJsonHighRisk: true }), "HIGH");
+  });
+
+  it("returns MEDIUM for two substantive-ship files", () => {
+    assert.equal(
+      classifyDiffTier(["src/a.tsx", "src/b.tsx"]),
+      "MEDIUM",
+    );
+  });
+
+  it("returns LOW for excluded-only diff", () => {
+    assert.equal(classifyDiffTier(["docs/a.md", "PROJECT_STATUS/x.md"]), "LOW");
+  });
+
+  it("returns LOW for single non-auth src UI", () => {
+    assert.equal(classifyDiffTier(["src/components/Button.tsx"]), "LOW");
+  });
+
+  it("returns HIGH for ambiguous untagged path", () => {
+    assert.equal(classifyDiffTier(["mystery-file.bin"]), "HIGH");
+  });
+
+  it("returns HIGH for package.json path in diff (fail-up until scripts diff resolved)", () => {
+    assert.equal(classifyDiffTier(["package.json"]), "HIGH");
+  });
+});
+
+describe("reviewed-commit policy", () => {
+  const head = "abcdef0123456789abcdef0123456789abcdef0";
+
+  it("extractReviewedCommit from review evidence section", () => {
+    const body = ["## Review evidence", `reviewed-commit: ${head.slice(0, 7)}`].join("\n");
+    assert.equal(extractReviewedCommit(body), head.slice(0, 7));
+  });
+
+  it("passes when reviewed-commit equals head", () => {
+    const result = evaluateReviewedCommit({
+      reviewedCommit: head,
+      headSha: head,
+      commitsAfter: [],
+      listedPostReviewCommits: [],
+    });
+    assert.equal(result.pass, true);
+  });
+
+  it("fails when reviewed-commit missing on HIGH policy", () => {
+    const result = evaluateReviewedCommit({
+      reviewedCommit: null,
+      headSha: head,
+      commitsAfter: [],
+      listedPostReviewCommits: [],
+    });
+    assert.equal(result.pass, false);
+    assert.equal(result.reason, MISSING_REVIEWED_COMMIT_HINT);
+  });
+
+  it("fails on mismatch with product file change", () => {
+    const result = evaluateReviewedCommit({
+      reviewedCommit: "aaaaaaa",
+      headSha: head,
+      commitsAfter: [{ sha: "bbbbbbb", files: ["src/foo.tsx"] }],
+      listedPostReviewCommits: [],
+    });
+    assert.equal(result.pass, false);
+  });
+
+  it("fails on mismatch with test.mjs (not fixture-only)", () => {
+    const result = evaluateReviewedCommit({
+      reviewedCommit: "aaaaaaa",
+      headSha: head,
+      commitsAfter: [{ sha: "bbbbbbb", files: ["scripts/gate-check.test.mjs"] }],
+      listedPostReviewCommits: ["bbbbbbb"],
+    });
+    assert.equal(result.pass, false);
+  });
+
+  it("passes fixture-only listed post-review commit", () => {
+    const fixtureSha = "ccccccc1234567890ccccccc1234567890cccccc";
+    const result = evaluateReviewedCommit({
+      reviewedCommit: "aaaaaaa",
+      headSha: head,
+      commitsAfter: [{ sha: fixtureSha, files: ["scripts/fixtures/sample.json"] }],
+      listedPostReviewCommits: [fixtureSha.slice(0, 7)],
+    });
+    assert.equal(result.pass, true);
+  });
+
+  it("fails fixture-only commit when not listed", () => {
+    const result = evaluateReviewedCommit({
+      reviewedCommit: "aaaaaaa",
+      headSha: head,
+      commitsAfter: [{ sha: "ddddddd", files: ["testdata/x.json"] }],
+      listedPostReviewCommits: [],
+    });
+    assert.equal(result.pass, false);
+  });
+
+  it("shaEquals is prefix-safe at 7+ hex", () => {
+    assert.equal(shaEquals("abcdef0", "abcdef0123456"), true);
+    assert.equal(shaEquals("abc", "abcdef0"), false);
+  });
+});
+
+describe("isTestFixturePath", () => {
+  it("true for fixtures and testdata paths", () => {
+    assert.equal(isTestFixturePath("scripts/fixtures/a.json"), true);
+    assert.equal(isTestFixturePath("pkg/testdata/x"), true);
+    assert.equal(isTestFixturePath("src/__fixtures__/y"), true);
+    assert.equal(isTestFixturePath("my-fixture-data.json"), true);
+  });
+
+  it("false for gate-check tests and functions/src", () => {
+    assert.equal(isTestFixturePath("scripts/gate-check.test.mjs"), false);
+    assert.equal(isTestFixturePath("functions/src/setAccessPin.ts"), false);
+  });
+});
+
+describe("classify mode (no evidence required)", () => {
+  it("checkEvidence passes with empty body when not high-risk", () => {
+    const result = checkEvidence("", false);
+    assert.equal(result.pass, true);
   });
 });
 
