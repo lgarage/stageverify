@@ -17,8 +17,8 @@
  * empty, and junk id values fail.
  *
  * Model line (D-94 / D-38): HIGH requires `model:` matching ALLOWED_GATE_MODELS
- * (primary `grok-4.7-high`; `grok-4.7-xhigh`; grandfathered `cursor-grok-4.6-high` /
- * `cursor-grok-4.6-xhigh`; Sonnet escalation).
+ * and an accepted Grok reviewer slug (`grok-4.7-high` always; `cursor-grok-4.6-high`
+ * only when GATE_PR_NUMBER is 258 or 259). Sonnet escalation is additive on backup paths.
  * Missing or non-allowlist model fails mechanical CI.
  *
  * Self-bypass caveat: a fork PR can modify gate-check.mjs itself to neuter the check on
@@ -85,12 +85,45 @@ export function hasValidSecurityGateId(prBody) {
   return VALID_GATE_ID_VALUE_RE.test(value);
 }
 
-/** Preference order (D-94): Grok top model primary; Sonnet 5 escalation only. */
+/** Required Grok reviewer for new HIGH work (Dan: Grok 4.7, reasoning_effort HIGH, fast OFF, context 256k). */
+export const REQUIRED_REVIEWER_SLUG = "grok-4.7-high";
+
+/** Legacy Grok slug — accepted only on PR #258 and #259 (see isLegacyReviewerPr). */
+export const LEGACY_REVIEWER_SLUG = "cursor-grok-4.6-high";
+
+/** @type {readonly number[]} */
+export const LEGACY_REVIEWER_PR_NUMBERS = [258, 259];
+
+/**
+ * @param {number | null | undefined} prNumber
+ * @returns {boolean}
+ */
+export function isLegacyReviewerPr(prNumber) {
+  if (prNumber == null || !Number.isFinite(prNumber)) {
+    return false;
+  }
+  return LEGACY_REVIEWER_PR_NUMBERS.includes(Number(prNumber));
+}
+
+/**
+ * @param {string} slug
+ * @param {number | null | undefined} prNumber
+ * @returns {boolean}
+ */
+export function isAcceptedGrokReviewerSlug(slug, prNumber) {
+  if (slug === REQUIRED_REVIEWER_SLUG) {
+    return true;
+  }
+  if (slug === LEGACY_REVIEWER_SLUG) {
+    return isLegacyReviewerPr(prNumber);
+  }
+  return false;
+}
+
+/** Parse/extract list (exact slug match). Legacy 4.6-high is parsed but PR-scoped in checkEvidence. */
 export const ALLOWED_GATE_MODELS = [
-  "grok-4.7-high",
-  "grok-4.7-xhigh",
-  "cursor-grok-4.6-high",
-  "cursor-grok-4.6-xhigh",
+  REQUIRED_REVIEWER_SLUG,
+  LEGACY_REVIEWER_SLUG,
   "claude-sonnet-5-thinking-high",
 ];
 
@@ -100,7 +133,7 @@ export const REQUIRED_MODEL_LINE = `model: ${ALLOWED_GATE_MODELS[0]}`;
 export const MISSING_MODEL_LINE_HINT = `model: <allowlisted slug per D-38 (${ALLOWED_GATE_MODELS.join(" | ")})>`;
 
 export const MISSING_GROK_MODEL_HINT =
-  "model: grok-4.7-high (or grok-4.7-xhigh; cursor-grok-4.6-high/xhigh still accepted) — required with Sonnet on rules/auth/billing paths";
+  `model: ${REQUIRED_REVIEWER_SLUG} (Grok 4.7, reasoning_effort HIGH, fast OFF, context 256k) — required; ${LEGACY_REVIEWER_SLUG} only on PR #258/#259`;
 
 export const MISSING_SONNET_BACKUP_HINT =
   "model: claude-sonnet-5-thinking-high — required in addition to Grok on rules/auth/billing paths";
@@ -108,14 +141,9 @@ export const MISSING_SONNET_BACKUP_HINT =
 export const AUTHOR_GATE_ID_HINT =
   "security-gate-id must not equal the PR author agent id (use reviewer Task id or bc-<uuid>)";
 
-const GROK_GATE_MODELS = [
-  "grok-4.7-high",
-  "grok-4.7-xhigh",
-  "cursor-grok-4.6-high",
-  "cursor-grok-4.6-xhigh",
-];
-
 const SONNET_GATE_MODEL = "claude-sonnet-5-thinking-high";
+
+// Legacy 4.6-high counts only on PR #258/#259 so copied 4.6 evidence on a new PR fails mechanical CI.
 
 /** @param {string} slug */
 function escapeRegExp(slug) {
@@ -637,7 +665,12 @@ function resolveCommitsAfterReview(reviewedCommit, headRef) {
 /**
  * @param {string} prBody raw PR body or evidence text
  * @param {boolean} hasHighRisk
- * @param {{ requiresSonnetBackup?: boolean, authorAgentIds?: Set<string>, useRawBody?: boolean }} [options]
+ * @param {{
+ *   requiresSonnetBackup?: boolean,
+ *   authorAgentIds?: Set<string>,
+ *   useRawBody?: boolean,
+ *   prNumber?: number | null,
+ * }} [options]
  * @returns {{ pass: boolean, missing: string[], warnings: string[] }}
  */
 export function checkEvidence(prBody, hasHighRisk, options = {}) {
@@ -664,18 +697,17 @@ export function checkEvidence(prBody, hasHighRisk, options = {}) {
 
   const slugs = extractGateModelSlugs(evidenceText);
   const needsSonnet = options.requiresSonnetBackup === true;
+  const prNumber = options.prNumber ?? null;
 
-  if (needsSonnet) {
-    const hasGrok = slugs.some((s) => GROK_GATE_MODELS.includes(s));
-    const hasSonnet = slugs.includes(SONNET_GATE_MODEL);
-    if (!hasGrok) {
-      missing.push(MISSING_GROK_MODEL_HINT);
-    }
-    if (!hasSonnet) {
-      missing.push(MISSING_SONNET_BACKUP_HINT);
-    }
-  } else if (slugs.length === 0) {
-    missing.push(MISSING_MODEL_LINE_HINT);
+  const hasAcceptedGrok = slugs.some((s) => isAcceptedGrokReviewerSlug(s, prNumber));
+  const hasSonnet = slugs.includes(SONNET_GATE_MODEL);
+
+  if (!hasAcceptedGrok) {
+    missing.push(MISSING_GROK_MODEL_HINT);
+  }
+
+  if (needsSonnet && !hasSonnet) {
+    missing.push(MISSING_SONNET_BACKUP_HINT);
   }
 
   if (!/actual model invocation evidence:/i.test(evidenceText)) {
@@ -739,6 +771,7 @@ function getChangedFiles(base, head) {
  *   evidenceFromCommits: boolean,
  *   classifyOnly: boolean,
  *   classifyFiles: string | null,
+ *   prNumber: number | null,
  * }}
  */
 function parseArgs(args) {
@@ -750,6 +783,8 @@ function parseArgs(args) {
   let classifyOnly = false;
   /** @type {string | null} */
   let classifyFiles = null;
+  /** @type {number | null} */
+  let prNumber = null;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -759,6 +794,9 @@ function parseArgs(args) {
       head = args[++i];
     } else if (arg === "--pr-body-file" && args[i + 1]) {
       prBodyFile = args[++i];
+    } else if (arg === "--pr-number" && args[i + 1]) {
+      const n = Number.parseInt(args[++i], 10);
+      prNumber = Number.isFinite(n) ? n : null;
     } else if (arg === "--evidence-from-commits") {
       evidenceFromCommits = true;
     } else if (arg === "--classify") {
@@ -768,7 +806,7 @@ function parseArgs(args) {
     }
   }
 
-  return { base, head, prBodyFile, evidenceFromCommits, classifyOnly, classifyFiles };
+  return { base, head, prBodyFile, evidenceFromCommits, classifyOnly, classifyFiles, prNumber };
 }
 
 /**
@@ -866,8 +904,9 @@ export function runClassifyTier(base, head, classifyFiles) {
  * @param {string} base
  * @param {string} head
  * @param {string} prBody
+ * @param {{ prNumber?: number | null }} [runOptions]
  */
-export function runGateCheck(base, head, prBody) {
+export function runGateCheck(base, head, prBody, runOptions = {}) {
   const changedFiles = getChangedFiles(base, head);
   if (changedFiles === null) {
     console.log("gate-check: FAIL — cannot resolve diff range (fail-up)");
@@ -932,9 +971,17 @@ export function runGateCheck(base, head, prBody) {
     process.env.GATE_PR_AUTHOR_AGENT ?? null,
   );
 
+  const prNumber =
+    runOptions.prNumber ??
+    (process.env.GATE_PR_NUMBER != null && String(process.env.GATE_PR_NUMBER).trim() !== ""
+      ? Number.parseInt(String(process.env.GATE_PR_NUMBER).trim(), 10)
+      : null);
+  const resolvedPrNumber = Number.isFinite(prNumber) ? prNumber : null;
+
   const evidence = checkEvidence(prBody, hasHighRisk, {
     requiresSonnetBackup: needsSonnetBackup,
     authorAgentIds,
+    prNumber: resolvedPrNumber,
   });
   for (const warning of evidence.warnings) {
     console.log(`WARN: ${warning}`);
@@ -979,9 +1026,15 @@ function main() {
     console.log(`WARN: GATE_SKIP=1 ignored — gate-check always runs (${where})`);
   }
 
-  const { base, head, prBodyFile, evidenceFromCommits, classifyOnly, classifyFiles } = parseArgs(
-    process.argv.slice(2),
-  );
+  const {
+    base,
+    head,
+    prBodyFile,
+    evidenceFromCommits,
+    classifyOnly,
+    classifyFiles,
+    prNumber: cliPrNumber,
+  } = parseArgs(process.argv.slice(2));
 
   if (classifyOnly) {
     process.exit(runClassifyTier(base, head, classifyFiles));
@@ -994,7 +1047,13 @@ function main() {
     readFile: (path) => readFileSync(path, "utf8"),
     gitLog: () => getCommitEvidence(base, head),
   });
-  const code = runGateCheck(base, head, prBody);
+  const envPr =
+    process.env.GATE_PR_NUMBER != null && String(process.env.GATE_PR_NUMBER).trim() !== ""
+      ? Number.parseInt(String(process.env.GATE_PR_NUMBER).trim(), 10)
+      : null;
+  const prNumber = cliPrNumber ?? (Number.isFinite(envPr) ? envPr : null);
+
+  const code = runGateCheck(base, head, prBody, { prNumber });
   process.exit(code);
 }
 

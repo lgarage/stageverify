@@ -16,7 +16,7 @@ Same harness as cloud — **D-94** `lean-agent-process.mdc` is the only alwaysAp
 
 Scripts use `path.join` + repo-relative paths — identical on Windows and Linux. `readText()` normalizes CRLF.
 
-`npm ci`/`npm install` auto-installs the pre-push gate hook (`scripts/install-git-hooks.mjs` via npm `prepare`); HIGH commits/PRs must carry `security-gate-id:` as a lowercase UUID or `bc-<uuid>` **and** `model:` matching the D-94 allowlist (`grok-4.7-high` primary; grandfathered `cursor-grok-4.6-high` still accepted).
+`npm ci`/`npm install` auto-installs the pre-push gate hook (`scripts/install-git-hooks.mjs` via npm `prepare`); HIGH commits/PRs must carry `security-gate-id:` as a lowercase UUID or `bc-<uuid>` **and** `model: grok-4.7-high` (**Grok 4.7, reasoning_effort HIGH, fast OFF, context 256k**). Grandfathered `cursor-grok-4.6-high` only when CI sets `GATE_PR_NUMBER` to **258** or **259**. No agent may exceed a 256k context window.
 Bypass exists (advisory-vs-malice; use only when Dan approves): `git push --no-verify` works in every shell; the env form is shell-specific — bash `GATE_SKIP=1 git push`, PowerShell `$env:GATE_SKIP="1"; git push`, cmd `set GATE_SKIP=1 && git push` (the hook runs under Git's sh and reads the inherited env on all three). **CI never honors `GATE_SKIP` or `--no-verify`** — PR `gate-check` always runs the real evidence check.
 
 ## Cursor Cloud specific instructions

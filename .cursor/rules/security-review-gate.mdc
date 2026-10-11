@@ -9,15 +9,13 @@ globs: firestore.rules,functions/src/**,firebase.json,.github/workflows/**,scrip
 
 Validity = valid **`security-gate-id:`** + **`model:`** (allowlisted, exact whole slug) + verdict + invocation evidence. Mechanical CI (`gate-check`) requires the id **and** the model line(s) on HIGH. Evidence must be in a `<!-- review-evidence -->` block or `## Review evidence` section — not inside fenced or inline code (examples do not count).
 
-**Security reviews use exactly one Grok model per run, from this locked allowlist (preference order — D-94):**
+**Security reviews use exactly one Grok model per run (D-94):**
 
-1. `grok-4.7-high` (primary HIGH reviewer)
-2. `grok-4.7-xhigh` (optional stronger Grok)
-3. `cursor-grok-4.6-high` (grandfathered — in-flight PRs #258, #259, etc.)
-4. `cursor-grok-4.6-xhigh` (grandfathered)
-5. `claude-sonnet-5-thinking-high` (Sonnet — see below)
+1. **`grok-4.7-high`** — **Grok 4.7, reasoning_effort HIGH, fast OFF, context 256k** (required for all new HIGH work; never 500k or max)
+2. **`cursor-grok-4.6-high`** — grandfathered **only** on GitHub PR **#258** or **#259** (`GATE_PR_NUMBER` in CI)
+3. **`claude-sonnet-5-thinking-high`** — Sonnet backup (see below; not a substitute for Grok on HIGH)
 
-New HIGH reviews dispatch Grok slugs 1–2 first; slugs 3–4 remain valid on review evidence. Do not invent `cursor-grok-4.7-*` slugs.
+New HIGH reviews dispatch **`grok-4.7-high`** only (standard 256k context). Do not use `-fast`, `xhigh`, 500k/max context, or invented `cursor-grok-4.7-*` slugs.
 
 Dispatch the FIRST Grok slug in preference order that the platform accepts. Use a later preference-order slug ONLY after a real Task rejection of every earlier preference — record `fallback-from: <rejected slug(s)>`. Inventing slugs or substituting any non-allowlist model = gate NOT RUN. Suffix variants (e.g. `-fast`) are never allowlisted.
 
