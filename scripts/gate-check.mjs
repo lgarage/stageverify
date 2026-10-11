@@ -17,7 +17,8 @@
  * empty, and junk id values fail.
  *
  * Model line (D-94 / D-38): HIGH requires `model:` matching ALLOWED_GATE_MODELS
- * (primary `cursor-grok-4.6-high`; `cursor-grok-4.6-xhigh`; Sonnet escalation).
+ * (primary `grok-4.7-high`; `grok-4.7-xhigh`; grandfathered `cursor-grok-4.6-high` /
+ * `cursor-grok-4.6-xhigh`; Sonnet escalation).
  * Missing or non-allowlist model fails mechanical CI.
  *
  * Self-bypass caveat: a fork PR can modify gate-check.mjs itself to neuter the check on
@@ -86,6 +87,8 @@ export function hasValidSecurityGateId(prBody) {
 
 /** Preference order (D-94): Grok top model primary; Sonnet 5 escalation only. */
 export const ALLOWED_GATE_MODELS = [
+  "grok-4.7-high",
+  "grok-4.7-xhigh",
   "cursor-grok-4.6-high",
   "cursor-grok-4.6-xhigh",
   "claude-sonnet-5-thinking-high",
@@ -97,7 +100,7 @@ export const REQUIRED_MODEL_LINE = `model: ${ALLOWED_GATE_MODELS[0]}`;
 export const MISSING_MODEL_LINE_HINT = `model: <allowlisted slug per D-38 (${ALLOWED_GATE_MODELS.join(" | ")})>`;
 
 export const MISSING_GROK_MODEL_HINT =
-  "model: cursor-grok-4.6-high (or cursor-grok-4.6-xhigh) — required with Sonnet on rules/auth/billing paths";
+  "model: grok-4.7-high (or grok-4.7-xhigh; cursor-grok-4.6-high/xhigh still accepted) — required with Sonnet on rules/auth/billing paths";
 
 export const MISSING_SONNET_BACKUP_HINT =
   "model: claude-sonnet-5-thinking-high — required in addition to Grok on rules/auth/billing paths";
@@ -105,7 +108,12 @@ export const MISSING_SONNET_BACKUP_HINT =
 export const AUTHOR_GATE_ID_HINT =
   "security-gate-id must not equal the PR author agent id (use reviewer Task id or bc-<uuid>)";
 
-const GROK_GATE_MODELS = ["cursor-grok-4.6-high", "cursor-grok-4.6-xhigh"];
+const GROK_GATE_MODELS = [
+  "grok-4.7-high",
+  "grok-4.7-xhigh",
+  "cursor-grok-4.6-high",
+  "cursor-grok-4.6-xhigh",
+];
 
 const SONNET_GATE_MODEL = "claude-sonnet-5-thinking-high";
 

@@ -33,10 +33,23 @@ describe("ship-evidence-preflight (D-94)", () => {
     assert.match(r.stderr, /model:/);
   });
 
-  it("PASS high-risk with bc- uuid and Grok model", () => {
+  it("PASS high-risk with bc- uuid and Grok 4.7 model", () => {
+    const body = `security-gate-id: bc-3594ac4e-aad0-57f6-be0a-5cb813a3f25d\nmodel: grok-4.7-high\n`;
+    const r = run(body, "high-risk");
+    assert.equal(r.status, 0, r.stderr);
+  });
+
+  it("PASS high-risk with bc- uuid and grandfathered Grok 4.6 model", () => {
     const body = `security-gate-id: bc-3594ac4e-aad0-57f6-be0a-5cb813a3f25d\nmodel: cursor-grok-4.6-high\n`;
     const r = run(body, "high-risk");
     assert.equal(r.status, 0, r.stderr);
+  });
+
+  it("FAIL high-risk when model is grok-4.7-high-fast (exact slug only)", () => {
+    const body = `security-gate-id: bc-3594ac4e-aad0-57f6-be0a-5cb813a3f25d\nmodel: grok-4.7-high-fast\n`;
+    const r = run(body, "high-risk");
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /model:/);
   });
 
   it("FAIL high-risk when model is high-fast suffix (exact slug only)", () => {

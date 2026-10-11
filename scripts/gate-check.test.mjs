@@ -199,7 +199,25 @@ describe("extractSecurityGateIdValue / hasValidSecurityGateId", () => {
 });
 
 describe("hasAllowedGateModel", () => {
-  it("accepts Grok 4.6 high (primary HIGH reviewer)", () => {
+  it("accepts Grok 4.7 high (primary HIGH reviewer)", () => {
+    assert.equal(hasAllowedGateModel("model: grok-4.7-high"), true);
+  });
+
+  it("accepts Grok 4.7 xhigh", () => {
+    assert.equal(hasAllowedGateModel("model: grok-4.7-xhigh"), true);
+  });
+
+  it("rejects -fast suffix on grok-4.7-high", () => {
+    assert.equal(hasAllowedGateModel("model: grok-4.7-high-fast"), false);
+    assert.deepEqual(extractGateModelSlugs("model: grok-4.7-high-fast"), []);
+  });
+
+  it("rejects -fast suffix on grok-4.7-xhigh", () => {
+    assert.equal(hasAllowedGateModel("model: grok-4.7-xhigh-fast"), false);
+    assert.deepEqual(extractGateModelSlugs("model: grok-4.7-xhigh-fast"), []);
+  });
+
+  it("accepts Grok 4.6 high (grandfathered HIGH reviewer)", () => {
     assert.equal(hasAllowedGateModel("model: cursor-grok-4.6-high"), true);
   });
 

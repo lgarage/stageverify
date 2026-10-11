@@ -23,7 +23,7 @@ One small job per agent. PR body must include the **MODEL EVIDENCE** block (exac
 - `job-type:` one of `firestore-rules/auth` | `money/billing` | `cloud-functions-logic` | `ui-change` | `tests-only` | `ci/gate` | `docs/process`
 - `risk-tier:` `HIGH` | `MEDIUM` | `LOW` (from `gate:tier`, not Composer)
 - `builder-model:` and `ladder-step:`
-- `reviewer-models:`
+- `reviewer-models:` exact allowlisted slugs used (e.g. `grok-4.7-high` vs grandfathered `cursor-grok-4.6-high`) so MODEL EVIDENCE distinguishes Grok versions
 - `sonnet-ran:` `required` | `optional` | `no`
 - `sonnet-unique-findings:` `Y` or `N` plus brief what
 
@@ -57,7 +57,7 @@ Record the highest step reached in the PR body as `ladder-step: 1` … `ladder-s
 - **Parent/orchestrator** checks **scope and stray files only** (planned paths vs diff). The **separate** HIGH/accuracy reviewer does the deep read.
 - Reviewers **cite CI results** instead of re-running full suites unless CI is unavailable. The independent reviewer still reads the **full diff**. CI must still pass; gate-check unchanged.
 - **Grok always reviews all Composer-written code** for accuracy before a PR is marked ready — **every tier, including LOW**.
-- **HIGH:** Grok review may **double** as the required security review if it covers security. Record `security-gate-id:` (lowercase UUID or `bc-<uuid>`) **and** `model: <slug used>` (`cursor-grok-4.6-high` primary; `cursor-grok-4.6-xhigh` allowed). Reject `NOT RUN`, empty, and junk. This **replaces** `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`. If the accuracy review did not cover security, run a separate Grok security review and record the same lines.
+- **HIGH:** Grok review may **double** as the required security review if it covers security. Record `security-gate-id:` (lowercase UUID or `bc-<uuid>`) **and** `model: <exact slug used>` (`grok-4.7-high` primary; `grok-4.7-xhigh` allowed; grandfathered `cursor-grok-4.6-high` / `cursor-grok-4.6-xhigh` still accepted for in-flight PRs). Reject `NOT RUN`, empty, and junk. `-fast` suffix slugs never count. This **replaces** `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`. If the accuracy review did not cover security, run a separate Grok security review and record the same lines.
 - **Sonnet on rules/auth/billing/money:** record **both** Grok allowlisted `model:` and `claude-sonnet-5-thinking-high` when `requiresSonnetBackup()` applies — **required, no end date** (gate-check enforced). Also Sonnet when Grok returns FAIL/HIGH, ladder step 5, or Dan asks.
 - **MEDIUM / LOW:** Grok accuracy review. No `security-gate-id` unless the change is HIGH.
 - **Dropped:** `solution-verifier`, `build-checker`, `ship-verifier`. Do not run them.

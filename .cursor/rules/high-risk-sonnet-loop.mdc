@@ -8,6 +8,6 @@ alwaysApply: false
 
 **D-94 (2026-10-10) supersedes D-60.** Do **not** run `sonnet-instruct`, `high-risk-adversarial`, or `sonnet-verify`.
 
-HIGH PRs get **one** Grok top-model review of the **final** diff (`cursor-grok-4.6-high`). Record `security-gate-id:` **and** `model:`. Sonnet is optional escalation only. How-to: `.cursor/rules/security-review-gate.mdc`. Tiers and non-negotiables: `.cursor/rules/lean-agent-process.mdc`.
+HIGH PRs get **one** Grok top-model review of the **final** diff (`grok-4.7-high` primary; grandfathered `cursor-grok-4.6-high` still accepted on evidence). Record `security-gate-id:` **and** `model:`. Sonnet is optional escalation only. How-to: `.cursor/rules/security-review-gate.mdc`. Tiers and non-negotiables: `.cursor/rules/lean-agent-process.mdc`.
 
 Historical D-60 sequence (Sonnet plan → Composer → Grok adversarial → Sonnet verify → D-38) is retired. Discovery script: `scripts/verify-high-risk-loop-discovery.mjs` now asserts the D-94 one-review contract.
