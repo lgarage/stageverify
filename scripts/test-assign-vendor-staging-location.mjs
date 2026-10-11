@@ -14,7 +14,10 @@ import {
   httpsCallable,
 } from "firebase/functions";
 import {
+  seedExpiredVendorSession,
+  seedVendorScopedSession,
   seedVendorSession,
+  vendorScopedSessionTokenFor,
   vendorSessionTokenFor,
 } from "./test-vendor-session-helper.mjs";
 
@@ -391,6 +394,107 @@ try {
     pass("paging — active occupant behind cleared docs rejects");
   } else {
     fail("paging occupant", err);
+  }
+}
+
+// 12. No session token
+await seed(async (db) => {
+  await seedDelivery(db, "avsl-del-no-session", { stagingLocationId: "" });
+  await seedVendorSession(db, "avsl-del-no-session");
+});
+try {
+  await assignStaging({
+    deliveryId: "avsl-del-no-session",
+    stagingLocationId: "avsl-loc-free-1",
+    mode: "primary",
+  });
+  fail("no session should reject");
+} catch (err) {
+  const after = await readDelivery("avsl-del-no-session");
+  if (
+    (codeOf(err).includes("invalid-argument") ||
+      /invalid session/i.test(msgOf(err))) &&
+    (after?.stagingLocationId ?? "") === ""
+  ) {
+    pass("no session — rejected, delivery unchanged");
+  } else {
+    fail("no session", err);
+  }
+}
+
+// 13. Bad vendor token (unknown 64-hex)
+await seed(async (db) => {
+  await seedDelivery(db, "avsl-del-bad-token", { stagingLocationId: "" });
+  await seedVendorSession(db, "avsl-del-bad-token");
+});
+try {
+  await assignStaging({
+    deliveryId: "avsl-del-bad-token",
+    sessionToken: "a".repeat(64),
+    stagingLocationId: "avsl-loc-free-1",
+    mode: "primary",
+  });
+  fail("bad vendor token should reject");
+} catch (err) {
+  const after = await readDelivery("avsl-del-bad-token");
+  if (
+    (codeOf(err).includes("permission-denied") ||
+      /session expired/i.test(msgOf(err))) &&
+    (after?.stagingLocationId ?? "") === ""
+  ) {
+    pass("bad vendor token — rejected, delivery unchanged");
+  } else {
+    fail("bad vendor token", err);
+  }
+}
+
+// 14. Expired vendor session
+await seed(async (db) => {
+  await seedDelivery(db, "avsl-del-expired", { stagingLocationId: "" });
+  await seedExpiredVendorSession(db, "avsl-del-expired");
+});
+try {
+  await assignPrimary("avsl-del-expired", "avsl-loc-free-1");
+  fail("expired session should reject");
+} catch (err) {
+  const after = await readDelivery("avsl-del-expired");
+  if (
+    (codeOf(err).includes("permission-denied") ||
+      /session expired/i.test(msgOf(err))) &&
+    (after?.stagingLocationId ?? "") === ""
+  ) {
+    pass("expired vendor session — rejected, delivery unchanged");
+  } else {
+    fail("expired vendor session", err);
+  }
+}
+
+// 15. Vendor-scoped session on another vendor's delivery
+await seed(async (db) => {
+  await seedDelivery(db, "avsl-del-other-vendor", {
+    stagingLocationId: "",
+    vendorId: "vendor-b",
+  });
+  await seedVendorScopedSession(db, "vendor-a");
+});
+try {
+  await assignStaging({
+    deliveryId: "avsl-del-other-vendor",
+    sessionToken: vendorScopedSessionTokenFor("vendor-a"),
+    stagingLocationId: "avsl-loc-free-2",
+    mode: "primary",
+  });
+  fail("other vendor delivery should reject");
+} catch (err) {
+  const after = await readDelivery("avsl-del-other-vendor");
+  if (
+    (codeOf(err).includes("permission-denied") ||
+      /not valid for this delivery/i.test(msgOf(err))) &&
+    (after?.stagingLocationId ?? "") === ""
+  ) {
+    pass("vendor on other vendor delivery — rejected, delivery unchanged");
+  } else {
+    fail("vendor on other vendor delivery", err);
   }
 }
 

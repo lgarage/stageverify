@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ZONE_CLEARED = exports.OCCUPANCY_PAGE_SIZE = void 0;
+exports.ZONE_CLEARED = exports.OCCUPANCY_MAX_PAGES = exports.OCCUPANCY_PAGE_SIZE = void 0;
 exports.isLocationDocActive = isLocationDocActive;
 exports.deliveryOccupiesDestination = deliveryOccupiesDestination;
 exports.throwOccupied = throwOccupied;
@@ -9,6 +9,8 @@ exports.assertStagingLocationAvailableInTransaction = assertStagingLocationAvail
 const https_1 = require("firebase-functions/v2/https");
 /** Page size for occupancy scans — keep paging while a page is full. */
 exports.OCCUPANCY_PAGE_SIZE = 20;
+/** Max pages per occupancy scan (500 docs ≈ Firestore tx read ceiling). */
+exports.OCCUPANCY_MAX_PAGES = 25;
 exports.ZONE_CLEARED = new Set(["complete", "picked_up", "installed"]);
 function isLocationDocActive(data) {
     if (typeof data.status === "string") {
@@ -30,11 +32,13 @@ async function assertNoActiveOccupantInQuery(tx, baseQuery, deliveryId) {
     // Firestore transactions require all reads before writes; page with cursors
     // so cleared/stale docs cannot hide an active occupant behind a small limit.
     let last;
+    let pageCount = 0;
     for (;;) {
         let q = baseQuery.limit(exports.OCCUPANCY_PAGE_SIZE);
         if (last)
             q = q.startAfter(last);
         const snap = await tx.get(q);
+        pageCount += 1;
         if (snap.empty)
             return;
         for (const docSnap of snap.docs) {
@@ -46,6 +50,9 @@ async function assertNoActiveOccupantInQuery(tx, baseQuery, deliveryId) {
         }
         if (snap.size < exports.OCCUPANCY_PAGE_SIZE)
             return;
+        if (pageCount >= exports.OCCUPANCY_MAX_PAGES && snap.size === exports.OCCUPANCY_PAGE_SIZE) {
+            throw new https_1.HttpsError("failed-precondition", "Occupancy lookup exceeded safety cap.");
+        }
         last = snap.docs[snap.docs.length - 1];
     }
 }

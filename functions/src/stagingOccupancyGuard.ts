@@ -6,6 +6,8 @@ import { HttpsError } from "firebase-functions/v2/https";
 
 /** Page size for occupancy scans — keep paging while a page is full. */
 export const OCCUPANCY_PAGE_SIZE = 20;
+/** Max pages per occupancy scan (500 docs ≈ Firestore tx read ceiling). */
+export const OCCUPANCY_MAX_PAGES = 25;
 
 export const ZONE_CLEARED = new Set(["complete", "picked_up", "installed"]);
 
@@ -39,10 +41,12 @@ export async function assertNoActiveOccupantInQuery(
   // Firestore transactions require all reads before writes; page with cursors
   // so cleared/stale docs cannot hide an active occupant behind a small limit.
   let last: admin.firestore.QueryDocumentSnapshot | undefined;
+  let pageCount = 0;
   for (;;) {
     let q: admin.firestore.Query = baseQuery.limit(OCCUPANCY_PAGE_SIZE);
     if (last) q = q.startAfter(last);
     const snap = await tx.get(q);
+    pageCount += 1;
     if (snap.empty) return;
     for (const docSnap of snap.docs) {
       if (docSnap.id === deliveryId) continue;
@@ -51,6 +55,12 @@ export async function assertNoActiveOccupantInQuery(
       }
     }
     if (snap.size < OCCUPANCY_PAGE_SIZE) return;
+    if (pageCount >= OCCUPANCY_MAX_PAGES && snap.size === OCCUPANCY_PAGE_SIZE) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Occupancy lookup exceeded safety cap.",
+      );
+    }
     last = snap.docs[snap.docs.length - 1];
   }
 }
