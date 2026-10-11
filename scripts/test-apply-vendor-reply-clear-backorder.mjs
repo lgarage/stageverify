@@ -151,10 +151,10 @@ await seed(async (db) => {
   await setDoc(doc(db, "appSettings", "config"), {
     vendorDeliveryMode: "full_checkin",
   });
-  await setDoc(doc(db, "stagingLocations", "loc-g5"), {
-    id: "loc-g5",
-    code: "G5",
-    label: "Bay G5",
+  await setDoc(doc(db, "stagingLocations", "avrcb-loc-happy"), {
+    id: "avrcb-loc-happy",
+    code: "HA5",
+    label: "Bay HA5",
     active: true,
   });
 });
@@ -218,8 +218,8 @@ try {
   const result = await applyClearBackorder({
     eventId,
     action: "shop_location",
-    stagingLocationId: "loc-g5",
-    dispatcherApplyNote: "Vendor shipping remainder to G5",
+    stagingLocationId: "avrcb-loc-happy",
+    dispatcherApplyNote: "Vendor shipping remainder to HA5",
   });
   if (result.data?.ok !== true) {
     fail("shop_location apply should return ok", JSON.stringify(result.data));
@@ -247,7 +247,7 @@ if (afterEvent?.reviewStatus === "approved" && afterEvent?.applyAction === "shop
   fail("event audit", JSON.stringify(afterEvent));
 }
 
-if (afterDelivery?.stagingLocationId === "loc-g5" && afterIssue?.status === "resolved") {
+if (afterDelivery?.stagingLocationId === "avrcb-loc-happy" && afterIssue?.status === "resolved") {
   pass("delivery staging assigned + backorder MI resolved");
 } else {
   fail("delivery/issue updates", JSON.stringify({ afterDelivery, afterIssue }));
@@ -257,7 +257,7 @@ try {
   await applyClearBackorder({
     eventId,
     action: "shop_location",
-    stagingLocationId: "loc-g5",
+    stagingLocationId: "avrcb-loc-happy",
   });
   fail("second apply should fail (idempotent)");
 } catch (err) {
@@ -542,8 +542,8 @@ await seed(async (db) => {
     vendorId: "vendor-1",
     status: "partial",
     vendorOrderComplete: true,
-    stagingLocationId: "loc-g5",
-    additionalStagingLocationIds: ["loc-g5"],
+    stagingLocationId: "avrcb-loc-happy",
+    additionalStagingLocationIds: ["avrcb-loc-happy"],
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
   });
