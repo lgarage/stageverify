@@ -44,7 +44,11 @@ record(/D-94 \(2026-10-10\)/i.test(decisions), "d94-recorded");
 record(/supersedes D-60/i.test(decisions) || /Supersedes D-60/i.test(decisions), "d94-supersedes-d60");
 
 const gate = read("scripts/gate-check.mjs");
-record(/HIGH_CORE_LOOP_CF_RE/.test(gate), "gate-core-loop-not-all-functions");
+record(
+  /startsWith\("functions\/"\) && !p\.startsWith\("functions\/lib\/"\)/.test(gate) &&
+    !/HIGH_CORE_LOOP_CF_RE/.test(gate),
+  "gate-all-functions-except-lib-high-risk-d28",
+);
 
 if (fails.length) {
   console.log(`\nverify-high-risk-loop-discovery: FAIL (${fails.length})`);

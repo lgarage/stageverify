@@ -1,23 +1,23 @@
 ---
 description: HIGH-tier Grok security review (D-38 / D-94) — record security-gate-id + model: on the final diff.
 alwaysApply: false
-globs: firestore.rules,functions/src/**,firebase.json,.github/workflows/**,scripts/gate-check.mjs,scripts/install-git-hooks.mjs
+globs: firestore.rules,functions/src/**,firebase.json,.github/workflows/**,scripts/gate-check.mjs,scripts/install-git-hooks.mjs,scripts/ship-evidence-preflight.mjs,src/**/*Pin*,src/**/*pin*,src/**/*Auth*,src/**/*auth*,src/**/*Session*,src/**/*session*,src/**/*Login*,src/**/*login*,src/**/*Token*,src/**/*token*,src/**/*Guard*,src/**/*guard*,src/**/*Role*,src/**/*role*
 ---
 # Security Review Model Gate (authoritative — D-94 HIGH review)
 
 **D-94:** Required on HIGH PRs. The Grok accuracy review of Composer code may **double** as this security review if it covers security — record `security-gate-id:` + `model:`. It replaces `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`. MEDIUM/LOW still get a Grok accuracy review but do not need `security-gate-id`.
 
-Validity = valid **`security-gate-id:`** + **`model:`** (allowlisted) + verdict + invocation evidence. Mechanical CI (`gate-check`) requires the id **and** the model line on HIGH.
+Validity = valid **`security-gate-id:`** + **`model:`** (allowlisted, exact whole slug) + verdict + invocation evidence. Mechanical CI (`gate-check`) requires the id **and** the model line(s) on HIGH. Evidence must be in a `<!-- review-evidence -->` block or `## Review evidence` section — not inside fenced or inline code (examples do not count).
 
-**Security reviews use exactly one model per run, from this locked allowlist (preference order — D-94):**
+**Security reviews use exactly one Grok model per run, from this locked allowlist (preference order — D-94):**
 
 1. `cursor-grok-4.6-high` (primary HIGH reviewer)
 2. `cursor-grok-4.6-xhigh` (optional stronger Grok)
-3. `claude-sonnet-5-thinking-high` (Sonnet escalation only — see below)
+3. `claude-sonnet-5-thinking-high` (Sonnet — see below)
 
-Dispatch the FIRST slug in preference order that the platform accepts, except when **Sonnet escalation** applies. Use a later preference-order slug ONLY after a real Task rejection of every earlier preference — record `fallback-from: <rejected slug(s)>`. Inventing slugs or substituting any non-allowlist model = gate NOT RUN.
+Dispatch the FIRST Grok slug in preference order that the platform accepts. Use a later preference-order slug ONLY after a real Task rejection of every earlier preference — record `fallback-from: <rejected slug(s)>`. Inventing slugs or substituting any non-allowlist model = gate NOT RUN. Suffix variants (e.g. `-fast`) are never allowlisted.
 
-**Sonnet escalation (optional — never default):** use `claude-sonnet-5-thinking-high` only for `firestore.rules`, auth/PIN/roles, or billing/money; **or** when the Grok HIGH review returns FAIL / a HIGH finding; **or** when Dan asks. No other default Sonnet use.
+**Sonnet required in addition to Grok (mechanical CI on these paths):** for `firestore.rules`, auth/PIN/roles, or billing/money — record **two** `model:` lines in review evidence: one Grok allowlisted slug **and** `claude-sonnet-5-thinking-high`. Grok-only or Sonnet-only on those paths fails `gate-check`. Also use Sonnet when the Grok HIGH review returns FAIL / a HIGH finding, at ladder step 5, or when Dan asks. Gate-config-only HIGH (workflows, `gate-check.mjs`, etc.) does not require Sonnet backup.
 
 **Task start failures count as rejection:** UI **"Couldn't start"** / Task **"Invalid model selection"** / **"Model could not be resolved"** → immediately retry the next allowlist slug (`fallback-from:`).
 
@@ -25,11 +25,11 @@ Dispatch the FIRST slug in preference order that the platform accepts, except wh
 
 **Prompt hygiene:** `Diff:` must be exactly `uncommitted changes` or `branch changes`.
 
-**Cloud agents (no `security-review` Task type):** record **`security-gate-id: bc-<uuid>`** from the security-review run / cloud agent id. Not invented.
+**Cloud agents (no `security-review` Task type):** record **`security-gate-id: bc-<uuid>`** from the **reviewer's** security-review run — not the PR author agent id. Not invented.
 
 ## Mandatory invocation
 
-Exactly **one** `Task` per HIGH PR — on the **final** diff:
+Exactly **one** Grok `Task` per HIGH PR — on the **final** diff (plus Sonnet backup Task when paths require it):
 
 ```text
 Task({
@@ -46,8 +46,8 @@ Task({
 
 ## Valid completion (all required)
 
-1. **`security-gate-id`** — Task return UUID (lowercase hex, 8-4-4-4-12) **or** `bc-<uuid>`. Not invented; `NOT RUN`, empty, and junk values are invalid.
-2. **Model line:** `model: <the allowlist slug actually dispatched>` (+ `fallback-from:` when a higher slug was rejected). **Required** by mechanical CI.
+1. **`security-gate-id`** — Task return UUID (lowercase hex, 8-4-4-4-12) **or** `bc-<uuid>`. Not invented; `NOT RUN`, empty, and junk values are invalid. Must not equal the PR author agent id.
+2. **Model line(s):** `model: <exact allowlisted slug>` (+ `fallback-from:` when a higher slug was rejected). **Required** by mechanical CI; rules/auth/billing paths need Grok **and** Sonnet slugs.
 3. **`actual model invocation evidence: yes | no | unknown`**
 4. **Verdict:** PASS | MEDIUM | HIGH | NOT RUN.
 
@@ -59,6 +59,7 @@ Missing **`security-gate-id`** or allowlisted **`model:`** → **NOT RUN**, not 
 - `security-review` Task with a model outside the allowlist (includes retired Sonnet 4.6 and cheaper Grok slugs)
 - Silent fallback to Composer / Sol / Opus after allowlist rejection
 - Invented, non-UUID, **`NOT RUN`**, empty, or junk **`security-gate-id`** values
+- Example `model:` / `security-gate-id:` labels inside markdown code spans or fenced blocks
 
 ## Hard stops
 

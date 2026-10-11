@@ -39,6 +39,13 @@ describe("ship-evidence-preflight (D-94)", () => {
     assert.equal(r.status, 0, r.stderr);
   });
 
+  it("FAIL high-risk when model is high-fast suffix (exact slug only)", () => {
+    const body = `security-gate-id: bc-3594ac4e-aad0-57f6-be0a-5cb813a3f25d\nmodel: cursor-grok-4.6-high-fast\n`;
+    const r = run(body, "high-risk");
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /model:/);
+  });
+
   it("PASS high-risk with Sonnet escalation model", () => {
     const body = `security-gate-id: 12345678-1234-1234-1234-123456789abc\nmodel: claude-sonnet-5-thinking-high\n`;
     const r = run(body, "high-risk");

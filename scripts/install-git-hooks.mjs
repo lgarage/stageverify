@@ -6,9 +6,10 @@
  * block in commit messages, on every machine (desktop PC, cloud VM) — not just cloud PRs.
  * The hook runs `gate-check.mjs --evidence-from-commits` per pushed main ref.
  *
- * Bypass: `GATE_SKIP=1 git push` or `git push --no-verify` — documented, advisory-vs-malice
- * (same D-28 contract): the gate protects against honest mistakes, not hostile actors;
- * branch protection + human review remain the backstop.
+ * Bypass (local hook only): `GATE_SKIP=1 git push` or `git push --no-verify` — advisory-vs-malice
+ * (same D-28 contract): the hook protects against honest mistakes, not hostile actors;
+ * branch protection + human review remain the backstop. **CI `gate-check.mjs` never honors
+ * GATE_SKIP** — only this optional pre-push hook may skip locally.
  *
  * Always exits 0 — runs from npm `prepare` on every `npm ci`/`npm install` (PC, cloud VM
  * startup, CI) and must NEVER break an install: no .git, missing/unwritable hooks dir, or
@@ -48,7 +49,7 @@ export function generatePrePushHook() {
     '  if ! node scripts/gate-check.mjs --base "$base" --head "$local_sha" --evidence-from-commits </dev/null; then',
     '    echo ""',
     '    echo "gate-check: push to main blocked - high-risk paths need the security-gate evidence block"',
-    '    echo "(security-gate-id: UUID or bc-<uuid>; model line optional) in a commit message of the pushed range."',
+    '    echo "(security-gate-id: UUID or bc-<uuid>; allowlisted model: lines) in a commit message of the pushed range."',
     '    echo "Bypass (advisory-vs-malice, D-28): GATE_SKIP=1 git push  OR  git push --no-verify"',
     "    exit 1",
     "  fi",

@@ -13,7 +13,7 @@ One small job per agent. PR body: what changed, why, how to test, rollback, `lad
 
 ## Risk tiers (classify by path before you edit)
 
-**HIGH** — `firestore.rules`; auth / PIN / roles (client or CF); Cloud Functions that **write** core-loop data (invoice approve, spot assign / reassign, vendor drop-off, tech pickup, spot release); billing; CI / gate config (`.github/workflows/`, `firebase.json`, `scripts/gate-check.mjs`, `scripts/install-git-hooks.mjs`, root `package.json` scripts / deploy wiring). Ambiguous → HIGH.
+**HIGH** — `firestore.rules`; auth / PIN / roles (client or CF); **all Cloud Functions under `functions/` except `functions/lib/`** (D-28); billing; CI / gate config (`.github/workflows/`, `firebase.json`, `scripts/gate-check.mjs`, `scripts/install-git-hooks.mjs`, `scripts/ship-evidence-preflight.mjs`, root `package.json` scripts / deploy wiring). Ambiguous → HIGH.
 
 **MEDIUM** — other backend or multi-file changes that are not HIGH.
 
@@ -35,7 +35,7 @@ Record the highest step reached in the PR body as `ladder-step: 1` … `ladder-s
 - **Grok always reviews all Composer-written code** for accuracy before a PR is marked ready — **every tier, including LOW**.
 - **HIGH:** that Grok review may **double** as the required security review if it covers security. Record `security-gate-id:` (lowercase UUID or `bc-<uuid>`) **and** `model: <slug used>` (`cursor-grok-4.6-high` primary; `cursor-grok-4.6-xhigh` allowed). Reject `NOT RUN`, empty, and junk. This **replaces** `sonnet-instruct`, `high-risk-adversarial`, and `sonnet-verify`. If the accuracy review did not cover security, run a separate Grok security review and record the same lines.
 - **MEDIUM / LOW:** Grok accuracy review. No `security-gate-id` unless the change is HIGH.
-- **Sonnet backup (optional — never default):** `claude-sonnet-5-thinking-high` only for `firestore.rules`, auth/PIN/roles, or billing/money; **or** when the Grok HIGH review returns FAIL / a HIGH finding; **or** ladder step 5; **or** when Dan asks. No other default Sonnet use.
+- **Sonnet backup (required in addition to Grok on rules/auth/billing — gate-check enforced):** record **both** a Grok allowlisted `model:` and `claude-sonnet-5-thinking-high` for `firestore.rules`, auth/PIN/roles, or billing/money. Also use Sonnet when the Grok HIGH review returns FAIL / a HIGH finding, ladder step 5, or when Dan asks. CI/gate-config-only HIGH does not require Sonnet backup.
 - **Dropped:** `solution-verifier`, `build-checker`, `ship-verifier`. Do not run them.
 - **UI screenshots:** only for **big** visual changes (theme, contrast, complex layout, redesign). Not for copy, labels, or small CSS.
 
@@ -51,7 +51,7 @@ CI on every PR must pass: `npm ci`, app build, functions build, `tsc`, and the F
 2. Tests and the build pass before merge.
 3. **Dan approves every merge and every deploy.** No auto-merge. No auto-deploy. Draft PRs are the default from cloud.
 4. A **rollback point** (commit hash / prior CF revision) before every deploy, and a **smoke test** after.
-5. **No gate bypass.** Do not use `GATE_SKIP`, `--no-verify`, or forged ids to skip HIGH review.
+5. **No gate bypass.** Do not use `GATE_SKIP`, `--no-verify`, or forged ids to skip HIGH review. Local `GATE_SKIP` / `--no-verify` only affect the optional pre-push hook — **CI `gate-check` always runs** and never honors `GATE_SKIP`.
 6. One small job per agent; notes in the PR body including `ladder-step:`.
 
 ## Merge and deploy

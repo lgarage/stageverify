@@ -402,7 +402,7 @@ try {
   }
 
   try {
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(unauthed.firestore(), "statusHistory", "hist-arrived"), {
         id: "hist-arrived",
         entityType: "delivery_order",
@@ -413,9 +413,9 @@ try {
         createdAt: new Date().toISOString(),
       }),
     );
-    pass("vendor arrived history allowed");
+    pass("vendor arrived history denied for unauth (statusHistory is CF/Admin SDK)");
   } catch (err) {
-    fail("vendor arrived history should be allowed", err);
+    fail("vendor arrived history should be denied for unauth", err);
   }
 
   console.log("\n=== Invalid status values ===\n");
