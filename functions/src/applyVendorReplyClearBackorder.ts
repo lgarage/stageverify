@@ -11,6 +11,7 @@ import {
   type PickupMaterialIssueReadback,
 } from "./pickupMaterialIssueReadback";
 import { buildWillCallActiveStagingClearPatch } from "./invoice/clearActiveStagingOnWillCall";
+import { assertStagingLocationAvailableInTransaction } from "./stagingOccupancyGuard";
 
 function getDb() {
   return admin.firestore();
@@ -82,35 +83,6 @@ function deliveryUsesStagingLocation(
   if (delivery.stagingLocationId === locationId) return true;
   const extra = delivery.additionalStagingLocationIds;
   return Array.isArray(extra) && extra.includes(locationId);
-}
-
-async function assertStagingLocationAvailableInTransaction(
-  tx: admin.firestore.Transaction,
-  db: admin.firestore.Firestore,
-  locationId: string,
-  deliveryId: string,
-): Promise<string> {
-  const locRef = db.collection("stagingLocations").doc(locationId);
-  const locSnap = await tx.get(locRef);
-  if (!locSnap.exists) {
-    throw new HttpsError("not-found", "Staging location not found.");
-  }
-  const code = String(locSnap.data()?.code ?? "").trim();
-  const occupiedSnap = await tx.get(
-    db
-      .collection("deliveries")
-      .where("stagingLocationId", "==", locationId)
-      .limit(5),
-  );
-  for (const doc of occupiedSnap.docs) {
-    if (doc.id !== deliveryId) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Staging location is occupied by another delivery.",
-      );
-    }
-  }
-  return code || locationId;
 }
 
 export const applyVendorReplyClearBackorder = onCall(
@@ -257,12 +229,14 @@ export const applyVendorReplyClearBackorder = onCall(
 
       if (action === "shop_location" && stagingLocationId) {
         if (!deliveryUsesStagingLocation(delivery, stagingLocationId)) {
-          stagingCode = await assertStagingLocationAvailableInTransaction(
-            tx,
-            db,
-            stagingLocationId,
-            deliveryOrderId,
-          );
+          stagingCode = (
+            await assertStagingLocationAvailableInTransaction(
+              tx,
+              db,
+              stagingLocationId,
+              deliveryOrderId,
+            )
+          ).code;
         } else {
           const locSnap = await tx.get(
             db.collection("stagingLocations").doc(stagingLocationId),

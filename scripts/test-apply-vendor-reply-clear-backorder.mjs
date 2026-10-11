@@ -49,6 +49,57 @@ function fail(msg, err) {
   if (err) console.error(`    ${err?.message ?? err}`);
 }
 
+function codeOf(err) {
+  return String(err?.code ?? "");
+}
+
+function msgOf(err) {
+  return String(err?.message ?? "");
+}
+
+async function seedBackorderApplyCase(db, {
+  deliveryId,
+  eventId,
+  itemId,
+  extraDelivery = {},
+}) {
+  await setDoc(doc(db, "deliveries", deliveryId), {
+    id: deliveryId,
+    orderNumber: `ORD-${deliveryId}`,
+    jobId: "job-1",
+    vendorId: "vendor-1",
+    status: "partial",
+    vendorOrderComplete: true,
+    openIssueCount: 1,
+    openBlockingIssueCount: 1,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    ...extraDelivery,
+  });
+  await setDoc(doc(db, "items", itemId), {
+    id: itemId,
+    deliveryOrderId: deliveryId,
+    description: "Backordered line",
+    qtyOrdered: 1,
+    qtyReceived: 0,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+    qtyBackordered: 1,
+    status: "backordered",
+  });
+  await setDoc(doc(db, "vendorEmailEvents", eventId), {
+    id: eventId,
+    direction: "inbound",
+    reviewStatus: "pending_review",
+    deliveryOrderId: deliveryId,
+    subject: "Re: backorder",
+    senderEmail: "rep@vendor.com",
+    receivedAt: "2026-08-02T12:00:00Z",
+    createdAt: "2026-08-02T12:00:00Z",
+    updatedAt: "2026-08-02T12:00:00Z",
+  });
+}
+
 const testEnv = await initializeTestEnvironment({
   projectId: PROJECT_ID,
   firestore: {
@@ -100,10 +151,10 @@ await seed(async (db) => {
   await setDoc(doc(db, "appSettings", "config"), {
     vendorDeliveryMode: "full_checkin",
   });
-  await setDoc(doc(db, "stagingLocations", "loc-g5"), {
-    id: "loc-g5",
-    code: "G5",
-    label: "Bay G5",
+  await setDoc(doc(db, "stagingLocations", "avrcb-loc-happy"), {
+    id: "avrcb-loc-happy",
+    code: "HA5",
+    label: "Bay HA5",
     active: true,
   });
 });
@@ -167,8 +218,8 @@ try {
   const result = await applyClearBackorder({
     eventId,
     action: "shop_location",
-    stagingLocationId: "loc-g5",
-    dispatcherApplyNote: "Vendor shipping remainder to G5",
+    stagingLocationId: "avrcb-loc-happy",
+    dispatcherApplyNote: "Vendor shipping remainder to HA5",
   });
   if (result.data?.ok !== true) {
     fail("shop_location apply should return ok", JSON.stringify(result.data));
@@ -196,7 +247,7 @@ if (afterEvent?.reviewStatus === "approved" && afterEvent?.applyAction === "shop
   fail("event audit", JSON.stringify(afterEvent));
 }
 
-if (afterDelivery?.stagingLocationId === "loc-g5" && afterIssue?.status === "resolved") {
+if (afterDelivery?.stagingLocationId === "avrcb-loc-happy" && afterIssue?.status === "resolved") {
   pass("delivery staging assigned + backorder MI resolved");
 } else {
   fail("delivery/issue updates", JSON.stringify({ afterDelivery, afterIssue }));
@@ -206,7 +257,7 @@ try {
   await applyClearBackorder({
     eventId,
     action: "shop_location",
-    stagingLocationId: "loc-g5",
+    stagingLocationId: "avrcb-loc-happy",
   });
   fail("second apply should fail (idempotent)");
 } catch (err) {
@@ -214,6 +265,268 @@ try {
     pass("duplicate apply rejected (idempotent)");
   } else {
     fail("duplicate apply wrong error", err);
+  }
+}
+
+console.log("\n--- shop_location occupancy conflicts ---\n");
+
+await seed(async (db) => {
+  await setDoc(doc(db, "stagingLocations", "avrcb-loc-primary"), {
+    id: "avrcb-loc-primary",
+    code: "P1",
+    label: "Primary conflict",
+    status: "Active",
+    active: true,
+  });
+  await setDoc(doc(db, "stagingLocations", "avrcb-loc-addl"), {
+    id: "avrcb-loc-addl",
+    code: "A1",
+    label: "Additional conflict",
+    status: "Active",
+    active: true,
+  });
+  await setDoc(doc(db, "stagingLocations", "avrcb-loc-planned"), {
+    id: "avrcb-loc-planned",
+    code: "PL1",
+    label: "Planned conflict",
+    status: "Active",
+    active: true,
+  });
+  await setDoc(doc(db, "stagingLocations", "avrcb-loc-cleared"), {
+    id: "avrcb-loc-cleared",
+    code: "CL1",
+    label: "Cleared holder",
+    status: "Active",
+    active: true,
+  });
+  await setDoc(doc(db, "stagingLocations", "avrcb-loc-self"), {
+    id: "avrcb-loc-self",
+    code: "SL1",
+    label: "Self reuse",
+    status: "Active",
+    active: true,
+  });
+  await setDoc(doc(db, "stagingLocations", "avrcb-loc-inactive"), {
+    id: "avrcb-loc-inactive",
+    code: "IN1",
+    label: "Inactive",
+    status: "Inactive",
+    active: false,
+  });
+});
+
+// Conflict: other holds primary stagingLocationId
+await seed(async (db) => {
+  await seedBackorderApplyCase(db, {
+    deliveryId: "avrcb-del-conflict-primary-a",
+    eventId: "avrcb-evt-conflict-primary-a",
+    itemId: "avrcb-item-conflict-primary-a",
+  });
+  await setDoc(doc(db, "deliveries", "avrcb-del-conflict-primary-b"), {
+    id: "avrcb-del-conflict-primary-b",
+    orderNumber: "ORD-B",
+    status: "arrived",
+    stagingLocationId: "avrcb-loc-primary",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  });
+});
+try {
+  await applyClearBackorder({
+    eventId: "avrcb-evt-conflict-primary-a",
+    action: "shop_location",
+    stagingLocationId: "avrcb-loc-primary",
+  });
+  fail("shop_location conflict primary should reject");
+} catch (err) {
+  const after = await readDoc("deliveries", "avrcb-del-conflict-primary-a");
+  if (
+    (codeOf(err).includes("failed-precondition") ||
+      codeOf(err).includes("functions/failed-precondition")) &&
+    /no longer available/i.test(msgOf(err)) &&
+    (after?.stagingLocationId ?? "") !== "avrcb-loc-primary"
+  ) {
+    pass("shop_location rejected — other holds primary stagingLocationId");
+  } else {
+    fail("shop_location conflict primary", err);
+  }
+}
+
+// Conflict: other holds additionalStagingLocationIds
+await seed(async (db) => {
+  await seedBackorderApplyCase(db, {
+    deliveryId: "avrcb-del-conflict-addl-a",
+    eventId: "avrcb-evt-conflict-addl-a",
+    itemId: "avrcb-item-conflict-addl-a",
+  });
+  await setDoc(doc(db, "deliveries", "avrcb-del-conflict-addl-b"), {
+    id: "avrcb-del-conflict-addl-b",
+    orderNumber: "ORD-B2",
+    status: "arrived",
+    stagingLocationId: "",
+    additionalStagingLocationIds: ["avrcb-loc-addl"],
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  });
+});
+try {
+  await applyClearBackorder({
+    eventId: "avrcb-evt-conflict-addl-a",
+    action: "shop_location",
+    stagingLocationId: "avrcb-loc-addl",
+  });
+  fail("shop_location conflict additional should reject");
+} catch (err) {
+  const after = await readDoc("deliveries", "avrcb-del-conflict-addl-a");
+  if (
+    /no longer available/i.test(msgOf(err)) &&
+    (after?.stagingLocationId ?? "") !== "avrcb-loc-addl"
+  ) {
+    pass("shop_location rejected — other holds additionalStagingLocationIds");
+  } else {
+    fail("shop_location conflict additional", err);
+  }
+}
+
+// Conflict: other holds plannedStagingLocationIds only
+await seed(async (db) => {
+  await seedBackorderApplyCase(db, {
+    deliveryId: "avrcb-del-conflict-planned-a",
+    eventId: "avrcb-evt-conflict-planned-a",
+    itemId: "avrcb-item-conflict-planned-a",
+  });
+  await setDoc(doc(db, "deliveries", "avrcb-del-conflict-planned-b"), {
+    id: "avrcb-del-conflict-planned-b",
+    orderNumber: "ORD-B3",
+    status: "arrived",
+    stagingLocationId: "",
+    plannedStagingLocationIds: ["avrcb-loc-planned"],
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  });
+});
+try {
+  await applyClearBackorder({
+    eventId: "avrcb-evt-conflict-planned-a",
+    action: "shop_location",
+    stagingLocationId: "avrcb-loc-planned",
+  });
+  fail("shop_location conflict planned should reject");
+} catch (err) {
+  const after = await readDoc("deliveries", "avrcb-del-conflict-planned-a");
+  if (
+    /no longer available/i.test(msgOf(err)) &&
+    (after?.stagingLocationId ?? "") !== "avrcb-loc-planned"
+  ) {
+    pass("shop_location rejected — other holds plannedStagingLocationIds only");
+  } else {
+    fail("shop_location conflict planned", err);
+  }
+}
+
+// ZONE_CLEARED — picked_up holder ignored
+await seed(async (db) => {
+  await seedBackorderApplyCase(db, {
+    deliveryId: "avrcb-del-cleared-a",
+    eventId: "avrcb-evt-cleared-a",
+    itemId: "avrcb-item-cleared-a",
+  });
+  await setDoc(doc(db, "deliveries", "avrcb-del-cleared-b"), {
+    id: "avrcb-del-cleared-b",
+    orderNumber: "ORD-CL",
+    status: "picked_up",
+    stagingLocationId: "avrcb-loc-cleared",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  });
+});
+try {
+  await applyClearBackorder({
+    eventId: "avrcb-evt-cleared-a",
+    action: "shop_location",
+    stagingLocationId: "avrcb-loc-cleared",
+  });
+  const after = await readDoc("deliveries", "avrcb-del-cleared-a");
+  if (after?.stagingLocationId === "avrcb-loc-cleared") {
+    pass("shop_location succeeds over picked_up holder (ZONE_CLEARED)");
+  } else {
+    fail("shop_location ZONE_CLEARED", JSON.stringify(after));
+  }
+} catch (err) {
+  fail("shop_location ZONE_CLEARED", err);
+}
+
+// Same delivery already uses spot
+await seed(async (db) => {
+  await seedBackorderApplyCase(db, {
+    deliveryId: "avrcb-del-self-reuse",
+    eventId: "avrcb-evt-self-reuse",
+    itemId: "avrcb-item-self-reuse",
+    extraDelivery: {
+      stagingLocationId: "avrcb-loc-self",
+      additionalStagingLocationIds: ["avrcb-loc-self"],
+    },
+  });
+});
+try {
+  await applyClearBackorder({
+    eventId: "avrcb-evt-self-reuse",
+    action: "shop_location",
+    stagingLocationId: "avrcb-loc-self",
+  });
+  const after = await readDoc("deliveries", "avrcb-del-self-reuse");
+  if (after?.stagingLocationId === "avrcb-loc-self") {
+    pass("shop_location succeeds when delivery already uses spot");
+  } else {
+    fail("shop_location self reuse", JSON.stringify(after));
+  }
+} catch (err) {
+  fail("shop_location self reuse", err);
+}
+
+// Inactive location
+await seed(async (db) => {
+  await seedBackorderApplyCase(db, {
+    deliveryId: "avrcb-del-inactive-loc",
+    eventId: "avrcb-evt-inactive-loc",
+    itemId: "avrcb-item-inactive-loc",
+  });
+});
+try {
+  await applyClearBackorder({
+    eventId: "avrcb-evt-inactive-loc",
+    action: "shop_location",
+    stagingLocationId: "avrcb-loc-inactive",
+  });
+  fail("shop_location inactive loc should reject");
+} catch (err) {
+  if (/no longer available/i.test(msgOf(err))) {
+    pass("shop_location rejected — inactive location");
+  } else {
+    fail("shop_location inactive loc", err);
+  }
+}
+
+// Missing location
+await seed(async (db) => {
+  await seedBackorderApplyCase(db, {
+    deliveryId: "avrcb-del-missing-loc",
+    eventId: "avrcb-evt-missing-loc",
+    itemId: "avrcb-item-missing-loc",
+  });
+});
+try {
+  await applyClearBackorder({
+    eventId: "avrcb-evt-missing-loc",
+    action: "shop_location",
+    stagingLocationId: "avrcb-loc-missing-xyz",
+  });
+  fail("shop_location missing loc should reject");
+} catch (err) {
+  if (codeOf(err).includes("not-found") || /not found/i.test(msgOf(err))) {
+    pass("shop_location rejected — missing location");
+  } else {
+    fail("shop_location missing loc", err);
   }
 }
 
@@ -229,8 +542,8 @@ await seed(async (db) => {
     vendorId: "vendor-1",
     status: "partial",
     vendorOrderComplete: true,
-    stagingLocationId: "loc-g5",
-    additionalStagingLocationIds: ["loc-g5"],
+    stagingLocationId: "avrcb-loc-happy",
+    additionalStagingLocationIds: ["avrcb-loc-happy"],
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
   });

@@ -49,6 +49,8 @@ jobs:
           --only auth,firestore,functions
           --project stageverify-db
           "node scripts/test-assign-vendor-staging-location.mjs
+          && node scripts/test-release-planned-staging-location.mjs
+          && node scripts/test-apply-vendor-reply-clear-backorder.mjs
           && node scripts/test-reassign-staging-location.mjs
           && node scripts/test-mark-vendor-delivered.mjs
           && node scripts/test-delivery-status-transitions.mjs

@@ -14,6 +14,7 @@ import {
   asSessionToken,
   assertVendorSessionValid,
 } from "./vendorSessionValidation";
+import { assertStagingLocationAvailableInTransaction } from "./stagingOccupancyGuard";
 
 function getDb() {
   return admin.firestore();
@@ -46,29 +47,6 @@ function deliveryUsesStagingLocation(
   return Array.isArray(extra) && extra.includes(locationId);
 }
 
-async function assertStagingLocationAvailable(
-  locationId: string,
-  deliveryId: string,
-): Promise<void> {
-  const locSnap = await getDb().collection("stagingLocations").doc(locationId).get();
-  if (!locSnap.exists) {
-    throw new HttpsError("not-found", "Staging location not found.");
-  }
-  const occupiedSnap = await getDb()
-    .collection("deliveries")
-    .where("stagingLocationId", "==", locationId)
-    .limit(5)
-    .get();
-  for (const doc of occupiedSnap.docs) {
-    if (doc.id !== deliveryId) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Staging location is occupied by another delivery.",
-      );
-    }
-  }
-}
-
 function plannedIds(delivery: admin.firestore.DocumentData): string[] {
   const raw = delivery.plannedStagingLocationIds;
   if (!Array.isArray(raw)) return [];
@@ -88,6 +66,11 @@ function hasReleaseEntry(
       (entry as { locationId?: string }).locationId === locationId,
   );
 }
+
+type ReleaseResponse =
+  | { deliveryId: string; locationId: string; placed: boolean; skipped: true }
+  | { deliveryId: string; locationId: string; placed: true; skipped?: undefined }
+  | { deliveryId: string; locationId: string; placed: false; released: true };
 
 export const releasePlannedStagingLocation = onCall(
   {
@@ -111,68 +94,87 @@ export const releasePlannedStagingLocation = onCall(
 
     await assertVendorSessionValid(sessionToken, deliveryId);
 
-    const deliveryRef = getDb().collection("deliveries").doc(deliveryId);
-    const deliverySnap = await deliveryRef.get();
-    if (!deliverySnap.exists) {
-      throw new HttpsError("not-found", "Delivery not found.");
-    }
+    const db = getDb();
+    const deliveryRef = db.collection("deliveries").doc(deliveryId);
 
-    const delivery = deliverySnap.data() as admin.firestore.DocumentData;
-    const status = String(delivery.status ?? "");
-    if (status === "picked_up" || status === "installed") {
-      throw new HttpsError("failed-precondition", "Delivery is no longer active.");
-    }
+    let response: ReleaseResponse | null = null;
 
-    const planned = plannedIds(delivery);
-    if (!planned.includes(locationId)) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Location is not a planned spot for this delivery.",
-      );
-    }
-
-    if (hasReleaseEntry(delivery, locationId)) {
-      return { deliveryId, locationId, placed, skipped: true };
-    }
-
-    const actualIds = getAllStagingLocationIds(delivery);
-    if (actualIds.includes(locationId)) {
-      return { deliveryId, locationId, placed: true, skipped: true };
-    }
-
-    const now = new Date().toISOString();
-
-    if (placed) {
-      if (!deliveryUsesStagingLocation(delivery, locationId)) {
-        await assertStagingLocationAvailable(locationId, deliveryId);
+    await db.runTransaction(async (tx) => {
+      const deliverySnap = await tx.get(deliveryRef);
+      if (!deliverySnap.exists) {
+        throw new HttpsError("not-found", "Delivery not found.");
       }
-      if (!delivery.stagingLocationId || delivery.stagingLocationId === "") {
-        await deliveryRef.update({
-          stagingLocationId: locationId,
-          updatedAt: now,
-        });
-      } else if (!actualIds.includes(locationId)) {
-        await deliveryRef.update({
-          additionalStagingLocationIds: FieldValue.arrayUnion(locationId),
-          updatedAt: now,
-        });
+
+      const delivery = deliverySnap.data() as admin.firestore.DocumentData;
+      const status = String(delivery.status ?? "");
+      if (status === "picked_up" || status === "installed") {
+        throw new HttpsError("failed-precondition", "Delivery is no longer active.");
       }
-      return { deliveryId, locationId, placed: true };
-    }
 
-    const releaseEntry = {
-      locationId,
-      releasedAt: now,
-      releasedBy: "vendor",
-      reason: "vendor_declined_planned_spot",
-    };
+      const planned = plannedIds(delivery);
+      if (!planned.includes(locationId)) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Location is not a planned spot for this delivery.",
+        );
+      }
 
-    await deliveryRef.update({
-      plannedStagingLocationIds: FieldValue.arrayRemove(locationId),
-      plannedLocationReleases: FieldValue.arrayUnion(releaseEntry),
-      updatedAt: now,
+      if (hasReleaseEntry(delivery, locationId)) {
+        response = { deliveryId, locationId, placed, skipped: true };
+        return;
+      }
+
+      const actualIds = getAllStagingLocationIds(delivery);
+      if (actualIds.includes(locationId)) {
+        response = { deliveryId, locationId, placed: true, skipped: true };
+        return;
+      }
+
+      const now = new Date().toISOString();
+
+      if (placed) {
+        if (!deliveryUsesStagingLocation(delivery, locationId)) {
+          await assertStagingLocationAvailableInTransaction(
+            tx,
+            db,
+            locationId,
+            deliveryId,
+          );
+        }
+        if (!delivery.stagingLocationId || delivery.stagingLocationId === "") {
+          tx.update(deliveryRef, {
+            stagingLocationId: locationId,
+            updatedAt: now,
+          });
+        } else if (!actualIds.includes(locationId)) {
+          tx.update(deliveryRef, {
+            additionalStagingLocationIds: FieldValue.arrayUnion(locationId),
+            updatedAt: now,
+          });
+        }
+        response = { deliveryId, locationId, placed: true };
+        return;
+      }
+
+      const releaseEntry = {
+        locationId,
+        releasedAt: now,
+        releasedBy: "vendor",
+        reason: "vendor_declined_planned_spot",
+      };
+
+      tx.update(deliveryRef, {
+        plannedStagingLocationIds: FieldValue.arrayRemove(locationId),
+        plannedLocationReleases: FieldValue.arrayUnion(releaseEntry),
+        updatedAt: now,
+      });
+
+      response = { deliveryId, locationId, placed: false, released: true };
     });
 
-    return { deliveryId, locationId, placed: false, released: true };
+    if (!response) {
+      throw new HttpsError("internal", "Release planned staging did not complete.");
+    }
+    return response;
   },
 );
