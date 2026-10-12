@@ -15,6 +15,7 @@ import {
   AUTHOR_GATE_ID_HINT,
   hasAllowedGateModel,
   extractGateModelSlugs,
+  stripModelSelfReportFields,
   extractReviewEvidenceText,
   extractSecurityGateIdValue,
   hasValidSecurityGateId,
@@ -268,6 +269,51 @@ describe("hasAllowedGateModel", () => {
 
   it("rejects model line only inside inline code spans", () => {
     assert.equal(hasAllowedGateModel("`model: cursor-grok-4.6-high`"), false);
+  });
+
+  it("model-self-report alone does not satisfy gate model", () => {
+    assert.equal(stripModelSelfReportFields("model-self-report: grok-4.7-high"), "");
+    assert.equal(hasAllowedGateModel("model-self-report: grok-4.7-high"), false);
+    assert.deepEqual(extractGateModelSlugs("model-self-report: grok-4.7-high"), []);
+  });
+
+  it("embedded model: in model-self-report value does not count", () => {
+    assert.deepEqual(
+      extractGateModelSlugs("model-self-report: model: grok-4.7-high"),
+      [],
+    );
+  });
+
+  it("strips model-self-report on separate line but keeps model:", () => {
+    assert.deepEqual(
+      extractGateModelSlugs("model: grok-4.7-high\nmodel-self-report: Grok 4.7"),
+      ["grok-4.7-high"],
+    );
+  });
+
+  it("strips model-self-report on same line as model:", () => {
+    assert.deepEqual(
+      extractGateModelSlugs("model: grok-4.7-high model-self-report: Grok 4.7"),
+      ["grok-4.7-high"],
+    );
+  });
+
+  it("model: grok-4.7-high still passes with lookbehind", () => {
+    assert.equal(hasAllowedGateModel("model: grok-4.7-high"), true);
+  });
+
+  it("not-a-model: prefix does not pass lookbehind", () => {
+    assert.equal(hasAllowedGateModel("not-a-model: grok-4.7-high"), false);
+    assert.deepEqual(extractGateModelSlugs("not-a-model: grok-4.7-high"), []);
+  });
+
+  it("extracts Sonnet and Grok slugs from #258-style evidence", () => {
+    assert.deepEqual(
+      extractGateModelSlugs(
+        "model: grok-4.7-high\nmodel: claude-sonnet-5-thinking-high",
+      ),
+      ["grok-4.7-high", "claude-sonnet-5-thinking-high"],
+    );
   });
 });
 
