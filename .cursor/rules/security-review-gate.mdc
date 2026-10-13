@@ -19,7 +19,7 @@ New HIGH reviews dispatch **`grok-4.7-high`** only (standard 256k context). Do n
 
 Dispatch the FIRST Grok slug in preference order that the platform accepts. Use a later preference-order slug ONLY after a real Task rejection of every earlier preference — record `fallback-from: <rejected slug(s)>`. Inventing slugs or substituting any non-allowlist model = gate NOT RUN. Suffix variants (e.g. `-fast`) are never allowlisted.
 
-**Sonnet required in addition to Grok (mechanical CI on these paths):** for `firestore.rules`, auth/PIN/roles, or billing/money — record **two** `model:` lines in review evidence: one Grok allowlisted slug **and** `claude-sonnet-5-thinking-high`. Grok-only or Sonnet-only on those paths fails `gate-check`. Also use Sonnet when the Grok HIGH review returns FAIL / a HIGH finding, at ladder step 5, or when Dan asks. Gate-config-only HIGH (workflows, `gate-check.mjs`, etc.) does not require Sonnet backup.
+**Sonnet required in addition to Grok (mechanical CI on these paths):** for `firestore.rules`, auth/PIN/roles, or billing/money — record **two** `model:` lines in review evidence: one Grok allowlisted slug **and** `claude-sonnet-5-thinking-high`. Grok-only or Sonnet-only on those paths fails `gate-check`. Also use Sonnet when the Grok HIGH review returns FAIL / a HIGH finding, at ladder step 5, or when Dan asks. Gate-config-only HIGH (workflows, `gate-check.mjs`, etc.) does not require Sonnet backup. When the gate requires Sonnet, run it without asking — no optional Sonnet runs; every Sonnet run records `job-type:` and `sonnet-unique-findings:`.
 
 **Task start failures count as rejection:** UI **"Couldn't start"** / Task **"Invalid model selection"** / **"Model could not be resolved"** → immediately retry the next allowlist slug (`fallback-from:`).
 
@@ -49,9 +49,10 @@ Task({
 ## Valid completion (all required)
 
 1. **`security-gate-id`** — Task return UUID (lowercase hex, 8-4-4-4-12) **or** `bc-<uuid>`. Not invented; `NOT RUN`, empty, and junk values are invalid. Must not equal the PR author agent id.
-2. **Model line(s):** `model: <exact allowlisted slug>` (+ `fallback-from:` when a higher slug was rejected). **Required** by mechanical CI; rules/auth/billing paths need Grok **and** Sonnet slugs.
-3. **`actual model invocation evidence: yes | no | unknown`**
-4. **Verdict:** PASS | MEDIUM | HIGH | NOT RUN.
+2. **Model line(s):** `model: <exact allowlisted gate slug>` (example `grok-4.7-high`) (+ `fallback-from:` when a higher slug was rejected). **Required** by mechanical CI; rules/auth/billing paths need Grok **and** Sonnet slugs. **`model-self-report:`** is the reviewer's own reported model string, recorded separately — not required by CI and does **not** count as `model:`.
+3. **`context-used:`** peak tokens from the Agents-window **context ring** (click the ring next to the prompt input). Use `n/a` only if that readout is actually absent — do not estimate.
+4. **`actual model invocation evidence: yes | no | unknown`**
+5. **Verdict:** PASS | MEDIUM | HIGH | NOT RUN.
 
 Missing **`security-gate-id`** or allowlisted **`model:`** → **NOT RUN**, not PASS.
 

@@ -289,8 +289,7 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.15.1",
-    "tailwindcss": "^4.3.0",
-    "typescript": "~6.0.2"
+    "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -305,6 +304,7 @@
     "gh-pages": "^6.3.0",
     "globals": "^17.6.0",
     "playwright": "^1.60.0",
+    "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12"
   },
