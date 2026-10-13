@@ -42,8 +42,8 @@ const {
   accessPinUniquenessDocId,
 } = require(resolve(root, "functions/lib/accessPinSecretsShared.js"));
 
-const OLD_PIN = "2468";
-const NEW_PIN = "1357";
+const OLD_PIN = "9765";
+const NEW_PIN = "8642";
 
 let passed = 0;
 let failed = 0;
