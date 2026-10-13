@@ -49,7 +49,7 @@ const identity = tryBuildBusinessInvoiceIdentity({
 });
 assert.ok(identity);
 
-const legacyId = "vii-19fe2a7af7632590-page-2";
+const legacyId = "business-invoice-idempotency-emulator_vii-19fe2a7af7632590-page-2";
 const resendId = "vii-resend-postdeploy-page-2";
 
 await db.collection("vendorInvoiceImports").doc(legacyId).set({
@@ -128,7 +128,7 @@ console.log("PASS emulator legacy no-key resend → exact_duplicate + key→lega
 
   const batch = db.batch();
   for (let i = 0; i < 25; i++) {
-    const id = `vii-sat-filler-${i}`;
+    const id = `business-invoice-idempotency-emulator_vii-sat-filler-${i}`;
     batch.set(db.collection("vendorInvoiceImports").doc(id), {
       id,
       gmailMessageId: `msg-sat-${i}`,

@@ -41,9 +41,9 @@ const recordTechnicianJobOpen = httpsCallable(
   "recordTechnicianJobOpen",
 );
 
-const TECH_ID = "tech-1";
-const JOB_ID = "job-released-1";
-const SESSION_TOKEN = "a".repeat(64);
+const TECH_ID = "technician-job-open_tech-1";
+const JOB_ID = "technician-job-open_job-released-1";
+const SESSION_TOKEN = "1".repeat(64);
 const RELEASE_DATE = new Date().toISOString().slice(0, 10);
 
 let passed = 0;
@@ -189,7 +189,7 @@ async function callOpen(overrides = {}) {
   return recordTechnicianJobOpen({
     sessionToken: SESSION_TOKEN,
     jobId: JOB_ID,
-    clientOpenId: "open-id-001",
+    clientOpenId: "technician-job-open_open-id-001",
     ...overrides,
   });
 }
@@ -203,21 +203,21 @@ try {
     await seedDayRelease(db);
     await seedDeliveriesForJob(db, JOB_ID, [
       {
-        id: "del-r1",
+        id: "technician-job-open_del-r1",
         status: "ready_for_pickup",
         vendorOrderComplete: true,
         vendorPhysicalDropoffConfirmed: true,
         stagingLocationId: "loc-g1",
       },
       {
-        id: "del-r2",
+        id: "technician-job-open_del-r2",
         status: "ready_for_pickup",
         vendorOrderComplete: true,
         vendorPhysicalDropoffConfirmed: true,
         stagingLocationId: "loc-g2",
       },
       {
-        id: "del-p1",
+        id: "technician-job-open_del-p1",
         status: "partial",
         vendorOrderComplete: false,
         vendorPhysicalDropoffConfirmed: true,
@@ -226,7 +226,7 @@ try {
     ]);
   });
 
-  const t1ClientOpenId = "open-t1-valid";
+  const t1ClientOpenId = "technician-job-open_open-t1-valid";
   const t1 = await callOpen({ clientOpenId: t1ClientOpenId });
   const t1Event = await readJobOpenEvent(t1ClientOpenId);
   if (
@@ -250,7 +250,7 @@ try {
   }
 
   // T3 — new clientOpenId → second event
-  const t3ClientOpenId = "open-t3-second";
+  const t3ClientOpenId = "technician-job-open_open-t3-second";
   const t3 = await callOpen({ clientOpenId: t3ClientOpenId });
   const t3Count = await countTechJobOpenedEvents();
   if (t3.data.duplicate === false && t3Count === 2) {
@@ -261,7 +261,7 @@ try {
 
   // T4 — unreleased job → permission-denied
   try {
-    await callOpen({ jobId: "job-not-released", clientOpenId: "open-t4" });
+    await callOpen({ jobId: "job-not-released", clientOpenId: "technician-job-open_open-t4" });
     fail("T4 unreleased job should throw");
   } catch (err) {
     if (expectError(err, "permission-denied")) {
@@ -272,7 +272,7 @@ try {
   }
 
   // T5 — expired session → permission-denied
-  const expiredToken = "b".repeat(64);
+  const expiredToken = "2".repeat(64);
   await seed(async (db) => {
     await seedTechnicianSession(db, {
       sessionToken: expiredToken,
@@ -281,7 +281,7 @@ try {
     await seedDayRelease(db);
   });
   try {
-    await callOpen({ sessionToken: expiredToken, clientOpenId: "open-t5" });
+    await callOpen({ sessionToken: expiredToken, clientOpenId: "technician-job-open_open-t5" });
     fail("T5 expired session should throw");
   } catch (err) {
     if (expectError(err, "permission-denied")) {
@@ -293,7 +293,7 @@ try {
 
   // T6 — invalid session token → invalid-argument
   try {
-    await callOpen({ sessionToken: "not-valid", clientOpenId: "open-t6" });
+    await callOpen({ sessionToken: "not-valid", clientOpenId: "technician-job-open_open-t6" });
     fail("T6 invalid session token should throw");
   } catch (err) {
     if (expectError(err, "invalid-argument")) {
@@ -331,7 +331,7 @@ try {
   }
 
   // T9 — unauthenticated succeeds
-  const t9 = await callOpen({ clientOpenId: "open-t9-unauth" });
+  const t9 = await callOpen({ clientOpenId: "technician-job-open_open-t9-unauth" });
   if (t9.data.duplicate === false) {
     pass("T9 unauthenticated callable succeeds");
   } else {
@@ -340,8 +340,8 @@ try {
 
   // T10 — snapshot from seed not client (server-side counts)
   await seed(async (db) => {
-    await setDoc(doc(db, "deliveries", "del-t10-extra"), {
-      id: "del-t10-extra",
+    await setDoc(doc(db, "deliveries", "technician-job-open_del-t10-extra"), {
+      id: "technician-job-open_del-t10-extra",
       jobId: JOB_ID,
       status: "partial",
       orderNumber: "ORD-T10",
@@ -353,9 +353,9 @@ try {
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     });
-    await setDoc(doc(db, "items", "del-t10-extra-item-0"), {
-      id: "del-t10-extra-item-0",
-      deliveryOrderId: "del-t10-extra",
+    await setDoc(doc(db, "items", "technician-job-open_del-t10-extra-item-0"), {
+      id: "technician-job-open_del-t10-extra-item-0",
+      deliveryOrderId: "technician-job-open_del-t10-extra",
       description: "Fully received",
       qtyOrdered: 1,
       qtyReceived: 1,
@@ -365,7 +365,7 @@ try {
       status: "received",
     });
   });
-  const t10ClientOpenId = "open-t10-snapshot";
+  const t10ClientOpenId = "technician-job-open_open-t10-snapshot";
   await callOpen({ clientOpenId: t10ClientOpenId });
   const t10Event = await readJobOpenEvent(t10ClientOpenId);
   if (
@@ -378,7 +378,7 @@ try {
   }
 
   // T11 — existing TECH_PIN_VERIFIED unaffected
-  const pinEventId = "tech-pin-existing";
+  const pinEventId = "technician-job-open_tech-pin-existing";
   await seed(async (db) => {
     await setDoc(doc(db, "pinVerificationEvents", pinEventId), {
       id: pinEventId,
@@ -390,7 +390,7 @@ try {
       createdAt: "2026-01-01T00:00:00Z",
     });
   });
-  await callOpen({ clientOpenId: "open-t11-after-pin" });
+  await callOpen({ clientOpenId: "technician-job-open_open-t11-after-pin" });
   const pinEvent = await readPinEvent(pinEventId);
   if (pinEvent?.action === "TECH_PIN_VERIFIED") {
     pass("T11 existing TECH_PIN_VERIFIED unaffected");
@@ -399,7 +399,7 @@ try {
   }
 
   // T12 — source location_scan stored
-  const t12ClientOpenId = "open-t12-source";
+  const t12ClientOpenId = "technician-job-open_open-t12-source";
   await callOpen({
     clientOpenId: t12ClientOpenId,
     source: "location_scan",
@@ -412,7 +412,7 @@ try {
   }
 
   // T13 — invalid source omitted, no throw
-  const t13ClientOpenId = "open-t13-bad-source";
+  const t13ClientOpenId = "technician-job-open_open-t13-bad-source";
   const t13 = await callOpen({
     clientOpenId: t13ClientOpenId,
     source: "not_a_valid_source",
@@ -425,7 +425,7 @@ try {
   }
 
   // T14 — scannedStagingLocationCode from session stored
-  const t14ClientOpenId = "open-t14-staging";
+  const t14ClientOpenId = "technician-job-open_open-t14-staging";
   await callOpen({ clientOpenId: t14ClientOpenId });
   const t14Event = await readJobOpenEvent(t14ClientOpenId);
   if (t14Event?.scannedStagingLocationCode === "STAGE-A") {

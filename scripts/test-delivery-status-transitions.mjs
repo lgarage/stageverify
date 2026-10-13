@@ -18,7 +18,7 @@ const PROJECT_ID = "stageverify-rules-test";
 const RULES_PATH = resolve(process.cwd(), "firestore.rules");
 
 const BASE_DELIVERY = {
-  id: "test-delivery",
+  id: "delivery-status-transitions_test-delivery",
   jobId: "job-test",
   vendorId: "vendor-test",
   orderNumber: "ORD-TEST",
@@ -27,11 +27,11 @@ const BASE_DELIVERY = {
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
 
-function deliveryRef(db, id = "test-delivery") {
+function deliveryRef(db, id = "delivery-status-transitions_test-delivery") {
   return doc(db, "deliveries", id);
 }
 
-async function seedDelivery(context, status, extra = {}, id = "test-delivery") {
+async function seedDelivery(context, status, extra = {}, id = "delivery-status-transitions_test-delivery") {
   await setDoc(deliveryRef(context.firestore(), id), {
     ...BASE_DELIVERY,
     id,
@@ -125,7 +125,7 @@ const testEnv = await initializeTestEnvironment({
 try {
   console.log("\n=== Blocked unauthenticated delivery writes (Phase 2 — CF-only) ===\n");
   for (const tc of ALLOWED) {
-    const deliveryId = `allow-${tc.from}-${tc.to}`;
+    const deliveryId = `delivery-status-transitions_allow-${tc.from}-${tc.to}`;
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(deliveryRef(ctx.firestore(), deliveryId), {
         ...BASE_DELIVERY,
@@ -146,7 +146,7 @@ try {
 
   console.log("\n=== Forbidden unauthenticated delivery status transitions ===\n");
   for (const tc of FORBIDDEN) {
-    const deliveryId = `deny-${tc.from}-${tc.to}`;
+    const deliveryId = `delivery-status-transitions_deny-${tc.from}-${tc.to}`;
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(deliveryRef(ctx.firestore(), deliveryId), {
         ...BASE_DELIVERY,
@@ -264,7 +264,7 @@ try {
 
   try {
     await assertFails(
-      updateDoc(deliveryRef(unauthed.firestore(), "test-delivery"), {
+      updateDoc(deliveryRef(unauthed.firestore(), "delivery-status-transitions_test-delivery"), {
         status: "arrived",
         vendorPhysicalDropoffConfirmed: true,
         vendorPhysicalDropoffConfirmedAt: new Date().toISOString(),
@@ -281,7 +281,7 @@ try {
 
   try {
     await assertFails(
-      updateDoc(deliveryRef(unauthed.firestore(), "test-delivery"), {
+      updateDoc(deliveryRef(unauthed.firestore(), "delivery-status-transitions_test-delivery"), {
         status: "arrived",
         vendorPhysicalDropoffConfirmed: false,
         vendorPhysicalDropoffConfirmedAt: null,
@@ -340,9 +340,9 @@ try {
   console.log("\n=== Collection write restrictions ===\n");
   try {
     await assertFails(
-      setDoc(doc(unauthed.firestore(), "pickupEvents", "evt-1"), {
-        id: "evt-1",
-        deliveryOrderId: "test-delivery",
+      setDoc(doc(unauthed.firestore(), "pickupEvents", "delivery-status-transitions_evt-1"), {
+        id: "delivery-status-transitions_evt-1",
+        deliveryOrderId: "delivery-status-transitions_test-delivery",
         jobId: "job-test",
         technicianName: "Attacker",
         pickedUpAt: new Date().toISOString(),
@@ -356,8 +356,8 @@ try {
 
   try {
     await assertFails(
-      setDoc(doc(unauthed.firestore(), "pickupOperations", "op-1"), {
-        deliveryOrderId: "test-delivery",
+      setDoc(doc(unauthed.firestore(), "pickupOperations", "delivery-status-transitions_op-1"), {
+        deliveryOrderId: "delivery-status-transitions_test-delivery",
         jobId: "job-test",
       }),
     );
@@ -369,10 +369,10 @@ try {
   console.log("\n=== Forged statusHistory transitions ===\n");
   try {
     await assertFails(
-      setDoc(doc(unauthed.firestore(), "statusHistory", "hist-picked"), {
-        id: "hist-picked",
+      setDoc(doc(unauthed.firestore(), "statusHistory", "delivery-status-transitions_hist-picked"), {
+        id: "delivery-status-transitions_hist-picked",
         entityType: "delivery_order",
-        entityId: "test-delivery",
+        entityId: "delivery-status-transitions_test-delivery",
         toStatus: "picked_up",
         actorType: "technician",
         actorName: "Attacker",
@@ -386,10 +386,10 @@ try {
 
   try {
     await assertFails(
-      setDoc(doc(unauthed.firestore(), "statusHistory", "hist-ready"), {
-        id: "hist-ready",
+      setDoc(doc(unauthed.firestore(), "statusHistory", "delivery-status-transitions_hist-ready"), {
+        id: "delivery-status-transitions_hist-ready",
         entityType: "delivery_order",
-        entityId: "test-delivery",
+        entityId: "delivery-status-transitions_test-delivery",
         toStatus: "ready_for_pickup",
         actorType: "vendor",
         actorName: "Attacker",
@@ -403,10 +403,10 @@ try {
 
   try {
     await assertFails(
-      setDoc(doc(unauthed.firestore(), "statusHistory", "hist-arrived"), {
-        id: "hist-arrived",
+      setDoc(doc(unauthed.firestore(), "statusHistory", "delivery-status-transitions_hist-arrived"), {
+        id: "delivery-status-transitions_hist-arrived",
         entityType: "delivery_order",
-        entityId: "test-delivery",
+        entityId: "delivery-status-transitions_test-delivery",
         toStatus: "arrived",
         actorType: "vendor",
         actorName: "Vendor Driver",
@@ -436,21 +436,21 @@ try {
 
   console.log("\n=== ignoreRuleAuditEvents (D-59 P5) ===\n");
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    await setDoc(doc(ctx.firestore(), "dispatcherRoles", "dispatcher-audit"), {
+    await setDoc(doc(ctx.firestore(), "dispatcherRoles", "delivery-status-transitions_dispatcher-audit"), {
       active: true,
     });
-    await setDoc(doc(ctx.firestore(), "ignoreRuleAuditEvents", "evt-seed"), {
+    await setDoc(doc(ctx.firestore(), "ignoreRuleAuditEvents", "delivery-status-transitions_evt-seed"), {
       ruleId: "johnstone__johnstone__credit_memo",
       eventType: "proposed",
       actorUid: "system",
       atIso: "2026-08-04T00:00:00.000Z",
     });
   });
-  const dispatcherAudit = testEnv.authenticatedContext("dispatcher-audit");
+  const dispatcherAudit = testEnv.authenticatedContext("delivery-status-transitions_dispatcher-audit");
   try {
     await assertSucceeds(
       getDoc(
-        doc(dispatcherAudit.firestore(), "ignoreRuleAuditEvents", "evt-seed"),
+        doc(dispatcherAudit.firestore(), "ignoreRuleAuditEvents", "delivery-status-transitions_evt-seed"),
       ),
     );
     pass("dispatcher read ignoreRuleAuditEvents allowed");
@@ -459,7 +459,7 @@ try {
   }
   try {
     await assertFails(
-      setDoc(doc(dispatcherAudit.firestore(), "ignoreRuleAuditEvents", "evt-forged"), {
+      setDoc(doc(dispatcherAudit.firestore(), "ignoreRuleAuditEvents", "delivery-status-transitions_evt-forged"), {
         ruleId: "forged",
         eventType: "activated",
         actorUid: "attacker",
@@ -473,14 +473,14 @@ try {
 
   console.log("\n=== trainingNoteAudit + trainingLessonRateLimits (D-59 P7) ===\n");
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    await setDoc(doc(ctx.firestore(), "dispatcherRoles", "dispatcher-p7"), {
+    await setDoc(doc(ctx.firestore(), "dispatcherRoles", "delivery-status-transitions_dispatcher-p7"), {
       active: true,
     });
   });
-  const dispatcherP7 = testEnv.authenticatedContext("dispatcher-p7");
+  const dispatcherP7 = testEnv.authenticatedContext("delivery-status-transitions_dispatcher-p7");
   for (const [coll, docId] of [
-    ["trainingNoteAudit", "note-seed"],
-    ["trainingLessonRateLimits", "uid-seed"],
+    ["trainingNoteAudit", "delivery-status-transitions_note-seed"],
+    ["trainingLessonRateLimits", "delivery-status-transitions_uid-seed"],
   ]) {
     try {
       await assertFails(

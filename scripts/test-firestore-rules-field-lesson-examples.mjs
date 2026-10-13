@@ -24,13 +24,13 @@ const testEnv = await initializeTestEnvironment({
 
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const db = ctx.firestore();
-  await setDoc(doc(db, "dispatcherRoles", "disp-1"), {
+  await setDoc(doc(db, "dispatcherRoles", "firestore-rules-field-lesson-examples_disp-1"), {
     active: true,
     manager: true,
     role: "manager",
   });
-  await setDoc(doc(db, "vendorInvoiceFieldLessonExamples", "ex-1"), {
-    id: "ex-1",
+  await setDoc(doc(db, "vendorInvoiceFieldLessonExamples", "firestore-rules-field-lesson-examples_ex-1"), {
+    id: "firestore-rules-field-lesson-examples_ex-1",
     sourceDocumentKey: "imp-1",
     field: "customerPoOrReference",
     correctedValue: "2205 EARLY",
@@ -39,25 +39,25 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 });
 
 const unauth = testEnv.unauthenticatedContext().firestore();
-await assertFails(getDoc(doc(unauth, "vendorInvoiceFieldLessonExamples", "ex-1")));
+await assertFails(getDoc(doc(unauth, "vendorInvoiceFieldLessonExamples", "firestore-rules-field-lesson-examples_ex-1")));
 await assertFails(
-  setDoc(doc(unauth, "vendorInvoiceFieldLessonExamples", "hack"), { x: 1 }),
+  setDoc(doc(unauth, "vendorInvoiceFieldLessonExamples", "firestore-rules-field-lesson-examples_hack"), { x: 1 }),
 );
 
 const randomUser = testEnv.authenticatedContext("user-x").firestore();
 await assertFails(
-  getDoc(doc(randomUser, "vendorInvoiceFieldLessonExamples", "ex-1")),
+  getDoc(doc(randomUser, "vendorInvoiceFieldLessonExamples", "firestore-rules-field-lesson-examples_ex-1")),
 );
 await assertFails(
-  setDoc(doc(randomUser, "vendorInvoiceFieldLessonExamples", "hack2"), { x: 1 }),
+  setDoc(doc(randomUser, "vendorInvoiceFieldLessonExamples", "firestore-rules-field-lesson-examples_hack2"), { x: 1 }),
 );
 
-const dispatcher = testEnv.authenticatedContext("disp-1").firestore();
+const dispatcher = testEnv.authenticatedContext("firestore-rules-field-lesson-examples_disp-1").firestore();
 await assertFails(
-  getDoc(doc(dispatcher, "vendorInvoiceFieldLessonExamples", "ex-1")),
+  getDoc(doc(dispatcher, "vendorInvoiceFieldLessonExamples", "firestore-rules-field-lesson-examples_ex-1")),
 );
 await assertFails(
-  setDoc(doc(dispatcher, "vendorInvoiceFieldLessonExamples", "hack3"), {
+  setDoc(doc(dispatcher, "vendorInvoiceFieldLessonExamples", "firestore-rules-field-lesson-examples_hack3"), {
     field: "customerPoOrReference",
     correctedValue: "EVIL",
   }),

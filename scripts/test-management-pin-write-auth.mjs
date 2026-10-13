@@ -69,7 +69,7 @@ async function clearFixture(pinId) {
   batch.delete(
     db.collection("accessPinSecrets").doc(accessPinSecretDocId("management", pinId)),
   );
-  const lookupKey = pinLookupKeyForPin("4321");
+  const lookupKey = pinLookupKeyForPin("5678");
   batch.delete(
     db
       .collection("accessPinUniqueness")
@@ -99,20 +99,20 @@ async function expectDenied(label, fn, code = "permission-denied") {
 try {
   console.log("\n=== management PIN write auth ===\n");
 
-  const pinId = "mpin-auth-test";
+  const pinId = "management-pin-write-auth_mpin-auth-test";
   await clearFixture(pinId);
-  await setRole("disp-only", { manager: false });
-  await setRole("mgr-ok", { manager: true });
+  await setRole("management-pin-write-auth_disp-only", { manager: false });
+  await setRole("management-pin-write-auth_mgr-ok", { manager: true });
 
   await expectDenied("non-manager denied when pin provided", () =>
     authorizeManagementPinWrite(
-      { auth: { uid: "disp-only" } },
+      { auth: { uid: "management-pin-write-auth_disp-only" } },
       { id: pinId, pin: "1234" },
     ),
   );
 
   const initial = await authorizeManagementPinWrite(
-    { auth: { uid: "mgr-ok" } },
+    { auth: { uid: "management-pin-write-auth_mgr-ok" } },
     { id: pinId, pin: "5678" },
   );
   assert.equal(initial.sessionConsumption, null);
@@ -129,7 +129,7 @@ try {
 
   await expectDenied("existing PIN change without session denied", async () => {
     await authorizeManagementPinWrite(
-      { auth: { uid: "mgr-ok" } },
+      { auth: { uid: "management-pin-write-auth_mgr-ok" } },
       { id: pinId, pin: "9999" },
     );
   });

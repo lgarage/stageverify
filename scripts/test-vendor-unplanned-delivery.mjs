@@ -80,8 +80,8 @@ await seed(async (db) => {
     vendorDeliveryMode: "exception_only",
     vendorSessionMinutes: 15,
   });
-  await setDoc(doc(db, "stagingLocations", "loc-unpl"), {
-    id: "loc-unpl",
+  await setDoc(doc(db, "stagingLocations", "vendor-unplanned-delivery_loc-unpl"), {
+    id: "vendor-unplanned-delivery_loc-unpl",
     code: "UV",
     label: "Unplanned Bay",
     type: "ground",
@@ -89,54 +89,54 @@ await seed(async (db) => {
     widthFt: 4,
     depthFt: 4,
   });
-  await setDoc(doc(db, "vendors", "vendor-unpl"), {
-    id: "vendor-unpl",
+  await setDoc(doc(db, "vendors", "vendor-unplanned-delivery_vendor-unpl"), {
+    id: "vendor-unplanned-delivery_vendor-unpl",
     name: "Unplanned Vendor",
     pinCode: "4321",
     active: true,
     companyWideSessionEnabled: true,
     createdAt: "2026-01-01T00:00:00Z",
   });
-  await setDoc(doc(db, "vendors", "vendor-no-del"), {
-    id: "vendor-no-del",
+  await setDoc(doc(db, "vendors", "vendor-unplanned-delivery_vendor-no-del"), {
+    id: "vendor-unplanned-delivery_vendor-no-del",
     name: "No Delivery Vendor",
     pinCode: "5555",
     active: true,
     companyWideSessionEnabled: true,
     createdAt: "2026-01-01T00:00:00Z",
   });
-  await setDoc(doc(db, "jobs", "job-unpl"), {
-    id: "job-unpl",
+  await setDoc(doc(db, "jobs", "vendor-unplanned-delivery_job-unpl"), {
+    id: "vendor-unplanned-delivery_job-unpl",
     jobNumber: "J-UNPL",
     jobName: "Unplanned Job",
     status: "active",
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
   });
-  await setDoc(doc(db, "purchaseOrders", "po-unpl"), {
-    id: "po-unpl",
+  await setDoc(doc(db, "purchaseOrders", "vendor-unplanned-delivery_po-unpl"), {
+    id: "vendor-unplanned-delivery_po-unpl",
     poNumber: "PO-UNPL-99",
-    jobId: "job-unpl",
-    vendorId: "vendor-unpl",
+    jobId: "vendor-unplanned-delivery_job-unpl",
+    vendorId: "vendor-unplanned-delivery_vendor-unpl",
     status: "open",
   });
-  await setDoc(doc(db, "deliveries", "del-unpl-match"), {
-    id: "del-unpl-match",
+  await setDoc(doc(db, "deliveries", "vendor-unplanned-delivery_del-unpl-match"), {
+    id: "vendor-unplanned-delivery_del-unpl-match",
     orderNumber: "ORD-UNPL-1",
-    jobId: "job-unpl",
-    vendorId: "vendor-unpl",
+    jobId: "vendor-unplanned-delivery_job-unpl",
+    vendorId: "vendor-unplanned-delivery_vendor-unpl",
     vendorName: "Unplanned Vendor",
-    purchaseOrderId: "po-unpl",
+    purchaseOrderId: "vendor-unplanned-delivery_po-unpl",
     vendorInvoiceNumber: "INV-MATCH-001",
     deliveryDate: "2026-08-01",
     status: "shipped",
-    stagingLocationId: "loc-unpl",
+    stagingLocationId: "vendor-unplanned-delivery_loc-unpl",
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
   });
-  await setDoc(doc(db, "items", "item-unpl-1"), {
-    id: "item-unpl-1",
-    deliveryOrderId: "del-unpl-match",
+  await setDoc(doc(db, "items", "vendor-unplanned-delivery_item-unpl-1"), {
+    id: "vendor-unplanned-delivery_item-unpl-1",
+    deliveryOrderId: "vendor-unplanned-delivery_del-unpl-match",
     description: "Test item",
     qtyOrdered: 1,
     qtyReceived: 0,
@@ -148,19 +148,19 @@ await seed(async (db) => {
   await setDoc(doc(db, "vendorSessions", UNPLANNED_SESSION), {
     id: UNPLANNED_SESSION,
     deliveryId: "",
-    vendorId: "vendor-unpl",
+    vendorId: "vendor-unplanned-delivery_vendor-unpl",
     vendorName: "Unplanned Vendor",
     expiresAt: future,
     createdAt: new Date().toISOString(),
     sessionScope: "vendor_unplanned",
-    scannedStagingLocationId: "loc-unpl",
+    scannedStagingLocationId: "vendor-unplanned-delivery_loc-unpl",
     scannedStagingLocationCode: "UV",
     unplannedEligible: true,
   });
   await setDoc(doc(db, "vendorSessions", VENDOR_RUN_SESSION), {
     id: VENDOR_RUN_SESSION,
-    deliveryId: "del-unpl-match",
-    vendorId: "vendor-unpl",
+    deliveryId: "vendor-unplanned-delivery_del-unpl-match",
+    vendorId: "vendor-unplanned-delivery_vendor-unpl",
     vendorName: "Unplanned Vendor",
     expiresAt: future,
     createdAt: new Date().toISOString(),
@@ -223,7 +223,7 @@ try {
     const data = res.data;
     if (
       data?.outcome === "strong_match" &&
-      data.candidate?.deliveryId === "del-unpl-match"
+      data.candidate?.deliveryId === "vendor-unplanned-delivery_del-unpl-match"
     ) {
       pass("strong_match for exact invoice reference");
     } else {
@@ -301,10 +301,10 @@ try {
     const res = await confirmUnplanned({
       sessionToken: UNPLANNED_SESSION,
       reference: "INV-MATCH-001",
-      deliveryId: "del-unpl-match",
+      deliveryId: "vendor-unplanned-delivery_del-unpl-match",
       spaceTier: "ground",
     });
-    if (res.data?.success === true && res.data.deliveryId === "del-unpl-match") {
+    if (res.data?.success === true && res.data.deliveryId === "vendor-unplanned-delivery_del-unpl-match") {
       pass("confirm strong match succeeds");
     } else {
       fail("confirm strong match", new Error(JSON.stringify(res.data)));
@@ -333,7 +333,7 @@ try {
 
   try {
     await markDelivered({
-      deliveryId: "del-unpl-match",
+      deliveryId: "vendor-unplanned-delivery_del-unpl-match",
       sessionToken: UNPLANNED_SESSION,
     });
     fail("markVendorDelivered should reject vendor_unplanned session");
@@ -347,9 +347,9 @@ try {
 
   try {
     await assignStaging({
-      deliveryId: "del-unpl-match",
+      deliveryId: "vendor-unplanned-delivery_del-unpl-match",
       sessionToken: UNPLANNED_SESSION,
-      stagingLocationId: "loc-unpl",
+      stagingLocationId: "vendor-unplanned-delivery_loc-unpl",
     });
     fail("assignVendorStagingLocation should reject vendor_unplanned session");
   } catch (err) {
@@ -362,7 +362,7 @@ try {
 
   try {
     await markDelivered({
-      deliveryId: "del-unpl-match",
+      deliveryId: "vendor-unplanned-delivery_del-unpl-match",
       sessionToken: VENDOR_RUN_SESSION,
     });
     pass("vendor session works on delivery-bound CF");

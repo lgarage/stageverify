@@ -39,6 +39,8 @@ jobs:
           fi
       - name: Install firebase-tools
         run: npm install -g firebase-tools@15.33.0
+      - name: Lint fixture ID prefixes
+        run: npm run lint:fixture-ids
       - name: Firestore emulator suites
         # Scripts hard-code projectId stageverify-db — pass the same --project.
         # One emulator boot for assign / reassign / vendor delivered / rules.

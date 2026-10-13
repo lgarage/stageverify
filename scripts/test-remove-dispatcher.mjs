@@ -142,8 +142,8 @@ try {
   });
 
   // Sanity fixtures that must stay untouched
-  const techRef = admin.firestore().collection("technicians").doc("tech-remove-sanity");
-  const vendorRef = admin.firestore().collection("vendors").doc("vendor-remove-sanity");
+  const techRef = admin.firestore().collection("technicians").doc("remove-dispatcher_tech-remove-sanity");
+  const vendorRef = admin.firestore().collection("vendors").doc("remove-dispatcher_vendor-remove-sanity");
   await techRef.set({ name: "Sanity Tech", active: true });
   await vendorRef.set({ name: "Sanity Vendor", active: true });
   const techBefore = (await techRef.get()).data();

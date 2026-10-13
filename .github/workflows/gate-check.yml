@@ -19,6 +19,9 @@ jobs:
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: 22
+          cache: npm
+      - name: Install root deps (lint-fixture-ids imports typescript)
+        run: npm ci
       # CI never honors GATE_SKIP or git push --no-verify — local hook bypass is advisory only.
       - name: Run gate-check
         env:
@@ -28,4 +31,4 @@ jobs:
           CI: true
         run: node scripts/gate-check.mjs --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.event.pull_request.head.sha }}"
       - name: Run gate-check unit tests
-        run: node --test scripts/gate-check.test.mjs scripts/verifier-log.test.mjs scripts/install-git-hooks.test.mjs
+        run: node --test scripts/gate-check.test.mjs scripts/verifier-log.test.mjs scripts/install-git-hooks.test.mjs scripts/lint-fixture-ids.test.mjs

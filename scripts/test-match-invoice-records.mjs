@@ -104,18 +104,18 @@ if (extractPoHint("PLANET FITNESS PICKUP PO-88390 extra") === "PO-88390") {
 }
 
 const mockCtx = {
-  vendors: [{ id: "vendor-1", email: "billing@johnstonesupply.com" }],
-  jobs: [{ id: "job-1", jobNumber: "26-1042" }],
+  vendors: [{ id: "match-invoice-records_vendor-1", email: "billing@johnstonesupply.com" }],
+  jobs: [{ id: "match-invoice-records_job-1", jobNumber: "26-1042" }],
   purchaseOrders: [
-    { id: "po-demo-vendor-1", poNumber: "PO-88390", jobId: "job-1", vendorId: "vendor-1" },
+    { id: "match-invoice-records_po-demo-vendor-1", poNumber: "PO-88390", jobId: "match-invoice-records_job-1", vendorId: "match-invoice-records_vendor-1" },
   ],
   deliveries: [
     {
-      id: "delivery-demo-vendor-1",
+      id: "match-invoice-records_delivery-demo-vendor-1",
       orderNumber: "ORD-005",
-      jobId: "job-1",
-      vendorId: "vendor-1",
-      purchaseOrderId: "po-demo-vendor-1",
+      jobId: "match-invoice-records_job-1",
+      vendorId: "match-invoice-records_vendor-1",
+      purchaseOrderId: "match-invoice-records_po-demo-vendor-1",
     },
   ],
 };
@@ -140,7 +140,7 @@ const headerPlanetFitness = {
 
 const notesMap = new Map([
   [
-    "delivery-demo-vendor-1",
+    "match-invoice-records_delivery-demo-vendor-1",
     "Email ingest: Johnstone will-call SO#6164159 — Customer P/O PLANET FITNESS PICKUP",
   ],
 ]);
@@ -152,13 +152,13 @@ const offlineMatch = matchInvoiceToRecords(
   notesMap,
 );
 
-if (offlineMatch.candidates.some((c) => c.deliveryId === "delivery-demo-vendor-1")) {
+if (offlineMatch.candidates.some((c) => c.deliveryId === "match-invoice-records_delivery-demo-vendor-1")) {
   pass("offline match finds ORD-005 candidate");
 } else {
   fail("offline match missing delivery-demo-vendor-1", offlineMatch.candidates);
 }
 
-if (offlineMatch.purchaseOrderId === "po-demo-vendor-1") {
+if (offlineMatch.purchaseOrderId === "match-invoice-records_po-demo-vendor-1") {
   pass("offline match resolves PO-88390");
 } else {
   fail("offline match PO", offlineMatch.purchaseOrderId);
@@ -177,7 +177,7 @@ const offlineNoShipDate = matchInvoiceToRecords(
   mockCtx,
   notesMap,
 );
-if (offlineNoShipDate.candidates.some((c) => c.deliveryId === "delivery-demo-vendor-1")) {
+if (offlineNoShipDate.candidates.some((c) => c.deliveryId === "match-invoice-records_delivery-demo-vendor-1")) {
   pass("offline match works when shipDate missing");
 } else {
   fail("offline match failed without shipDate", offlineNoShipDate.candidates);
@@ -197,7 +197,7 @@ const offlineNoAddresses = matchInvoiceToRecords(
   mockCtx,
   notesMap,
 );
-if (offlineNoAddresses.candidates.some((c) => c.deliveryId === "delivery-demo-vendor-1")) {
+if (offlineNoAddresses.candidates.some((c) => c.deliveryId === "match-invoice-records_delivery-demo-vendor-1")) {
   pass("offline match works when vendor/ship-to addresses missing");
 } else {
   fail("offline match failed without addresses", offlineNoAddresses.candidates);
@@ -223,37 +223,37 @@ const matchInvoice = httpsCallable(functions, "matchInvoiceToRecordsCallable");
 async function seedEmulatorData() {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const adminDb = ctx.firestore();
-    await setDoc(doc(adminDb, "jobs", "job-1"), {
-      id: "job-1",
+    await setDoc(doc(adminDb, "jobs", "match-invoice-records_job-1"), {
+      id: "match-invoice-records_job-1",
       jobNumber: "26-1042",
       jobName: "Planet Fitness",
     });
-    await setDoc(doc(adminDb, "vendors", "vendor-1"), {
-      id: "vendor-1",
+    await setDoc(doc(adminDb, "vendors", "match-invoice-records_vendor-1"), {
+      id: "match-invoice-records_vendor-1",
       name: "Johnstone Supply",
       email: "billing@johnstonesupply.com",
     });
-    await setDoc(doc(adminDb, "purchaseOrders", "po-demo-vendor-1"), {
-      id: "po-demo-vendor-1",
+    await setDoc(doc(adminDb, "purchaseOrders", "match-invoice-records_po-demo-vendor-1"), {
+      id: "match-invoice-records_po-demo-vendor-1",
       poNumber: "PO-88390",
-      jobId: "job-1",
-      vendorId: "vendor-1",
+      jobId: "match-invoice-records_job-1",
+      vendorId: "match-invoice-records_vendor-1",
       status: "open",
     });
-    await setDoc(doc(adminDb, "deliveries", "delivery-demo-vendor-1"), {
-      id: "delivery-demo-vendor-1",
+    await setDoc(doc(adminDb, "deliveries", "match-invoice-records_delivery-demo-vendor-1"), {
+      id: "match-invoice-records_delivery-demo-vendor-1",
       orderNumber: "ORD-005",
-      jobId: "job-1",
-      vendorId: "vendor-1",
-      purchaseOrderId: "po-demo-vendor-1",
+      jobId: "match-invoice-records_job-1",
+      vendorId: "match-invoice-records_vendor-1",
+      purchaseOrderId: "match-invoice-records_po-demo-vendor-1",
       status: "pending",
       notes:
         "Email ingest: Johnstone will-call SO#6164159 — Customer P/O PLANET FITNESS PICKUP",
       createdAt: "2026-06-02T00:00:00Z",
       updatedAt: "2026-06-02T00:00:00Z",
     });
-    await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-emulator-6164159"), {
-      id: "vii-emulator-6164159",
+    await setDoc(doc(adminDb, "vendorInvoiceImports", "match-invoice-records_vii-emulator-6164159"), {
+      id: "match-invoice-records_vii-emulator-6164159",
       inboundEmailProcessingId: "inbound-test",
       gmailMessageId: "msg-test",
       importBatchId: "batch-test",
@@ -280,7 +280,7 @@ async function seedEmulatorData() {
 await seedEmulatorData();
 
 try {
-  await matchInvoice({ vendorInvoiceImportId: "vii-emulator-6164159" });
+  await matchInvoice({ vendorInvoiceImportId: "match-invoice-records_vii-emulator-6164159" });
   fail("unauthenticated matchInvoiceToRecords should be denied");
 } catch (err) {
   const code = String(err?.code ?? err?.message ?? "");
@@ -299,7 +299,7 @@ try {
 
 let cfResult;
 try {
-  cfResult = await matchInvoice({ vendorInvoiceImportId: "vii-emulator-6164159" });
+  cfResult = await matchInvoice({ vendorInvoiceImportId: "match-invoice-records_vii-emulator-6164159" });
 } catch (err) {
   fail("authenticated matchInvoiceToRecords call failed", err?.message);
 }
@@ -312,8 +312,8 @@ if (Array.isArray(cfData.candidates) && cfData.candidates.length >= 1) {
 }
 
 if (
-  cfData.candidates?.some((c) => c.deliveryId === "delivery-demo-vendor-1") ||
-  cfData.deliveryOrderId === "delivery-demo-vendor-1"
+  cfData.candidates?.some((c) => c.deliveryId === "match-invoice-records_delivery-demo-vendor-1") ||
+  cfData.deliveryOrderId === "match-invoice-records_delivery-demo-vendor-1"
 ) {
   pass("CF matched delivery-demo-vendor-1");
 } else {
@@ -328,8 +328,8 @@ if (cfData.humanReviewRequired !== undefined) {
 
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-emulator-no-ship-date"), {
-    id: "vii-emulator-no-ship-date",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "match-invoice-records_vii-emulator-no-ship-date"), {
+    id: "match-invoice-records_vii-emulator-no-ship-date",
     inboundEmailProcessingId: "inbound-test",
     gmailMessageId: "msg-test-2",
     importBatchId: "batch-test",
@@ -354,7 +354,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 
 let cfNoShipDate;
 try {
-  cfNoShipDate = await matchInvoice({ vendorInvoiceImportId: "vii-emulator-no-ship-date" });
+  cfNoShipDate = await matchInvoice({ vendorInvoiceImportId: "match-invoice-records_vii-emulator-no-ship-date" });
 } catch (err) {
   fail("matchInvoiceToRecords should not require shipDate", err?.message);
 }
@@ -362,7 +362,7 @@ try {
 const noShipData = cfNoShipDate?.data ?? {};
 if (
   Array.isArray(noShipData.candidates) &&
-  noShipData.candidates.some((c) => c.deliveryId === "delivery-demo-vendor-1")
+  noShipData.candidates.some((c) => c.deliveryId === "match-invoice-records_delivery-demo-vendor-1")
 ) {
   pass("CF match succeeds when shipDate missing");
 } else {
@@ -371,8 +371,8 @@ if (
 
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-emulator-no-addresses"), {
-    id: "vii-emulator-no-addresses",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "match-invoice-records_vii-emulator-no-addresses"), {
+    id: "match-invoice-records_vii-emulator-no-addresses",
     inboundEmailProcessingId: "inbound-test",
     gmailMessageId: "msg-test-3",
     importBatchId: "batch-test",
@@ -404,7 +404,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 
 let cfNoAddresses;
 try {
-  cfNoAddresses = await matchInvoice({ vendorInvoiceImportId: "vii-emulator-no-addresses" });
+  cfNoAddresses = await matchInvoice({ vendorInvoiceImportId: "match-invoice-records_vii-emulator-no-addresses" });
 } catch (err) {
   fail("matchInvoiceToRecords should not require vendor/ship-to addresses", err?.message);
 }
@@ -412,7 +412,7 @@ try {
 const noAddrData = cfNoAddresses?.data ?? {};
 if (
   Array.isArray(noAddrData.candidates) &&
-  noAddrData.candidates.some((c) => c.deliveryId === "delivery-demo-vendor-1")
+  noAddrData.candidates.some((c) => c.deliveryId === "match-invoice-records_delivery-demo-vendor-1")
 ) {
   pass("CF match succeeds when vendor/ship-to addresses missing");
 } else {

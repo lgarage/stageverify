@@ -209,25 +209,25 @@ async function seedBase() {
     await setDoc(doc(adminDb, "appSettings", "config"), {
       vendorDeliveryMode: "exception_only",
     });
-    await setDoc(doc(adminDb, "vendors", "vendor-johnstone"), {
-      id: "vendor-johnstone",
+    await setDoc(doc(adminDb, "vendors", "process-inbound-vendor-email_vendor-johnstone"), {
+      id: "process-inbound-vendor-email_vendor-johnstone",
       name: "Johnstone Supply",
       email: "dispatch@johnstone.com",
       createdAt: "2026-01-01T00:00:00Z",
     });
-    await setDoc(doc(adminDb, "jobs", "job-261042"), {
-      id: "job-261042",
+    await setDoc(doc(adminDb, "jobs", "process-inbound-vendor-email_job-261042"), {
+      id: "process-inbound-vendor-email_job-261042",
       jobNumber: "26-1042",
       jobName: "Email write test",
       status: "active",
       createdAt: "2026-06-01T00:00:00Z",
       updatedAt: "2026-06-01T00:00:00Z",
     });
-    await setDoc(doc(adminDb, "purchaseOrders", "po-johnstone-45821"), {
-      id: "po-johnstone-45821",
+    await setDoc(doc(adminDb, "purchaseOrders", "process-inbound-vendor-email_po-johnstone-45821"), {
+      id: "process-inbound-vendor-email_po-johnstone-45821",
       poNumber: "PO-45821",
-      jobId: "job-261042",
-      vendorId: "vendor-johnstone",
+      jobId: "process-inbound-vendor-email_job-261042",
+      vendorId: "process-inbound-vendor-email_vendor-johnstone",
       status: "open",
     });
   });
@@ -245,9 +245,9 @@ async function seedDelivery({
     await setDoc(doc(adminDb, "deliveries", deliveryId), {
       id: deliveryId,
       orderNumber,
-      jobId: "job-261042",
-      vendorId: "vendor-johnstone",
-      purchaseOrderId: "po-johnstone-45821",
+      jobId: "process-inbound-vendor-email_job-261042",
+      vendorId: "process-inbound-vendor-email_vendor-johnstone",
+      purchaseOrderId: "process-inbound-vendor-email_po-johnstone-45821",
       status: "partial",
       stagingLocationId: "loc-g2",
       createdAt: "2026-06-01T00:00:00Z",
@@ -257,7 +257,7 @@ async function seedDelivery({
     await setDoc(doc(adminDb, "items", itemId), {
       id: itemId,
       deliveryOrderId: deliveryId,
-      jobId: "job-261042",
+      jobId: "process-inbound-vendor-email_job-261042",
       description: "Duct section",
       qtyOrdered: 4,
       qtyReceived: 0,
@@ -300,9 +300,9 @@ await seedBase();
 console.log("\n=== CF: authenticated auto-apply path ===\n");
 
 await seedDelivery({
-  deliveryId: "del-email-write-test",
+  deliveryId: "process-inbound-vendor-email_del-email-write-test",
   orderNumber: "ORD-1007",
-  itemId: "item-email-write-test",
+  itemId: "process-inbound-vendor-email_item-email-write-test",
 });
 
 await ensureSignedIn();
@@ -322,7 +322,7 @@ if (autoData.autoApplied === true && autoData.reviewStatus === "auto_processed")
   fail("expected autoApplied true", autoData);
 }
 
-if (autoData.deliveryOrderId === "del-email-write-test") {
+if (autoData.deliveryOrderId === "process-inbound-vendor-email_del-email-write-test") {
   pass("CF matched target delivery");
 } else {
   fail("unexpected deliveryOrderId", autoData);
@@ -331,13 +331,13 @@ if (autoData.deliveryOrderId === "del-email-write-test") {
 const eventDoc = autoData.eventId
   ? await readDoc(["vendorEmailEvents", autoData.eventId])
   : null;
-if (eventDoc?.reviewStatus === "auto_processed" && eventDoc?.deliveryOrderId === "del-email-write-test") {
+if (eventDoc?.reviewStatus === "auto_processed" && eventDoc?.deliveryOrderId === "process-inbound-vendor-email_del-email-write-test") {
   pass("vendorEmailEvents audit row written");
 } else {
   fail("vendorEmailEvents missing or wrong shape", eventDoc);
 }
 
-const deliveryAfterApply = await readDoc(["deliveries", "del-email-write-test"]);
+const deliveryAfterApply = await readDoc(["deliveries", "process-inbound-vendor-email_del-email-write-test"]);
 if (
   deliveryAfterApply?.vendorOrderComplete === true &&
   deliveryAfterApply?.vendorOrderCompleteSource === "vendor_email" &&
@@ -364,9 +364,9 @@ if (
 console.log("\n=== CF: physical + staging recalc can set ready ===\n");
 
 await seedDelivery({
-  deliveryId: "del-email-ready-recalc",
+  deliveryId: "process-inbound-vendor-email_del-email-ready-recalc",
   orderNumber: "ORD-1008",
-  itemId: "item-ready-recalc",
+  itemId: "process-inbound-vendor-email_item-ready-recalc",
   itemOverrides: {
     qtyReceived: 4,
     status: "received",
@@ -391,7 +391,7 @@ if (recalcData.autoApplied === true && recalcData.readyForPickup === true) {
   fail("expected readyForPickup true after recalc", recalcData);
 }
 
-const recalcDelivery = await readDoc(["deliveries", "del-email-ready-recalc"]);
+const recalcDelivery = await readDoc(["deliveries", "process-inbound-vendor-email_del-email-ready-recalc"]);
 if (recalcDelivery?.readinessStatus === "ready_for_pickup") {
   pass("delivery doc readinessStatus ready_for_pickup after recalc");
 } else {
@@ -430,7 +430,7 @@ if (dupEventCount >= 2) {
   fail(`expected ≥2 events for duplicate message, got ${dupEventCount}`);
 }
 
-const deliveryAfterDup = await readDoc(["deliveries", "del-email-write-test"]);
+const deliveryAfterDup = await readDoc(["deliveries", "process-inbound-vendor-email_del-email-write-test"]);
 if (deliveryAfterDup?.vendorOrderComplete === true) {
   pass("delivery Condition 1 unchanged after duplicate");
 } else {
@@ -440,12 +440,12 @@ if (deliveryAfterDup?.vendorOrderComplete === true) {
 console.log("\n=== CF: low-confidence → pending_review, no patch ===\n");
 
 await seedDelivery({
-  deliveryId: "del-email-low-conf",
+  deliveryId: "process-inbound-vendor-email_del-email-low-conf",
   orderNumber: "ORD-1010",
-  itemId: "item-low-conf",
+  itemId: "process-inbound-vendor-email_item-low-conf",
 });
 
-const lowConfBefore = await readDoc(["deliveries", "del-email-low-conf"]);
+const lowConfBefore = await readDoc(["deliveries", "process-inbound-vendor-email_del-email-low-conf"]);
 let lowConfResult;
 try {
   lowConfResult = await processEmail({ message: LOW_CONFIDENCE_EMAIL });
@@ -460,7 +460,7 @@ if (lowConfData.reviewStatus === "pending_review" && lowConfData.autoApplied ===
   fail("expected pending_review for ambiguous email", lowConfData);
 }
 
-const lowConfAfter = await readDoc(["deliveries", "del-email-low-conf"]);
+const lowConfAfter = await readDoc(["deliveries", "process-inbound-vendor-email_del-email-low-conf"]);
 if (
   lowConfAfter?.vendorOrderComplete !== true &&
   lowConfBefore?.vendorOrderComplete !== true
@@ -473,15 +473,15 @@ if (
 console.log("\n=== CF: item conflict → pending_review, no patch ===\n");
 
 await seedDelivery({
-  deliveryId: "del-email-conflict",
+  deliveryId: "process-inbound-vendor-email_del-email-conflict",
   orderNumber: "ORD-1009",
-  itemId: "item-conflict",
+  itemId: "process-inbound-vendor-email_item-conflict",
   itemOverrides: {
     qtyBackordered: 2,
   },
 });
 
-const conflictBefore = await readDoc(["deliveries", "del-email-conflict"]);
+const conflictBefore = await readDoc(["deliveries", "process-inbound-vendor-email_del-email-conflict"]);
 let conflictResult;
 try {
   conflictResult = await processEmail({ message: CONFLICT_EMAIL });
@@ -500,7 +500,7 @@ if (
   fail("expected backorder applyConflictReason", conflictData);
 }
 
-const conflictAfter = await readDoc(["deliveries", "del-email-conflict"]);
+const conflictAfter = await readDoc(["deliveries", "process-inbound-vendor-email_del-email-conflict"]);
 if (
   conflictAfter?.vendorOrderComplete !== true &&
   conflictBefore?.vendorOrderComplete !== true

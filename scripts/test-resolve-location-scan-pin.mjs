@@ -24,7 +24,7 @@ import {
 const PROJECT_ID = "stageverify-db";
 const RULES_PATH = resolve(process.cwd(), "firestore.rules");
 const STAGING_CODE = "G1";
-const STAGING_ID = "loc-g1";
+const STAGING_ID = "resolve-location-scan-pin_loc-g1";
 
 const require = createRequire(import.meta.url);
 const { hashPinForStorage } = require(
@@ -81,12 +81,12 @@ async function sessionCount(collectionName) {
 
 async function clearPinFixtures(db) {
   const ids = [
-    ["technicians", "tech-resolve-1"],
-    ["vendors", "vendor-resolve-1"],
-    ["jobs", "job-resolve-1"],
-    ["deliveries", "del-resolve-1"],
-    ["managementPins", "mgmt-resolve-full"],
-    ["managementPins", "mgmt-resolve-limited"],
+    ["technicians", "resolve-location-scan-pin_tech-resolve-1"],
+    ["vendors", "resolve-location-scan-pin_vendor-resolve-1"],
+    ["jobs", "resolve-location-scan-pin_job-resolve-1"],
+    ["deliveries", "resolve-location-scan-pin_del-resolve-1"],
+    ["managementPins", "resolve-location-scan-pin_mgmt-resolve-full"],
+    ["managementPins", "resolve-location-scan-pin_mgmt-resolve-limited"],
     ["stagingLocations", STAGING_ID],
   ];
   for (const [col, id] of ids) {
@@ -116,8 +116,8 @@ try {
   await seed(async (db) => {
     await clearPinFixtures(db);
     await seedBase(db);
-    await setDoc(doc(db, "technicians", "tech-resolve-1"), {
-      id: "tech-resolve-1",
+    await setDoc(doc(db, "technicians", "resolve-location-scan-pin_tech-resolve-1"), {
+      id: "resolve-location-scan-pin_tech-resolve-1",
       name: "Tech Resolve",
       active: true,
       pinCode: "2468",
@@ -133,7 +133,7 @@ try {
     if (
       data?.success === true &&
       data.accessType === "technician" &&
-      data.technicianId === "tech-resolve-1" &&
+      data.technicianId === "resolve-location-scan-pin_tech-resolve-1" &&
       typeof data.sessionToken === "string"
     ) {
       pass("unique technician PIN → technician session");
@@ -146,28 +146,28 @@ try {
 
   // Vendor job success
   await seed(async (db) => {
-    await setDoc(doc(db, "technicians", "tech-resolve-1"), {
-      id: "tech-resolve-1",
+    await setDoc(doc(db, "technicians", "resolve-location-scan-pin_tech-resolve-1"), {
+      id: "resolve-location-scan-pin_tech-resolve-1",
       name: "Tech Resolve",
       active: true,
       pinCode: "9999",
     });
-    await setDoc(doc(db, "jobs", "job-resolve-1"), {
-      id: "job-resolve-1",
+    await setDoc(doc(db, "jobs", "resolve-location-scan-pin_job-resolve-1"), {
+      id: "resolve-location-scan-pin_job-resolve-1",
       name: "Job Resolve",
       pinCode: "1357",
     });
-    await setDoc(doc(db, "vendors", "vendor-resolve-1"), {
-      id: "vendor-resolve-1",
+    await setDoc(doc(db, "vendors", "resolve-location-scan-pin_vendor-resolve-1"), {
+      id: "resolve-location-scan-pin_vendor-resolve-1",
       name: "Vendor Resolve",
       active: true,
       companyWideSessionEnabled: true,
       pinCode: "8888",
     });
-    await setDoc(doc(db, "deliveries", "del-resolve-1"), {
-      id: "del-resolve-1",
-      vendorId: "vendor-resolve-1",
-      jobId: "job-resolve-1",
+    await setDoc(doc(db, "deliveries", "resolve-location-scan-pin_del-resolve-1"), {
+      id: "resolve-location-scan-pin_del-resolve-1",
+      vendorId: "resolve-location-scan-pin_vendor-resolve-1",
+      jobId: "resolve-location-scan-pin_job-resolve-1",
       orderNumber: "ORD-RESOLVE",
     });
   });
@@ -182,7 +182,7 @@ try {
       data?.success === true &&
       data.accessType === "vendor" &&
       data.sessionScope === "job" &&
-      data.jobId === "job-resolve-1"
+      data.jobId === "resolve-location-scan-pin_job-resolve-1"
     ) {
       pass("unique vendor job PIN → job-scoped vendor session");
     } else {
@@ -194,12 +194,12 @@ try {
 
   // Management success (enterPortalAnyQr)
   await seed(async (db) => {
-    await setDoc(doc(db, "jobs", "job-resolve-1"), {
-      id: "job-resolve-1",
+    await setDoc(doc(db, "jobs", "resolve-location-scan-pin_job-resolve-1"), {
+      id: "resolve-location-scan-pin_job-resolve-1",
       pinCode: "0000",
     });
-    await setDoc(doc(db, "managementPins", "mgmt-resolve-full"), {
-      id: "mgmt-resolve-full",
+    await setDoc(doc(db, "managementPins", "resolve-location-scan-pin_mgmt-resolve-full"), {
+      id: "resolve-location-scan-pin_mgmt-resolve-full",
       label: "Office Full",
       active: true,
       pinHash: hashPinForStorage("1122"),
@@ -223,7 +223,7 @@ try {
     if (
       data?.success === true &&
       data.accessType === "management" &&
-      data.pinId === "mgmt-resolve-full" &&
+      data.pinId === "resolve-location-scan-pin_mgmt-resolve-full" &&
       data.permissions?.enterPortalAnyQr === true
     ) {
       pass("management PIN with enterPortalAnyQr → management session");
@@ -236,12 +236,12 @@ try {
 
   // Management capability denied — no session mint
   await seed(async (db) => {
-    await setDoc(doc(db, "managementPins", "mgmt-resolve-full"), {
-      id: "mgmt-resolve-full",
+    await setDoc(doc(db, "managementPins", "resolve-location-scan-pin_mgmt-resolve-full"), {
+      id: "resolve-location-scan-pin_mgmt-resolve-full",
       pinHash: hashPinForStorage("0000"),
     });
-    await setDoc(doc(db, "managementPins", "mgmt-resolve-limited"), {
-      id: "mgmt-resolve-limited",
+    await setDoc(doc(db, "managementPins", "resolve-location-scan-pin_mgmt-resolve-limited"), {
+      id: "resolve-location-scan-pin_mgmt-resolve-limited",
       label: "Limited",
       active: true,
       pinHash: hashPinForStorage("3344"),
@@ -282,21 +282,21 @@ try {
 
   // Collision fail-closed: same PIN on technician + vendor
   await seed(async (db) => {
-    await setDoc(doc(db, "technicians", "tech-resolve-1"), {
-      id: "tech-resolve-1",
+    await setDoc(doc(db, "technicians", "resolve-location-scan-pin_tech-resolve-1"), {
+      id: "resolve-location-scan-pin_tech-resolve-1",
       name: "Tech Collision",
       active: true,
       pinCode: "7777",
       permissions: { doorScan: true },
     });
-    await setDoc(doc(db, "vendors", "vendor-resolve-1"), {
-      id: "vendor-resolve-1",
+    await setDoc(doc(db, "vendors", "resolve-location-scan-pin_vendor-resolve-1"), {
+      id: "resolve-location-scan-pin_vendor-resolve-1",
       name: "Vendor Collision",
       active: true,
       companyWideSessionEnabled: true,
       pinCode: "7777",
     });
-    await setDoc(doc(db, "managementPins", "mgmt-resolve-limited"), {
+    await setDoc(doc(db, "managementPins", "resolve-location-scan-pin_mgmt-resolve-limited"), {
       pinHash: hashPinForStorage("0000"),
     });
   });
@@ -330,30 +330,30 @@ try {
 
   // Legacy vendor company PIN (pinCode on vendor) + companyWide → success
   await seed(async (db) => {
-    await setDoc(doc(db, "technicians", "tech-resolve-1"), {
-      id: "tech-resolve-1",
+    await setDoc(doc(db, "technicians", "resolve-location-scan-pin_tech-resolve-1"), {
+      id: "resolve-location-scan-pin_tech-resolve-1",
       pinCode: "0000",
       active: true,
     });
-    await setDoc(doc(db, "jobs", "job-resolve-1"), {
-      id: "job-resolve-1",
+    await setDoc(doc(db, "jobs", "resolve-location-scan-pin_job-resolve-1"), {
+      id: "resolve-location-scan-pin_job-resolve-1",
       pinCode: "0001",
     });
-    await setDoc(doc(db, "vendors", "vendor-resolve-1"), {
-      id: "vendor-resolve-1",
+    await setDoc(doc(db, "vendors", "resolve-location-scan-pin_vendor-resolve-1"), {
+      id: "resolve-location-scan-pin_vendor-resolve-1",
       name: "Legacy Company Vendor",
       active: true,
       companyWideSessionEnabled: true,
       pinCode: "4242",
       pinConfigured: true,
     });
-    await setDoc(doc(db, "deliveries", "del-resolve-1"), {
-      id: "del-resolve-1",
-      vendorId: "vendor-resolve-1",
-      jobId: "job-resolve-1",
+    await setDoc(doc(db, "deliveries", "resolve-location-scan-pin_del-resolve-1"), {
+      id: "resolve-location-scan-pin_del-resolve-1",
+      vendorId: "resolve-location-scan-pin_vendor-resolve-1",
+      jobId: "resolve-location-scan-pin_job-resolve-1",
       orderNumber: "ORD-LEGACY-CO",
     });
-    await setDoc(doc(db, "managementPins", "mgmt-resolve-full"), {
+    await setDoc(doc(db, "managementPins", "resolve-location-scan-pin_mgmt-resolve-full"), {
       pinHash: hashPinForStorage("0000"),
     });
   });
@@ -367,7 +367,7 @@ try {
     if (
       data?.success === true &&
       data.accessType === "vendor" &&
-      data.vendorId === "vendor-resolve-1" &&
+      data.vendorId === "resolve-location-scan-pin_vendor-resolve-1" &&
       data.sessionScope === "vendor"
     ) {
       pass("legacy vendor company PIN + companyWide → vendor session");
@@ -380,8 +380,8 @@ try {
 
   // Same PIN without companyWide → Invalid (D-09 gate)
   await seed(async (db) => {
-    await setDoc(doc(db, "vendors", "vendor-resolve-1"), {
-      id: "vendor-resolve-1",
+    await setDoc(doc(db, "vendors", "resolve-location-scan-pin_vendor-resolve-1"), {
+      id: "resolve-location-scan-pin_vendor-resolve-1",
       name: "No Company Wide",
       active: true,
       companyWideSessionEnabled: false,
@@ -416,38 +416,38 @@ try {
 
   // Job PIN wins over different vendor company PIN (same PIN value — no false collision)
   await seed(async (db) => {
-    await setDoc(doc(db, "technicians", "tech-resolve-1"), {
-      id: "tech-resolve-1",
+    await setDoc(doc(db, "technicians", "resolve-location-scan-pin_tech-resolve-1"), {
+      id: "resolve-location-scan-pin_tech-resolve-1",
       pinCode: "0000",
       active: true,
     });
-    await setDoc(doc(db, "jobs", "job-resolve-1"), {
-      id: "job-resolve-1",
+    await setDoc(doc(db, "jobs", "resolve-location-scan-pin_job-resolve-1"), {
+      id: "resolve-location-scan-pin_job-resolve-1",
       name: "Job Priority",
       pinCode: "5555",
     });
-    await setDoc(doc(db, "vendors", "vendor-resolve-1"), {
-      id: "vendor-resolve-1",
+    await setDoc(doc(db, "vendors", "resolve-location-scan-pin_vendor-resolve-1"), {
+      id: "resolve-location-scan-pin_vendor-resolve-1",
       name: "Job Vendor",
       active: true,
       companyWideSessionEnabled: true,
       pinCode: "9999",
     });
-    await setDoc(doc(db, "vendors", "vendor-other-co"), {
-      id: "vendor-other-co",
+    await setDoc(doc(db, "vendors", "resolve-location-scan-pin_vendor-other-co"), {
+      id: "resolve-location-scan-pin_vendor-other-co",
       name: "Other Company Vendor",
       active: true,
       companyWideSessionEnabled: true,
       pinCode: "5555",
       pinConfigured: true,
     });
-    await setDoc(doc(db, "deliveries", "del-resolve-1"), {
-      id: "del-resolve-1",
-      vendorId: "vendor-resolve-1",
-      jobId: "job-resolve-1",
+    await setDoc(doc(db, "deliveries", "resolve-location-scan-pin_del-resolve-1"), {
+      id: "resolve-location-scan-pin_del-resolve-1",
+      vendorId: "resolve-location-scan-pin_vendor-resolve-1",
+      jobId: "resolve-location-scan-pin_job-resolve-1",
       orderNumber: "ORD-JOB-WIN",
     });
-    await setDoc(doc(db, "managementPins", "mgmt-resolve-full"), {
+    await setDoc(doc(db, "managementPins", "resolve-location-scan-pin_mgmt-resolve-full"), {
       pinHash: hashPinForStorage("0000"),
     });
   });
@@ -462,8 +462,8 @@ try {
       data?.success === true &&
       data.accessType === "vendor" &&
       data.sessionScope === "job" &&
-      data.jobId === "job-resolve-1" &&
-      data.vendorId === "vendor-resolve-1"
+      data.jobId === "resolve-location-scan-pin_job-resolve-1" &&
+      data.vendorId === "resolve-location-scan-pin_vendor-resolve-1"
     ) {
       pass(
         "job PIN + different vendor company PIN (same value) → job-scoped session, not collision",

@@ -132,20 +132,20 @@ await seed(async (db) => {
     active: true,
     updatedAt: "2026-08-01T00:00:00Z",
   });
-  await seedLocation(db, "loc-g9", "G9");
-  await seedLocation(db, "loc-g7", "G7");
-  await seedLocation(db, "loc-g8", "G8");
-  await seedLocation(db, "loc-g6", "G6");
-  await seedLocation(db, "loc-g5", "G5");
-  await seedLocation(db, "loc-g4", "G4");
-  await seedLocation(db, "loc-g15", "G15");
-  await seedLocation(db, "loc-planned-only", "P1");
-  await seedLocation(db, "loc-inactive", "Z9", "Planned");
+  await seedLocation(db, "reassign-staging-location_loc-g9", "G9");
+  await seedLocation(db, "reassign-staging-location_loc-g7", "G7");
+  await seedLocation(db, "reassign-staging-location_loc-g8", "G8");
+  await seedLocation(db, "reassign-staging-location_loc-g6", "G6");
+  await seedLocation(db, "reassign-staging-location_loc-g5", "G5");
+  await seedLocation(db, "reassign-staging-location_loc-g4", "G4");
+  await seedLocation(db, "reassign-staging-location_loc-g15", "G15");
+  await seedLocation(db, "reassign-staging-location_loc-planned-only", "P1");
+  await seedLocation(db, "reassign-staging-location_loc-inactive", "Z9", "Planned");
 });
 
 await signOut(auth);
 try {
-  await reassign({ deliveryId: "del-x", newLocationId: "loc-g7" });
+  await reassign({ deliveryId: "del-x", newLocationId: "reassign-staging-location_loc-g7" });
   fail("unauthenticated should reject");
 } catch (err) {
   if (codeOf(err).includes("permission-denied") || /sign in/i.test(msgOf(err))) {
@@ -159,27 +159,27 @@ await signInWithEmailAndPassword(auth, DISPATCHER_EMAIL, PASSWORD);
 
 // Happy path: actual G9 → G7
 await seed(async (db) => {
-  await seedDelivery(db, "del-reassign-happy", {
-    stagingLocationId: "loc-g9",
-    plannedStagingLocationIds: ["loc-g9"],
+  await seedDelivery(db, "reassign-staging-location_del-reassign-happy", {
+    stagingLocationId: "reassign-staging-location_loc-g9",
+    plannedStagingLocationIds: ["reassign-staging-location_loc-g9"],
   });
 });
 try {
   const result = await reassign({
-    deliveryId: "del-reassign-happy",
-    newLocationId: "loc-g7",
+    deliveryId: "reassign-staging-location_del-reassign-happy",
+    newLocationId: "reassign-staging-location_loc-g7",
   });
   const d = result.data;
-  const after = await readDelivery("del-reassign-happy");
+  const after = await readDelivery("reassign-staging-location_del-reassign-happy");
   if (
     d?.ok === true &&
-    after?.stagingLocationId === "loc-g7" &&
+    after?.stagingLocationId === "reassign-staging-location_loc-g7" &&
     Array.isArray(after?.additionalStagingLocationIds) &&
     after.additionalStagingLocationIds.length === 0 &&
     Array.isArray(after?.plannedStagingLocationIds) &&
     after.plannedStagingLocationIds.length === 0 &&
     Array.isArray(after?.plannedLocationReleases) &&
-    after.plannedLocationReleases.some((e) => e.locationId === "loc-g9")
+    after.plannedLocationReleases.some((e) => e.locationId === "reassign-staging-location_loc-g9")
   ) {
     pass("happy path actual+planned G9 → G7 releases old");
   } else {
@@ -191,21 +191,21 @@ try {
 
 // Multi-spot collapse
 await seed(async (db) => {
-  await seedDelivery(db, "del-reassign-multi", {
-    stagingLocationId: "loc-g9",
-    additionalStagingLocationIds: ["loc-g15"],
-    plannedStagingLocationIds: ["loc-g9", "loc-g15"],
+  await seedDelivery(db, "reassign-staging-location_del-reassign-multi", {
+    stagingLocationId: "reassign-staging-location_loc-g9",
+    additionalStagingLocationIds: ["reassign-staging-location_loc-g15"],
+    plannedStagingLocationIds: ["reassign-staging-location_loc-g9", "reassign-staging-location_loc-g15"],
   });
 });
 try {
   const result = await reassign({
-    deliveryId: "del-reassign-multi",
-    newLocationId: "loc-g8",
+    deliveryId: "reassign-staging-location_del-reassign-multi",
+    newLocationId: "reassign-staging-location_loc-g8",
   });
-  const after = await readDelivery("del-reassign-multi");
+  const after = await readDelivery("reassign-staging-location_del-reassign-multi");
   if (
     result.data?.ok &&
-    after?.stagingLocationId === "loc-g8" &&
+    after?.stagingLocationId === "reassign-staging-location_loc-g8" &&
     (after.additionalStagingLocationIds ?? []).length === 0 &&
     (after.plannedStagingLocationIds ?? []).length === 0
   ) {
@@ -219,22 +219,22 @@ try {
 
 // Planned-only → promote
 await seed(async (db) => {
-  await seedDelivery(db, "del-reassign-planned-only", {
+  await seedDelivery(db, "reassign-staging-location_del-reassign-planned-only", {
     stagingLocationId: "",
-    plannedStagingLocationIds: ["loc-g9"],
+    plannedStagingLocationIds: ["reassign-staging-location_loc-g9"],
   });
 });
 try {
   const result = await reassign({
-    deliveryId: "del-reassign-planned-only",
-    newLocationId: "loc-g6",
+    deliveryId: "reassign-staging-location_del-reassign-planned-only",
+    newLocationId: "reassign-staging-location_loc-g6",
   });
-  const after = await readDelivery("del-reassign-planned-only");
+  const after = await readDelivery("reassign-staging-location_del-reassign-planned-only");
   if (
     result.data?.ok &&
-    after?.stagingLocationId === "loc-g6" &&
+    after?.stagingLocationId === "reassign-staging-location_loc-g6" &&
     (after.plannedStagingLocationIds ?? []).length === 0 &&
-    (after.plannedLocationReleases ?? []).some((e) => e.locationId === "loc-g9")
+    (after.plannedLocationReleases ?? []).some((e) => e.locationId === "reassign-staging-location_loc-g9")
   ) {
     pass("planned-only G9 → G6 promotes + clears planned");
   } else {
@@ -246,21 +246,21 @@ try {
 
 // Promote same planned code (not no-op)
 await seed(async (db) => {
-  await seedDelivery(db, "del-reassign-promote-same", {
+  await seedDelivery(db, "reassign-staging-location_del-reassign-promote-same", {
     stagingLocationId: "",
-    plannedStagingLocationIds: ["loc-g5"],
+    plannedStagingLocationIds: ["reassign-staging-location_loc-g5"],
   });
 });
 try {
   const result = await reassign({
-    deliveryId: "del-reassign-promote-same",
-    newLocationId: "loc-g5",
+    deliveryId: "reassign-staging-location_del-reassign-promote-same",
+    newLocationId: "reassign-staging-location_loc-g5",
   });
-  const after = await readDelivery("del-reassign-promote-same");
+  const after = await readDelivery("reassign-staging-location_del-reassign-promote-same");
   if (
     result.data?.ok &&
     !result.data?.unchanged &&
-    after?.stagingLocationId === "loc-g5" &&
+    after?.stagingLocationId === "reassign-staging-location_loc-g5" &&
     (after.plannedStagingLocationIds ?? []).length === 0
   ) {
     pass("planned-only confirm same code promotes (not unchanged)");
@@ -273,23 +273,23 @@ try {
 
 // Target already in planned — audit excludes promoted id
 await seed(async (db) => {
-  await seedDelivery(db, "del-reassign-promote-target", {
+  await seedDelivery(db, "reassign-staging-location_del-reassign-promote-target", {
     stagingLocationId: "",
-    plannedStagingLocationIds: ["loc-g4", "loc-g15"],
+    plannedStagingLocationIds: ["reassign-staging-location_loc-g4", "reassign-staging-location_loc-g15"],
   });
 });
 try {
   await reassign({
-    deliveryId: "del-reassign-promote-target",
-    newLocationId: "loc-g4",
+    deliveryId: "reassign-staging-location_del-reassign-promote-target",
+    newLocationId: "reassign-staging-location_loc-g4",
   });
-  const after = await readDelivery("del-reassign-promote-target");
+  const after = await readDelivery("reassign-staging-location_del-reassign-promote-target");
   const releases = after?.plannedLocationReleases ?? [];
   const releasedIds = releases.map((e) => e.locationId);
   if (
-    after?.stagingLocationId === "loc-g4" &&
-    releasedIds.includes("loc-g15") &&
-    !releasedIds.includes("loc-g4")
+    after?.stagingLocationId === "reassign-staging-location_loc-g4" &&
+    releasedIds.includes("reassign-staging-location_loc-g15") &&
+    !releasedIds.includes("reassign-staging-location_loc-g4")
   ) {
     pass("promote target excludes G4 from plannedLocationReleases audit");
   } else {
@@ -301,19 +301,19 @@ try {
 
 // True no-op
 await seed(async (db) => {
-  await seedDelivery(db, "del-reassign-noop", {
-    stagingLocationId: "loc-g7",
+  await seedDelivery(db, "reassign-staging-location_del-reassign-noop", {
+    stagingLocationId: "reassign-staging-location_loc-g7",
     additionalStagingLocationIds: [],
     plannedStagingLocationIds: [],
   });
 });
 try {
-  const before = await readDelivery("del-reassign-noop");
+  const before = await readDelivery("reassign-staging-location_del-reassign-noop");
   const result = await reassign({
-    deliveryId: "del-reassign-noop",
-    newLocationId: "loc-g7",
+    deliveryId: "reassign-staging-location_del-reassign-noop",
+    newLocationId: "reassign-staging-location_loc-g7",
   });
-  const after = await readDelivery("del-reassign-noop");
+  const after = await readDelivery("reassign-staging-location_del-reassign-noop");
   if (
     result.data?.unchanged === true &&
     after?.updatedAt === before?.updatedAt &&
@@ -330,24 +330,24 @@ try {
 
 // Occupied via primary
 await seed(async (db) => {
-  await seedDelivery(db, "del-reassign-src-primary", {
-    stagingLocationId: "loc-g9",
+  await seedDelivery(db, "reassign-staging-location_del-reassign-src-primary", {
+    stagingLocationId: "reassign-staging-location_loc-g9",
   });
-  await seedDelivery(db, "del-reassign-other-primary", {
-    stagingLocationId: "loc-g7",
+  await seedDelivery(db, "reassign-staging-location_del-reassign-other-primary", {
+    stagingLocationId: "reassign-staging-location_loc-g7",
   });
 });
 try {
   await reassign({
-    deliveryId: "del-reassign-src-primary",
-    newLocationId: "loc-g7",
+    deliveryId: "reassign-staging-location_del-reassign-src-primary",
+    newLocationId: "reassign-staging-location_loc-g7",
   });
   fail("occupied via stagingLocationId should reject");
 } catch (err) {
-  const after = await readDelivery("del-reassign-src-primary");
+  const after = await readDelivery("reassign-staging-location_del-reassign-src-primary");
   if (
     /no longer available/i.test(msgOf(err)) &&
-    after?.stagingLocationId === "loc-g9"
+    after?.stagingLocationId === "reassign-staging-location_loc-g9"
   ) {
     pass("occupied via stagingLocationId — keep G9");
   } else {
@@ -357,25 +357,25 @@ try {
 
 // Occupied via additional
 await seed(async (db) => {
-  await seedDelivery(db, "del-reassign-src-addl", {
-    stagingLocationId: "loc-g9",
+  await seedDelivery(db, "reassign-staging-location_del-reassign-src-addl", {
+    stagingLocationId: "reassign-staging-location_loc-g9",
   });
-  await seedDelivery(db, "del-reassign-other-addl", {
-    stagingLocationId: "loc-planned-only",
-    additionalStagingLocationIds: ["loc-g7"],
+  await seedDelivery(db, "reassign-staging-location_del-reassign-other-addl", {
+    stagingLocationId: "reassign-staging-location_loc-planned-only",
+    additionalStagingLocationIds: ["reassign-staging-location_loc-g7"],
   });
 });
 try {
   await reassign({
-    deliveryId: "del-reassign-src-addl",
-    newLocationId: "loc-g7",
+    deliveryId: "reassign-staging-location_del-reassign-src-addl",
+    newLocationId: "reassign-staging-location_loc-g7",
   });
   fail("occupied via additional should reject");
 } catch (err) {
-  const after = await readDelivery("del-reassign-src-addl");
+  const after = await readDelivery("reassign-staging-location_del-reassign-src-addl");
   if (
     /no longer available/i.test(msgOf(err)) &&
-    after?.stagingLocationId === "loc-g9"
+    after?.stagingLocationId === "reassign-staging-location_loc-g9"
   ) {
     pass("occupied via additionalStagingLocationIds — keep G9");
   } else {
@@ -385,25 +385,25 @@ try {
 
 // Occupied via planned-only on other delivery
 await seed(async (db) => {
-  await seedDelivery(db, "del-reassign-src-planned-occ", {
-    stagingLocationId: "loc-g9",
+  await seedDelivery(db, "reassign-staging-location_del-reassign-src-planned-occ", {
+    stagingLocationId: "reassign-staging-location_loc-g9",
   });
-  await seedDelivery(db, "del-reassign-other-planned-occ", {
+  await seedDelivery(db, "reassign-staging-location_del-reassign-other-planned-occ", {
     stagingLocationId: "",
-    plannedStagingLocationIds: ["loc-g7"],
+    plannedStagingLocationIds: ["reassign-staging-location_loc-g7"],
   });
 });
 try {
   await reassign({
-    deliveryId: "del-reassign-src-planned-occ",
-    newLocationId: "loc-g7",
+    deliveryId: "reassign-staging-location_del-reassign-src-planned-occ",
+    newLocationId: "reassign-staging-location_loc-g7",
   });
   fail("occupied via planned should reject");
 } catch (err) {
-  const after = await readDelivery("del-reassign-src-planned-occ");
+  const after = await readDelivery("reassign-staging-location_del-reassign-src-planned-occ");
   if (
     /no longer available/i.test(msgOf(err)) &&
-    after?.stagingLocationId === "loc-g9"
+    after?.stagingLocationId === "reassign-staging-location_loc-g9"
   ) {
     pass("occupied via plannedStagingLocationIds — keep G9");
   } else {
@@ -413,15 +413,15 @@ try {
 
 // Will-Call reject
 await seed(async (db) => {
-  await seedDelivery(db, "del-reassign-willcall", {
-    stagingLocationId: "loc-g9",
+  await seedDelivery(db, "reassign-staging-location_del-reassign-willcall", {
+    stagingLocationId: "reassign-staging-location_loc-g9",
     invoiceFulfillmentMethod: "will_call_pickup",
   });
 });
 try {
   await reassign({
-    deliveryId: "del-reassign-willcall",
-    newLocationId: "loc-g7",
+    deliveryId: "reassign-staging-location_del-reassign-willcall",
+    newLocationId: "reassign-staging-location_loc-g7",
   });
   fail("Will-Call should reject");
 } catch (err) {
@@ -434,15 +434,15 @@ try {
 
 // picked_up reject
 await seed(async (db) => {
-  await seedDelivery(db, "del-reassign-picked", {
-    stagingLocationId: "loc-g9",
+  await seedDelivery(db, "reassign-staging-location_del-reassign-picked", {
+    stagingLocationId: "reassign-staging-location_loc-g9",
     status: "picked_up",
   });
 });
 try {
   await reassign({
-    deliveryId: "del-reassign-picked",
-    newLocationId: "loc-g7",
+    deliveryId: "reassign-staging-location_del-reassign-picked",
+    newLocationId: "reassign-staging-location_loc-g7",
   });
   fail("picked_up should reject");
 } catch (err) {
@@ -455,7 +455,7 @@ try {
 
 // empty staging reject
 await seed(async (db) => {
-  await seedDelivery(db, "del-reassign-empty", {
+  await seedDelivery(db, "reassign-staging-location_del-reassign-empty", {
     stagingLocationId: "",
     plannedStagingLocationIds: [],
     additionalStagingLocationIds: [],
@@ -463,8 +463,8 @@ await seed(async (db) => {
 });
 try {
   await reassign({
-    deliveryId: "del-reassign-empty",
-    newLocationId: "loc-g7",
+    deliveryId: "reassign-staging-location_del-reassign-empty",
+    newLocationId: "reassign-staging-location_loc-g7",
   });
   fail("empty staging should reject");
 } catch (err) {
@@ -477,14 +477,14 @@ try {
 
 // inactive destination
 await seed(async (db) => {
-  await seedDelivery(db, "del-reassign-inactive-dest", {
-    stagingLocationId: "loc-g9",
+  await seedDelivery(db, "reassign-staging-location_del-reassign-inactive-dest", {
+    stagingLocationId: "reassign-staging-location_loc-g9",
   });
 });
 try {
   await reassign({
-    deliveryId: "del-reassign-inactive-dest",
-    newLocationId: "loc-inactive",
+    deliveryId: "reassign-staging-location_del-reassign-inactive-dest",
+    newLocationId: "reassign-staging-location_loc-inactive",
   });
   fail("inactive destination should reject");
 } catch (err) {
@@ -498,7 +498,7 @@ try {
 // missing destination
 try {
   await reassign({
-    deliveryId: "del-reassign-happy",
+    deliveryId: "reassign-staging-location_del-reassign-happy",
     newLocationId: "loc-missing-xyz",
   });
   fail("missing destination should reject");
@@ -512,15 +512,15 @@ try {
 
 // installed reject
 await seed(async (db) => {
-  await seedDelivery(db, "del-reassign-installed", {
-    stagingLocationId: "loc-g9",
+  await seedDelivery(db, "reassign-staging-location_del-reassign-installed", {
+    stagingLocationId: "reassign-staging-location_loc-g9",
     status: "installed",
   });
 });
 try {
   await reassign({
-    deliveryId: "del-reassign-installed",
-    newLocationId: "loc-g8",
+    deliveryId: "reassign-staging-location_del-reassign-installed",
+    newLocationId: "reassign-staging-location_loc-g8",
   });
   fail("installed should reject");
 } catch (err) {
@@ -533,22 +533,22 @@ try {
 
 // Cleared occupant ignored — destination free
 await seed(async (db) => {
-  await seedDelivery(db, "del-reassign-cleared-occ", {
-    stagingLocationId: "loc-g9",
+  await seedDelivery(db, "reassign-staging-location_del-reassign-cleared-occ", {
+    stagingLocationId: "reassign-staging-location_loc-g9",
   });
-  await seedDelivery(db, "del-reassign-picked-on-g3", {
-    stagingLocationId: "loc-g3",
+  await seedDelivery(db, "reassign-staging-location_del-reassign-picked-on-g3", {
+    stagingLocationId: "reassign-staging-location_loc-g3",
     status: "picked_up",
   });
-  await seedLocation(db, "loc-g3", "G3");
+  await seedLocation(db, "reassign-staging-location_loc-g3", "G3");
 });
 try {
   const result = await reassign({
-    deliveryId: "del-reassign-cleared-occ",
-    newLocationId: "loc-g3",
+    deliveryId: "reassign-staging-location_del-reassign-cleared-occ",
+    newLocationId: "reassign-staging-location_loc-g3",
   });
-  const after = await readDelivery("del-reassign-cleared-occ");
-  if (result.data?.ok && after?.stagingLocationId === "loc-g3") {
+  const after = await readDelivery("reassign-staging-location_del-reassign-cleared-occ");
+  if (result.data?.ok && after?.stagingLocationId === "reassign-staging-location_loc-g3") {
     pass("cleared/picked_up occupant ignored — destination available");
   } else {
     fail("cleared occupant ignored", JSON.stringify({ d: result.data, after }));
@@ -559,32 +559,32 @@ try {
 
 // Active occupant behind many cleared docs (paging)
 await seed(async (db) => {
-  await seedLocation(db, "loc-g2", "G2");
-  await seedDelivery(db, "del-reassign-page-src", {
-    stagingLocationId: "loc-g9",
+  await seedLocation(db, "reassign-staging-location_loc-g2", "G2");
+  await seedDelivery(db, "reassign-staging-location_del-reassign-page-src", {
+    stagingLocationId: "reassign-staging-location_loc-g9",
   });
   for (let i = 0; i < 22; i += 1) {
-    await seedDelivery(db, `del-reassign-cleared-page-${i}`, {
-      stagingLocationId: "loc-g2",
+    await seedDelivery(db, `reassign-staging-location_del-reassign-cleared-page-${i}`, {
+      stagingLocationId: "reassign-staging-location_loc-g2",
       status: "picked_up",
     });
   }
-  await seedDelivery(db, "del-reassign-active-behind-page", {
-    stagingLocationId: "loc-g2",
+  await seedDelivery(db, "reassign-staging-location_del-reassign-active-behind-page", {
+    stagingLocationId: "reassign-staging-location_loc-g2",
     status: "arrived",
   });
 });
 try {
   await reassign({
-    deliveryId: "del-reassign-page-src",
-    newLocationId: "loc-g2",
+    deliveryId: "reassign-staging-location_del-reassign-page-src",
+    newLocationId: "reassign-staging-location_loc-g2",
   });
   fail("active occupant behind cleared page should reject");
 } catch (err) {
-  const after = await readDelivery("del-reassign-page-src");
+  const after = await readDelivery("reassign-staging-location_del-reassign-page-src");
   if (
     /no longer available/i.test(msgOf(err)) &&
-    after?.stagingLocationId === "loc-g9"
+    after?.stagingLocationId === "reassign-staging-location_loc-g9"
   ) {
     pass("active occupant behind cleared docs — reject + keep G9");
   } else {
@@ -598,14 +598,14 @@ await seed(async (db) => {
     active: false,
     updatedAt: "2026-08-01T00:00:00Z",
   });
-  await seedDelivery(db, "del-reassign-no-role", {
-    stagingLocationId: "loc-g9",
+  await seedDelivery(db, "reassign-staging-location_del-reassign-no-role", {
+    stagingLocationId: "reassign-staging-location_loc-g9",
   });
 });
 try {
   await reassign({
-    deliveryId: "del-reassign-no-role",
-    newLocationId: "loc-g8",
+    deliveryId: "reassign-staging-location_del-reassign-no-role",
+    newLocationId: "reassign-staging-location_loc-g8",
   });
   fail("inactive dispatcher role should reject");
 } catch (err) {

@@ -118,7 +118,7 @@ async function readItem(id) {
 try {
   console.log("\n=== markVendorDelivered CF ===\n");
 
-  const deliveryId = "del-mvd-shipped";
+  const deliveryId = "mark-vendor-delivered_del-mvd-shipped";
   const future = new Date(Date.now() + 3_600_000).toISOString();
   const past = new Date(Date.now() - 3_600_000).toISOString();
 
@@ -276,8 +276,8 @@ try {
 
   console.log("\n=== D-90 receiving truth (exceptions / BO preserve) ===\n");
 
-  const delPartial = "del-mvd-partial";
-  const delBO = "del-mvd-bo-seed";
+  const delPartial = "mark-vendor-delivered_del-mvd-partial";
+  const delBO = "mark-vendor-delivered_del-mvd-bo-seed";
   await seed(async (db) => {
     await seedDelivery(db, delPartial, { status: "pending" });
     await seedSession(db, VALID_SESSION, delPartial, future);

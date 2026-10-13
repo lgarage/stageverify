@@ -92,7 +92,7 @@ async function readDoc(id) {
 
 async function testCompletedNotOverwritten() {
   console.log("\n1. TOCTOU — completed parse not overwritten by stale processing snapshot");
-  const id = "recover-toctou-parsed";
+  const id = "recover-stranded-processing_recover-toctou-parsed";
   const completed = makeDoc(id, {
     processingStatus: "parsed",
     parseResult: {
@@ -122,7 +122,7 @@ async function testCompletedNotOverwritten() {
 
 async function testExtractedNotOverwritten() {
   console.log("\n2. TOCTOU — extracted status not overwritten");
-  const id = "recover-toctou-extracted";
+  const id = "recover-stranded-processing_recover-toctou-extracted";
   const extracted = makeDoc(id, { processingStatus: "extracted" });
   await seedDoc(extracted);
 
@@ -139,7 +139,7 @@ async function testExtractedNotOverwritten() {
 
 async function testStrandedProcessingRecovered() {
   console.log("\n3. Stranded processing doc recovered to error");
-  const id = "recover-stranded-processing";
+  const id = "recover-stranded-processing_recover-stranded";
   const stranded = makeDoc(id, { processingStatus: "processing" });
   await seedDoc(stranded);
 
@@ -159,7 +159,7 @@ async function testStrandedProcessingRecovered() {
 
 async function testFreshProcessingNotRecovered() {
   console.log("\n4. Fresh processing doc (< threshold) left unchanged");
-  const id = "recover-fresh-processing";
+  const id = "recover-stranded-processing_recover-fresh-processing";
   const ts = freshIso();
   const fresh = makeDoc(id, {
     processingStatus: "processing",
@@ -180,8 +180,8 @@ async function testFreshProcessingNotRecovered() {
 
 async function testListMixedBatch() {
   console.log("\n5. recoverStrandedInboundProcessingList handles mixed batch");
-  const parsedId = "recover-list-parsed";
-  const strandedId = "recover-list-stranded";
+  const parsedId = "recover-stranded-processing_recover-list-parsed";
+  const strandedId = "recover-stranded-processing_recover-list-stranded";
 
   await seedDoc(
     makeDoc(parsedId, {
