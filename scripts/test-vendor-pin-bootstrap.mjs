@@ -53,16 +53,16 @@ await seed(async (db) => {
     vendorDeliveryMode: "exception_only",
     vendorSessionMinutes: 15,
   });
-  await setDoc(doc(db, "vendors", "vendor-boot"), {
-    id: "vendor-boot",
+  await setDoc(doc(db, "vendors", "vendor-pin-bootstrap_vendor-boot"), {
+    id: "vendor-pin-bootstrap_vendor-boot",
     name: "Bootstrap Vendor",
     pinCode: "1234",
     active: true,
     companyWideSessionEnabled: true,
     createdAt: "2026-01-01T00:00:00Z",
   });
-  await setDoc(doc(db, "jobs", "job-boot"), {
-    id: "job-boot",
+  await setDoc(doc(db, "jobs", "vendor-pin-bootstrap_job-boot"), {
+    id: "vendor-pin-bootstrap_job-boot",
     jobNumber: "J-BOOT",
     jobName: "Bootstrap Job",
     status: "active",
@@ -70,47 +70,47 @@ await seed(async (db) => {
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
   });
-  await setDoc(doc(db, "stagingLocations", "loc-boot"), {
-    id: "loc-boot",
+  await setDoc(doc(db, "stagingLocations", "vendor-pin-bootstrap_loc-boot"), {
+    id: "vendor-pin-bootstrap_loc-boot",
     code: "B1",
     label: "Bay 1",
     type: "ground",
     status: "Active",
   });
-  await setDoc(doc(db, "purchaseOrders", "po-boot"), {
-    id: "po-boot",
+  await setDoc(doc(db, "purchaseOrders", "vendor-pin-bootstrap_po-boot"), {
+    id: "vendor-pin-bootstrap_po-boot",
     poNumber: "PO-BOOT",
-    jobId: "job-boot",
-    vendorId: "vendor-boot",
+    jobId: "vendor-pin-bootstrap_job-boot",
+    vendorId: "vendor-pin-bootstrap_vendor-boot",
     status: "open",
   });
-  await setDoc(doc(db, "deliveries", "delivery-boot"), {
-    id: "delivery-boot",
+  await setDoc(doc(db, "deliveries", "vendor-pin-bootstrap_delivery-boot"), {
+    id: "vendor-pin-bootstrap_delivery-boot",
     orderNumber: "ORD-BOOT",
-    jobId: "job-boot",
-    vendorId: "vendor-boot",
+    jobId: "vendor-pin-bootstrap_job-boot",
+    vendorId: "vendor-pin-bootstrap_vendor-boot",
     vendorName: "Bootstrap Vendor",
-    purchaseOrderId: "po-boot",
+    purchaseOrderId: "vendor-pin-bootstrap_po-boot",
     deliveryDate: "2026-08-01",
     status: "shipped",
-    stagingLocationId: "loc-boot",
-    plannedStagingLocationIds: ["loc-boot"],
+    stagingLocationId: "vendor-pin-bootstrap_loc-boot",
+    plannedStagingLocationIds: ["vendor-pin-bootstrap_loc-boot"],
     vendorInvoiceNumber: "INV-BOOT",
     invoiceFulfillmentMethod: "delivery",
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
   });
-  await setDoc(doc(db, "items", "item-boot-1"), {
-    id: "item-boot-1",
-    deliveryOrderId: "delivery-boot",
+  await setDoc(doc(db, "items", "vendor-pin-bootstrap_item-boot-1"), {
+    id: "vendor-pin-bootstrap_item-boot-1",
+    deliveryOrderId: "vendor-pin-bootstrap_delivery-boot",
     description: "Filter",
     qtyOrdered: 2,
     qtyReceived: 0,
     status: "pending",
   });
-  await setDoc(doc(db, "items", "item-boot-2"), {
-    id: "item-boot-2",
-    deliveryOrderId: "delivery-boot",
+  await setDoc(doc(db, "items", "vendor-pin-bootstrap_item-boot-2"), {
+    id: "vendor-pin-bootstrap_item-boot-2",
+    deliveryOrderId: "vendor-pin-bootstrap_delivery-boot",
     description: "Coil",
     qtyOrdered: 1,
     qtyReceived: 0,
@@ -121,7 +121,7 @@ await seed(async (db) => {
 // 1) Invalid PIN — no bootstrap / opaque
 try {
   const res = await verifyPin({
-    deliveryId: "delivery-boot",
+    deliveryId: "vendor-pin-bootstrap_delivery-boot",
     pin: "0000",
   });
   const data = res.data;
@@ -149,7 +149,7 @@ await new Promise((r) => setTimeout(r, 800)); // rate-limit interval
 // 2) Valid 4-digit vendor PIN → bootstrap present (legacy)
 try {
   const res = await verifyPin({
-    deliveryId: "delivery-boot",
+    deliveryId: "vendor-pin-bootstrap_delivery-boot",
     pin: "1234",
   });
   const data = res.data;
@@ -185,7 +185,7 @@ await new Promise((r) => setTimeout(r, 800));
 // 3) Valid 6-digit job PIN on same delivery
 try {
   const res = await verifyPin({
-    deliveryId: "delivery-boot",
+    deliveryId: "vendor-pin-bootstrap_delivery-boot",
     pin: "567890",
   });
   const data = res.data;

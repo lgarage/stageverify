@@ -28,4 +28,4 @@ jobs:
           CI: true
         run: node scripts/gate-check.mjs --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.event.pull_request.head.sha }}"
       - name: Run gate-check unit tests
-        run: node --test scripts/gate-check.test.mjs scripts/verifier-log.test.mjs scripts/install-git-hooks.test.mjs
+        run: node --test scripts/gate-check.test.mjs scripts/verifier-log.test.mjs scripts/install-git-hooks.test.mjs scripts/lint-fixture-ids.test.mjs

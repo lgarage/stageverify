@@ -20,8 +20,6 @@
  * and an accepted Grok reviewer slug (`grok-4.7-high` always; `cursor-grok-4.6-high`
  * only when GATE_PR_NUMBER is 258 or 259). Sonnet escalation is additive on backup paths.
  * Missing or non-allowlist model fails mechanical CI.
- * `model:` is the gate slug only; `model-self-report:` is the reviewer's own reported name,
- * is not required, and must not satisfy `model:`.
  *
  * Self-bypass caveat: a fork PR can modify gate-check.mjs itself to neuter the check on
  * the merge ref — this gate is advisory-vs-malice; branch protection + human review
@@ -153,34 +151,16 @@ function escapeRegExp(slug) {
 }
 
 /**
- * Remove `model-self-report:` fields so a self-reported name cannot satisfy `model:`.
- * Not a required evidence field — open PRs that only have `model:` stay valid.
- * @param {string} text
- * @returns {string}
- */
-export function stripModelSelfReportFields(text) {
-  return text
-    .split(/\r?\n/)
-    .filter((line) => !/^[ \t>*`-]*model-self-report\s*:/i.test(line))
-    .map((line) => line.replace(/[ \t]*model-self-report\s*:[^\n]*/gi, ""))
-    .join("\n");
-}
-
-/**
  * Exact whole-slug match after `model:` — suffixes like `-fast` must not match shorter slugs.
  * @param {string} text
  * @returns {string[]} allowlisted slugs found (deduped, preference order)
  */
 export function extractGateModelSlugs(text) {
-  const scanned = stripModelSelfReportFields(text);
   /** @type {string[]} */
   const found = [];
   for (const slug of ALLOWED_GATE_MODELS) {
-    const re = new RegExp(
-      `(?<![\\w-])model:\\s*${escapeRegExp(slug)}(?![a-z0-9.-])`,
-      "i",
-    );
-    if (re.test(scanned) && !found.includes(slug)) {
+    const re = new RegExp(`model:\\s*${escapeRegExp(slug)}(?![a-z0-9.-])`, "i");
+    if (re.test(text) && !found.includes(slug)) {
       found.push(slug);
     }
   }

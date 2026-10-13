@@ -155,27 +155,27 @@ await seed(async (db) => {
   await setDoc(doc(db, "appSettings", "config"), {
     vendorDeliveryMode: "exception_only",
   });
-  await seedLocation(db, "avsl-loc-free-1", "F1");
-  await seedLocation(db, "avsl-loc-free-2", "F2");
-  await seedLocation(db, "avsl-loc-conflict", "CF");
-  await seedLocation(db, "avsl-loc-planned", "PL");
-  await seedLocation(db, "avsl-loc-cleared", "CL");
-  await seedLocation(db, "avsl-loc-page", "PG");
-  await seedLocation(db, "avsl-loc-cap-over", "CO");
-  await seedLocation(db, "avsl-loc-cap-exact", "CE");
+  await seedLocation(db, "assign-vendor-staging-location_avsl-loc-free-1", "F1");
+  await seedLocation(db, "assign-vendor-staging-location_avsl-loc-free-2", "F2");
+  await seedLocation(db, "assign-vendor-staging-location_avsl-loc-conflict", "CF");
+  await seedLocation(db, "assign-vendor-staging-location_avsl-loc-planned", "PL");
+  await seedLocation(db, "assign-vendor-staging-location_avsl-loc-cleared", "CL");
+  await seedLocation(db, "assign-vendor-staging-location_avsl-loc-page", "PG");
+  await seedLocation(db, "assign-vendor-staging-location_avsl-loc-cap-over", "CO");
+  await seedLocation(db, "assign-vendor-staging-location_avsl-loc-cap-exact", "CE");
 });
 
 // 1. Happy path primary
 await seed(async (db) => {
-  await seedDelivery(db, "avsl-del-happy-primary", { stagingLocationId: "" });
-  await seedVendorSession(db, "avsl-del-happy-primary");
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-happy-primary", { stagingLocationId: "" });
+  await seedVendorSession(db, "assign-vendor-staging-location_avsl-del-happy-primary");
 });
 try {
-  const result = await assignPrimary("avsl-del-happy-primary", "avsl-loc-free-1");
-  const after = await readDelivery("avsl-del-happy-primary");
+  const result = await assignPrimary("assign-vendor-staging-location_avsl-del-happy-primary", "assign-vendor-staging-location_avsl-loc-free-1");
+  const after = await readDelivery("assign-vendor-staging-location_avsl-del-happy-primary");
   if (
-    result.data?.stagingLocationId === "avsl-loc-free-1" &&
-    after?.stagingLocationId === "avsl-loc-free-1"
+    result.data?.stagingLocationId === "assign-vendor-staging-location_avsl-loc-free-1" &&
+    after?.stagingLocationId === "assign-vendor-staging-location_avsl-loc-free-1"
   ) {
     pass("happy path primary — free loc assigned");
   } else {
@@ -187,18 +187,18 @@ try {
 
 // 2. Happy path additional
 await seed(async (db) => {
-  await seedDelivery(db, "avsl-del-happy-addl", {
-    stagingLocationId: "avsl-loc-free-1",
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-happy-addl", {
+    stagingLocationId: "assign-vendor-staging-location_avsl-loc-free-1",
   });
-  await seedVendorSession(db, "avsl-del-happy-addl");
+  await seedVendorSession(db, "assign-vendor-staging-location_avsl-del-happy-addl");
 });
 try {
-  const result = await assignAdditional("avsl-del-happy-addl", "avsl-loc-free-2");
-  const after = await readDelivery("avsl-del-happy-addl");
+  const result = await assignAdditional("assign-vendor-staging-location_avsl-del-happy-addl", "assign-vendor-staging-location_avsl-loc-free-2");
+  const after = await readDelivery("assign-vendor-staging-location_avsl-del-happy-addl");
   const addl = after?.additionalStagingLocationIds ?? [];
   if (
     result.data?.mode === "additional" &&
-    addl.includes("avsl-loc-free-2")
+    addl.includes("assign-vendor-staging-location_avsl-loc-free-2")
   ) {
     pass("happy path additional — arrayUnion extra loc");
   } else {
@@ -210,17 +210,17 @@ try {
 
 // 3. Conflict actual primary
 await seed(async (db) => {
-  await seedDelivery(db, "avsl-del-conflict-a", { stagingLocationId: "" });
-  await seedDelivery(db, "avsl-del-conflict-b", {
-    stagingLocationId: "avsl-loc-conflict",
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-conflict-a", { stagingLocationId: "" });
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-conflict-b", {
+    stagingLocationId: "assign-vendor-staging-location_avsl-loc-conflict",
   });
-  await seedVendorSession(db, "avsl-del-conflict-a");
+  await seedVendorSession(db, "assign-vendor-staging-location_avsl-del-conflict-a");
 });
 try {
-  await assignPrimary("avsl-del-conflict-a", "avsl-loc-conflict");
+  await assignPrimary("assign-vendor-staging-location_avsl-del-conflict-a", "assign-vendor-staging-location_avsl-loc-conflict");
   fail("conflict primary should reject");
 } catch (err) {
-  const after = await readDelivery("avsl-del-conflict-a");
+  const after = await readDelivery("assign-vendor-staging-location_avsl-del-conflict-a");
   if (
     /no longer available/i.test(msgOf(err)) &&
     (after?.stagingLocationId ?? "") === ""
@@ -233,24 +233,24 @@ try {
 
 // 4. Conflict additional on other delivery
 await seed(async (db) => {
-  await seedDelivery(db, "avsl-del-conflict-addl-a", {
-    stagingLocationId: "avsl-loc-free-1",
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-conflict-addl-a", {
+    stagingLocationId: "assign-vendor-staging-location_avsl-loc-free-1",
   });
-  await seedDelivery(db, "avsl-del-conflict-addl-b", {
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-conflict-addl-b", {
     stagingLocationId: "",
-    additionalStagingLocationIds: ["avsl-loc-conflict"],
+    additionalStagingLocationIds: ["assign-vendor-staging-location_avsl-loc-conflict"],
   });
-  await seedVendorSession(db, "avsl-del-conflict-addl-a");
+  await seedVendorSession(db, "assign-vendor-staging-location_avsl-del-conflict-addl-a");
 });
 try {
-  await assignAdditional("avsl-del-conflict-addl-a", "avsl-loc-conflict");
+  await assignAdditional("assign-vendor-staging-location_avsl-del-conflict-addl-a", "assign-vendor-staging-location_avsl-loc-conflict");
   fail("conflict additional should reject");
 } catch (err) {
-  const after = await readDelivery("avsl-del-conflict-addl-a");
+  const after = await readDelivery("assign-vendor-staging-location_avsl-del-conflict-addl-a");
   const addl = after?.additionalStagingLocationIds ?? [];
   if (
     /no longer available/i.test(msgOf(err)) &&
-    !addl.includes("avsl-loc-conflict")
+    !addl.includes("assign-vendor-staging-location_avsl-loc-conflict")
   ) {
     pass("conflict additional — A unchanged");
   } else {
@@ -260,18 +260,18 @@ try {
 
 // 5. Conflict planned (THE BUG)
 await seed(async (db) => {
-  await seedDelivery(db, "avsl-del-conflict-planned-a", { stagingLocationId: "" });
-  await seedDelivery(db, "avsl-del-conflict-planned-b", {
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-conflict-planned-a", { stagingLocationId: "" });
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-conflict-planned-b", {
     stagingLocationId: "",
-    plannedStagingLocationIds: ["avsl-loc-planned"],
+    plannedStagingLocationIds: ["assign-vendor-staging-location_avsl-loc-planned"],
   });
-  await seedVendorSession(db, "avsl-del-conflict-planned-a");
+  await seedVendorSession(db, "assign-vendor-staging-location_avsl-del-conflict-planned-a");
 });
 try {
-  await assignPrimary("avsl-del-conflict-planned-a", "avsl-loc-planned");
+  await assignPrimary("assign-vendor-staging-location_avsl-del-conflict-planned-a", "assign-vendor-staging-location_avsl-loc-planned");
   fail("conflict planned should reject");
 } catch (err) {
-  const after = await readDelivery("avsl-del-conflict-planned-a");
+  const after = await readDelivery("assign-vendor-staging-location_avsl-del-conflict-planned-a");
   if (
     /no longer available/i.test(msgOf(err)) &&
     (after?.stagingLocationId ?? "") === ""
@@ -284,23 +284,23 @@ try {
 
 // 6. ZONE_CLEARED — picked_up/installed holder ignored
 await seed(async (db) => {
-  await seedDelivery(db, "avsl-del-cleared-a", { stagingLocationId: "" });
-  await seedDelivery(db, "avsl-del-cleared-b-picked", {
-    stagingLocationId: "avsl-loc-cleared",
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-cleared-a", { stagingLocationId: "" });
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-cleared-b-picked", {
+    stagingLocationId: "assign-vendor-staging-location_avsl-loc-cleared",
     status: "picked_up",
   });
-  await seedDelivery(db, "avsl-del-cleared-b-installed", {
-    stagingLocationId: "avsl-loc-cleared",
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-cleared-b-installed", {
+    stagingLocationId: "assign-vendor-staging-location_avsl-loc-cleared",
     status: "installed",
   });
-  await seedVendorSession(db, "avsl-del-cleared-a");
+  await seedVendorSession(db, "assign-vendor-staging-location_avsl-del-cleared-a");
 });
 try {
-  const result = await assignPrimary("avsl-del-cleared-a", "avsl-loc-cleared");
-  const after = await readDelivery("avsl-del-cleared-a");
+  const result = await assignPrimary("assign-vendor-staging-location_avsl-del-cleared-a", "assign-vendor-staging-location_avsl-loc-cleared");
+  const after = await readDelivery("assign-vendor-staging-location_avsl-del-cleared-a");
   if (
-    result.data?.stagingLocationId === "avsl-loc-cleared" &&
-    after?.stagingLocationId === "avsl-loc-cleared"
+    result.data?.stagingLocationId === "assign-vendor-staging-location_avsl-loc-cleared" &&
+    after?.stagingLocationId === "assign-vendor-staging-location_avsl-loc-cleared"
   ) {
     pass("ZONE_CLEARED — assign succeeds over picked_up/installed holders");
   } else {
@@ -312,17 +312,17 @@ try {
 
 // 7. Self-reassign no-op
 await seed(async (db) => {
-  await seedDelivery(db, "avsl-del-self-noop", {
-    stagingLocationId: "avsl-loc-free-1",
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-self-noop", {
+    stagingLocationId: "assign-vendor-staging-location_avsl-loc-free-1",
   });
-  await seedVendorSession(db, "avsl-del-self-noop");
+  await seedVendorSession(db, "assign-vendor-staging-location_avsl-del-self-noop");
 });
 try {
-  const result = await assignPrimary("avsl-del-self-noop", "avsl-loc-free-1");
-  const after = await readDelivery("avsl-del-self-noop");
+  const result = await assignPrimary("assign-vendor-staging-location_avsl-del-self-noop", "assign-vendor-staging-location_avsl-loc-free-1");
+  const after = await readDelivery("assign-vendor-staging-location_avsl-del-self-noop");
   if (
-    result.data?.stagingLocationId === "avsl-loc-free-1" &&
-    after?.stagingLocationId === "avsl-loc-free-1"
+    result.data?.stagingLocationId === "assign-vendor-staging-location_avsl-loc-free-1" &&
+    after?.stagingLocationId === "assign-vendor-staging-location_avsl-loc-free-1"
   ) {
     pass("self-reassign no-op — same primary succeeds");
   } else {
@@ -334,15 +334,15 @@ try {
 
 // 8. picked_up / installed delivery rejects assign
 for (const [id, status] of [
-  ["avsl-del-picked", "picked_up"],
-  ["avsl-del-installed", "installed"],
+  ["assign-vendor-staging-location_avsl-del-picked", "picked_up"],
+  ["assign-vendor-staging-location_avsl-del-installed", "installed"],
 ]) {
   await seed(async (db) => {
     await seedDelivery(db, id, { status, stagingLocationId: "" });
     await seedVendorSession(db, id);
   });
   try {
-    await assignPrimary(id, "avsl-loc-free-2");
+    await assignPrimary(id, "assign-vendor-staging-location_avsl-loc-free-2");
     fail(`${status} delivery should reject assign`);
   } catch (err) {
     if (
@@ -358,11 +358,11 @@ for (const [id, status] of [
 
 // 9. Not-found location
 await seed(async (db) => {
-  await seedDelivery(db, "avsl-del-notfound-loc", { stagingLocationId: "" });
-  await seedVendorSession(db, "avsl-del-notfound-loc");
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-notfound-loc", { stagingLocationId: "" });
+  await seedVendorSession(db, "assign-vendor-staging-location_avsl-del-notfound-loc");
 });
 try {
-  await assignPrimary("avsl-del-notfound-loc", "avsl-loc-missing-xyz");
+  await assignPrimary("assign-vendor-staging-location_avsl-del-notfound-loc", "assign-vendor-staging-location_avsl-loc-missing-xyz");
   fail("missing location should reject");
 } catch (err) {
   if (codeOf(err).includes("not-found") || /not found/i.test(msgOf(err))) {
@@ -374,22 +374,22 @@ try {
 
 // 10. Clear primary slot (null / empty) — no occupancy check
 await seed(async (db) => {
-  await seedDelivery(db, "avsl-del-clear-slot", {
-    stagingLocationId: "avsl-loc-free-1",
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-clear-slot", {
+    stagingLocationId: "assign-vendor-staging-location_avsl-loc-free-1",
   });
-  await seedDelivery(db, "avsl-del-occupies-free-1", {
-    stagingLocationId: "avsl-loc-free-1",
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-occupies-free-1", {
+    stagingLocationId: "assign-vendor-staging-location_avsl-loc-free-1",
   });
-  await seedVendorSession(db, "avsl-del-clear-slot");
+  await seedVendorSession(db, "assign-vendor-staging-location_avsl-del-clear-slot");
 });
 try {
   const result = await assignStaging({
-    deliveryId: "avsl-del-clear-slot",
-    sessionToken: vendorSessionTokenFor("avsl-del-clear-slot"),
+    deliveryId: "assign-vendor-staging-location_avsl-del-clear-slot",
+    sessionToken: vendorSessionTokenFor("assign-vendor-staging-location_avsl-del-clear-slot"),
     stagingLocationId: null,
     mode: "primary",
   });
-  const after = await readDelivery("avsl-del-clear-slot");
+  const after = await readDelivery("assign-vendor-staging-location_avsl-del-clear-slot");
   if (result.data?.stagingLocationId === null && after?.stagingLocationId === "") {
     pass("clear primary slot succeeds without occupancy guard");
   } else {
@@ -401,24 +401,24 @@ try {
 
 // 11. Active occupant behind >20 cleared docs (paging)
 await seed(async (db) => {
-  await seedDelivery(db, "avsl-del-page-src", { stagingLocationId: "" });
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-page-src", { stagingLocationId: "" });
   for (let i = 0; i < 22; i += 1) {
-    await seedDelivery(db, `avsl-del-cleared-page-${i}`, {
-      stagingLocationId: "avsl-loc-page",
+    await seedDelivery(db, `assign-vendor-staging-location_avsl-del-cleared-page-${i}`, {
+      stagingLocationId: "assign-vendor-staging-location_avsl-loc-page",
       status: "picked_up",
     });
   }
-  await seedDelivery(db, "avsl-del-active-behind-page", {
-    stagingLocationId: "avsl-loc-page",
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-active-behind-page", {
+    stagingLocationId: "assign-vendor-staging-location_avsl-loc-page",
     status: "arrived",
   });
-  await seedVendorSession(db, "avsl-del-page-src");
+  await seedVendorSession(db, "assign-vendor-staging-location_avsl-del-page-src");
 });
 try {
-  await assignPrimary("avsl-del-page-src", "avsl-loc-page");
+  await assignPrimary("assign-vendor-staging-location_avsl-del-page-src", "assign-vendor-staging-location_avsl-loc-page");
   fail("active occupant behind cleared page should reject");
 } catch (err) {
-  const after = await readDelivery("avsl-del-page-src");
+  const after = await readDelivery("assign-vendor-staging-location_avsl-del-page-src");
   if (
     /no longer available/i.test(msgOf(err)) &&
     (after?.stagingLocationId ?? "") === ""
@@ -431,20 +431,23 @@ try {
 
 // 12. Occupancy cap — >25 full pages fails closed (520 cleared)
 await seed(async (db) => {
-  await seedDelivery(db, "avsl-del-cap-over-src", { stagingLocationId: "" });
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-cap-over-src", { stagingLocationId: "" });
   await seedClearedPrimaryOnLocation(
     db,
-    "avsl-loc-cap-over",
+    "assign-vendor-staging-location_avsl-loc-cap-over",
     520,
-    "avsl-del-cap-over-fill",
+    "assign-vendor-staging-location_avsl-del-cap-over-fill",
   );
-  await seedVendorSession(db, "avsl-del-cap-over-src");
+  await seedVendorSession(db, "assign-vendor-staging-location_avsl-del-cap-over-src");
 });
 try {
-  await assignPrimary("avsl-del-cap-over-src", "avsl-loc-cap-over");
+  await assignPrimary(
+    "assign-vendor-staging-location_avsl-del-cap-over-src",
+    "assign-vendor-staging-location_avsl-loc-cap-over",
+  );
   fail("cap over — assign should reject with safety cap");
 } catch (err) {
-  const after = await readDelivery("avsl-del-cap-over-src");
+  const after = await readDelivery("assign-vendor-staging-location_avsl-del-cap-over-src");
   if (
     /safety cap/i.test(msgOf(err)) &&
     (after?.stagingLocationId ?? "") === ""
@@ -457,24 +460,24 @@ try {
 
 // 13. Occupancy cap — exactly 25 full pages (500 cleared) succeeds
 await seed(async (db) => {
-  await seedDelivery(db, "avsl-del-cap-exact-src", { stagingLocationId: "" });
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-cap-exact-src", { stagingLocationId: "" });
   await seedClearedPrimaryOnLocation(
     db,
-    "avsl-loc-cap-exact",
+    "assign-vendor-staging-location_avsl-loc-cap-exact",
     500,
-    "avsl-del-cap-exact-fill",
+    "assign-vendor-staging-location_avsl-del-cap-exact-fill",
   );
-  await seedVendorSession(db, "avsl-del-cap-exact-src");
+  await seedVendorSession(db, "assign-vendor-staging-location_avsl-del-cap-exact-src");
 });
 try {
   const result = await assignPrimary(
-    "avsl-del-cap-exact-src",
-    "avsl-loc-cap-exact",
+    "assign-vendor-staging-location_avsl-del-cap-exact-src",
+    "assign-vendor-staging-location_avsl-loc-cap-exact",
   );
-  const after = await readDelivery("avsl-del-cap-exact-src");
+  const after = await readDelivery("assign-vendor-staging-location_avsl-del-cap-exact-src");
   if (
-    result.data?.stagingLocationId === "avsl-loc-cap-exact" &&
-    after?.stagingLocationId === "avsl-loc-cap-exact"
+    result.data?.stagingLocationId === "assign-vendor-staging-location_avsl-loc-cap-exact" &&
+    after?.stagingLocationId === "assign-vendor-staging-location_avsl-loc-cap-exact"
   ) {
     pass("cap exact — 500 cleared, assign succeeds without safety cap");
   } else {
@@ -486,18 +489,18 @@ try {
 
 // 14. No session token
 await seed(async (db) => {
-  await seedDelivery(db, "avsl-del-no-session", { stagingLocationId: "" });
-  await seedVendorSession(db, "avsl-del-no-session");
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-no-session", { stagingLocationId: "" });
+  await seedVendorSession(db, "assign-vendor-staging-location_avsl-del-no-session");
 });
 try {
   await assignStaging({
-    deliveryId: "avsl-del-no-session",
-    stagingLocationId: "avsl-loc-free-1",
+    deliveryId: "assign-vendor-staging-location_avsl-del-no-session",
+    stagingLocationId: "assign-vendor-staging-location_avsl-loc-free-1",
     mode: "primary",
   });
   fail("no session should reject");
 } catch (err) {
-  const after = await readDelivery("avsl-del-no-session");
+  const after = await readDelivery("assign-vendor-staging-location_avsl-del-no-session");
   if (
     (codeOf(err).includes("invalid-argument") ||
       /invalid session/i.test(msgOf(err))) &&
@@ -511,19 +514,19 @@ try {
 
 // 15. Bad vendor token (unknown 64-hex)
 await seed(async (db) => {
-  await seedDelivery(db, "avsl-del-bad-token", { stagingLocationId: "" });
-  await seedVendorSession(db, "avsl-del-bad-token");
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-bad-token", { stagingLocationId: "" });
+  await seedVendorSession(db, "assign-vendor-staging-location_avsl-del-bad-token");
 });
 try {
   await assignStaging({
-    deliveryId: "avsl-del-bad-token",
+    deliveryId: "assign-vendor-staging-location_avsl-del-bad-token",
     sessionToken: "a".repeat(64),
-    stagingLocationId: "avsl-loc-free-1",
+    stagingLocationId: "assign-vendor-staging-location_avsl-loc-free-1",
     mode: "primary",
   });
   fail("bad vendor token should reject");
 } catch (err) {
-  const after = await readDelivery("avsl-del-bad-token");
+  const after = await readDelivery("assign-vendor-staging-location_avsl-del-bad-token");
   if (
     (codeOf(err).includes("permission-denied") ||
       /session expired/i.test(msgOf(err))) &&
@@ -537,14 +540,17 @@ try {
 
 // 16. Expired vendor session
 await seed(async (db) => {
-  await seedDelivery(db, "avsl-del-expired", { stagingLocationId: "" });
-  await seedExpiredVendorSession(db, "avsl-del-expired");
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-expired", { stagingLocationId: "" });
+  await seedExpiredVendorSession(db, "assign-vendor-staging-location_avsl-del-expired");
 });
 try {
-  await assignPrimary("avsl-del-expired", "avsl-loc-free-1");
+  await assignPrimary(
+    "assign-vendor-staging-location_avsl-del-expired",
+    "assign-vendor-staging-location_avsl-loc-free-1",
+  );
   fail("expired session should reject");
 } catch (err) {
-  const after = await readDelivery("avsl-del-expired");
+  const after = await readDelivery("assign-vendor-staging-location_avsl-del-expired");
   if (
     (codeOf(err).includes("permission-denied") ||
       /session expired/i.test(msgOf(err))) &&
@@ -558,7 +564,7 @@ try {
 
 // 17. Vendor-scoped session on another vendor's delivery
 await seed(async (db) => {
-  await seedDelivery(db, "avsl-del-other-vendor", {
+  await seedDelivery(db, "assign-vendor-staging-location_avsl-del-other-vendor", {
     stagingLocationId: "",
     vendorId: "vendor-b",
   });
@@ -566,14 +572,14 @@ await seed(async (db) => {
 });
 try {
   await assignStaging({
-    deliveryId: "avsl-del-other-vendor",
+    deliveryId: "assign-vendor-staging-location_avsl-del-other-vendor",
     sessionToken: vendorScopedSessionTokenFor("vendor-a"),
-    stagingLocationId: "avsl-loc-free-2",
+    stagingLocationId: "assign-vendor-staging-location_avsl-loc-free-2",
     mode: "primary",
   });
   fail("other vendor delivery should reject");
 } catch (err) {
-  const after = await readDelivery("avsl-del-other-vendor");
+  const after = await readDelivery("assign-vendor-staging-location_avsl-del-other-vendor");
   if (
     (codeOf(err).includes("permission-denied") ||
       /not valid for this delivery/i.test(msgOf(err))) &&

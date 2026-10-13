@@ -96,35 +96,35 @@ async function seedDelivery(vendorEmail) {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const adminDb = ctx.firestore();
     const vendorDoc = {
-      id: "vendor-1",
+      id: "send-vendor-email_vendor-1",
       name: "Test Vendor",
       createdAt: "2026-01-01T00:00:00Z",
     };
     if (vendorEmail !== undefined) {
       vendorDoc.email = vendorEmail;
     }
-    await setDoc(doc(adminDb, "vendors", "vendor-1"), vendorDoc);
-    await setDoc(doc(adminDb, "jobs", "job-1"), {
-      id: "job-1",
+    await setDoc(doc(adminDb, "vendors", "send-vendor-email_vendor-1"), vendorDoc);
+    await setDoc(doc(adminDb, "jobs", "send-vendor-email_job-1"), {
+      id: "send-vendor-email_job-1",
       jobNumber: "26-1001",
       jobName: "Send vendor email test",
       status: "active",
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     });
-    await setDoc(doc(adminDb, "deliveries", "del-1"), {
-      id: "del-1",
+    await setDoc(doc(adminDb, "deliveries", "send-vendor-email_del-1"), {
+      id: "send-vendor-email_del-1",
       orderNumber: "ORD-1001",
-      vendorId: "vendor-1",
-      jobId: "job-1",
+      vendorId: "send-vendor-email_vendor-1",
+      jobId: "send-vendor-email_job-1",
       purchaseOrderId: "po-1",
       status: "arrived",
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     });
-    await setDoc(doc(adminDb, "materialIssues", "issue-1"), {
-      id: "issue-1",
-      deliveryOrderId: "del-1",
+    await setDoc(doc(adminDb, "materialIssues", "send-vendor-email_issue-1"), {
+      id: "send-vendor-email_issue-1",
+      deliveryOrderId: "send-vendor-email_del-1",
       type: "missing",
       status: "open",
       description: "Missing widget",
@@ -166,8 +166,8 @@ await seedDelivery("old-vendor@example.com");
 
 try {
   await sendVendorEmail({
-    deliveryOrderId: "del-1",
-    materialIssueId: "issue-1",
+    deliveryOrderId: "send-vendor-email_del-1",
+    materialIssueId: "send-vendor-email_issue-1",
     to: "new-vendor@example.com",
     subject: "Question about delivery",
     body: "Please confirm ETA.",
@@ -177,7 +177,7 @@ try {
   expectInvalidArgument(err, "rejects mismatched To without saveVendorEmail");
 }
 
-const emailAfterReject = await readVendorEmail("vendor-1");
+const emailAfterReject = await readVendorEmail("send-vendor-email_vendor-1");
 if (emailAfterReject === "old-vendor@example.com") {
   pass("vendor email unchanged after rejected mismatch");
 } else {
@@ -186,8 +186,8 @@ if (emailAfterReject === "old-vendor@example.com") {
 
 try {
   await sendVendorEmail({
-    deliveryOrderId: "del-1",
-    materialIssueId: "issue-1",
+    deliveryOrderId: "send-vendor-email_del-1",
+    materialIssueId: "send-vendor-email_issue-1",
     to: "new-vendor@example.com",
     subject: "Question about delivery",
     body: "Please confirm ETA.",
@@ -211,8 +211,8 @@ await seedDelivery(undefined);
 
 try {
   await sendVendorEmail({
-    deliveryOrderId: "del-1",
-    materialIssueId: "issue-1",
+    deliveryOrderId: "send-vendor-email_del-1",
+    materialIssueId: "send-vendor-email_issue-1",
     to: "first-vendor@example.com",
     subject: "Question",
     body: "Need info.",

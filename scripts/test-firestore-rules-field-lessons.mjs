@@ -24,52 +24,52 @@ const testEnv = await initializeTestEnvironment({
 
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const db = ctx.firestore();
-  await setDoc(doc(db, "dispatcherRoles", "disp-1"), {
+  await setDoc(doc(db, "dispatcherRoles", "firestore-rules-field-lessons_disp-1"), {
     active: true,
     manager: true,
     role: "manager",
   });
-  await setDoc(doc(db, "vendorInvoiceFieldLessons", "lesson-1"), {
+  await setDoc(doc(db, "vendorInvoiceFieldLessons", "firestore-rules-field-lessons_lesson-1"), {
     status: "proposed",
     field: "customerPoOrReference",
   });
-  await setDoc(doc(db, "vendorInvoiceFieldLessonAuditEvents", "aud-1"), {
+  await setDoc(doc(db, "vendorInvoiceFieldLessonAuditEvents", "firestore-rules-field-lessons_aud-1"), {
     eventType: "proposed",
-    lessonId: "lesson-1",
+    lessonId: "firestore-rules-field-lessons_lesson-1",
   });
 });
 
 const unauth = testEnv.unauthenticatedContext().firestore();
-await assertFails(getDoc(doc(unauth, "vendorInvoiceFieldLessons", "lesson-1")));
+await assertFails(getDoc(doc(unauth, "vendorInvoiceFieldLessons", "firestore-rules-field-lessons_lesson-1")));
 await assertFails(
-  setDoc(doc(unauth, "vendorInvoiceFieldLessons", "hack"), { x: 1 }),
+  setDoc(doc(unauth, "vendorInvoiceFieldLessons", "firestore-rules-field-lessons_hack"), { x: 1 }),
 );
 await assertFails(
-  getDoc(doc(unauth, "vendorInvoiceFieldLessonAuditEvents", "aud-1")),
+  getDoc(doc(unauth, "vendorInvoiceFieldLessonAuditEvents", "firestore-rules-field-lessons_aud-1")),
 );
 
 const randomUser = testEnv.authenticatedContext("user-x").firestore();
 await assertFails(
-  getDoc(doc(randomUser, "vendorInvoiceFieldLessons", "lesson-1")),
+  getDoc(doc(randomUser, "vendorInvoiceFieldLessons", "firestore-rules-field-lessons_lesson-1")),
 );
 await assertFails(
-  setDoc(doc(randomUser, "vendorInvoiceFieldLessons", "hack2"), { x: 1 }),
+  setDoc(doc(randomUser, "vendorInvoiceFieldLessons", "firestore-rules-field-lessons_hack2"), { x: 1 }),
 );
 
-const dispatcher = testEnv.authenticatedContext("disp-1").firestore();
+const dispatcher = testEnv.authenticatedContext("firestore-rules-field-lessons_disp-1").firestore();
 await assertFails(
-  getDoc(doc(dispatcher, "vendorInvoiceFieldLessons", "lesson-1")),
+  getDoc(doc(dispatcher, "vendorInvoiceFieldLessons", "firestore-rules-field-lessons_lesson-1")),
 );
 await assertFails(
-  setDoc(doc(dispatcher, "vendorInvoiceFieldLessons", "hack3"), {
+  setDoc(doc(dispatcher, "vendorInvoiceFieldLessons", "firestore-rules-field-lessons_hack3"), {
     status: "active",
   }),
 );
 await assertFails(
-  getDoc(doc(dispatcher, "vendorInvoiceFieldLessonAuditEvents", "aud-1")),
+  getDoc(doc(dispatcher, "vendorInvoiceFieldLessonAuditEvents", "firestore-rules-field-lessons_aud-1")),
 );
 await assertFails(
-  setDoc(doc(dispatcher, "vendorInvoiceFieldLessonAuditEvents", "hack-aud"), {
+  setDoc(doc(dispatcher, "vendorInvoiceFieldLessonAuditEvents", "firestore-rules-field-lessons_hack-aud"), {
     eventType: "proposed",
   }),
 );

@@ -40,7 +40,7 @@ const {
   ACCESS_PIN_SECRETS_COLLECTION,
 } = require(resolve(root, "functions/lib/accessPinSecretsShared.js"));
 
-const VENDOR_ID = "vendor-rotate-tx-test";
+const VENDOR_ID = "access-pin-rotate-transaction_vendor-rotate-tx-test";
 const PIN_A = "1111";
 const PIN_B = "2222";
 

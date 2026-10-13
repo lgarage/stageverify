@@ -130,7 +130,7 @@ console.log("\n=== Unit: buildExpectedItemsFromImport ===\n");
 const built = buildExpectedItemsFromImport(
   "vii-test",
   "delivery-test",
-  "job-1",
+  "approve-vendor-invoice-import_job-1",
   sampleLines,
 );
 if (built.length === 2 && built.every((i) => i.qtyReceived === 0)) {
@@ -205,40 +205,40 @@ const header = {
 async function seed() {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const adminDb = ctx.firestore();
-    await setDoc(doc(adminDb, "jobs", "job-blackduck"), {
-      id: "job-blackduck",
+    await setDoc(doc(adminDb, "jobs", "approve-vendor-invoice-import_job-blackduck"), {
+      id: "approve-vendor-invoice-import_job-blackduck",
       jobNumber: "26-1042",
       jobName: "Black Duck Hartford",
       status: "active",
       createdAt: "2026-06-02T00:00:00Z",
       updatedAt: "2026-06-02T00:00:00Z",
     });
-    await setDoc(doc(adminDb, "jobs", "job-1"), {
-      id: "job-1",
+    await setDoc(doc(adminDb, "jobs", "approve-vendor-invoice-import_job-1"), {
+      id: "approve-vendor-invoice-import_job-1",
       jobNumber: "PF-100",
       jobName: "Planet Fitness",
       status: "active",
       createdAt: "2026-06-02T00:00:00Z",
       updatedAt: "2026-06-02T00:00:00Z",
     });
-    await setDoc(doc(adminDb, "vendors", "vendor-1"), {
-      id: "vendor-1",
+    await setDoc(doc(adminDb, "vendors", "approve-vendor-invoice-import_vendor-1"), {
+      id: "approve-vendor-invoice-import_vendor-1",
       name: "Johnstone Supply",
       active: true,
       createdAt: "2026-06-02T00:00:00Z",
       updatedAt: "2026-06-02T00:00:00Z",
     });
-    await setDoc(doc(adminDb, "deliveries", "delivery-approve-test"), {
-      id: "delivery-approve-test",
+    await setDoc(doc(adminDb, "deliveries", "approve-vendor-invoice-import_delivery-approve-test"), {
+      id: "approve-vendor-invoice-import_delivery-approve-test",
       orderNumber: "ORD-005",
-      jobId: "job-1",
-      vendorId: "vendor-1",
+      jobId: "approve-vendor-invoice-import_job-1",
+      vendorId: "approve-vendor-invoice-import_vendor-1",
       status: "pending",
       createdAt: "2026-06-02T00:00:00Z",
       updatedAt: "2026-06-02T00:00:00Z",
     });
-    await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-approve-test"), {
-      id: "vii-approve-test",
+    await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-approve-test"), {
+      id: "approve-vendor-invoice-import_vii-approve-test",
       inboundEmailProcessingId: "inbound-test",
       gmailMessageId: "msg-test",
       importBatchId: "batch-test",
@@ -266,9 +266,9 @@ await seed();
 
 try {
   await approveImport({
-    vendorInvoiceImportId: "vii-approve-test",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-approve-test",
     action: "approve",
-    deliveryOrderId: "delivery-approve-test",
+    deliveryOrderId: "approve-vendor-invoice-import_delivery-approve-test",
   });
   fail("unauthenticated approve should be denied");
 } catch (err) {
@@ -295,8 +295,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     active: true,
     email: TEST_EMAIL,
   });
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-review-only-test"), {
-    id: "vii-review-only-test",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-review-only-test"), {
+    id: "approve-vendor-invoice-import_vii-review-only-test",
     inboundEmailProcessingId: "inbound-test-2",
     gmailMessageId: "msg-test-2",
     importBatchId: "batch-test",
@@ -322,7 +322,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 let reviewOnlyResult;
 try {
   reviewOnlyResult = await approveImport({
-    vendorInvoiceImportId: "vii-review-only-test",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-review-only-test",
     action: "approve",
   });
 } catch (err) {
@@ -330,7 +330,7 @@ try {
 }
 
 const reviewOnlyData = reviewOnlyResult?.data ?? {};
-const shellDeliveryId = shellDeliveryIdForImport("vii-review-only-test");
+const shellDeliveryId = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-review-only-test");
 if (
   reviewOnlyData.reviewStatus === "approved" &&
   reviewOnlyData.deliveryOrderId === shellDeliveryId &&
@@ -342,7 +342,7 @@ if (
   fail("review-only approve response", reviewOnlyData);
 }
 
-const reviewOnlySnap = await getDoc(doc(db, "vendorInvoiceImports", "vii-review-only-test"));
+const reviewOnlySnap = await getDoc(doc(db, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-review-only-test"));
 if (
   reviewOnlySnap.data()?.reviewStatus === "approved" &&
   reviewOnlySnap.data()?.linkedDeliveryOrderId === shellDeliveryId
@@ -374,7 +374,7 @@ const shellPlannedEmpty =
   shellPlanned === undefined ||
   (Array.isArray(shellPlanned) && shellPlanned.length === 0);
 if (
-  shellDelivery.vendorInvoiceImportId === "vii-review-only-test" &&
+  shellDelivery.vendorInvoiceImportId === "approve-vendor-invoice-import_vii-review-only-test" &&
   shellDelivery.invoiceImportStatus === "pickup_at_vendor" &&
   shellDelivery.status === "ready_for_pickup" &&
   shellActualEmpty &&
@@ -398,11 +398,11 @@ if (shellItems.length === 2 && shellItems.every((i) => i.qtyReceived === 0)) {
 
 console.log("\n=== CF: review-only approve patches orphan shell slot ===\n");
 
-const orphanShellId = shellDeliveryIdForImport("vii-orphan-shell-test");
+const orphanShellId = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-orphan-shell-test");
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-orphan-shell-test"), {
-    id: "vii-orphan-shell-test",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-orphan-shell-test"), {
+    id: "approve-vendor-invoice-import_vii-orphan-shell-test",
     inboundEmailProcessingId: "inbound-orphan-shell",
     gmailMessageId: "msg-orphan-shell",
     importBatchId: "batch-test",
@@ -426,7 +426,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(adminDb, "deliveries", orphanShellId), {
     id: orphanShellId,
     orderNumber: "orphan-placeholder",
-    jobId: "job-1",
+    jobId: "approve-vendor-invoice-import_job-1",
     vendorId: "vendor-johnstone",
     deliveryDate: "2026-06-23",
     status: "pending",
@@ -437,7 +437,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 
 try {
   await approveImport({
-    vendorInvoiceImportId: "vii-orphan-shell-test",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-orphan-shell-test",
     action: "approve",
   });
   pass("review-only approve succeeded with pre-existing shell-slot delivery");
@@ -447,7 +447,7 @@ try {
 
 const orphanShellSnap = await getDoc(doc(db, "deliveries", orphanShellId));
 const orphanShell = orphanShellSnap.data() ?? {};
-if (orphanShell.vendorInvoiceImportId === "vii-orphan-shell-test") {
+if (orphanShell.vendorInvoiceImportId === "approve-vendor-invoice-import_vii-orphan-shell-test") {
   pass("orphan shell slot stamped with vendorInvoiceImportId for prod list visibility");
 } else {
   fail("orphan shell slot vendorInvoiceImportId", orphanShell);
@@ -456,7 +456,7 @@ if (orphanShell.vendorInvoiceImportId === "vii-orphan-shell-test") {
 let duplicateShellResult;
 try {
   duplicateShellResult = await approveImport({
-    vendorInvoiceImportId: "vii-review-only-test",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-review-only-test",
     action: "create_shell",
   });
   const dupData = duplicateShellResult?.data ?? {};
@@ -480,8 +480,8 @@ if (shellItemsAfterDup.docs.length === 2) {
 
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-issue-test"), {
-    id: "vii-issue-test",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-issue-test"), {
+    id: "approve-vendor-invoice-import_vii-issue-test",
     inboundEmailProcessingId: "inbound-issue",
     gmailMessageId: "msg-issue",
     importBatchId: "batch-test",
@@ -506,7 +506,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 
 try {
   await approveImport({
-    vendorInvoiceImportId: "vii-issue-test",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-issue-test",
     action: "approve",
   });
   fail("issue import approve should be denied");
@@ -537,9 +537,9 @@ try {
 
 try {
   await approveImport({
-    vendorInvoiceImportId: "vii-approve-test",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-approve-test",
     action: "approve",
-    deliveryOrderId: "delivery-approve-test",
+    deliveryOrderId: "approve-vendor-invoice-import_delivery-approve-test",
   });
   fail("approve with unrelated deliveryOrderId should be rejected");
 } catch (err) {
@@ -557,14 +557,14 @@ try {
 let approveResult;
 try {
   approveResult = await approveImport({
-    vendorInvoiceImportId: "vii-approve-test",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-approve-test",
     action: "approve",
   });
 } catch (err) {
   fail("approve call failed", err?.message);
 }
 
-const approveShellId = shellDeliveryIdForImport("vii-approve-test");
+const approveShellId = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-approve-test");
 const approveData = approveResult?.data ?? {};
 if (
   approveData.reviewStatus === "approved" &&
@@ -578,7 +578,7 @@ if (
 }
 
 const deliverySnap = await getDoc(doc(db, "deliveries", approveShellId));
-if (deliverySnap.data()?.vendorInvoiceImportId === "vii-approve-test") {
+if (deliverySnap.data()?.vendorInvoiceImportId === "approve-vendor-invoice-import_vii-approve-test") {
   pass("shell delivery linked to import");
 } else {
   fail("shell delivery link missing", deliverySnap.data());
@@ -609,14 +609,14 @@ if (items.length === 2 && items.every((i) => i.qtyReceived === 0)) {
 
 console.log("\n=== CF: relink_to_shell moves off shared delivery ===\n");
 
-const sharedDeliveryId = "delivery-shared-non-shell";
-const relinkImportId = "vii-relink-test";
+const sharedDeliveryId = "approve-vendor-invoice-import_delivery-shared-non-shell";
+const relinkImportId = "approve-vendor-invoice-import_vii-relink-test";
 const relinkShellId = shellDeliveryIdForImport(relinkImportId);
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
   await setDoc(doc(adminDb, "deliveries", sharedDeliveryId), {
     id: sharedDeliveryId,
-    jobId: "job-1",
+    jobId: "approve-vendor-invoice-import_job-1",
     vendorId: "vendor-johnstone",
     orderNumber: "ORD-SHARED",
     status: "pending",
@@ -717,8 +717,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
       excludeFromExpectedItems: false,
     },
   ];
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-p411190-backfill"), {
-    id: "vii-p411190-backfill",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-p411190-backfill"), {
+    id: "approve-vendor-invoice-import_vii-p411190-backfill",
     inboundEmailProcessingId: "inbound-p411190",
     gmailMessageId: "msg-p411190",
     importBatchId: "batch-test",
@@ -745,14 +745,14 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 let backfillResult;
 try {
   backfillResult = await approveImport({
-    vendorInvoiceImportId: "vii-p411190-backfill",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-p411190-backfill",
     action: "create_shell",
   });
 } catch (err) {
   fail("P411190 create_shell backfill call failed", err?.message);
 }
 
-const backfillShellId = shellDeliveryIdForImport("vii-p411190-backfill");
+const backfillShellId = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-p411190-backfill");
 const backfillData = backfillResult?.data ?? {};
 if (
   backfillData.reviewStatus === "approved" &&
@@ -767,7 +767,7 @@ if (
 const backfillShellSnap = await getDoc(doc(db, "deliveries", backfillShellId));
 const backfillShell = backfillShellSnap.data() ?? {};
 if (
-  backfillShell.jobId === "job-blackduck" &&
+  backfillShell.jobId === "approve-vendor-invoice-import_job-blackduck" &&
   backfillShell.orderNumber === "4046362" &&
   backfillShell.createdFromInvoiceImport === true
 ) {
@@ -779,25 +779,25 @@ if (
 // Historical backfill: approved import linked to real delivery missing vendorInvoiceImportId stamp
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  await setDoc(doc(adminDb, "deliveries", "delivery-hist-stamp-test"), {
-    id: "delivery-hist-stamp-test",
+  await setDoc(doc(adminDb, "deliveries", "approve-vendor-invoice-import_delivery-hist-stamp-test"), {
+    id: "approve-vendor-invoice-import_delivery-hist-stamp-test",
     orderNumber: "6164159",
-    jobId: "job-1",
+    jobId: "approve-vendor-invoice-import_job-1",
     vendorId: "vendor-johnstone",
     deliveryDate: "2026-06-23",
     status: "pending",
     createdAt: "2026-06-24T10:00:00Z",
     updatedAt: "2026-06-24T10:00:00Z",
   });
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-hist-stamp-test"), {
-    id: "vii-hist-stamp-test",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-hist-stamp-test"), {
+    id: "approve-vendor-invoice-import_vii-hist-stamp-test",
     inboundEmailProcessingId: "inbound-hist-stamp",
     gmailMessageId: "msg-hist-stamp",
     importBatchId: "batch-test",
     pageId: "inv-hist-stamp",
     pageIndexInBatch: 0,
     reviewStatus: "approved",
-    linkedDeliveryOrderId: "delivery-hist-stamp-test",
+    linkedDeliveryOrderId: "approve-vendor-invoice-import_delivery-hist-stamp-test",
     importStatus: "delivered",
     confidenceTier: "medium",
     confidenceScore: 80,
@@ -817,7 +817,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 
 try {
   await approveImport({
-    vendorInvoiceImportId: "vii-hist-stamp-test",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-hist-stamp-test",
     action: "create_shell",
   });
   pass("historical linked delivery create_shell backfill succeeded");
@@ -825,29 +825,29 @@ try {
   fail("historical linked delivery create_shell backfill failed", err?.message);
 }
 
-const histStampSnap = await getDoc(doc(db, "deliveries", "delivery-hist-stamp-test"));
-if (histStampSnap.data()?.vendorInvoiceImportId === "vii-hist-stamp-test") {
+const histStampSnap = await getDoc(doc(db, "deliveries", "approve-vendor-invoice-import_delivery-hist-stamp-test"));
+if (histStampSnap.data()?.vendorInvoiceImportId === "approve-vendor-invoice-import_vii-hist-stamp-test") {
   pass("historical linked delivery stamped with vendorInvoiceImportId");
 } else {
   fail("historical linked delivery vendorInvoiceImportId", histStampSnap.data());
 }
 
 // Historical backfill: linked orphan shell slot missing stamp (approved, linked, shell exists)
-const histOrphanShellId = shellDeliveryIdForImport("vii-hist-orphan-stamp");
+const histOrphanShellId = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-hist-orphan-stamp");
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
   await setDoc(doc(adminDb, "deliveries", histOrphanShellId), {
     id: histOrphanShellId,
     orderNumber: "orphan-hist",
-    jobId: "job-1",
+    jobId: "approve-vendor-invoice-import_job-1",
     vendorId: "vendor-johnstone",
     deliveryDate: "2026-06-23",
     status: "pending",
     createdAt: "2026-06-24T10:00:00Z",
     updatedAt: "2026-06-24T10:00:00Z",
   });
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-hist-orphan-stamp"), {
-    id: "vii-hist-orphan-stamp",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-hist-orphan-stamp"), {
+    id: "approve-vendor-invoice-import_vii-hist-orphan-stamp",
     inboundEmailProcessingId: "inbound-hist-orphan",
     gmailMessageId: "msg-hist-orphan",
     importBatchId: "batch-test",
@@ -874,7 +874,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 
 try {
   await approveImport({
-    vendorInvoiceImportId: "vii-hist-orphan-stamp",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-hist-orphan-stamp",
     action: "create_shell",
   });
   pass("historical orphan shell create_shell backfill succeeded");
@@ -883,7 +883,7 @@ try {
 }
 
 const histOrphanSnap = await getDoc(doc(db, "deliveries", histOrphanShellId));
-if (histOrphanSnap.data()?.vendorInvoiceImportId === "vii-hist-orphan-stamp") {
+if (histOrphanSnap.data()?.vendorInvoiceImportId === "approve-vendor-invoice-import_vii-hist-orphan-stamp") {
   pass("historical orphan shell stamped with vendorInvoiceImportId");
 } else {
   fail("historical orphan shell vendorInvoiceImportId", histOrphanSnap.data());
@@ -892,7 +892,7 @@ if (histOrphanSnap.data()?.vendorInvoiceImportId === "vii-hist-orphan-stamp") {
 // --- Operational fulfillment preserve through create_shell backfill (6169414/6169474-equivalent) ---
 console.log("\n=== CF: create_shell preserves dispatcher operational fulfillment ===\n");
 
-const preserveDropOffImportId = "vii-fulfillment-preserve-repro";
+const preserveDropOffImportId = "approve-vendor-invoice-import_vii-fulfillment-preserve-repro";
 const preserveDropOffDeliveryId = shellDeliveryIdForImport(preserveDropOffImportId);
 const preserveDropOffHeader = {
   ...header,
@@ -982,7 +982,7 @@ if (
   });
 }
 
-const preserveWillCallImportId = "vii-fulfillment-preserve-repro-rev";
+const preserveWillCallImportId = "approve-vendor-invoice-import_vii-fulfillment-preserve-repro-rev";
 const preserveWillCallDeliveryId = shellDeliveryIdForImport(
   preserveWillCallImportId,
 );
@@ -1095,8 +1095,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
       excludeFromExpectedItems: false,
     },
   ];
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-auto-job-test"), {
-    id: "vii-auto-job-test",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-auto-job-test"), {
+    id: "approve-vendor-invoice-import_vii-auto-job-test",
     inboundEmailProcessingId: "inbound-auto-job",
     gmailMessageId: "msg-auto-job",
     importBatchId: "batch-test",
@@ -1122,7 +1122,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 let autoJobApproveResult;
 try {
   autoJobApproveResult = await approveImport({
-    vendorInvoiceImportId: "vii-auto-job-test",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-auto-job-test",
     action: "approve",
   });
 } catch (err) {
@@ -1130,7 +1130,7 @@ try {
 }
 
 const autoJobData = autoJobApproveResult?.data ?? {};
-const autoJobShellId = shellDeliveryIdForImport("vii-auto-job-test");
+const autoJobShellId = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-auto-job-test");
 const autoJobHeader = {
   ...p411190Header,
   vendorInvoiceNumber: "P999001",
@@ -1181,15 +1181,15 @@ const firstSupplyHeader = {
 
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  await setDoc(doc(adminDb, "vendors", "vendor-first-supply"), {
-    id: "vendor-first-supply",
+  await setDoc(doc(adminDb, "vendors", "approve-vendor-invoice-import_vendor-first-supply"), {
+    id: "approve-vendor-invoice-import_vendor-first-supply",
     name: "First Supply LLC",
     active: true,
     createdAt: "2026-06-02T00:00:00Z",
     updatedAt: "2026-06-02T00:00:00Z",
   });
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-first-supply-test"), {
-    id: "vii-first-supply-test",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-first-supply-test"), {
+    id: "approve-vendor-invoice-import_vii-first-supply-test",
     inboundEmailProcessingId: "inbound-first-supply",
     gmailMessageId: "msg-first-supply",
     importBatchId: "batch-test",
@@ -1216,7 +1216,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 let firstSupplyApproveResult;
 try {
   firstSupplyApproveResult = await approveImport({
-    vendorInvoiceImportId: "vii-first-supply-test",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-first-supply-test",
     action: "approve",
   });
 } catch (err) {
@@ -1224,7 +1224,7 @@ try {
 }
 
 const firstSupplyData = firstSupplyApproveResult?.data ?? {};
-const firstSupplyShellId = shellDeliveryIdForImport("vii-first-supply-test");
+const firstSupplyShellId = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-first-supply-test");
 if (
   firstSupplyData.reviewStatus === "approved" &&
   firstSupplyData.deliveryOrderId === firstSupplyShellId &&
@@ -1250,8 +1250,8 @@ const emptyIdentityHeader = {
 
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-empty-identity-test"), {
-    id: "vii-empty-identity-test",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-empty-identity-test"), {
+    id: "approve-vendor-invoice-import_vii-empty-identity-test",
     inboundEmailProcessingId: "inbound-empty-identity",
     gmailMessageId: "msg-empty-identity",
     importBatchId: "batch-test",
@@ -1276,7 +1276,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 
 try {
   await approveImport({
-    vendorInvoiceImportId: "vii-empty-identity-test",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-empty-identity-test",
     action: "approve",
   });
   fail("both-identity-empty approve should be rejected");
@@ -1311,8 +1311,8 @@ const creditReturnLines = [
 
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-credit-block-test"), {
-    id: "vii-credit-block-test",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-credit-block-test"), {
+    id: "approve-vendor-invoice-import_vii-credit-block-test",
     inboundEmailProcessingId: "inbound-credit-block",
     gmailMessageId: "msg-credit-block",
     importBatchId: "batch-test",
@@ -1341,7 +1341,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 
 try {
   await approveImport({
-    vendorInvoiceImportId: "vii-credit-block-test",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-credit-block-test",
     action: "approve",
   });
   fail("credit/return approve should be rejected");
@@ -1359,7 +1359,7 @@ try {
 }
 
 const creditDeliverySnap = await getDoc(
-  doc(db, "deliveries", shellDeliveryIdForImport("vii-credit-block-test")),
+  doc(db, "deliveries", shellDeliveryIdForImport("approve-vendor-invoice-import_vii-credit-block-test")),
 );
 if (!creditDeliverySnap.exists()) {
   pass("credit approve did not create delivery shell");
@@ -1376,8 +1376,8 @@ const stickyHeader = {
 
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-manual-reject-sticky"), {
-    id: "vii-manual-reject-sticky",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-manual-reject-sticky"), {
+    id: "approve-vendor-invoice-import_vii-manual-reject-sticky",
     inboundEmailProcessingId: "inbound-manual-sticky",
     gmailMessageId: "msg-manual-sticky",
     importBatchId: "batch-test",
@@ -1412,8 +1412,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     createdAt: "2026-08-08T11:00:00Z",
     updatedAt: "2026-08-08T12:00:00Z",
   });
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-system-skip-reopen-ok"), {
-    id: "vii-system-skip-reopen-ok",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-system-skip-reopen-ok"), {
+    id: "approve-vendor-invoice-import_vii-system-skip-reopen-ok",
     inboundEmailProcessingId: "inbound-system-skip-reopen",
     gmailMessageId: "msg-system-skip-reopen",
     importBatchId: "batch-test",
@@ -1441,7 +1441,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 
 try {
   await approveImport({
-    vendorInvoiceImportId: "vii-manual-reject-sticky",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-manual-reject-sticky",
     action: "reopen",
   });
   fail("manual reject reopen should be blocked");
@@ -1458,7 +1458,7 @@ try {
   }
 }
 
-const stickyAfter = await getDoc(doc(db, "vendorInvoiceImports", "vii-manual-reject-sticky"));
+const stickyAfter = await getDoc(doc(db, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-manual-reject-sticky"));
 const stickyData = stickyAfter.data();
 if (
   stickyData?.reviewStatus === "rejected" &&
@@ -1474,7 +1474,7 @@ if (
 
 try {
   const reopenSys = await approveImport({
-    vendorInvoiceImportId: "vii-system-skip-reopen-ok",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-system-skip-reopen-ok",
     action: "reopen",
   });
   const reopenStatus = reopenSys?.data?.reviewStatus;
@@ -1511,7 +1511,7 @@ const willCallHeader = {
 /** Seed staging locations scoped to a scenario prefix to avoid cross-scenario occupancy. */
 async function seedScenarioStagingLocations(adminDb, prefix, codes) {
   for (const code of codes) {
-    const id = `staging-${prefix}-${code}`;
+    const id = `approve-vendor-invoice-import_staging-${prefix}-${code}`;
     await setDoc(doc(adminDb, "stagingLocations", id), {
       id,
       code: code.toUpperCase(),
@@ -1538,17 +1538,17 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await seedScenarioStagingLocations(adminDb, "idempotent-contradict", ["ic1"]);
   await seedScenarioStagingLocations(adminDb, "override-d79", ["od1"]);
   for (const id of [
-    "vii-dropoff-no-staging",
-    "vii-dropoff-one",
-    "vii-dropoff-multi",
-    "vii-dropoff-bad-loc",
-    "vii-dropoff-reapprove",
-    "vii-dropoff-occupied",
-    "vii-fulfill-dropoff",
-    "vii-fulfill-willcall",
-    "vii-idempotent-retry",
-    "vii-idempotent-contradict",
-    "vii-override-d79",
+    "approve-vendor-invoice-import_vii-dropoff-no-staging",
+    "approve-vendor-invoice-import_vii-dropoff-one",
+    "approve-vendor-invoice-import_vii-dropoff-multi",
+    "approve-vendor-invoice-import_vii-dropoff-bad-loc",
+    "approve-vendor-invoice-import_vii-dropoff-reapprove",
+    "approve-vendor-invoice-import_vii-dropoff-occupied",
+    "approve-vendor-invoice-import_vii-fulfill-dropoff",
+    "approve-vendor-invoice-import_vii-fulfill-willcall",
+    "approve-vendor-invoice-import_vii-idempotent-retry",
+    "approve-vendor-invoice-import_vii-idempotent-contradict",
+    "approve-vendor-invoice-import_vii-override-d79",
   ]) {
     await setDoc(doc(adminDb, "vendorInvoiceImports", id), {
       id,
@@ -1577,8 +1577,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
       updatedAt: "2026-06-24T10:00:00Z",
     });
   }
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-willcall-stale-staging"), {
-    id: "vii-willcall-stale-staging",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-willcall-stale-staging"), {
+    id: "approve-vendor-invoice-import_vii-willcall-stale-staging",
     inboundEmailProcessingId: "inbound-willcall-stale",
     gmailMessageId: "msg-willcall-stale",
     importBatchId: "batch-staging",
@@ -1600,13 +1600,13 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     updatedAt: "2026-06-24T10:00:00Z",
   });
   // Occupied location held by another active delivery
-  await setDoc(doc(adminDb, "deliveries", "delivery-occupies-dropoff-occ"), {
-    id: "delivery-occupies-dropoff-occ",
-    jobId: "job-1",
-    vendorId: "vendor-1",
+  await setDoc(doc(adminDb, "deliveries", "approve-vendor-invoice-import_delivery-occupies-dropoff-occ"), {
+    id: "approve-vendor-invoice-import_delivery-occupies-dropoff-occ",
+    jobId: "approve-vendor-invoice-import_job-1",
+    vendorId: "approve-vendor-invoice-import_vendor-1",
     orderNumber: "OCCUPIER-1",
     status: "pending",
-    plannedStagingLocationIds: ["staging-dropoff-occupied-occ"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-dropoff-occupied-occ"],
     createdAt: "2026-06-01T00:00:00Z",
     updatedAt: "2026-06-01T00:00:00Z",
   });
@@ -1614,7 +1614,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 
 try {
   await approveImport({
-    vendorInvoiceImportId: "vii-dropoff-no-staging",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-dropoff-no-staging",
     action: "approve",
   });
   fail("drop-off approve without staging should fail");
@@ -1632,9 +1632,9 @@ try {
 
 try {
   await approveImport({
-    vendorInvoiceImportId: "vii-dropoff-bad-loc",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-dropoff-bad-loc",
     action: "approve",
-    plannedStagingLocationIds: ["staging-does-not-exist"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-does-not-exist"],
   });
   fail("drop-off approve with missing location should fail");
 } catch (err) {
@@ -1652,9 +1652,9 @@ try {
 
 try {
   await approveImport({
-    vendorInvoiceImportId: "vii-dropoff-occupied",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-dropoff-occupied",
     action: "approve",
-    plannedStagingLocationIds: ["staging-dropoff-occupied-occ"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-dropoff-occupied-occ"],
   });
   fail("drop-off approve into occupied location should fail");
 } catch (err) {
@@ -1669,7 +1669,7 @@ try {
   }
 }
 const occupiedImportSnap = await getDoc(
-  doc(db, "vendorInvoiceImports", "vii-dropoff-occupied"),
+  doc(db, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-dropoff-occupied"),
 );
 if (occupiedImportSnap.data()?.reviewStatus === "pending_review") {
   pass("occupied conflict leaves import pending_review");
@@ -1680,23 +1680,23 @@ if (occupiedImportSnap.data()?.reviewStatus === "pending_review") {
 let dropOne;
 try {
   dropOne = await approveImport({
-    vendorInvoiceImportId: "vii-dropoff-one",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-dropoff-one",
     action: "approve",
-    plannedStagingLocationIds: ["staging-dropoff-one-g1"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-dropoff-one-g1"],
   });
 } catch (err) {
   fail("drop-off approve with one location failed", err?.message);
 }
-const dropOneShell = shellDeliveryIdForImport("vii-dropoff-one");
+const dropOneShell = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-dropoff-one");
 const dropOneSnap = await getDoc(doc(db, "deliveries", dropOneShell));
 const dropOnePlanned = dropOneSnap.data()?.plannedStagingLocationIds;
 if (
   dropOne?.data?.reviewStatus === "approved" &&
   Array.isArray(dropOnePlanned) &&
   dropOnePlanned.length === 1 &&
-  dropOnePlanned[0] === "staging-dropoff-one-g1" &&
+  dropOnePlanned[0] === "approve-vendor-invoice-import_staging-dropoff-one-g1" &&
   Array.isArray(dropOne?.data?.plannedStagingLocationIds) &&
-  dropOne.data.plannedStagingLocationIds[0] === "staging-dropoff-one-g1"
+  dropOne.data.plannedStagingLocationIds[0] === "approve-vendor-invoice-import_staging-dropoff-one-g1"
 ) {
   pass("drop-off approve writes plannedStagingLocationIds (one)");
 } else {
@@ -1709,25 +1709,25 @@ if (
 let dropMulti;
 try {
   dropMulti = await approveImport({
-    vendorInvoiceImportId: "vii-dropoff-multi",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-dropoff-multi",
     action: "approve",
     plannedStagingLocationIds: [
-      "staging-dropoff-multi-g1",
-      "staging-dropoff-multi-g2",
-      "staging-dropoff-multi-g1",
+      "approve-vendor-invoice-import_staging-dropoff-multi-g1",
+      "approve-vendor-invoice-import_staging-dropoff-multi-g2",
+      "approve-vendor-invoice-import_staging-dropoff-multi-g1",
     ],
   });
 } catch (err) {
   fail("drop-off approve with multiple locations failed", err?.message);
 }
-const dropMultiShell = shellDeliveryIdForImport("vii-dropoff-multi");
+const dropMultiShell = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-dropoff-multi");
 const dropMultiSnap = await getDoc(doc(db, "deliveries", dropMultiShell));
 const dropMultiPlanned = dropMultiSnap.data()?.plannedStagingLocationIds ?? [];
 if (
   dropMulti?.data?.reviewStatus === "approved" &&
   dropMultiPlanned.length === 2 &&
-  dropMultiPlanned.includes("staging-dropoff-multi-g1") &&
-  dropMultiPlanned.includes("staging-dropoff-multi-g2")
+  dropMultiPlanned.includes("approve-vendor-invoice-import_staging-dropoff-multi-g1") &&
+  dropMultiPlanned.includes("approve-vendor-invoice-import_staging-dropoff-multi-g2")
 ) {
   pass("drop-off approve writes deduped multi plannedStagingLocationIds");
 } else {
@@ -1737,17 +1737,17 @@ if (
 let willStale;
 try {
   willStale = await approveImport({
-    vendorInvoiceImportId: "vii-willcall-stale-staging",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-willcall-stale-staging",
     action: "approve",
     plannedStagingLocationIds: [
-      "staging-willcall-stale-g1",
-      "staging-willcall-stale-g2",
+      "approve-vendor-invoice-import_staging-willcall-stale-g1",
+      "approve-vendor-invoice-import_staging-willcall-stale-g2",
     ],
   });
 } catch (err) {
   fail("will-call approve with stale staging ids failed", err?.message);
 }
-const willStaleShell = shellDeliveryIdForImport("vii-willcall-stale-staging");
+const willStaleShell = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-willcall-stale-staging");
 const willStaleSnap = await getDoc(doc(db, "deliveries", willStaleShell));
 const willStaleDocPlanned = willStaleSnap.data()?.plannedStagingLocationIds;
 if (
@@ -1767,18 +1767,18 @@ if (
   });
 }
 
-const reapproveShell = shellDeliveryIdForImport("vii-dropoff-reapprove");
+const reapproveShell = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-dropoff-reapprove");
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
   await setDoc(doc(adminDb, "deliveries", reapproveShell), {
     id: reapproveShell,
-    jobId: "job-1",
-    vendorId: "vendor-1",
+    jobId: "approve-vendor-invoice-import_job-1",
+    vendorId: "approve-vendor-invoice-import_vendor-1",
     orderNumber: "ORD-REAPPROVE",
     status: "pending",
     createdFromInvoiceImport: true,
-    vendorInvoiceImportId: "vii-dropoff-reapprove",
-    plannedStagingLocationIds: ["staging-dropoff-reapprove-g1"],
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-dropoff-reapprove",
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-dropoff-reapprove-g1"],
     createdAt: "2026-06-24T10:00:00Z",
     updatedAt: "2026-06-24T10:00:00Z",
   });
@@ -1786,9 +1786,9 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 let reapprove;
 try {
   reapprove = await approveImport({
-    vendorInvoiceImportId: "vii-dropoff-reapprove",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-dropoff-reapprove",
     action: "approve",
-    plannedStagingLocationIds: ["staging-dropoff-reapprove-g2"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-dropoff-reapprove-g2"],
   });
 } catch (err) {
   fail("re-approve with replace staging failed", err?.message);
@@ -1798,7 +1798,7 @@ const reapprovePlanned = reapproveSnap.data()?.plannedStagingLocationIds ?? [];
 if (
   reapprove?.data?.reviewStatus === "approved" &&
   reapprovePlanned.length === 1 &&
-  reapprovePlanned[0] === "staging-dropoff-reapprove-g2"
+  reapprovePlanned[0] === "approve-vendor-invoice-import_staging-dropoff-reapprove-g2"
 ) {
   pass("re-approve replaces plannedStagingLocationIds (no duplicates)");
 } else {
@@ -1810,21 +1810,21 @@ console.log("\n=== CF: fulfillmentDecision on approve ===\n");
 let fulfillDropOff;
 try {
   fulfillDropOff = await approveImport({
-    vendorInvoiceImportId: "vii-fulfill-dropoff",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-fulfill-dropoff",
     action: "approve",
     fulfillmentDecision: "delivery",
-    plannedStagingLocationIds: ["staging-fulfill-dropoff-fd1"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-fulfill-dropoff-fd1"],
   });
 } catch (err) {
   fail("fulfillmentDecision delivery approve failed", err?.message);
 }
-const fulfillDropOffShell = shellDeliveryIdForImport("vii-fulfill-dropoff");
+const fulfillDropOffShell = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-fulfill-dropoff");
 const fulfillDropOffSnap = await getDoc(doc(db, "deliveries", fulfillDropOffShell));
 if (
   fulfillDropOff?.data?.reviewStatus === "approved" &&
   fulfillDropOffSnap.data()?.invoiceFulfillmentMethod === "delivery" &&
   fulfillDropOffSnap.data()?.plannedStagingLocationIds?.[0] ===
-    "staging-fulfill-dropoff-fd1"
+    "approve-vendor-invoice-import_staging-fulfill-dropoff-fd1"
 ) {
   pass("fulfillmentDecision delivery happy path writes staging");
 } else {
@@ -1837,15 +1837,15 @@ if (
 let fulfillWillCall;
 try {
   fulfillWillCall = await approveImport({
-    vendorInvoiceImportId: "vii-fulfill-willcall",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-fulfill-willcall",
     action: "approve",
     fulfillmentDecision: "will_call_pickup",
-    plannedStagingLocationIds: ["staging-fulfill-willcall-fw1"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-fulfill-willcall-fw1"],
   });
 } catch (err) {
   fail("fulfillmentDecision will-call approve failed", err?.message);
 }
-const fulfillWillCallShell = shellDeliveryIdForImport("vii-fulfill-willcall");
+const fulfillWillCallShell = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-fulfill-willcall");
 const fulfillWillCallSnap = await getDoc(doc(db, "deliveries", fulfillWillCallShell));
 if (
   fulfillWillCall?.data?.reviewStatus === "approved" &&
@@ -1862,30 +1862,30 @@ console.log("\n=== CF: idempotent approve replay ===\n");
 let idempotentFirst;
 try {
   idempotentFirst = await approveImport({
-    vendorInvoiceImportId: "vii-idempotent-retry",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-idempotent-retry",
     action: "approve",
     fulfillmentDecision: "delivery",
-    plannedStagingLocationIds: ["staging-idempotent-retry-ir1"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-idempotent-retry-ir1"],
   });
 } catch (err) {
   fail("idempotent first approve failed", err?.message);
 }
 const idempotentLogLen =
-  (await getDoc(doc(db, "vendorInvoiceImports", "vii-idempotent-retry"))).data()
+  (await getDoc(doc(db, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-idempotent-retry"))).data()
     ?.importDecisionLog?.length ?? 0;
 let idempotentSecond;
 try {
   idempotentSecond = await approveImport({
-    vendorInvoiceImportId: "vii-idempotent-retry",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-idempotent-retry",
     action: "approve",
     fulfillmentDecision: "delivery",
-    plannedStagingLocationIds: ["staging-idempotent-retry-ir1"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-idempotent-retry-ir1"],
   });
 } catch (err) {
   fail("idempotent second approve failed", err?.message);
 }
 const idempotentLogLenAfter =
-  (await getDoc(doc(db, "vendorInvoiceImports", "vii-idempotent-retry"))).data()
+  (await getDoc(doc(db, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-idempotent-retry"))).data()
     ?.importDecisionLog?.length ?? 0;
 if (
   idempotentSecond?.data?.idempotentReplay === true &&
@@ -1903,17 +1903,17 @@ if (
 
 try {
   await approveImport({
-    vendorInvoiceImportId: "vii-idempotent-contradict",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-idempotent-contradict",
     action: "approve",
     fulfillmentDecision: "delivery",
-    plannedStagingLocationIds: ["staging-idempotent-contradict-ic1"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-idempotent-contradict-ic1"],
   });
 } catch (err) {
   fail("contradict setup first approve failed", err?.message);
 }
 try {
   await approveImport({
-    vendorInvoiceImportId: "vii-idempotent-contradict",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-idempotent-contradict",
     action: "approve",
     fulfillmentDecision: "will_call_pickup",
     plannedStagingLocationIds: [],
@@ -1932,15 +1932,15 @@ console.log("\n=== CF: D-79 explicit approval override ===\n");
 
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  const overrideShell = shellDeliveryIdForImport("vii-override-d79");
+  const overrideShell = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-override-d79");
   await setDoc(doc(adminDb, "deliveries", overrideShell), {
     id: overrideShell,
-    jobId: "job-1",
-    vendorId: "vendor-1",
+    jobId: "approve-vendor-invoice-import_job-1",
+    vendorId: "approve-vendor-invoice-import_vendor-1",
     orderNumber: "ORD-OVERRIDE",
     status: "ready_for_pickup",
     createdFromInvoiceImport: true,
-    vendorInvoiceImportId: "vii-override-d79",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-override-d79",
     invoiceFulfillmentMethod: "will_call_pickup",
     invoiceImportStatus: "pickup_at_vendor",
     createdAt: "2026-06-24T10:00:00Z",
@@ -1950,20 +1950,20 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 let overrideApprove;
 try {
   overrideApprove = await approveImport({
-    vendorInvoiceImportId: "vii-override-d79",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-override-d79",
     action: "approve",
     fulfillmentDecision: "delivery",
-    plannedStagingLocationIds: ["staging-override-d79-od1"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-override-d79-od1"],
   });
 } catch (err) {
   fail("D-79 explicit override approve failed", err?.message);
 }
-const overrideShellId = shellDeliveryIdForImport("vii-override-d79");
+const overrideShellId = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-override-d79");
 const overrideSnap = await getDoc(doc(db, "deliveries", overrideShellId));
 if (
   overrideApprove?.data?.reviewStatus === "approved" &&
   overrideSnap.data()?.invoiceFulfillmentMethod === "delivery" &&
-  overrideSnap.data()?.plannedStagingLocationIds?.[0] === "staging-override-d79-od1"
+  overrideSnap.data()?.plannedStagingLocationIds?.[0] === "approve-vendor-invoice-import_staging-override-d79-od1"
 ) {
   pass("explicit fulfillmentDecision override flips prior will-call (D-79 bypass)");
 } else {
@@ -1986,8 +1986,8 @@ async function seedHighConfidenceMatchCase(adminDb, {
   await setDoc(doc(adminDb, "purchaseOrders", poId), {
     id: poId,
     poNumber,
-    jobId: "job-1",
-    vendorId: "vendor-1",
+    jobId: "approve-vendor-invoice-import_job-1",
+    vendorId: "approve-vendor-invoice-import_vendor-1",
     status: "open",
     createdAt: "2026-06-02T00:00:00Z",
     updatedAt: "2026-06-02T00:00:00Z",
@@ -1995,8 +1995,8 @@ async function seedHighConfidenceMatchCase(adminDb, {
   await setDoc(doc(adminDb, "deliveries", deliveryId), {
     id: deliveryId,
     orderNumber,
-    jobId: "job-1",
-    vendorId: "vendor-1",
+    jobId: "approve-vendor-invoice-import_job-1",
+    vendorId: "approve-vendor-invoice-import_vendor-1",
     purchaseOrderId: poId,
     status: "pending",
     notes: `Operational history for ${importId}`,
@@ -2047,74 +2047,74 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await seedScenarioStagingLocations(adminDb, "matched-a5", ["x"]);
   await seedScenarioStagingLocations(adminDb, "matched-foreign", ["x"]);
   await seedHighConfidenceMatchCase(adminDb, {
-    importId: "vii-matched-no-staging",
+    importId: "approve-vendor-invoice-import_vii-matched-no-staging",
     orderNumber: "MATCH-ORD-A1",
     poNumber: "PO-80001",
     deliveryExtras: { notes: "Operational history A1" },
   });
   await seedHighConfidenceMatchCase(adminDb, {
-    importId: "vii-matched-preserve-staging",
+    importId: "approve-vendor-invoice-import_vii-matched-preserve-staging",
     orderNumber: "MATCH-ORD-A2",
     poNumber: "PO-80002",
     deliveryExtras: {
-      plannedStagingLocationIds: ["staging-matched-a2-keep"],
+      plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-matched-a2-keep"],
       status: "arrived",
       notes: "Preserve me",
     },
   });
   await seedHighConfidenceMatchCase(adminDb, {
-    importId: "vii-matched-change-staging",
+    importId: "approve-vendor-invoice-import_vii-matched-change-staging",
     orderNumber: "MATCH-ORD-A3",
     poNumber: "PO-80003",
     deliveryExtras: {
-      plannedStagingLocationIds: ["staging-matched-a3-old"],
+      plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-matched-a3-old"],
       status: "arrived",
       notes: "Change staging",
     },
   });
   await seedHighConfidenceMatchCase(adminDb, {
-    importId: "vii-matched-willcall",
+    importId: "approve-vendor-invoice-import_vii-matched-willcall",
     orderNumber: "MATCH-ORD-A4",
     poNumber: "PO-80004",
     fulfillmentMethod: "will_call_pickup",
     importStatus: "pickup_at_vendor",
     deliveryExtras: {
-      plannedStagingLocationIds: ["staging-matched-a4-wc"],
-      stagingLocationId: "staging-matched-a4-wc",
+      plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-matched-a4-wc"],
+      stagingLocationId: "approve-vendor-invoice-import_staging-matched-a4-wc",
       combinationStagingGroupId: "combo-wc",
-      combinationMemberLocationIds: ["staging-matched-a4-wc"],
+      combinationMemberLocationIds: ["approve-vendor-invoice-import_staging-matched-a4-wc"],
     },
   });
   await seedHighConfidenceMatchCase(adminDb, {
-    importId: "vii-matched-malicious-id",
+    importId: "approve-vendor-invoice-import_vii-matched-malicious-id",
     orderNumber: "MATCH-ORD-A5",
     poNumber: "PO-80005",
   });
 
   // Foreign shell owns the only candidate for this order/PO → must fall back to own shell.
-  await setDoc(doc(adminDb, "purchaseOrders", "po-foreign"), {
-    id: "po-foreign",
+  await setDoc(doc(adminDb, "purchaseOrders", "approve-vendor-invoice-import_po-foreign"), {
+    id: "approve-vendor-invoice-import_po-foreign",
     poNumber: "PO-80999",
-    jobId: "job-1",
-    vendorId: "vendor-1",
+    jobId: "approve-vendor-invoice-import_job-1",
+    vendorId: "approve-vendor-invoice-import_vendor-1",
     status: "open",
     createdAt: "2026-06-02T00:00:00Z",
     updatedAt: "2026-06-02T00:00:00Z",
   });
-  await setDoc(doc(adminDb, "deliveries", "delivery-foreign-shell"), {
-    id: "delivery-foreign-shell",
+  await setDoc(doc(adminDb, "deliveries", "approve-vendor-invoice-import_delivery-foreign-shell"), {
+    id: "approve-vendor-invoice-import_delivery-foreign-shell",
     orderNumber: "MATCH-ORD-FOREIGN",
-    jobId: "job-1",
-    vendorId: "vendor-1",
-    purchaseOrderId: "po-foreign",
+    jobId: "approve-vendor-invoice-import_job-1",
+    vendorId: "approve-vendor-invoice-import_vendor-1",
+    purchaseOrderId: "approve-vendor-invoice-import_po-foreign",
     status: "pending",
     createdFromInvoiceImport: true,
     vendorInvoiceImportId: "vii-other-import-owner",
     createdAt: "2026-06-01T00:00:00Z",
     updatedAt: "2026-06-01T00:00:00Z",
   });
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-match-foreign-shell"), {
-    id: "vii-match-foreign-shell",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-match-foreign-shell"), {
+    id: "approve-vendor-invoice-import_vii-match-foreign-shell",
     inboundEmailProcessingId: "inbound-foreign",
     gmailMessageId: "msg-foreign",
     importBatchId: "batch-matched",
@@ -2147,15 +2147,15 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 let matchedNoStg;
 try {
   matchedNoStg = await approveImport({
-    vendorInvoiceImportId: "vii-matched-no-staging",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-matched-no-staging",
     action: "approve",
-    plannedStagingLocationIds: ["staging-matched-a1-target"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-matched-a1-target"],
   });
 } catch (err) {
   fail("matched drop-off approve failed", err?.message);
 }
-const matchedTarget = "delivery-for-vii-matched-no-staging";
-const matchedShell = shellDeliveryIdForImport("vii-matched-no-staging");
+const matchedTarget = "delivery-for-approve-vendor-invoice-import_vii-matched-no-staging";
+const matchedShell = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-matched-no-staging");
 const matchedSnap = await getDoc(doc(db, "deliveries", matchedTarget));
 const matchedShellSnap = await getDoc(doc(db, "deliveries", matchedShell));
 if (
@@ -2164,7 +2164,7 @@ if (
   matchedNoStg?.data?.shellCreated === false &&
   matchedNoStg?.data?.deliveryOrderId === matchedTarget &&
   matchedSnap.exists() &&
-  matchedSnap.data()?.plannedStagingLocationIds?.[0] === "staging-matched-a1-target" &&
+  matchedSnap.data()?.plannedStagingLocationIds?.[0] === "approve-vendor-invoice-import_staging-matched-a1-target" &&
   matchedSnap.data()?.notes === "Operational history A1" &&
   matchedSnap.data()?.status === "pending" &&
   !matchedShellSnap.exists()
@@ -2181,20 +2181,20 @@ if (
 let matchedPreserve;
 try {
   matchedPreserve = await approveImport({
-    vendorInvoiceImportId: "vii-matched-preserve-staging",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-matched-preserve-staging",
     action: "approve",
     // omit plannedStagingLocationIds — preserve existing
   });
 } catch (err) {
   fail("matched preserve staging approve failed", err?.message);
 }
-const preserveId = "delivery-for-vii-matched-preserve-staging";
+const preserveId = "delivery-for-approve-vendor-invoice-import_vii-matched-preserve-staging";
 const preserveSnap = await getDoc(doc(db, "deliveries", preserveId));
 const preservePlanned = preserveSnap.data()?.plannedStagingLocationIds ?? [];
 if (
   matchedPreserve?.data?.deliveryMatched === true &&
   preservePlanned.length === 1 &&
-  preservePlanned[0] === "staging-matched-a2-keep" &&
+  preservePlanned[0] === "approve-vendor-invoice-import_staging-matched-a2-keep" &&
   preserveSnap.data()?.notes === "Preserve me"
 ) {
   pass("matched drop-off preserves existing staging when omitted");
@@ -2209,20 +2209,20 @@ if (
 let matchedChange;
 try {
   matchedChange = await approveImport({
-    vendorInvoiceImportId: "vii-matched-change-staging",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-matched-change-staging",
     action: "approve",
-    plannedStagingLocationIds: ["staging-matched-a3-new"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-matched-a3-new"],
   });
 } catch (err) {
   fail("matched change staging approve failed", err?.message);
 }
-const changeId = "delivery-for-vii-matched-change-staging";
+const changeId = "delivery-for-approve-vendor-invoice-import_vii-matched-change-staging";
 const changeSnap = await getDoc(doc(db, "deliveries", changeId));
 const changePlanned = changeSnap.data()?.plannedStagingLocationIds ?? [];
 if (
   matchedChange?.data?.deliveryMatched === true &&
   changePlanned.length === 1 &&
-  changePlanned[0] === "staging-matched-a3-new" &&
+  changePlanned[0] === "approve-vendor-invoice-import_staging-matched-a3-new" &&
   changeSnap.data()?.status === "arrived"
 ) {
   pass("matched drop-off replaces staging on existing delivery");
@@ -2233,14 +2233,14 @@ if (
 let matchedWill;
 try {
   matchedWill = await approveImport({
-    vendorInvoiceImportId: "vii-matched-willcall",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-matched-willcall",
     action: "approve",
-    plannedStagingLocationIds: ["staging-matched-a4-wc"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-matched-a4-wc"],
   });
 } catch (err) {
   fail("matched will-call approve failed", err?.message);
 }
-const willId = "delivery-for-vii-matched-willcall";
+const willId = "delivery-for-approve-vendor-invoice-import_vii-matched-willcall";
 const willSnap = await getDoc(doc(db, "deliveries", willId));
 const matchedWillPlanned = willSnap.data()?.plannedStagingLocationIds ?? [];
 const matchedWillActual = willSnap.data()?.stagingLocationId ?? "";
@@ -2254,7 +2254,7 @@ if (
   Array.isArray(willSnap.data()?.plannedLocationReleases) &&
   willSnap.data().plannedLocationReleases.some(
     (r) =>
-      r?.locationId === "staging-matched-a4-wc" &&
+      r?.locationId === "approve-vendor-invoice-import_staging-matched-a4-wc" &&
       r?.reason === "fulfillment_switched_to_will_call",
   )
 ) {
@@ -2275,14 +2275,14 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
   await seedScenarioStagingLocations(adminDb, "idempotent-matched-wc", ["mw1"]);
   await seedHighConfidenceMatchCase(adminDb, {
-    importId: "vii-idempotent-matched-wc",
+    importId: "approve-vendor-invoice-import_vii-idempotent-matched-wc",
     orderNumber: "MATCH-WC-IDEM",
     poNumber: "PO-IDEM-WC",
     fulfillmentMethod: "will_call_pickup",
     importStatus: "pickup_at_vendor",
     deliveryExtras: {
-      plannedStagingLocationIds: ["staging-idempotent-matched-wc-mw1"],
-      stagingLocationId: "staging-idempotent-matched-wc-mw1",
+      plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-idempotent-matched-wc-mw1"],
+      stagingLocationId: "approve-vendor-invoice-import_staging-idempotent-matched-wc-mw1",
       status: "arrived",
       notes: "Matched Will-Call idempotent",
     },
@@ -2291,10 +2291,10 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 let matchedWcFirst;
 try {
   matchedWcFirst = await approveImport({
-    vendorInvoiceImportId: "vii-idempotent-matched-wc",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-idempotent-matched-wc",
     action: "approve",
     fulfillmentDecision: "will_call_pickup",
-    plannedStagingLocationIds: ["staging-idempotent-matched-wc-mw1"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-idempotent-matched-wc-mw1"],
   });
 } catch (err) {
   fail("matched will-call first approve failed", err?.message);
@@ -2302,15 +2302,15 @@ try {
 let matchedWcSecond;
 try {
   matchedWcSecond = await approveImport({
-    vendorInvoiceImportId: "vii-idempotent-matched-wc",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-idempotent-matched-wc",
     action: "approve",
     fulfillmentDecision: "will_call_pickup",
-    plannedStagingLocationIds: ["staging-idempotent-matched-wc-mw1"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-idempotent-matched-wc-mw1"],
   });
 } catch (err) {
   fail("matched will-call idempotent retry failed", err?.message);
 }
-const matchedWcDeliveryId = "delivery-for-vii-idempotent-matched-wc";
+const matchedWcDeliveryId = "delivery-for-approve-vendor-invoice-import_vii-idempotent-matched-wc";
 if (
   matchedWcFirst?.data?.deliveryMatched === true &&
   matchedWcSecond?.data?.idempotentReplay === true &&
@@ -2326,10 +2326,10 @@ if (
 
 try {
   await approveImport({
-    vendorInvoiceImportId: "vii-matched-malicious-id",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-matched-malicious-id",
     action: "approve",
     deliveryOrderId: "delivery-unrelated-malicious",
-    plannedStagingLocationIds: ["staging-matched-a5-x"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-matched-a5-x"],
   });
   fail("malicious deliveryOrderId should be rejected");
 } catch (err) {
@@ -2344,15 +2344,15 @@ try {
 let foreignFallthrough;
 try {
   foreignFallthrough = await approveImport({
-    vendorInvoiceImportId: "vii-match-foreign-shell",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-match-foreign-shell",
     action: "approve",
-    plannedStagingLocationIds: ["staging-matched-foreign-x"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-matched-foreign-x"],
   });
 } catch (err) {
   fail("foreign-shell candidate should fall back to own shell", err?.message);
 }
-const foreignShellId = shellDeliveryIdForImport("vii-match-foreign-shell");
-const foreignExisting = await getDoc(doc(db, "deliveries", "delivery-foreign-shell"));
+const foreignShellId = shellDeliveryIdForImport("approve-vendor-invoice-import_vii-match-foreign-shell");
+const foreignExisting = await getDoc(doc(db, "deliveries", "approve-vendor-invoice-import_delivery-foreign-shell"));
 const foreignOwnShell = await getDoc(doc(db, "deliveries", foreignShellId));
 if (
   foreignFallthrough?.data?.deliveryMatched !== true &&
@@ -2373,7 +2373,7 @@ if (
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
   await setDoc(
-    doc(adminDb, "vendorInvoiceImports", "vii-matched-no-staging"),
+    doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-matched-no-staging"),
     {
       reviewStatus: "rejected",
       rejectedAt: "2026-06-25T00:00:00Z",
@@ -2387,7 +2387,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
   await setDoc(
-    doc(adminDb, "vendorInvoiceImports", "vii-matched-no-staging"),
+    doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-matched-no-staging"),
     {
       reviewStatus: "pending_review",
       rejectedAt: null,
@@ -2399,9 +2399,9 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 let matchedReapprove;
 try {
   matchedReapprove = await approveImport({
-    vendorInvoiceImportId: "vii-matched-no-staging",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-matched-no-staging",
     action: "approve",
-    plannedStagingLocationIds: ["staging-matched-a1-reap"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-matched-a1-reap"],
   });
 } catch (err) {
   fail("matched re-approve failed", err?.message);
@@ -2410,7 +2410,7 @@ const reMatchedSnap = await getDoc(doc(db, "deliveries", matchedTarget));
 const reMatchedShell = await getDoc(doc(db, "deliveries", matchedShell));
 if (
   matchedReapprove?.data?.deliveryOrderId === matchedTarget &&
-  reMatchedSnap.data()?.plannedStagingLocationIds?.[0] === "staging-matched-a1-reap" &&
+  reMatchedSnap.data()?.plannedStagingLocationIds?.[0] === "approve-vendor-invoice-import_staging-matched-a1-reap" &&
   reMatchedSnap.data()?.notes === "Operational history A1" &&
   !reMatchedShell.exists()
 ) {
@@ -2428,7 +2428,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
   await seedScenarioStagingLocations(adminDb, "matched-a14", ["drop"]);
   await seedHighConfidenceMatchCase(adminDb, {
-    importId: "vii-matched-preserve-dropoff-vs-willcall-import",
+    importId: "approve-vendor-invoice-import_vii-matched-preserve-dropoff-vs-willcall-import",
     orderNumber: "MATCH-ORD-A14",
     poNumber: "PO-80014",
     fulfillmentMethod: "will_call_pickup",
@@ -2436,8 +2436,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     deliveryExtras: {
       invoiceFulfillmentMethod: "delivery",
       invoiceImportStatus: "pending",
-      plannedStagingLocationIds: ["staging-matched-a14-drop"],
-      stagingLocationId: "staging-matched-a14-drop",
+      plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-matched-a14-drop"],
+      stagingLocationId: "approve-vendor-invoice-import_staging-matched-a14-drop",
       status: "arrived",
       notes: "Keep Drop-Off staging",
     },
@@ -2446,15 +2446,15 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 let matchedPreserveDropOff;
 try {
   matchedPreserveDropOff = await approveImport({
-    vendorInvoiceImportId: "vii-matched-preserve-dropoff-vs-willcall-import",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-matched-preserve-dropoff-vs-willcall-import",
     action: "approve",
-    plannedStagingLocationIds: ["staging-matched-a14-drop"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-matched-a14-drop"],
   });
 } catch (err) {
   fail("preserve Drop-Off vs Will-Call import approve failed", err?.message);
 }
 const preserveDropOffId =
-  "delivery-for-vii-matched-preserve-dropoff-vs-willcall-import";
+  "delivery-for-approve-vendor-invoice-import_vii-matched-preserve-dropoff-vs-willcall-import";
 const preserveDropOffVsWillSnap = await getDoc(
   doc(db, "deliveries", preserveDropOffId),
 );
@@ -2465,8 +2465,8 @@ if (
   matchedPreserveDropOff?.data?.deliveryMatched === true &&
   preserveDropOffVsWill.invoiceFulfillmentMethod === "delivery" &&
   Array.isArray(preserveDropOffVsWillPlanned) &&
-  preserveDropOffVsWillPlanned[0] === "staging-matched-a14-drop" &&
-  preserveDropOffVsWill.stagingLocationId === "staging-matched-a14-drop"
+  preserveDropOffVsWillPlanned[0] === "approve-vendor-invoice-import_staging-matched-a14-drop" &&
+  preserveDropOffVsWill.stagingLocationId === "approve-vendor-invoice-import_staging-matched-a14-drop"
 ) {
   pass(
     "Will-Call import approve does not clear dispatcher Drop-Off staging (D-79)",
@@ -2483,19 +2483,19 @@ if (
 // priorLinked sticky to a delivery claimed by another import → reject at commit (D-38)
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  await setDoc(doc(adminDb, "deliveries", "delivery-claimed-by-other"), {
-    id: "delivery-claimed-by-other",
+  await setDoc(doc(adminDb, "deliveries", "approve-vendor-invoice-import_delivery-claimed-by-other"), {
+    id: "approve-vendor-invoice-import_delivery-claimed-by-other",
     orderNumber: "CLAIMED-ORD-1",
-    jobId: "job-1",
-    vendorId: "vendor-1",
+    jobId: "approve-vendor-invoice-import_job-1",
+    vendorId: "approve-vendor-invoice-import_vendor-1",
     status: "pending",
     vendorInvoiceImportId: "vii-other-claimant",
     notes: "Owned by other import",
     createdAt: "2026-06-01T00:00:00Z",
     updatedAt: "2026-06-01T00:00:00Z",
   });
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-prior-linked-foreign"), {
-    id: "vii-prior-linked-foreign",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-prior-linked-foreign"), {
+    id: "approve-vendor-invoice-import_vii-prior-linked-foreign",
     inboundEmailProcessingId: "inbound-prior-foreign",
     gmailMessageId: "msg-prior-foreign",
     importBatchId: "batch-matched",
@@ -2507,7 +2507,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     confidenceScore: 90,
     humanReviewRequired: false,
     duplicate: false,
-    linkedDeliveryOrderId: "delivery-claimed-by-other",
+    linkedDeliveryOrderId: "approve-vendor-invoice-import_delivery-claimed-by-other",
     parsedHeader: {
       ...dropOffHeader,
       customerPoOrReference: "PO-80998",
@@ -2527,9 +2527,9 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 });
 try {
   await approveImport({
-    vendorInvoiceImportId: "vii-prior-linked-foreign",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-prior-linked-foreign",
     action: "approve",
-    plannedStagingLocationIds: ["staging-matched-a4-wc"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-matched-a4-wc"],
   });
   fail("priorLinked foreign-owned delivery should be rejected");
 } catch (err) {
@@ -2540,7 +2540,7 @@ try {
     fail("expected foreign ownership failed-precondition", err?.message);
   }
 }
-const claimedAfter = await getDoc(doc(db, "deliveries", "delivery-claimed-by-other"));
+const claimedAfter = await getDoc(doc(db, "deliveries", "approve-vendor-invoice-import_delivery-claimed-by-other"));
 if (claimedAfter.data()?.vendorInvoiceImportId === "vii-other-claimant" && claimedAfter.data()?.notes === "Owned by other import") {
   pass("foreign-owned delivery unchanged after blocked priorLinked approve");
 } else {
@@ -2550,35 +2550,35 @@ if (claimedAfter.data()?.vendorInvoiceImportId === "vii-other-claimant" && claim
 // Case 10 — legacy duplicate Review approve redirects to canonical delivery (no second shell)
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  await setDoc(doc(adminDb, "vendors", "vendor-1"), {
-    id: "vendor-1",
+  await setDoc(doc(adminDb, "vendors", "approve-vendor-invoice-import_vendor-1"), {
+    id: "approve-vendor-invoice-import_vendor-1",
     name: "Johnstone Supply",
     updatedAt: "2026-06-01T00:00:00Z",
   });
-  await setDoc(doc(adminDb, "jobs", "job-biz-canon"), {
-    id: "job-biz-canon",
+  await setDoc(doc(adminDb, "jobs", "approve-vendor-invoice-import_job-biz-canon"), {
+    id: "approve-vendor-invoice-import_job-biz-canon",
     jobNumber: "26-BIZ",
     jobName: "Biz Idempotency",
     status: "active",
     createdAt: "2026-06-01T00:00:00Z",
     updatedAt: "2026-06-01T00:00:00Z",
   });
-  await setDoc(doc(adminDb, "deliveries", "delivery-vii-vii-biz-canon-page-1"), {
-    id: "delivery-vii-vii-biz-canon-page-1",
+  await setDoc(doc(adminDb, "deliveries", "approve-vendor-invoice-import_delivery-vii-vii-biz-canon-page-1"), {
+    id: "approve-vendor-invoice-import_delivery-vii-vii-biz-canon-page-1",
     orderNumber: "BIZ-INV-100",
-    jobId: "job-biz-canon",
-    vendorId: "vendor-1",
+    jobId: "approve-vendor-invoice-import_job-biz-canon",
+    vendorId: "approve-vendor-invoice-import_vendor-1",
     vendorName: "Johnstone Supply",
     status: "pending",
     createdFromInvoiceImport: true,
-    vendorInvoiceImportId: "vii-biz-canon-page-1",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-biz-canon-page-1",
     vendorInvoiceNumber: "BIZ-INV-100",
-    plannedStagingLocationIds: ["staging-matched-a4-wc"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-matched-a4-wc"],
     createdAt: "2026-06-24T10:00:00Z",
     updatedAt: "2026-06-24T10:00:00Z",
   });
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-biz-canon-page-1"), {
-    id: "vii-biz-canon-page-1",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-biz-canon-page-1"), {
+    id: "approve-vendor-invoice-import_vii-biz-canon-page-1",
     inboundEmailProcessingId: "inbound-biz-canon",
     gmailMessageId: "msg-biz-canon",
     importBatchId: "batch-biz-canon",
@@ -2590,7 +2590,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     confidenceScore: 90,
     humanReviewRequired: false,
     duplicate: false,
-    linkedDeliveryOrderId: "delivery-vii-vii-biz-canon-page-1",
+    linkedDeliveryOrderId: "approve-vendor-invoice-import_delivery-vii-vii-biz-canon-page-1",
     detectedVendorName: "Johnstone Supply",
     parserFormatId: "johnstone",
     parsedHeader: {
@@ -2610,18 +2610,18 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     createdAt: "2026-06-24T10:00:00Z",
     updatedAt: "2026-06-24T10:05:00Z",
   });
-  await setDoc(doc(adminDb, "vendorBusinessInvoiceKeys", "key:johnstone-supply__BIZ-INV-100"), {
+  await setDoc(doc(adminDb, "vendorBusinessInvoiceKeys", "approve-vendor-invoice-import_key:johnstone-supply__BIZ-INV-100"), {
     vendorScope: "key:johnstone-supply",
     vendorKey: "johnstone-supply",
     normalizedInvoiceNumber: "BIZ-INV-100",
-    canonicalImportId: "vii-biz-canon-page-1",
+    canonicalImportId: "approve-vendor-invoice-import_vii-biz-canon-page-1",
     canonicalGmailMessageId: "msg-biz-canon",
     contentFingerprint: "testhash",
     createdAt: "2026-06-24T10:00:00Z",
     updatedAt: "2026-06-24T10:00:00Z",
   });
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-biz-dup-page-1"), {
-    id: "vii-biz-dup-page-1",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-biz-dup-page-1"), {
+    id: "approve-vendor-invoice-import_vii-biz-dup-page-1",
     inboundEmailProcessingId: "inbound-biz-dup",
     gmailMessageId: "msg-biz-dup",
     importBatchId: "batch-biz-dup",
@@ -2633,7 +2633,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     confidenceScore: 90,
     humanReviewRequired: true,
     duplicate: false,
-    canonicalImportId: "vii-biz-canon-page-1",
+    canonicalImportId: "approve-vendor-invoice-import_vii-biz-canon-page-1",
     skipReason: "duplicate_business_invoice",
     rejectedAt: "2026-06-24T11:00:00Z",
     rejectedBy: "system:duplicate_business_invoice",
@@ -2658,12 +2658,12 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 
 try {
   const dupApprove = await approveImport({
-    vendorInvoiceImportId: "vii-biz-dup-page-1",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-biz-dup-page-1",
     action: "approve",
-    plannedStagingLocationIds: ["staging-matched-a4-wc"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-matched-a4-wc"],
   });
   const dupData = dupApprove?.data ?? dupApprove;
-  if (dupData?.deliveryOrderId === "delivery-vii-vii-biz-canon-page-1") {
+  if (dupData?.deliveryOrderId === "approve-vendor-invoice-import_delivery-vii-vii-biz-canon-page-1") {
     pass("legacy duplicate Review approve redirects to canonical delivery (no second shell)");
   } else {
     fail("legacy duplicate approve should target canonical delivery", dupData);
@@ -2673,16 +2673,16 @@ try {
 }
 
 const canonStamp = await getDoc(
-  doc(db, "deliveries", "delivery-vii-vii-biz-canon-page-1"),
+  doc(db, "deliveries", "approve-vendor-invoice-import_delivery-vii-vii-biz-canon-page-1"),
 );
-if (canonStamp.data()?.vendorInvoiceImportId === "vii-biz-canon-page-1") {
+if (canonStamp.data()?.vendorInvoiceImportId === "approve-vendor-invoice-import_vii-biz-canon-page-1") {
   pass("canonical delivery ownership stamp preserved after duplicate approve");
 } else {
   fail("canonical ownership stamp stolen", canonStamp.data());
 }
 
 const dupShell = await getDoc(
-  doc(db, "deliveries", "delivery-vii-vii-biz-dup-page-1"),
+  doc(db, "deliveries", "approve-vendor-invoice-import_delivery-vii-vii-biz-dup-page-1"),
 );
 if (!dupShell.exists()) {
   pass("no second shell delivery-vii-vii-biz-dup-page-1 created");
@@ -2694,35 +2694,35 @@ if (!dupShell.exists()) {
 // redirects to legacy delivery (first post-deploy resend gap).
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  await setDoc(doc(adminDb, "vendors", "vendor-1"), {
-    id: "vendor-1",
+  await setDoc(doc(adminDb, "vendors", "approve-vendor-invoice-import_vendor-1"), {
+    id: "approve-vendor-invoice-import_vendor-1",
     name: "Johnstone Supply",
     updatedAt: "2026-06-01T00:00:00Z",
   });
-  await setDoc(doc(adminDb, "jobs", "job-biz-nokey"), {
-    id: "job-biz-nokey",
+  await setDoc(doc(adminDb, "jobs", "approve-vendor-invoice-import_job-biz-nokey"), {
+    id: "approve-vendor-invoice-import_job-biz-nokey",
     jobNumber: "26-NOKEY",
     jobName: "Biz No Key",
     status: "active",
     createdAt: "2026-06-01T00:00:00Z",
     updatedAt: "2026-06-01T00:00:00Z",
   });
-  await setDoc(doc(adminDb, "deliveries", "delivery-vii-vii-biz-nokey-legacy-page-1"), {
-    id: "delivery-vii-vii-biz-nokey-legacy-page-1",
+  await setDoc(doc(adminDb, "deliveries", "approve-vendor-invoice-import_delivery-vii-vii-biz-nokey-legacy-page-1"), {
+    id: "approve-vendor-invoice-import_delivery-vii-vii-biz-nokey-legacy-page-1",
     orderNumber: "BIZ-NOKEY-1",
-    jobId: "job-biz-nokey",
-    vendorId: "vendor-1",
+    jobId: "approve-vendor-invoice-import_job-biz-nokey",
+    vendorId: "approve-vendor-invoice-import_vendor-1",
     vendorName: "Johnstone Supply",
     status: "pending",
     createdFromInvoiceImport: true,
-    vendorInvoiceImportId: "vii-biz-nokey-legacy-page-1",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-biz-nokey-legacy-page-1",
     vendorInvoiceNumber: "BIZ-NOKEY-1",
-    plannedStagingLocationIds: ["staging-matched-a4-wc"],
+    plannedStagingLocationIds: ["approve-vendor-invoice-import_staging-matched-a4-wc"],
     createdAt: "2026-08-08T18:48:10Z",
     updatedAt: "2026-08-08T18:48:10Z",
   });
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-biz-nokey-legacy-page-1"), {
-    id: "vii-biz-nokey-legacy-page-1",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-biz-nokey-legacy-page-1"), {
+    id: "approve-vendor-invoice-import_vii-biz-nokey-legacy-page-1",
     inboundEmailProcessingId: "inbound-biz-nokey-legacy",
     gmailMessageId: "msg-biz-nokey-legacy",
     importBatchId: "batch-biz-nokey-legacy",
@@ -2734,7 +2734,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     confidenceScore: 90,
     humanReviewRequired: false,
     duplicate: false,
-    linkedDeliveryOrderId: "delivery-vii-vii-biz-nokey-legacy-page-1",
+    linkedDeliveryOrderId: "approve-vendor-invoice-import_delivery-vii-vii-biz-nokey-legacy-page-1",
     detectedVendorName: "Johnstone Supply",
     parserFormatId: "johnstone",
     parsedHeader: {
@@ -2755,8 +2755,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     updatedAt: "2026-08-08T18:50:00Z",
   });
   // Intentionally NO vendorBusinessInvoiceKeys doc.
-  await setDoc(doc(adminDb, "vendorInvoiceImports", "vii-biz-nokey-resend-page-1"), {
-    id: "vii-biz-nokey-resend-page-1",
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-biz-nokey-resend-page-1"), {
+    id: "approve-vendor-invoice-import_vii-biz-nokey-resend-page-1",
     inboundEmailProcessingId: "inbound-biz-nokey-resend",
     gmailMessageId: "msg-biz-nokey-resend",
     importBatchId: "batch-biz-nokey-resend",
@@ -2789,11 +2789,11 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 
 try {
   const nokeyApprove = await approveImport({
-    vendorInvoiceImportId: "vii-biz-nokey-resend-page-1",
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-biz-nokey-resend-page-1",
     action: "approve",
   });
   const nokeyData = nokeyApprove?.data ?? nokeyApprove;
-  if (nokeyData?.deliveryOrderId === "delivery-vii-vii-biz-nokey-legacy-page-1") {
+  if (nokeyData?.deliveryOrderId === "approve-vendor-invoice-import_delivery-vii-vii-biz-nokey-legacy-page-1") {
     pass("no-key legacy resend approve redirects to legacy delivery");
   } else {
     fail("no-key legacy approve should target legacy delivery", nokeyData);
@@ -2803,7 +2803,7 @@ try {
 }
 
 const nokeyDupShell = await getDoc(
-  doc(db, "deliveries", "delivery-vii-vii-biz-nokey-resend-page-1"),
+  doc(db, "deliveries", "approve-vendor-invoice-import_delivery-vii-vii-biz-nokey-resend-page-1"),
 );
 if (!nokeyDupShell.exists()) {
   pass("no second shell for no-key legacy resend approve");

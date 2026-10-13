@@ -271,7 +271,8 @@
     "run-verify-with-learning": "node scripts/run-verify-with-learning.mjs",
     "gate:check": "node scripts/gate-check.mjs",
     "gate:tier": "node scripts/gate-check.mjs --classify",
-    "gate:check:test": "node --test scripts/gate-check.test.mjs scripts/verifier-log.test.mjs scripts/install-git-hooks.test.mjs scripts/ui-model-routing.test.mjs scripts/ship-evidence-preflight.test.mjs",
+    "lint:fixture-ids": "node scripts/lint-fixture-ids.mjs",
+    "gate:check:test": "node --test scripts/gate-check.test.mjs scripts/verifier-log.test.mjs scripts/install-git-hooks.test.mjs scripts/ui-model-routing.test.mjs scripts/ship-evidence-preflight.test.mjs scripts/lint-fixture-ids.test.mjs",
     "ship:evidence-preflight": "node scripts/ship-evidence-preflight.mjs",
     "hooks:install": "node scripts/install-git-hooks.mjs",
     "prepare": "node scripts/install-git-hooks.mjs",
@@ -288,7 +289,8 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.15.1",
-    "tailwindcss": "^4.3.0"
+    "tailwindcss": "^4.3.0",
+    "typescript": "~6.0.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -303,7 +305,6 @@
     "gh-pages": "^6.3.0",
     "globals": "^17.6.0",
     "playwright": "^1.60.0",
-    "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12"
   },

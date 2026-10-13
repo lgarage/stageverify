@@ -51,8 +51,9 @@ function fail(msg, detail) {
   if (detail !== undefined) console.error(`    ${JSON.stringify(detail)}`);
 }
 
+const NO_PDF_MESSAGE_ID = "retry-on-error-inbound_msg-retry-no-pdf";
 const NO_PDF_MESSAGE = {
-  id: "msg-retry-no-pdf",
+  id: NO_PDF_MESSAGE_ID,
   threadId: "thread-retry-1",
   internalDate: String(Date.parse("2026-06-24T10:00:00Z")),
   payload: {
@@ -71,7 +72,7 @@ async function readDoc(docId) {
 
 async function testErrorDocSkippedWithoutRetry() {
   console.log("\n1. Error doc skipped when retryOnError=false");
-  const gmailMessageId = "msg-skip-error";
+  const gmailMessageId = "retry-on-error-inbound_msg-skip-error";
   const docId = `inbound-${gmailMessageId}`;
   const ts = new Date().toISOString();
 
@@ -107,7 +108,7 @@ async function testErrorDocSkippedWithoutRetry() {
 
 async function testRetryOnErrorOverwritesAtomically() {
   console.log("\n2. retryOnError atomically overwrites error doc (no delete gap)");
-  const gmailMessageId = NO_PDF_MESSAGE.id;
+  const gmailMessageId = NO_PDF_MESSAGE_ID;
   const docId = `inbound-${gmailMessageId}`;
   const ts = new Date().toISOString();
 
@@ -151,7 +152,7 @@ async function testRetryOnErrorOverwritesAtomically() {
 
 async function testZeroQueueParsedReprocessesOnRetry() {
   console.log("\n3. Parsed doc with 0 queued invoices reprocesses on Refresh Now retry");
-  const gmailMessageId = "msg-zero-queue-backfill";
+  const gmailMessageId = "retry-on-error-inbound_msg-zero-queue-backfill";
   const docId = `inbound-${gmailMessageId}`;
   const ts = new Date().toISOString();
 
@@ -204,7 +205,7 @@ LN QNTY ORD QNTY SHIP QNTY B/O PRODUCT NUMBER DESCRIPTION
 
 async function testCachedTextBackfillQueuesIssueImport() {
   console.log("\n4. Cached extracted text backfill queues S/O issue import");
-  const gmailMessageId = "msg-so-cached-backfill";
+  const gmailMessageId = "retry-on-error-inbound_msg-so-cached-backfill";
   const docId = `inbound-${gmailMessageId}`;
   const ts = new Date().toISOString();
 
@@ -281,7 +282,7 @@ ORD SHI B/O NUMBER DESCRIPTION PRICE PRICE
 
 async function testStaleIssueImportReparseWithInvoiceNumber() {
   console.log("\n5. Stale issue import re-parses to P411190 on Refresh Now");
-  const gmailMessageId = "19f2d62d6949a928";
+  const gmailMessageId = "retry-on-error-inbound_19f2d62d6949a928";
   const docId = `inbound-${gmailMessageId}`;
   const reviewId = `vii-${gmailMessageId}-page-0`;
   const ts = new Date().toISOString();
@@ -409,7 +410,7 @@ function testGmailApiNotFoundHelper() {
 
 async function testMessageGoneDocNotRetried() {
   console.log("\n7. message_gone doc skipped even when retryOnError=true");
-  const gmailMessageId = "msg-tombstone-gone";
+  const gmailMessageId = "retry-on-error-inbound_msg-tombstone-gone";
   const docId = `inbound-${gmailMessageId}`;
   const ts = new Date().toISOString();
 
@@ -469,7 +470,7 @@ function installModifyFetchStub(options = {}) {
 
 async function testArchiveBacklogOnParsedSkip() {
   console.log("\n8. Archive backlog: skip of parsed without gmailInboxArchivedAt");
-  const gmailMessageId = "msg-archive-backlog-parsed";
+  const gmailMessageId = "retry-on-error-inbound_msg-archive-backlog-parsed";
   const docId = `inbound-${gmailMessageId}`;
   const ts = new Date().toISOString();
   const stub = installModifyFetchStub();
@@ -536,8 +537,8 @@ async function testArchiveNotOnErrorOrNoPdfOrMessageGone() {
   const stub = installModifyFetchStub();
   try {
     for (const [gmailMessageId, status] of [
-      ["msg-no-archive-error", "error"],
-      ["msg-no-archive-gone", "message_gone"],
+      ["retry-on-error-inbound_msg-no-archive-error", "error"],
+      ["retry-on-error-inbound_msg-no-archive-gone", "message_gone"],
     ]) {
       const docId = `inbound-${gmailMessageId}`;
       const ts = new Date().toISOString();
@@ -561,7 +562,7 @@ async function testArchiveNotOnErrorOrNoPdfOrMessageGone() {
     }
 
     stub.modifyCalls.length = 0;
-    const gmailMessageId = "msg-fresh-no-pdf";
+    const gmailMessageId = "retry-on-error-inbound_msg-fresh-no-pdf";
     const result = await processInboundGmailMessage("fake-token", gmailMessageId, {
       prefetchedMessage: {
         ...NO_PDF_MESSAGE,
@@ -579,7 +580,7 @@ async function testArchiveNotOnErrorOrNoPdfOrMessageGone() {
 
 async function testArchiveSoftFailKeepsParsed() {
   console.log("\n10. Archive soft-fail keeps parsed status");
-  const gmailMessageId = "msg-archive-soft-fail";
+  const gmailMessageId = "retry-on-error-inbound_msg-archive-soft-fail";
   const docId = `inbound-${gmailMessageId}`;
   const ts = new Date().toISOString();
   const stub = installModifyFetchStub({ failModify: true });

@@ -67,8 +67,8 @@ async function seedReadyExceptStaging(db, deliveryId) {
   await setDoc(doc(db, "appSettings", "config"), {
     vendorDeliveryMode: "full_checkin",
   });
-  await setDoc(doc(db, "jobs", "job-rp"), {
-    id: "job-rp",
+  await setDoc(doc(db, "jobs", "readiness-persistence_job-rp"), {
+    id: "readiness-persistence_job-rp",
     jobNumber: "JOB-RP",
     customerName: "Test",
     materialOwnerId: "owner-1",
@@ -79,7 +79,7 @@ async function seedReadyExceptStaging(db, deliveryId) {
   await setDoc(doc(db, "deliveries", deliveryId), {
     id: deliveryId,
     orderNumber: "ORD-RP-STAGE",
-    jobId: "job-rp",
+    jobId: "readiness-persistence_job-rp",
     vendorId: "vendor-rp",
     purchaseOrderId: "po-rp",
     deliveryDate: "2026-06-12",
@@ -109,8 +109,8 @@ async function seedReadyForPickup(db, deliveryId) {
   await setDoc(doc(db, "appSettings", "config"), {
     vendorDeliveryMode: "full_checkin",
   });
-  await setDoc(doc(db, "jobs", "job-rp"), {
-    id: "job-rp",
+  await setDoc(doc(db, "jobs", "readiness-persistence_job-rp"), {
+    id: "readiness-persistence_job-rp",
     jobNumber: "JOB-RP",
     customerName: "Test",
     materialOwnerId: "owner-1",
@@ -121,7 +121,7 @@ async function seedReadyForPickup(db, deliveryId) {
   await setDoc(doc(db, "deliveries", deliveryId), {
     id: deliveryId,
     orderNumber: "ORD-RP-ISSUE",
-    jobId: "job-rp",
+    jobId: "readiness-persistence_job-rp",
     vendorId: "vendor-rp",
     purchaseOrderId: "po-rp",
     deliveryDate: "2026-06-12",
@@ -152,7 +152,7 @@ async function seedReadyForPickup(db, deliveryId) {
 try {
   console.log("\n=== Staging assignment → recalc promotes ready_for_pickup ===\n");
 
-  const stagingId = "del-rp-staging";
+  const stagingId = "readiness-persistence_del-rp-staging";
   await seed(async (db) => seedReadyExceptStaging(db, stagingId));
 
   const beforeStaging = await recalculateReadiness(recalcPayload(stagingId));
@@ -187,12 +187,12 @@ try {
 
   console.log("\n=== Blocking issue demotes ready_for_pickup ===\n");
 
-  const issueId = "del-rp-blocking";
+  const issueId = "readiness-persistence_del-rp-blocking";
   await seed(async (db) => seedReadyForPickup(db, issueId));
 
   const createResult = await createMaterialIssue({
     deliveryOrderId: issueId,
-    jobId: "job-rp",
+    jobId: "readiness-persistence_job-rp",
     type: "missing",
     description: "Missing coil",
     reportedBy: "Technician",
@@ -219,13 +219,13 @@ try {
 
   console.log("\n=== Planned-only staging → recalc ready_for_pickup (stagingLocationId stays empty) ===\n");
 
-  const plannedId = "del-rp-planned-only";
+  const plannedId = "readiness-persistence_del-rp-planned-only";
   await seed(async (db) => {
     await setDoc(doc(db, "appSettings", "config"), {
       vendorDeliveryMode: "full_checkin",
     });
-    await setDoc(doc(db, "jobs", "job-rp"), {
-      id: "job-rp",
+    await setDoc(doc(db, "jobs", "readiness-persistence_job-rp"), {
+      id: "readiness-persistence_job-rp",
       jobNumber: "JOB-RP",
       customerName: "Test",
       materialOwnerId: "owner-1",
@@ -236,7 +236,7 @@ try {
     await setDoc(doc(db, "deliveries", plannedId), {
       id: plannedId,
       orderNumber: "ORD-RP-PLANNED",
-      jobId: "job-rp",
+      jobId: "readiness-persistence_job-rp",
       vendorId: "vendor-rp",
       purchaseOrderId: "po-rp",
       deliveryDate: "2026-06-12",
@@ -289,12 +289,12 @@ try {
 
   console.log("\n=== Non-blocking issue leaves readiness unchanged ===\n");
 
-  const nonBlockId = "del-rp-nonblock";
+  const nonBlockId = "readiness-persistence_del-rp-nonblock";
   await seed(async (db) => seedReadyForPickup(db, nonBlockId));
 
   await createMaterialIssue({
     deliveryOrderId: nonBlockId,
-    jobId: "job-rp",
+    jobId: "readiness-persistence_job-rp",
     type: "other",
     description: "FYI note",
     reportedBy: "Technician",

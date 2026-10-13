@@ -69,7 +69,7 @@ try {
   assert.equal(asAdminPin("1234"), null);
   pass("4-digit Admin PIN rejected (admin-only rule)");
 
-  const uid = "admin-user-1";
+  const uid = "admin-pin-secret_admin-user-1";
   await setOwnAdminPin(uid, "654321");
   const snap = await getFirestore()
     .collection("accessPinSecrets")

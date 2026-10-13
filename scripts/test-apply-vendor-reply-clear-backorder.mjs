@@ -151,18 +151,18 @@ await seed(async (db) => {
   await setDoc(doc(db, "appSettings", "config"), {
     vendorDeliveryMode: "full_checkin",
   });
-  await setDoc(doc(db, "stagingLocations", "avrcb-loc-happy"), {
-    id: "avrcb-loc-happy",
+  await setDoc(doc(db, "stagingLocations", "apply-vendor-reply-clear-backorder_avrcb-loc-happy"), {
+    id: "apply-vendor-reply-clear-backorder_avrcb-loc-happy",
     code: "HA5",
     label: "Bay HA5",
     active: true,
   });
 });
 
-const deliveryId = "del-handle-arrival-1";
-const eventId = "vee-handle-arrival-1";
-const itemBoId = "item-bo-1";
-const issueId = "mi-bo-1";
+const deliveryId = "apply-vendor-reply-clear-backorder_del-handle-arrival-1";
+const eventId = "apply-vendor-reply-clear-backorder_vee-handle-arrival-1";
+const itemBoId = "apply-vendor-reply-clear-backorder_item-bo-1";
+const issueId = "apply-vendor-reply-clear-backorder_mi-bo-1";
 
 await seed(async (db) => {
   await setDoc(doc(db, "deliveries", deliveryId), {
@@ -218,7 +218,7 @@ try {
   const result = await applyClearBackorder({
     eventId,
     action: "shop_location",
-    stagingLocationId: "avrcb-loc-happy",
+    stagingLocationId: "apply-vendor-reply-clear-backorder_avrcb-loc-happy",
     dispatcherApplyNote: "Vendor shipping remainder to HA5",
   });
   if (result.data?.ok !== true) {
@@ -247,7 +247,7 @@ if (afterEvent?.reviewStatus === "approved" && afterEvent?.applyAction === "shop
   fail("event audit", JSON.stringify(afterEvent));
 }
 
-if (afterDelivery?.stagingLocationId === "avrcb-loc-happy" && afterIssue?.status === "resolved") {
+if (afterDelivery?.stagingLocationId === "apply-vendor-reply-clear-backorder_avrcb-loc-happy" && afterIssue?.status === "resolved") {
   pass("delivery staging assigned + backorder MI resolved");
 } else {
   fail("delivery/issue updates", JSON.stringify({ afterDelivery, afterIssue }));
@@ -257,7 +257,7 @@ try {
   await applyClearBackorder({
     eventId,
     action: "shop_location",
-    stagingLocationId: "avrcb-loc-happy",
+    stagingLocationId: "apply-vendor-reply-clear-backorder_avrcb-loc-happy",
   });
   fail("second apply should fail (idempotent)");
 } catch (err) {
@@ -271,43 +271,43 @@ try {
 console.log("\n--- shop_location occupancy conflicts ---\n");
 
 await seed(async (db) => {
-  await setDoc(doc(db, "stagingLocations", "avrcb-loc-primary"), {
-    id: "avrcb-loc-primary",
+  await setDoc(doc(db, "stagingLocations", "apply-vendor-reply-clear-backorder_avrcb-loc-primary"), {
+    id: "apply-vendor-reply-clear-backorder_avrcb-loc-primary",
     code: "P1",
     label: "Primary conflict",
     status: "Active",
     active: true,
   });
-  await setDoc(doc(db, "stagingLocations", "avrcb-loc-addl"), {
-    id: "avrcb-loc-addl",
+  await setDoc(doc(db, "stagingLocations", "apply-vendor-reply-clear-backorder_avrcb-loc-addl"), {
+    id: "apply-vendor-reply-clear-backorder_avrcb-loc-addl",
     code: "A1",
     label: "Additional conflict",
     status: "Active",
     active: true,
   });
-  await setDoc(doc(db, "stagingLocations", "avrcb-loc-planned"), {
-    id: "avrcb-loc-planned",
+  await setDoc(doc(db, "stagingLocations", "apply-vendor-reply-clear-backorder_avrcb-loc-planned"), {
+    id: "apply-vendor-reply-clear-backorder_avrcb-loc-planned",
     code: "PL1",
     label: "Planned conflict",
     status: "Active",
     active: true,
   });
-  await setDoc(doc(db, "stagingLocations", "avrcb-loc-cleared"), {
-    id: "avrcb-loc-cleared",
+  await setDoc(doc(db, "stagingLocations", "apply-vendor-reply-clear-backorder_avrcb-loc-cleared"), {
+    id: "apply-vendor-reply-clear-backorder_avrcb-loc-cleared",
     code: "CL1",
     label: "Cleared holder",
     status: "Active",
     active: true,
   });
-  await setDoc(doc(db, "stagingLocations", "avrcb-loc-self"), {
-    id: "avrcb-loc-self",
+  await setDoc(doc(db, "stagingLocations", "apply-vendor-reply-clear-backorder_avrcb-loc-self"), {
+    id: "apply-vendor-reply-clear-backorder_avrcb-loc-self",
     code: "SL1",
     label: "Self reuse",
     status: "Active",
     active: true,
   });
-  await setDoc(doc(db, "stagingLocations", "avrcb-loc-inactive"), {
-    id: "avrcb-loc-inactive",
+  await setDoc(doc(db, "stagingLocations", "apply-vendor-reply-clear-backorder_avrcb-loc-inactive"), {
+    id: "apply-vendor-reply-clear-backorder_avrcb-loc-inactive",
     code: "IN1",
     label: "Inactive",
     status: "Inactive",
@@ -318,33 +318,33 @@ await seed(async (db) => {
 // Conflict: other holds primary stagingLocationId
 await seed(async (db) => {
   await seedBackorderApplyCase(db, {
-    deliveryId: "avrcb-del-conflict-primary-a",
-    eventId: "avrcb-evt-conflict-primary-a",
-    itemId: "avrcb-item-conflict-primary-a",
+    deliveryId: "apply-vendor-reply-clear-backorder_avrcb-del-conflict-primary-a",
+    eventId: "apply-vendor-reply-clear-backorder_avrcb-evt-conflict-primary-a",
+    itemId: "apply-vendor-reply-clear-backorder_avrcb-item-conflict-primary-a",
   });
-  await setDoc(doc(db, "deliveries", "avrcb-del-conflict-primary-b"), {
-    id: "avrcb-del-conflict-primary-b",
+  await setDoc(doc(db, "deliveries", "apply-vendor-reply-clear-backorder_avrcb-del-conflict-primary-b"), {
+    id: "apply-vendor-reply-clear-backorder_avrcb-del-conflict-primary-b",
     orderNumber: "ORD-B",
     status: "arrived",
-    stagingLocationId: "avrcb-loc-primary",
+    stagingLocationId: "apply-vendor-reply-clear-backorder_avrcb-loc-primary",
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
   });
 });
 try {
   await applyClearBackorder({
-    eventId: "avrcb-evt-conflict-primary-a",
+    eventId: "apply-vendor-reply-clear-backorder_avrcb-evt-conflict-primary-a",
     action: "shop_location",
-    stagingLocationId: "avrcb-loc-primary",
+    stagingLocationId: "apply-vendor-reply-clear-backorder_avrcb-loc-primary",
   });
   fail("shop_location conflict primary should reject");
 } catch (err) {
-  const after = await readDoc("deliveries", "avrcb-del-conflict-primary-a");
+  const after = await readDoc("deliveries", "apply-vendor-reply-clear-backorder_avrcb-del-conflict-primary-a");
   if (
     (codeOf(err).includes("failed-precondition") ||
       codeOf(err).includes("functions/failed-precondition")) &&
     /no longer available/i.test(msgOf(err)) &&
-    (after?.stagingLocationId ?? "") !== "avrcb-loc-primary"
+    (after?.stagingLocationId ?? "") !== "apply-vendor-reply-clear-backorder_avrcb-loc-primary"
   ) {
     pass("shop_location rejected — other holds primary stagingLocationId");
   } else {
@@ -355,32 +355,32 @@ try {
 // Conflict: other holds additionalStagingLocationIds
 await seed(async (db) => {
   await seedBackorderApplyCase(db, {
-    deliveryId: "avrcb-del-conflict-addl-a",
-    eventId: "avrcb-evt-conflict-addl-a",
-    itemId: "avrcb-item-conflict-addl-a",
+    deliveryId: "apply-vendor-reply-clear-backorder_avrcb-del-conflict-addl-a",
+    eventId: "apply-vendor-reply-clear-backorder_avrcb-evt-conflict-addl-a",
+    itemId: "apply-vendor-reply-clear-backorder_avrcb-item-conflict-addl-a",
   });
-  await setDoc(doc(db, "deliveries", "avrcb-del-conflict-addl-b"), {
-    id: "avrcb-del-conflict-addl-b",
+  await setDoc(doc(db, "deliveries", "apply-vendor-reply-clear-backorder_avrcb-del-conflict-addl-b"), {
+    id: "apply-vendor-reply-clear-backorder_avrcb-del-conflict-addl-b",
     orderNumber: "ORD-B2",
     status: "arrived",
     stagingLocationId: "",
-    additionalStagingLocationIds: ["avrcb-loc-addl"],
+    additionalStagingLocationIds: ["apply-vendor-reply-clear-backorder_avrcb-loc-addl"],
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
   });
 });
 try {
   await applyClearBackorder({
-    eventId: "avrcb-evt-conflict-addl-a",
+    eventId: "apply-vendor-reply-clear-backorder_avrcb-evt-conflict-addl-a",
     action: "shop_location",
-    stagingLocationId: "avrcb-loc-addl",
+    stagingLocationId: "apply-vendor-reply-clear-backorder_avrcb-loc-addl",
   });
   fail("shop_location conflict additional should reject");
 } catch (err) {
-  const after = await readDoc("deliveries", "avrcb-del-conflict-addl-a");
+  const after = await readDoc("deliveries", "apply-vendor-reply-clear-backorder_avrcb-del-conflict-addl-a");
   if (
     /no longer available/i.test(msgOf(err)) &&
-    (after?.stagingLocationId ?? "") !== "avrcb-loc-addl"
+    (after?.stagingLocationId ?? "") !== "apply-vendor-reply-clear-backorder_avrcb-loc-addl"
   ) {
     pass("shop_location rejected — other holds additionalStagingLocationIds");
   } else {
@@ -391,32 +391,32 @@ try {
 // Conflict: other holds plannedStagingLocationIds only
 await seed(async (db) => {
   await seedBackorderApplyCase(db, {
-    deliveryId: "avrcb-del-conflict-planned-a",
-    eventId: "avrcb-evt-conflict-planned-a",
-    itemId: "avrcb-item-conflict-planned-a",
+    deliveryId: "apply-vendor-reply-clear-backorder_avrcb-del-conflict-planned-a",
+    eventId: "apply-vendor-reply-clear-backorder_avrcb-evt-conflict-planned-a",
+    itemId: "apply-vendor-reply-clear-backorder_avrcb-item-conflict-planned-a",
   });
-  await setDoc(doc(db, "deliveries", "avrcb-del-conflict-planned-b"), {
-    id: "avrcb-del-conflict-planned-b",
+  await setDoc(doc(db, "deliveries", "apply-vendor-reply-clear-backorder_avrcb-del-conflict-planned-b"), {
+    id: "apply-vendor-reply-clear-backorder_avrcb-del-conflict-planned-b",
     orderNumber: "ORD-B3",
     status: "arrived",
     stagingLocationId: "",
-    plannedStagingLocationIds: ["avrcb-loc-planned"],
+    plannedStagingLocationIds: ["apply-vendor-reply-clear-backorder_avrcb-loc-planned"],
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
   });
 });
 try {
   await applyClearBackorder({
-    eventId: "avrcb-evt-conflict-planned-a",
+    eventId: "apply-vendor-reply-clear-backorder_avrcb-evt-conflict-planned-a",
     action: "shop_location",
-    stagingLocationId: "avrcb-loc-planned",
+    stagingLocationId: "apply-vendor-reply-clear-backorder_avrcb-loc-planned",
   });
   fail("shop_location conflict planned should reject");
 } catch (err) {
-  const after = await readDoc("deliveries", "avrcb-del-conflict-planned-a");
+  const after = await readDoc("deliveries", "apply-vendor-reply-clear-backorder_avrcb-del-conflict-planned-a");
   if (
     /no longer available/i.test(msgOf(err)) &&
-    (after?.stagingLocationId ?? "") !== "avrcb-loc-planned"
+    (after?.stagingLocationId ?? "") !== "apply-vendor-reply-clear-backorder_avrcb-loc-planned"
   ) {
     pass("shop_location rejected — other holds plannedStagingLocationIds only");
   } else {
@@ -427,27 +427,27 @@ try {
 // ZONE_CLEARED — picked_up holder ignored
 await seed(async (db) => {
   await seedBackorderApplyCase(db, {
-    deliveryId: "avrcb-del-cleared-a",
-    eventId: "avrcb-evt-cleared-a",
-    itemId: "avrcb-item-cleared-a",
+    deliveryId: "apply-vendor-reply-clear-backorder_avrcb-del-cleared-a",
+    eventId: "apply-vendor-reply-clear-backorder_avrcb-evt-cleared-a",
+    itemId: "apply-vendor-reply-clear-backorder_avrcb-item-cleared-a",
   });
-  await setDoc(doc(db, "deliveries", "avrcb-del-cleared-b"), {
-    id: "avrcb-del-cleared-b",
+  await setDoc(doc(db, "deliveries", "apply-vendor-reply-clear-backorder_avrcb-del-cleared-b"), {
+    id: "apply-vendor-reply-clear-backorder_avrcb-del-cleared-b",
     orderNumber: "ORD-CL",
     status: "picked_up",
-    stagingLocationId: "avrcb-loc-cleared",
+    stagingLocationId: "apply-vendor-reply-clear-backorder_avrcb-loc-cleared",
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
   });
 });
 try {
   await applyClearBackorder({
-    eventId: "avrcb-evt-cleared-a",
+    eventId: "apply-vendor-reply-clear-backorder_avrcb-evt-cleared-a",
     action: "shop_location",
-    stagingLocationId: "avrcb-loc-cleared",
+    stagingLocationId: "apply-vendor-reply-clear-backorder_avrcb-loc-cleared",
   });
-  const after = await readDoc("deliveries", "avrcb-del-cleared-a");
-  if (after?.stagingLocationId === "avrcb-loc-cleared") {
+  const after = await readDoc("deliveries", "apply-vendor-reply-clear-backorder_avrcb-del-cleared-a");
+  if (after?.stagingLocationId === "apply-vendor-reply-clear-backorder_avrcb-loc-cleared") {
     pass("shop_location succeeds over picked_up holder (ZONE_CLEARED)");
   } else {
     fail("shop_location ZONE_CLEARED", JSON.stringify(after));
@@ -459,23 +459,23 @@ try {
 // Same delivery already uses spot
 await seed(async (db) => {
   await seedBackorderApplyCase(db, {
-    deliveryId: "avrcb-del-self-reuse",
-    eventId: "avrcb-evt-self-reuse",
-    itemId: "avrcb-item-self-reuse",
+    deliveryId: "apply-vendor-reply-clear-backorder_avrcb-del-self-reuse",
+    eventId: "apply-vendor-reply-clear-backorder_avrcb-evt-self-reuse",
+    itemId: "apply-vendor-reply-clear-backorder_avrcb-item-self-reuse",
     extraDelivery: {
-      stagingLocationId: "avrcb-loc-self",
-      additionalStagingLocationIds: ["avrcb-loc-self"],
+      stagingLocationId: "apply-vendor-reply-clear-backorder_avrcb-loc-self",
+      additionalStagingLocationIds: ["apply-vendor-reply-clear-backorder_avrcb-loc-self"],
     },
   });
 });
 try {
   await applyClearBackorder({
-    eventId: "avrcb-evt-self-reuse",
+    eventId: "apply-vendor-reply-clear-backorder_avrcb-evt-self-reuse",
     action: "shop_location",
-    stagingLocationId: "avrcb-loc-self",
+    stagingLocationId: "apply-vendor-reply-clear-backorder_avrcb-loc-self",
   });
-  const after = await readDoc("deliveries", "avrcb-del-self-reuse");
-  if (after?.stagingLocationId === "avrcb-loc-self") {
+  const after = await readDoc("deliveries", "apply-vendor-reply-clear-backorder_avrcb-del-self-reuse");
+  if (after?.stagingLocationId === "apply-vendor-reply-clear-backorder_avrcb-loc-self") {
     pass("shop_location succeeds when delivery already uses spot");
   } else {
     fail("shop_location self reuse", JSON.stringify(after));
@@ -487,16 +487,16 @@ try {
 // Inactive location
 await seed(async (db) => {
   await seedBackorderApplyCase(db, {
-    deliveryId: "avrcb-del-inactive-loc",
-    eventId: "avrcb-evt-inactive-loc",
-    itemId: "avrcb-item-inactive-loc",
+    deliveryId: "apply-vendor-reply-clear-backorder_avrcb-del-inactive-loc",
+    eventId: "apply-vendor-reply-clear-backorder_avrcb-evt-inactive-loc",
+    itemId: "apply-vendor-reply-clear-backorder_avrcb-item-inactive-loc",
   });
 });
 try {
   await applyClearBackorder({
-    eventId: "avrcb-evt-inactive-loc",
+    eventId: "apply-vendor-reply-clear-backorder_avrcb-evt-inactive-loc",
     action: "shop_location",
-    stagingLocationId: "avrcb-loc-inactive",
+    stagingLocationId: "apply-vendor-reply-clear-backorder_avrcb-loc-inactive",
   });
   fail("shop_location inactive loc should reject");
 } catch (err) {
@@ -510,16 +510,16 @@ try {
 // Missing location
 await seed(async (db) => {
   await seedBackorderApplyCase(db, {
-    deliveryId: "avrcb-del-missing-loc",
-    eventId: "avrcb-evt-missing-loc",
-    itemId: "avrcb-item-missing-loc",
+    deliveryId: "apply-vendor-reply-clear-backorder_avrcb-del-missing-loc",
+    eventId: "apply-vendor-reply-clear-backorder_avrcb-evt-missing-loc",
+    itemId: "apply-vendor-reply-clear-backorder_avrcb-item-missing-loc",
   });
 });
 try {
   await applyClearBackorder({
-    eventId: "avrcb-evt-missing-loc",
+    eventId: "apply-vendor-reply-clear-backorder_avrcb-evt-missing-loc",
     action: "shop_location",
-    stagingLocationId: "avrcb-loc-missing-xyz",
+    stagingLocationId: "apply-vendor-reply-clear-backorder_avrcb-loc-missing-xyz",
   });
   fail("shop_location missing loc should reject");
 } catch (err) {
@@ -530,9 +530,9 @@ try {
   }
 }
 
-const deliveryB = "del-handle-arrival-2";
-const eventB = "vee-handle-arrival-2";
-const itemB = "item-bo-2";
+const deliveryB = "apply-vendor-reply-clear-backorder_del-handle-arrival-2";
+const eventB = "apply-vendor-reply-clear-backorder_vee-handle-arrival-2";
+const itemB = "apply-vendor-reply-clear-backorder_item-bo-2";
 
 await seed(async (db) => {
   await setDoc(doc(db, "deliveries", deliveryB), {
@@ -542,8 +542,8 @@ await seed(async (db) => {
     vendorId: "vendor-1",
     status: "partial",
     vendorOrderComplete: true,
-    stagingLocationId: "avrcb-loc-happy",
-    additionalStagingLocationIds: ["avrcb-loc-happy"],
+    stagingLocationId: "apply-vendor-reply-clear-backorder_avrcb-loc-happy",
+    additionalStagingLocationIds: ["apply-vendor-reply-clear-backorder_avrcb-loc-happy"],
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
   });

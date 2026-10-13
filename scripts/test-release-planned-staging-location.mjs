@@ -112,29 +112,29 @@ await seed(async (db) => {
   await setDoc(doc(db, "appSettings", "config"), {
     vendorDeliveryMode: "exception_only",
   });
-  await seedLocation(db, "rpsl-loc-free", "RF");
-  await seedLocation(db, "rpsl-loc-conflict", "RC");
-  await seedLocation(db, "rpsl-loc-addl", "RA");
-  await seedLocation(db, "rpsl-loc-planned", "RP");
-  await seedLocation(db, "rpsl-loc-cleared", "RCL");
-  await seedLocation(db, "rpsl-loc-page", "RPG");
-  await seedLocation(db, "rpsl-loc-inactive", "RIN", "Inactive");
+  await seedLocation(db, "release-planned-staging-location_rpsl-loc-free", "RF");
+  await seedLocation(db, "release-planned-staging-location_rpsl-loc-conflict", "RC");
+  await seedLocation(db, "release-planned-staging-location_rpsl-loc-addl", "RA");
+  await seedLocation(db, "release-planned-staging-location_rpsl-loc-planned", "RP");
+  await seedLocation(db, "release-planned-staging-location_rpsl-loc-cleared", "RCL");
+  await seedLocation(db, "release-planned-staging-location_rpsl-loc-page", "RPG");
+  await seedLocation(db, "release-planned-staging-location_rpsl-loc-inactive", "RIN", "Inactive");
 });
 
 // 1. placed=true happy path — free planned spot
 await seed(async (db) => {
-  await seedDelivery(db, "rpsl-del-happy", {
-    plannedStagingLocationIds: ["rpsl-loc-free"],
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-happy", {
+    plannedStagingLocationIds: ["release-planned-staging-location_rpsl-loc-free"],
   });
-  await seedVendorSession(db, "rpsl-del-happy");
+  await seedVendorSession(db, "release-planned-staging-location_rpsl-del-happy");
 });
 try {
-  const result = await callRelease("rpsl-del-happy", "rpsl-loc-free", true);
-  const after = await readDelivery("rpsl-del-happy");
+  const result = await callRelease("release-planned-staging-location_rpsl-del-happy", "release-planned-staging-location_rpsl-loc-free", true);
+  const after = await readDelivery("release-planned-staging-location_rpsl-del-happy");
   if (
     result.data?.placed === true &&
-    after?.stagingLocationId === "rpsl-loc-free" &&
-    (after?.plannedStagingLocationIds ?? []).includes("rpsl-loc-free")
+    after?.stagingLocationId === "release-planned-staging-location_rpsl-loc-free" &&
+    (after?.plannedStagingLocationIds ?? []).includes("release-planned-staging-location_rpsl-loc-free")
   ) {
     pass("placed=true happy — stagingLocationId set; planned retained");
   } else {
@@ -146,23 +146,23 @@ try {
 
 // 2a. Conflict primary on other delivery
 await seed(async (db) => {
-  await seedDelivery(db, "rpsl-del-conflict-primary-a", {
-    plannedStagingLocationIds: ["rpsl-loc-conflict"],
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-conflict-primary-a", {
+    plannedStagingLocationIds: ["release-planned-staging-location_rpsl-loc-conflict"],
   });
-  await seedDelivery(db, "rpsl-del-conflict-primary-b", {
-    stagingLocationId: "rpsl-loc-conflict",
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-conflict-primary-b", {
+    stagingLocationId: "release-planned-staging-location_rpsl-loc-conflict",
   });
-  await seedVendorSession(db, "rpsl-del-conflict-primary-a");
+  await seedVendorSession(db, "release-planned-staging-location_rpsl-del-conflict-primary-a");
 });
 try {
-  await callRelease("rpsl-del-conflict-primary-a", "rpsl-loc-conflict", true);
+  await callRelease("release-planned-staging-location_rpsl-del-conflict-primary-a", "release-planned-staging-location_rpsl-loc-conflict", true);
   fail("placed=true conflict primary should reject");
 } catch (err) {
-  const after = await readDelivery("rpsl-del-conflict-primary-a");
+  const after = await readDelivery("release-planned-staging-location_rpsl-del-conflict-primary-a");
   if (
     /no longer available/i.test(msgOf(err)) &&
     (after?.stagingLocationId ?? "") === "" &&
-    (after?.plannedStagingLocationIds ?? []).includes("rpsl-loc-conflict")
+    (after?.plannedStagingLocationIds ?? []).includes("release-planned-staging-location_rpsl-loc-conflict")
   ) {
     pass("placed=true rejected — other primary occupant; acting still planned");
   } else {
@@ -172,19 +172,19 @@ try {
 
 // 2b. Conflict additional on other delivery
 await seed(async (db) => {
-  await seedDelivery(db, "rpsl-del-conflict-addl-a", {
-    plannedStagingLocationIds: ["rpsl-loc-addl"],
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-conflict-addl-a", {
+    plannedStagingLocationIds: ["release-planned-staging-location_rpsl-loc-addl"],
   });
-  await seedDelivery(db, "rpsl-del-conflict-addl-b", {
-    additionalStagingLocationIds: ["rpsl-loc-addl"],
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-conflict-addl-b", {
+    additionalStagingLocationIds: ["release-planned-staging-location_rpsl-loc-addl"],
   });
-  await seedVendorSession(db, "rpsl-del-conflict-addl-a");
+  await seedVendorSession(db, "release-planned-staging-location_rpsl-del-conflict-addl-a");
 });
 try {
-  await callRelease("rpsl-del-conflict-addl-a", "rpsl-loc-addl", true);
+  await callRelease("release-planned-staging-location_rpsl-del-conflict-addl-a", "release-planned-staging-location_rpsl-loc-addl", true);
   fail("placed=true conflict additional should reject");
 } catch (err) {
-  const after = await readDelivery("rpsl-del-conflict-addl-a");
+  const after = await readDelivery("release-planned-staging-location_rpsl-del-conflict-addl-a");
   if (
     /no longer available/i.test(msgOf(err)) &&
     (after?.stagingLocationId ?? "") === ""
@@ -197,19 +197,19 @@ try {
 
 // 2c. Conflict planned-only on other delivery
 await seed(async (db) => {
-  await seedDelivery(db, "rpsl-del-conflict-planned-a", {
-    plannedStagingLocationIds: ["rpsl-loc-planned"],
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-conflict-planned-a", {
+    plannedStagingLocationIds: ["release-planned-staging-location_rpsl-loc-planned"],
   });
-  await seedDelivery(db, "rpsl-del-conflict-planned-b", {
-    plannedStagingLocationIds: ["rpsl-loc-planned"],
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-conflict-planned-b", {
+    plannedStagingLocationIds: ["release-planned-staging-location_rpsl-loc-planned"],
   });
-  await seedVendorSession(db, "rpsl-del-conflict-planned-a");
+  await seedVendorSession(db, "release-planned-staging-location_rpsl-del-conflict-planned-a");
 });
 try {
-  await callRelease("rpsl-del-conflict-planned-a", "rpsl-loc-planned", true);
+  await callRelease("release-planned-staging-location_rpsl-del-conflict-planned-a", "release-planned-staging-location_rpsl-loc-planned", true);
   fail("placed=true conflict planned-only should reject");
 } catch (err) {
-  const after = await readDelivery("rpsl-del-conflict-planned-a");
+  const after = await readDelivery("release-planned-staging-location_rpsl-del-conflict-planned-a");
   if (
     /no longer available/i.test(msgOf(err)) &&
     (after?.stagingLocationId ?? "") === ""
@@ -222,25 +222,25 @@ try {
 
 // 3. ZONE_CLEARED — succeeds over picked_up / installed
 await seed(async (db) => {
-  await seedDelivery(db, "rpsl-del-cleared-a", {
-    plannedStagingLocationIds: ["rpsl-loc-cleared"],
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-cleared-a", {
+    plannedStagingLocationIds: ["release-planned-staging-location_rpsl-loc-cleared"],
   });
-  await seedDelivery(db, "rpsl-del-cleared-b-picked", {
-    stagingLocationId: "rpsl-loc-cleared",
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-cleared-b-picked", {
+    stagingLocationId: "release-planned-staging-location_rpsl-loc-cleared",
     status: "picked_up",
   });
-  await seedDelivery(db, "rpsl-del-cleared-b-installed", {
-    stagingLocationId: "rpsl-loc-cleared",
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-cleared-b-installed", {
+    stagingLocationId: "release-planned-staging-location_rpsl-loc-cleared",
     status: "installed",
   });
-  await seedVendorSession(db, "rpsl-del-cleared-a");
+  await seedVendorSession(db, "release-planned-staging-location_rpsl-del-cleared-a");
 });
 try {
-  const result = await callRelease("rpsl-del-cleared-a", "rpsl-loc-cleared", true);
-  const after = await readDelivery("rpsl-del-cleared-a");
+  const result = await callRelease("release-planned-staging-location_rpsl-del-cleared-a", "release-planned-staging-location_rpsl-loc-cleared", true);
+  const after = await readDelivery("release-planned-staging-location_rpsl-del-cleared-a");
   if (
     result.data?.placed === true &&
-    after?.stagingLocationId === "rpsl-loc-cleared"
+    after?.stagingLocationId === "release-planned-staging-location_rpsl-loc-cleared"
   ) {
     pass("placed=true succeeds over picked_up/installed holders");
   } else {
@@ -252,14 +252,14 @@ try {
 
 // 4. Already actual on same delivery — skip
 await seed(async (db) => {
-  await seedDelivery(db, "rpsl-del-already-actual", {
-    stagingLocationId: "rpsl-loc-free",
-    plannedStagingLocationIds: ["rpsl-loc-free"],
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-already-actual", {
+    stagingLocationId: "release-planned-staging-location_rpsl-loc-free",
+    plannedStagingLocationIds: ["release-planned-staging-location_rpsl-loc-free"],
   });
-  await seedVendorSession(db, "rpsl-del-already-actual");
+  await seedVendorSession(db, "release-planned-staging-location_rpsl-del-already-actual");
 });
 try {
-  const result = await callRelease("rpsl-del-already-actual", "rpsl-loc-free", true);
+  const result = await callRelease("release-planned-staging-location_rpsl-del-already-actual", "release-planned-staging-location_rpsl-loc-free", true);
   if (result.data?.skipped === true) {
     pass("placed=true skipped when delivery already uses spot");
   } else {
@@ -271,25 +271,25 @@ try {
 
 // 5. placed=false releases planned without occupancy check
 await seed(async (db) => {
-  await seedDelivery(db, "rpsl-del-release-no-check", {
-    plannedStagingLocationIds: ["rpsl-loc-conflict"],
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-release-no-check", {
+    plannedStagingLocationIds: ["release-planned-staging-location_rpsl-loc-conflict"],
   });
-  await seedDelivery(db, "rpsl-del-occupies-for-release", {
-    stagingLocationId: "rpsl-loc-conflict",
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-occupies-for-release", {
+    stagingLocationId: "release-planned-staging-location_rpsl-loc-conflict",
   });
-  await seedVendorSession(db, "rpsl-del-release-no-check");
+  await seedVendorSession(db, "release-planned-staging-location_rpsl-del-release-no-check");
 });
 try {
   const result = await callRelease(
-    "rpsl-del-release-no-check",
-    "rpsl-loc-conflict",
+    "release-planned-staging-location_rpsl-del-release-no-check",
+    "release-planned-staging-location_rpsl-loc-conflict",
     false,
   );
-  const after = await readDelivery("rpsl-del-release-no-check");
+  const after = await readDelivery("release-planned-staging-location_rpsl-del-release-no-check");
   const planned = after?.plannedStagingLocationIds ?? [];
   if (
     result.data?.released === true &&
-    !planned.includes("rpsl-loc-conflict")
+    !planned.includes("release-planned-staging-location_rpsl-loc-conflict")
   ) {
     pass("placed=false releases planned without occupancy guard");
   } else {
@@ -301,13 +301,13 @@ try {
 
 // 6a. Inactive location on placed=true
 await seed(async (db) => {
-  await seedDelivery(db, "rpsl-del-inactive", {
-    plannedStagingLocationIds: ["rpsl-loc-inactive"],
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-inactive", {
+    plannedStagingLocationIds: ["release-planned-staging-location_rpsl-loc-inactive"],
   });
-  await seedVendorSession(db, "rpsl-del-inactive");
+  await seedVendorSession(db, "release-planned-staging-location_rpsl-del-inactive");
 });
 try {
-  await callRelease("rpsl-del-inactive", "rpsl-loc-inactive", true);
+  await callRelease("release-planned-staging-location_rpsl-del-inactive", "release-planned-staging-location_rpsl-loc-inactive", true);
   fail("inactive location should reject placed=true");
 } catch (err) {
   if (/no longer available/i.test(msgOf(err))) {
@@ -319,13 +319,13 @@ try {
 
 // 6b. Missing location on placed=true
 await seed(async (db) => {
-  await seedDelivery(db, "rpsl-del-missing-loc", {
-    plannedStagingLocationIds: ["rpsl-loc-missing-xyz"],
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-missing-loc", {
+    plannedStagingLocationIds: ["release-planned-staging-location_rpsl-loc-missing-xyz"],
   });
-  await seedVendorSession(db, "rpsl-del-missing-loc");
+  await seedVendorSession(db, "release-planned-staging-location_rpsl-del-missing-loc");
 });
 try {
-  await callRelease("rpsl-del-missing-loc", "rpsl-loc-missing-xyz", true);
+  await callRelease("release-planned-staging-location_rpsl-del-missing-loc", "release-planned-staging-location_rpsl-loc-missing-xyz", true);
   fail("missing location should reject placed=true");
 } catch (err) {
   if (codeOf(err).includes("not-found") || /not found/i.test(msgOf(err))) {
@@ -337,26 +337,26 @@ try {
 
 // 7. Paging — active occupant behind >20 picked_up docs
 await seed(async (db) => {
-  await seedDelivery(db, "rpsl-del-page-src", {
-    plannedStagingLocationIds: ["rpsl-loc-page"],
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-page-src", {
+    plannedStagingLocationIds: ["release-planned-staging-location_rpsl-loc-page"],
   });
   for (let i = 0; i < 22; i += 1) {
-    await seedDelivery(db, `rpsl-del-cleared-page-${i}`, {
-      stagingLocationId: "rpsl-loc-page",
+    await seedDelivery(db, `release-planned-staging-location_rpsl-del-cleared-page-${i}`, {
+      stagingLocationId: "release-planned-staging-location_rpsl-loc-page",
       status: "picked_up",
     });
   }
-  await seedDelivery(db, "rpsl-del-active-behind-page", {
-    stagingLocationId: "rpsl-loc-page",
+  await seedDelivery(db, "release-planned-staging-location_rpsl-del-active-behind-page", {
+    stagingLocationId: "release-planned-staging-location_rpsl-loc-page",
     status: "arrived",
   });
-  await seedVendorSession(db, "rpsl-del-page-src");
+  await seedVendorSession(db, "release-planned-staging-location_rpsl-del-page-src");
 });
 try {
-  await callRelease("rpsl-del-page-src", "rpsl-loc-page", true);
+  await callRelease("release-planned-staging-location_rpsl-del-page-src", "release-planned-staging-location_rpsl-loc-page", true);
   fail("paging occupant should reject placed=true");
 } catch (err) {
-  const after = await readDelivery("rpsl-del-page-src");
+  const after = await readDelivery("release-planned-staging-location_rpsl-del-page-src");
   if (
     /no longer available/i.test(msgOf(err)) &&
     (after?.stagingLocationId ?? "") === ""

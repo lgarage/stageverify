@@ -102,8 +102,8 @@ console.log("\n=== Auto-submit readiness integration ===\n");
 
 // 1. Physical evidence only — not ready
 await seed(async (db) => {
-  await setDoc(doc(db, "deliveries", "auto-phys-only"), {
-    id: "auto-phys-only",
+  await setDoc(doc(db, "deliveries", "auto-submit-readiness_auto-phys-only"), {
+    id: "auto-submit-readiness_auto-phys-only",
     jobId: "job-1",
     vendorId: "vendor-1",
     status: "arrived",
@@ -111,18 +111,18 @@ await seed(async (db) => {
     vendorOrderComplete: false,
     lastCheckmarkAt: "2020-01-01T00:00:00Z",
   });
-  await setDoc(doc(db, "items", "item-phys-1"), {
-    deliveryOrderId: "auto-phys-only",
+  await setDoc(doc(db, "items", "auto-submit-readiness_item-phys-1"), {
+    deliveryOrderId: "auto-submit-readiness_auto-phys-only",
     qtyOrdered: 2,
     qtyReceived: 2,
     qtyMissing: 0,
     qtyDamaged: 0,
     qtyBackordered: 0,
   });
-  await seedVendorSession(db, "auto-phys-only");
+  await seedVendorSession(db, "auto-submit-readiness_auto-phys-only");
 });
 try {
-  const result = await simulateAutoSubmitAndRecalculate("auto-phys-only");
+  const result = await simulateAutoSubmitAndRecalculate("auto-submit-readiness_auto-phys-only");
   if (
     result.data.readyForPickup === false &&
     result.data.deliveryStatus !== "ready_for_pickup"
@@ -137,8 +137,8 @@ try {
 
 // 2. Both sources + staging → ready
 await seed(async (db) => {
-  await setDoc(doc(db, "deliveries", "auto-ready"), {
-    id: "auto-ready",
+  await setDoc(doc(db, "deliveries", "auto-submit-readiness_auto-ready"), {
+    id: "auto-submit-readiness_auto-ready",
     jobId: "job-1",
     vendorId: "vendor-1",
     status: "arrived",
@@ -148,18 +148,18 @@ await seed(async (db) => {
     vendorOrderCompleteSource: "dispatcher",
     lastCheckmarkAt: "2020-01-01T00:00:00Z",
   });
-  await setDoc(doc(db, "items", "item-ready-1"), {
-    deliveryOrderId: "auto-ready",
+  await setDoc(doc(db, "items", "auto-submit-readiness_item-ready-1"), {
+    deliveryOrderId: "auto-submit-readiness_auto-ready",
     qtyOrdered: 1,
     qtyReceived: 1,
     qtyMissing: 0,
     qtyDamaged: 0,
     qtyBackordered: 0,
   });
-  await seedVendorSession(db, "auto-ready");
+  await seedVendorSession(db, "auto-submit-readiness_auto-ready");
 });
 try {
-  const result = await simulateAutoSubmitAndRecalculate("auto-ready");
+  const result = await simulateAutoSubmitAndRecalculate("auto-submit-readiness_auto-ready");
   if (
     result.data.readyForPickup === true &&
     result.data.deliveryStatus === "ready_for_pickup"
@@ -174,8 +174,8 @@ try {
 
 // 3. Missing staging blocks
 await seed(async (db) => {
-  await setDoc(doc(db, "deliveries", "auto-no-staging"), {
-    id: "auto-no-staging",
+  await setDoc(doc(db, "deliveries", "auto-submit-readiness_auto-no-staging"), {
+    id: "auto-submit-readiness_auto-no-staging",
     jobId: "job-1",
     vendorId: "vendor-1",
     status: "arrived",
@@ -183,18 +183,18 @@ await seed(async (db) => {
     vendorOrderComplete: true,
     lastCheckmarkAt: "2020-01-01T00:00:00Z",
   });
-  await setDoc(doc(db, "items", "item-nostage-1"), {
-    deliveryOrderId: "auto-no-staging",
+  await setDoc(doc(db, "items", "auto-submit-readiness_item-nostage-1"), {
+    deliveryOrderId: "auto-submit-readiness_auto-no-staging",
     qtyOrdered: 1,
     qtyReceived: 1,
     qtyMissing: 0,
     qtyDamaged: 0,
     qtyBackordered: 0,
   });
-  await seedVendorSession(db, "auto-no-staging");
+  await seedVendorSession(db, "auto-submit-readiness_auto-no-staging");
 });
 try {
-  const result = await simulateAutoSubmitAndRecalculate("auto-no-staging");
+  const result = await simulateAutoSubmitAndRecalculate("auto-submit-readiness_auto-no-staging");
   if (result.data.readyForPickup === false) {
     pass("missing staging blocks readiness");
   } else {
@@ -206,8 +206,8 @@ try {
 
 // 4. Damage blocks
 await seed(async (db) => {
-  await setDoc(doc(db, "deliveries", "auto-damage"), {
-    id: "auto-damage",
+  await setDoc(doc(db, "deliveries", "auto-submit-readiness_auto-damage"), {
+    id: "auto-submit-readiness_auto-damage",
     jobId: "job-1",
     vendorId: "vendor-1",
     status: "arrived",
@@ -215,18 +215,18 @@ await seed(async (db) => {
     vendorOrderComplete: true,
     lastCheckmarkAt: "2020-01-01T00:00:00Z",
   });
-  await setDoc(doc(db, "items", "item-dmg-1"), {
-    deliveryOrderId: "auto-damage",
+  await setDoc(doc(db, "items", "auto-submit-readiness_item-dmg-1"), {
+    deliveryOrderId: "auto-submit-readiness_auto-damage",
     qtyOrdered: 2,
     qtyReceived: 2,
     qtyMissing: 0,
     qtyDamaged: 1,
     qtyBackordered: 0,
   });
-  await seedVendorSession(db, "auto-damage");
+  await seedVendorSession(db, "auto-submit-readiness_auto-damage");
 });
 try {
-  const result = await simulateAutoSubmitAndRecalculate("auto-damage");
+  const result = await simulateAutoSubmitAndRecalculate("auto-submit-readiness_auto-damage");
   if (result.data.readyForPickup === false) {
     pass("damage blocks readiness");
   } else {
@@ -238,8 +238,8 @@ try {
 
 // 5. Repeated processing — no duplicate history
 await seed(async (db) => {
-  await setDoc(doc(db, "deliveries", "auto-idempotent"), {
-    id: "auto-idempotent",
+  await setDoc(doc(db, "deliveries", "auto-submit-readiness_auto-idempotent"), {
+    id: "auto-submit-readiness_auto-idempotent",
     jobId: "job-1",
     vendorId: "vendor-1",
     status: "ready_for_pickup",
@@ -249,20 +249,20 @@ await seed(async (db) => {
     lastCheckmarkAt: "2020-01-01T00:00:00Z",
     submittedAt: new Date().toISOString(),
   });
-  await setDoc(doc(db, "items", "item-idem-1"), {
-    deliveryOrderId: "auto-idempotent",
+  await setDoc(doc(db, "items", "auto-submit-readiness_item-idem-1"), {
+    deliveryOrderId: "auto-submit-readiness_auto-idempotent",
     qtyOrdered: 1,
     qtyReceived: 1,
     qtyMissing: 0,
     qtyDamaged: 0,
     qtyBackordered: 0,
   });
-  await seedVendorSession(db, "auto-idempotent");
+  await seedVendorSession(db, "auto-submit-readiness_auto-idempotent");
 });
 try {
   const before = await countHistory();
-  await recalculateReadiness(recalcPayload("auto-idempotent"));
-  await recalculateReadiness(recalcPayload("auto-idempotent"));
+  await recalculateReadiness(recalcPayload("auto-submit-readiness_auto-idempotent"));
+  await recalculateReadiness(recalcPayload("auto-submit-readiness_auto-idempotent"));
   const after = await countHistory();
   if (after === before) {
     pass("repeated recalculation does not duplicate history");

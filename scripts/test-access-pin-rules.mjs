@@ -46,43 +46,46 @@ async function seedDispatcher(uid) {
 try {
   console.log("\n=== access PIN firestore rules ===\n");
 
-  const dispatcherCtx = testEnv.authenticatedContext("disp-1");
-  await seedDispatcher("disp-1");
+  const dispatcherCtx = testEnv.authenticatedContext("access-pin-rules_disp-1");
+  await seedDispatcher("access-pin-rules_disp-1");
   const db = dispatcherCtx.firestore();
+
+  const techPinTargetId = "access-pin-rules_t1";
+  const adminPinUid = "access-pin-rules_admin-1";
 
   await assert.rejects(
     () =>
-      setDoc(doc(db, "accessPinSecrets", "technician_t1"), {
+      setDoc(doc(db, "accessPinSecrets", `technician_${techPinTargetId}`), {
         targetType: "technician",
-        targetId: "t1",
+        targetId: techPinTargetId,
       }),
     /PERMISSION_DENIED/,
   );
   pass("client cannot write accessPinSecrets");
 
   await assert.rejects(
-    () => getDoc(doc(db, "accessPinSecrets", "admin_admin-1")),
+    () => getDoc(doc(db, "accessPinSecrets", `admin_${adminPinUid}`)),
     /permission-denied|PERMISSION_DENIED/i,
   );
   pass("client cannot read admin accessPinSecrets");
 
   await assert.rejects(
-    () => getDoc(doc(db, "adminAccessSessions", "sess1")),
+    () => getDoc(doc(db, "adminAccessSessions", "access-pin-rules_sess1")),
     /permission-denied|PERMISSION_DENIED/i,
   );
   pass("client cannot read adminAccessSessions");
 
   await assert.rejects(
     () =>
-      setDoc(doc(db, "adminAccessSessions", "sess1"), {
-        managerUid: "disp-1",
+      setDoc(doc(db, "adminAccessSessions", "access-pin-rules_sess1"), {
+        managerUid: "access-pin-rules_disp-1",
       }),
     /PERMISSION_DENIED/,
   );
   pass("client cannot write adminAccessSessions");
 
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    await setDoc(doc(ctx.firestore(), "technicians", "tech-rules-1"), {
+    await setDoc(doc(ctx.firestore(), "technicians", "access-pin-rules_tech-rules-1"), {
       name: "Tech",
       active: true,
     });
@@ -90,7 +93,7 @@ try {
 
   await assert.rejects(
     () =>
-      updateDoc(doc(db, "technicians", "tech-rules-1"), {
+      updateDoc(doc(db, "technicians", "access-pin-rules_tech-rules-1"), {
         pinCode: "1234",
       }),
     /PERMISSION_DENIED/,
@@ -98,7 +101,7 @@ try {
   pass("dispatcher cannot client-update technician pinCode");
 
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    await setDoc(doc(ctx.firestore(), "vendors", "vendor-rules-1"), {
+    await setDoc(doc(ctx.firestore(), "vendors", "access-pin-rules_vendor-rules-1"), {
       name: "Vendor",
       active: true,
     });
@@ -106,7 +109,7 @@ try {
 
   await assert.rejects(
     () =>
-      updateDoc(doc(db, "vendors", "vendor-rules-1"), {
+      updateDoc(doc(db, "vendors", "access-pin-rules_vendor-rules-1"), {
         pinHash: "aa:bb",
       }),
     /PERMISSION_DENIED/,
@@ -115,7 +118,7 @@ try {
 
   // Settings savePinEditor footgun: stale client pinHash after CF deleted it.
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    await setDoc(doc(ctx.firestore(), "vendors", "vendor-rules-migrated"), {
+    await setDoc(doc(ctx.firestore(), "vendors", "access-pin-rules_vendor-rules-migrated"), {
       name: "Migrated Vendor",
       active: true,
       pinConfigured: true,
@@ -124,7 +127,7 @@ try {
   await assert.rejects(
     () =>
       setDoc(
-        doc(db, "vendors", "vendor-rules-migrated"),
+        doc(db, "vendors", "access-pin-rules_vendor-rules-migrated"),
         {
           name: "Migrated Vendor",
           active: true,
@@ -139,7 +142,7 @@ try {
   pass("stale pinHash re-merge after migration is denied");
 
   await setDoc(
-    doc(db, "vendors", "vendor-rules-migrated"),
+    doc(db, "vendors", "access-pin-rules_vendor-rules-migrated"),
     {
       name: "Migrated Vendor",
       active: false,
@@ -152,7 +155,7 @@ try {
 
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const snap = await getDoc(
-      doc(ctx.firestore(), "technicians", "tech-rules-1"),
+      doc(ctx.firestore(), "technicians", "access-pin-rules_tech-rules-1"),
     );
     assert.equal(snap.exists(), true);
   });

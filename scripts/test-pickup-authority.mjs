@@ -128,10 +128,10 @@ async function countHistory() {
 }
 
 async function seedReadyDelivery(db, {
-  id = "del-ready-1",
-  jobId = "job-1",
+  id = "pickup-authority_del-ready-1",
+  jobId = "pickup-authority_job-1",
   vendorId = "vendor-1",
-  poId = "po-1",
+  poId = "pickup-authority_po-1",
   locations = ["loc-a", "loc-b"],
   itemCount = 2,
 } = {}) {
@@ -183,7 +183,7 @@ async function seedReadyDelivery(db, {
 }
 
 async function pickupPayload(deliveryId, overrides = {}) {
-  let jobId = "job-1";
+  let jobId = "pickup-authority_job-1";
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const { getDoc } = await import("firebase/firestore");
     const snap = await getDoc(doc(ctx.firestore(), "deliveries", deliveryId));
@@ -205,11 +205,11 @@ console.log("\n=== Pickup transaction authority ===\n");
 try {
   await seed(async (db) => {
     await seedReadyDelivery(db);
-    await seedPickupToken(db, "job-1");
+    await seedPickupToken(db, "pickup-authority_job-1");
   });
 
   const opId = "op-idempotent-001";
-  const base = await pickupPayload("del-ready-1", {
+  const base = await pickupPayload("pickup-authority_del-ready-1", {
     clientOperationId: opId,
     stagingLocationIds: ["loc-a"],
   });
@@ -230,7 +230,7 @@ try {
   }
 
   const concurrentOp = "op-concurrent-001";
-  const concurrentPayload = await pickupPayload("del-ready-1", {
+  const concurrentPayload = await pickupPayload("pickup-authority_del-ready-1", {
     clientOperationId: concurrentOp,
     stagingLocationIds: ["loc-b"],
   });
@@ -246,17 +246,17 @@ try {
   }
 
   await seed(async (db) => {
-    await seedReadyDelivery(db, { id: "del-repick", locations: ["loc-r1", "loc-r2"] });
+    await seedReadyDelivery(db, { id: "pickup-authority_del-repick", locations: ["loc-r1", "loc-r2"] });
   });
   await recordPickup(
-    await pickupPayload("del-repick", {
+    await pickupPayload("pickup-authority_del-repick", {
       clientOperationId: "op-repick-1",
       stagingLocationIds: ["loc-r1"],
     }),
   );
   try {
     await recordPickup(
-      await pickupPayload("del-repick", {
+      await pickupPayload("pickup-authority_del-repick", {
         clientOperationId: "op-repick-2",
         stagingLocationIds: ["loc-r1"],
       }),
@@ -267,11 +267,11 @@ try {
   }
 
   await seed(async (db) => {
-    await seedReadyDelivery(db, { id: "del-bad-loc", locations: ["loc-good"] });
+    await seedReadyDelivery(db, { id: "pickup-authority_del-bad-loc", locations: ["loc-good"] });
   });
   try {
     await recordPickup(
-      await pickupPayload("del-bad-loc", {
+      await pickupPayload("pickup-authority_del-bad-loc", {
         clientOperationId: "op-bad-loc",
         stagingLocationIds: ["loc-unrelated"],
       }),
@@ -282,12 +282,12 @@ try {
   }
 
   await seed(async (db) => {
-    await setDoc(doc(db, "deliveries", "del-no-stage"), {
-      id: "del-no-stage",
+    await setDoc(doc(db, "deliveries", "pickup-authority_del-no-stage"), {
+      id: "pickup-authority_del-no-stage",
       orderNumber: "ORD-NOSTAGE",
-      jobId: "job-1",
+      jobId: "pickup-authority_job-1",
       vendorId: "vendor-1",
-      purchaseOrderId: "po-1",
+      purchaseOrderId: "pickup-authority_po-1",
       deliveryDate: "2026-06-12",
       status: "ready_for_pickup",
       readinessStatus: "ready_for_pickup",
@@ -298,9 +298,9 @@ try {
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     });
-    await setDoc(doc(db, "items", "del-no-stage-item"), {
-      id: "del-no-stage-item",
-      deliveryOrderId: "del-no-stage",
+    await setDoc(doc(db, "items", "pickup-authority_del-no-stage-item"), {
+      id: "pickup-authority_del-no-stage-item",
+      deliveryOrderId: "pickup-authority_del-no-stage",
       description: "Coil",
       qtyOrdered: 1,
       qtyReceived: 1,
@@ -313,7 +313,7 @@ try {
 
   try {
     await recordPickup(
-      await pickupPayload("del-no-stage", { clientOperationId: "op-no-stage" }),
+      await pickupPayload("pickup-authority_del-no-stage", { clientOperationId: "op-no-stage" }),
     );
     fail("delivery without staging should be rejected");
   } catch {
@@ -321,12 +321,12 @@ try {
   }
 
   await seed(async (db) => {
-    await setDoc(doc(db, "deliveries", "del-willcall-pickup"), {
-      id: "del-willcall-pickup",
+    await setDoc(doc(db, "deliveries", "pickup-authority_del-willcall-pickup"), {
+      id: "pickup-authority_del-willcall-pickup",
       orderNumber: "ORD-WILLCALL",
-      jobId: "job-1",
+      jobId: "pickup-authority_job-1",
       vendorId: "vendor-1",
-      purchaseOrderId: "po-1",
+      purchaseOrderId: "pickup-authority_po-1",
       deliveryDate: "2026-06-12",
       status: "ready_for_pickup",
       readinessStatus: "ready_for_pickup",
@@ -338,9 +338,9 @@ try {
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     });
-    await setDoc(doc(db, "items", "del-willcall-pickup-item"), {
-      id: "del-willcall-pickup-item",
-      deliveryOrderId: "del-willcall-pickup",
+    await setDoc(doc(db, "items", "pickup-authority_del-willcall-pickup-item"), {
+      id: "pickup-authority_del-willcall-pickup-item",
+      deliveryOrderId: "pickup-authority_del-willcall-pickup",
       description: "Will-call coil",
       qtyOrdered: 1,
       qtyReceived: 0,
@@ -352,7 +352,7 @@ try {
   });
 
   const willCallPickup = await recordPickup(
-    await pickupPayload("del-willcall-pickup", {
+    await pickupPayload("pickup-authority_del-willcall-pickup", {
       clientOperationId: "op-willcall-pickup",
     }),
   );
@@ -365,7 +365,7 @@ try {
   let willCallDelivery = null;
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const { getDoc } = await import("firebase/firestore");
-    const snap = await getDoc(doc(ctx.firestore(), "deliveries", "del-willcall-pickup"));
+    const snap = await getDoc(doc(ctx.firestore(), "deliveries", "pickup-authority_del-willcall-pickup"));
     willCallDelivery = snap.data();
   });
   if (willCallDelivery?.status === "picked_up") {
@@ -382,9 +382,9 @@ try {
     );
   }
 
-  const recalcAfterWillCall = recalcPayload("del-willcall-pickup");
+  const recalcAfterWillCall = recalcPayload("pickup-authority_del-willcall-pickup");
   await seed(async (db) => {
-    await seedVendorSession(db, "del-willcall-pickup");
+    await seedVendorSession(db, "pickup-authority_del-willcall-pickup");
   });
   const recalcResult = await recalculateReadiness(recalcAfterWillCall);
   if (recalcResult.data.deliveryStatus === "picked_up") {
@@ -398,7 +398,7 @@ try {
 
   await seed(async (db) => {
     const { updateDoc } = await import("firebase/firestore");
-    await updateDoc(doc(db, "deliveries", "del-willcall-pickup"), {
+    await updateDoc(doc(db, "deliveries", "pickup-authority_del-willcall-pickup"), {
       status: "ready_for_pickup",
       readinessStatus: "ready_for_pickup",
       updatedAt: new Date().toISOString(),
@@ -418,7 +418,7 @@ try {
   let repairedDelivery = null;
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const { getDoc } = await import("firebase/firestore");
-    const snap = await getDoc(doc(ctx.firestore(), "deliveries", "del-willcall-pickup"));
+    const snap = await getDoc(doc(ctx.firestore(), "deliveries", "pickup-authority_del-willcall-pickup"));
     repairedDelivery = snap.data();
   });
   if (repairedDelivery?.status === "picked_up") {
@@ -432,8 +432,8 @@ try {
 
   try {
     await recordPickup(
-      await pickupPayload("del-ready-1", {
-        jobId: "job-wrong",
+      await pickupPayload("pickup-authority_del-ready-1", {
+        jobId: "pickup-authority_job-wrong",
         clientOperationId: "op-wrong-job",
         stagingLocationIds: ["loc-a"],
       }),
@@ -444,13 +444,13 @@ try {
   }
 
   await seed(async (db) => {
-    await seedReadyDelivery(db, { id: "del-ineligible", locations: ["loc-x"] });
-    await setDoc(doc(db, "deliveries", "del-ineligible"), {
-      id: "del-ineligible",
+    await seedReadyDelivery(db, { id: "pickup-authority_del-ineligible", locations: ["loc-x"] });
+    await setDoc(doc(db, "deliveries", "pickup-authority_del-ineligible"), {
+      id: "pickup-authority_del-ineligible",
       orderNumber: "ORD-INEL",
-      jobId: "job-1",
+      jobId: "pickup-authority_job-1",
       vendorId: "vendor-1",
-      purchaseOrderId: "po-1",
+      purchaseOrderId: "pickup-authority_po-1",
       deliveryDate: "2026-06-12",
       status: "partial",
       readinessStatus: "not_ready",
@@ -465,7 +465,7 @@ try {
 
   try {
     await recordPickup(
-      await pickupPayload("del-ineligible", {
+      await pickupPayload("pickup-authority_del-ineligible", {
         clientOperationId: "op-ineligible",
         stagingLocationIds: ["loc-x"],
       }),
@@ -476,11 +476,11 @@ try {
   }
 
   await seed(async (db) => {
-    await seedReadyDelivery(db, { id: "del-many-items", locations: ["loc-m"], itemCount: 0 });
+    await seedReadyDelivery(db, { id: "pickup-authority_del-many-items", locations: ["loc-m"], itemCount: 0 });
     for (let i = 0; i < 501; i++) {
-      await setDoc(doc(db, "items", `del-many-items-item-${i}`), {
-        id: `del-many-items-item-${i}`,
-        deliveryOrderId: "del-many-items",
+      await setDoc(doc(db, "items", `pickup-authority_del-many-items-item-${i}`), {
+        id: `pickup-authority_del-many-items-item-${i}`,
+        deliveryOrderId: "pickup-authority_del-many-items",
         description: `Item ${i}`,
         qtyOrdered: 1,
         qtyReceived: 1,
@@ -494,7 +494,7 @@ try {
 
   try {
     await recordPickup(
-      await pickupPayload("del-many-items", {
+      await pickupPayload("pickup-authority_del-many-items", {
         clientOperationId: "op-too-many",
         stagingLocationIds: ["loc-m"],
       }),
@@ -507,12 +507,12 @@ try {
   console.log("\n=== Readiness authority (trusted CF) ===\n");
 
   await seed(async (db) => {
-    await setDoc(doc(db, "deliveries", "del-readiness-1"), {
-      id: "del-readiness-1",
+    await setDoc(doc(db, "deliveries", "pickup-authority_del-readiness-1"), {
+      id: "pickup-authority_del-readiness-1",
       orderNumber: "ORD-R1",
-      jobId: "job-1",
+      jobId: "pickup-authority_job-1",
       vendorId: "vendor-1",
-      purchaseOrderId: "po-1",
+      purchaseOrderId: "pickup-authority_po-1",
       deliveryDate: "2026-06-12",
       status: "partial",
       stagingLocationId: "loc-r1",
@@ -520,9 +520,9 @@ try {
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     });
-    await setDoc(doc(db, "items", "del-readiness-1-item"), {
-      id: "del-readiness-1-item",
-      deliveryOrderId: "del-readiness-1",
+    await setDoc(doc(db, "items", "pickup-authority_del-readiness-1-item"), {
+      id: "pickup-authority_del-readiness-1-item",
+      deliveryOrderId: "pickup-authority_del-readiness-1",
       description: "Filter",
       qtyOrdered: 2,
       qtyReceived: 2,
@@ -531,10 +531,10 @@ try {
       qtyBackordered: 0,
       status: "received",
     });
-    await seedVendorSession(db, "del-readiness-1");
+    await seedVendorSession(db, "pickup-authority_del-readiness-1");
   });
 
-  const physOnly = await recalculateReadiness(recalcPayload("del-readiness-1"));
+  const physOnly = await recalculateReadiness(recalcPayload("pickup-authority_del-readiness-1"));
   if (physOnly.data.readyForPickup === false) {
     pass("physical only cannot create readiness");
   } else {
@@ -543,14 +543,14 @@ try {
 
   await seed(async (db) => {
     const { updateDoc } = await import("firebase/firestore");
-    await updateDoc(doc(db, "deliveries", "del-readiness-1"), {
+    await updateDoc(doc(db, "deliveries", "pickup-authority_del-readiness-1"), {
       vendorOrderComplete: true,
       vendorOrderCompleteAt: new Date().toISOString(),
       vendorOrderCompleteSource: "dispatcher",
     });
   });
 
-  const bothReady = await recalculateReadiness(recalcPayload("del-readiness-1"));
+  const bothReady = await recalculateReadiness(recalcPayload("pickup-authority_del-readiness-1"));
   if (bothReady.data.readyForPickup === true && bothReady.data.deliveryStatus === "ready_for_pickup") {
     pass("both sources plus staging create readiness via trusted CF");
   } else {
@@ -558,7 +558,7 @@ try {
   }
 
   const historyAfterFirst = await countHistory();
-  const repeat = await recalculateReadiness(recalcPayload("del-readiness-1"));
+  const repeat = await recalculateReadiness(recalcPayload("pickup-authority_del-readiness-1"));
   const historyAfterRepeat = await countHistory();
   if (repeat.data.statusChanged === false && historyAfterRepeat === historyAfterFirst) {
     pass("repeated recalculation does not duplicate history");
@@ -567,12 +567,12 @@ try {
   }
 
   await seed(async (db) => {
-    await setDoc(doc(db, "deliveries", "del-shortage"), {
-      id: "del-shortage",
+    await setDoc(doc(db, "deliveries", "pickup-authority_del-shortage"), {
+      id: "pickup-authority_del-shortage",
       orderNumber: "ORD-S1",
-      jobId: "job-1",
+      jobId: "pickup-authority_job-1",
       vendorId: "vendor-1",
-      purchaseOrderId: "po-1",
+      purchaseOrderId: "pickup-authority_po-1",
       deliveryDate: "2026-06-12",
       status: "partial",
       stagingLocationId: "loc-s1",
@@ -580,9 +580,9 @@ try {
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     });
-    await setDoc(doc(db, "items", "del-shortage-item"), {
-      id: "del-shortage-item",
-      deliveryOrderId: "del-shortage",
+    await setDoc(doc(db, "items", "pickup-authority_del-shortage-item"), {
+      id: "pickup-authority_del-shortage-item",
+      deliveryOrderId: "pickup-authority_del-shortage",
       description: "Short",
       qtyOrdered: 2,
       qtyReceived: 1,
@@ -591,9 +591,9 @@ try {
       qtyBackordered: 0,
       status: "partial",
     });
-    await seedVendorSession(db, "del-shortage");
+    await seedVendorSession(db, "pickup-authority_del-shortage");
   });
-  const shortage = await recalculateReadiness(recalcPayload("del-shortage"));
+  const shortage = await recalculateReadiness(recalcPayload("pickup-authority_del-shortage"));
   if (shortage.data.readyForPickup === false) {
     pass("shortage blocks readiness");
   } else {
@@ -601,12 +601,12 @@ try {
   }
 
   await seed(async (db) => {
-    await setDoc(doc(db, "deliveries", "del-damage"), {
-      id: "del-damage",
+    await setDoc(doc(db, "deliveries", "pickup-authority_del-damage"), {
+      id: "pickup-authority_del-damage",
       orderNumber: "ORD-D1",
-      jobId: "job-1",
+      jobId: "pickup-authority_job-1",
       vendorId: "vendor-1",
-      purchaseOrderId: "po-1",
+      purchaseOrderId: "pickup-authority_po-1",
       deliveryDate: "2026-06-12",
       status: "partial",
       stagingLocationId: "loc-d1",
@@ -614,9 +614,9 @@ try {
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     });
-    await setDoc(doc(db, "items", "del-damage-item"), {
-      id: "del-damage-item",
-      deliveryOrderId: "del-damage",
+    await setDoc(doc(db, "items", "pickup-authority_del-damage-item"), {
+      id: "pickup-authority_del-damage-item",
+      deliveryOrderId: "pickup-authority_del-damage",
       description: "Damaged",
       qtyOrdered: 1,
       qtyReceived: 1,
@@ -625,9 +625,9 @@ try {
       qtyBackordered: 0,
       status: "damaged",
     });
-    await seedVendorSession(db, "del-damage");
+    await seedVendorSession(db, "pickup-authority_del-damage");
   });
-  const damage = await recalculateReadiness(recalcPayload("del-damage"));
+  const damage = await recalculateReadiness(recalcPayload("pickup-authority_del-damage"));
   if (damage.data.readyForPickup === false) {
     pass("damage blocks readiness");
   } else {
@@ -635,12 +635,12 @@ try {
   }
 
   await seed(async (db) => {
-    await setDoc(doc(db, "deliveries", "del-nostage-ready"), {
-      id: "del-nostage-ready",
+    await setDoc(doc(db, "deliveries", "pickup-authority_del-nostage-ready"), {
+      id: "pickup-authority_del-nostage-ready",
       orderNumber: "ORD-NS",
-      jobId: "job-1",
+      jobId: "pickup-authority_job-1",
       vendorId: "vendor-1",
-      purchaseOrderId: "po-1",
+      purchaseOrderId: "pickup-authority_po-1",
       deliveryDate: "2026-06-12",
       status: "partial",
       stagingLocationId: "",
@@ -648,9 +648,9 @@ try {
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     });
-    await setDoc(doc(db, "items", "del-nostage-ready-item"), {
-      id: "del-nostage-ready-item",
-      deliveryOrderId: "del-nostage-ready",
+    await setDoc(doc(db, "items", "pickup-authority_del-nostage-ready-item"), {
+      id: "pickup-authority_del-nostage-ready-item",
+      deliveryOrderId: "pickup-authority_del-nostage-ready",
       description: "No zone",
       qtyOrdered: 1,
       qtyReceived: 1,
@@ -659,9 +659,9 @@ try {
       qtyBackordered: 0,
       status: "received",
     });
-    await seedVendorSession(db, "del-nostage-ready");
+    await seedVendorSession(db, "pickup-authority_del-nostage-ready");
   });
-  const noStage = await recalculateReadiness(recalcPayload("del-nostage-ready"));
+  const noStage = await recalculateReadiness(recalcPayload("pickup-authority_del-nostage-ready"));
   if (noStage.data.readyForPickup === false) {
     pass("missing staging blocks readiness");
   } else {
@@ -670,11 +670,11 @@ try {
 
   await seed(async (db) => {
     await seedReadyDelivery(db, {
-      id: "del-combo-group",
+      id: "pickup-authority_del-combo-group",
       locations: ["loc-combo-primary", "loc-combo-extra"],
     });
     const { updateDoc } = await import("firebase/firestore");
-    await updateDoc(doc(db, "deliveries", "del-combo-group"), {
+    await updateDoc(doc(db, "deliveries", "pickup-authority_del-combo-group"), {
       combinationStagingGroupId: "verify-combo-g15-17",
       combinationMemberLocationIds: ["loc-combo-m1", "loc-combo-m2"],
     });
@@ -688,7 +688,7 @@ try {
   ];
   for (let i = 0; i < comboLocations.length; i++) {
     await recordPickup(
-      await pickupPayload("del-combo-group", {
+      await pickupPayload("pickup-authority_del-combo-group", {
         clientOperationId: `op-combo-${i}`,
         stagingLocationIds: [comboLocations[i]],
       }),
@@ -698,7 +698,7 @@ try {
   let comboDelivery = null;
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const { getDoc } = await import("firebase/firestore");
-    const snap = await getDoc(doc(ctx.firestore(), "deliveries", "del-combo-group"));
+    const snap = await getDoc(doc(ctx.firestore(), "deliveries", "pickup-authority_del-combo-group"));
     comboDelivery = snap.data();
   });
   if (
@@ -720,14 +720,14 @@ try {
 
   console.log("\n=== Technician session pickup authority ===\n");
 
-  const TECH_SESSION_TOKEN = "b".repeat(64);
-  const TECH_ID = "tech-auth-1";
+  const TECH_SESSION_TOKEN = "6".repeat(64);
+  const TECH_ID = "pickup-authority_tech-auth-1";
 
   async function seedTechnicianSession(db, {
     token = TECH_SESSION_TOKEN,
     technicianId = TECH_ID,
     expiresAt = new Date(Date.now() + 3_600_000).toISOString(),
-    jobIds = ["job-tech-1"],
+    jobIds = ["pickup-authority_job-tech-1"],
   } = {}) {
     const now = new Date().toISOString();
     const releaseDate = now.slice(0, 10);
@@ -757,17 +757,17 @@ try {
 
   await seed(async (db) => {
     await seedReadyDelivery(db, {
-      id: "del-tech-session",
-      jobId: "job-tech-1",
-      poId: "po-tech-1",
+      id: "pickup-authority_del-tech-session",
+      jobId: "pickup-authority_job-tech-1",
+      poId: "pickup-authority_po-tech-1",
       locations: ["loc-tech-a"],
     });
-    await seedTechnicianSession(db, { jobIds: ["job-tech-1"] });
+    await seedTechnicianSession(db, { jobIds: ["pickup-authority_job-tech-1"] });
   });
 
   const techOk = await recordPickup({
-    deliveryOrderId: "del-tech-session",
-    jobId: "job-tech-1",
+    deliveryOrderId: "pickup-authority_del-tech-session",
+    jobId: "pickup-authority_job-tech-1",
     technicianName: "Client Spoof Name",
     itemsPickedSummary: "2 items",
     clientOperationId: `op-tech-ok-${crypto.randomUUID()}`,
@@ -785,25 +785,25 @@ try {
 
   await seed(async (db) => {
     await seedReadyDelivery(db, {
-      id: "del-tech-unreleased",
-      jobId: "job-tech-unreleased",
-      poId: "po-tech-u",
+      id: "pickup-authority_del-tech-unreleased",
+      jobId: "pickup-authority_job-tech-unreleased",
+      poId: "pickup-authority_po-tech-u",
       locations: ["loc-tech-u"],
     });
     await seedTechnicianSession(db, {
-      token: "c".repeat(64),
-      jobIds: ["job-other-only"],
+      token: "7".repeat(64),
+      jobIds: ["pickup-authority_job-other-only"],
     });
   });
   try {
     await recordPickup({
-      deliveryOrderId: "del-tech-unreleased",
-      jobId: "job-tech-unreleased",
+      deliveryOrderId: "pickup-authority_del-tech-unreleased",
+      jobId: "pickup-authority_job-tech-unreleased",
       technicianName: "Session Tech",
       itemsPickedSummary: "2 items",
       clientOperationId: `op-tech-unrel-${crypto.randomUUID()}`,
       stagingLocationIds: ["loc-tech-u"],
-      technicianSessionToken: "c".repeat(64),
+      technicianSessionToken: "7".repeat(64),
     });
     fail("unreleased job should be denied for technician session");
   } catch {
@@ -812,26 +812,26 @@ try {
 
   await seed(async (db) => {
     await seedReadyDelivery(db, {
-      id: "del-tech-expired",
-      jobId: "job-tech-expired",
-      poId: "po-tech-e",
+      id: "pickup-authority_del-tech-expired",
+      jobId: "pickup-authority_job-tech-expired",
+      poId: "pickup-authority_po-tech-e",
       locations: ["loc-tech-e"],
     });
     await seedTechnicianSession(db, {
-      token: "d".repeat(64),
+      token: "8".repeat(64),
       expiresAt: new Date(Date.now() - 60_000).toISOString(),
-      jobIds: ["job-tech-expired"],
+      jobIds: ["pickup-authority_job-tech-expired"],
     });
   });
   try {
     await recordPickup({
-      deliveryOrderId: "del-tech-expired",
-      jobId: "job-tech-expired",
+      deliveryOrderId: "pickup-authority_del-tech-expired",
+      jobId: "pickup-authority_job-tech-expired",
       technicianName: "Session Tech",
       itemsPickedSummary: "2 items",
       clientOperationId: `op-tech-exp-${crypto.randomUUID()}`,
       stagingLocationIds: ["loc-tech-e"],
-      technicianSessionToken: "d".repeat(64),
+      technicianSessionToken: "8".repeat(64),
     });
     fail("expired technician session should be denied");
   } catch {
@@ -840,16 +840,16 @@ try {
 
   await seed(async (db) => {
     await seedReadyDelivery(db, {
-      id: "del-tech-invalid",
-      jobId: "job-tech-invalid",
-      poId: "po-tech-i",
+      id: "pickup-authority_del-tech-invalid",
+      jobId: "pickup-authority_job-tech-invalid",
+      poId: "pickup-authority_po-tech-i",
       locations: ["loc-tech-i"],
     });
   });
   try {
     await recordPickup({
-      deliveryOrderId: "del-tech-invalid",
-      jobId: "job-tech-invalid",
+      deliveryOrderId: "pickup-authority_del-tech-invalid",
+      jobId: "pickup-authority_job-tech-invalid",
       technicianName: "Session Tech",
       itemsPickedSummary: "2 items",
       clientOperationId: `op-tech-inv-${crypto.randomUUID()}`,
@@ -863,8 +863,8 @@ try {
 
   try {
     await recordPickup({
-      deliveryOrderId: "del-tech-invalid",
-      jobId: "job-tech-invalid",
+      deliveryOrderId: "pickup-authority_del-tech-invalid",
+      jobId: "pickup-authority_job-tech-invalid",
       technicianName: "Session Tech",
       itemsPickedSummary: "2 items",
       clientOperationId: `op-tech-none-${crypto.randomUUID()}`,
@@ -880,7 +880,7 @@ try {
     const unauth = testEnv.unauthenticatedContext();
     const unauthDb = unauth.firestore();
     try {
-      await getDoc(doc(unauthDb, "deliveries", "del-tech-session"));
+      await getDoc(doc(unauthDb, "deliveries", "pickup-authority_del-tech-session"));
       fail("unauthenticated getDoc(deliveries) should be denied by rules");
     } catch {
       pass("unauthenticated getDoc(deliveries) denied by rules");
@@ -890,7 +890,7 @@ try {
 
   console.log("\n=== Computed-ready partial + planned staging pickup ===\n");
 
-  const PLANNED_G6_ID = "loc-planned-g6";
+  const PLANNED_G6_ID = "pickup-authority_loc-planned-g6";
   const TECH_PLANNED_TOKEN = "f".repeat(64);
 
   await seed(async (db) => {
@@ -901,27 +901,27 @@ try {
       zoneId: "zone-ground",
       active: true,
     });
-    await setDoc(doc(db, "jobs", "job-planned-g6"), {
-      id: "job-planned-g6",
+    await setDoc(doc(db, "jobs", "pickup-authority_job-planned-g6"), {
+      id: "pickup-authority_job-planned-g6",
       jobNumber: "26-G6",
       jobName: "Planned G6 job",
       status: "active",
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     });
-    await setDoc(doc(db, "purchaseOrders", "po-planned-g6"), {
-      id: "po-planned-g6",
+    await setDoc(doc(db, "purchaseOrders", "pickup-authority_po-planned-g6"), {
+      id: "pickup-authority_po-planned-g6",
       poNumber: "PO-G6",
-      jobId: "job-planned-g6",
+      jobId: "pickup-authority_job-planned-g6",
       vendorId: "vendor-1",
       status: "open",
     });
-    await setDoc(doc(db, "deliveries", "del-planned-g6-ready"), {
-      id: "del-planned-g6-ready",
+    await setDoc(doc(db, "deliveries", "pickup-authority_del-planned-g6-ready"), {
+      id: "pickup-authority_del-planned-g6-ready",
       orderNumber: "INV-6170797",
-      jobId: "job-planned-g6",
+      jobId: "pickup-authority_job-planned-g6",
       vendorId: "vendor-1",
-      purchaseOrderId: "po-planned-g6",
+      purchaseOrderId: "pickup-authority_po-planned-g6",
       deliveryDate: "2026-06-12",
       status: "partial",
       readinessStatus: "not_ready",
@@ -933,9 +933,9 @@ try {
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     });
-    await setDoc(doc(db, "items", "del-planned-g6-ready-item"), {
-      id: "del-planned-g6-ready-item",
-      deliveryOrderId: "del-planned-g6-ready",
+    await setDoc(doc(db, "items", "pickup-authority_del-planned-g6-ready-item"), {
+      id: "pickup-authority_del-planned-g6-ready-item",
+      deliveryOrderId: "pickup-authority_del-planned-g6-ready",
       description: "Fully received",
       qtyOrdered: 1,
       qtyReceived: 1,
@@ -944,17 +944,17 @@ try {
       qtyBackordered: 0,
       status: "received",
     });
-    await seedPickupToken(db, "job-planned-g6");
+    await seedPickupToken(db, "pickup-authority_job-planned-g6");
     await seedTechnicianSession(db, {
       token: TECH_PLANNED_TOKEN,
-      jobIds: ["job-planned-g6"],
+      jobIds: ["pickup-authority_job-planned-g6"],
     });
   });
 
   try {
     await recordPickup({
-      deliveryOrderId: "del-planned-g6-ready",
-      jobId: "job-planned-g6",
+      deliveryOrderId: "pickup-authority_del-planned-g6-ready",
+      jobId: "pickup-authority_job-planned-g6",
       technicianName: "Session Tech",
       itemsPickedSummary: "1 item",
       clientOperationId: `op-planned-g6-${crypto.randomUUID()}`,
@@ -967,12 +967,12 @@ try {
   }
 
   await seed(async (db) => {
-    await setDoc(doc(db, "deliveries", "del-planned-only-fail"), {
-      id: "del-planned-only-fail",
+    await setDoc(doc(db, "deliveries", "pickup-authority_del-planned-only-fail"), {
+      id: "pickup-authority_del-planned-only-fail",
       orderNumber: "ORD-PLAN-FAIL",
-      jobId: "job-planned-g6",
+      jobId: "pickup-authority_job-planned-g6",
       vendorId: "vendor-1",
-      purchaseOrderId: "po-planned-g6",
+      purchaseOrderId: "pickup-authority_po-planned-g6",
       deliveryDate: "2026-06-12",
       status: "arrived",
       vendorOrderComplete: true,
@@ -982,9 +982,9 @@ try {
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     });
-    await setDoc(doc(db, "items", "del-planned-only-fail-item"), {
-      id: "del-planned-only-fail-item",
-      deliveryOrderId: "del-planned-only-fail",
+    await setDoc(doc(db, "items", "pickup-authority_del-planned-only-fail-item"), {
+      id: "pickup-authority_del-planned-only-fail-item",
+      deliveryOrderId: "pickup-authority_del-planned-only-fail",
       description: "Never received",
       qtyOrdered: 1,
       qtyReceived: 0,
@@ -997,8 +997,8 @@ try {
 
   try {
     await recordPickup({
-      deliveryOrderId: "del-planned-only-fail",
-      jobId: "job-planned-g6",
+      deliveryOrderId: "pickup-authority_del-planned-only-fail",
+      jobId: "pickup-authority_job-planned-g6",
       technicianName: "Session Tech",
       itemsPickedSummary: "1 item",
       clientOperationId: `op-planned-only-${crypto.randomUUID()}`,
@@ -1034,7 +1034,7 @@ try {
 
   async function seedAssignedPlannedVdo(db, {
     id,
-    jobId = "job-manual-1",
+    jobId = "pickup-authority_job-manual-1",
     status = "pending",
     stagingLocationId = "",
     plannedStagingLocationIds = ["loc-planned-g12"],
@@ -1091,8 +1091,8 @@ try {
 
   // (a) Assigned/Planned VDO, incomplete, no staging — dispatcher can complete
   await seed(async (db) => {
-    await seedAssignedPlannedVdo(db, { id: "del-manual-zero-stage" });
-    await seedPickupToken(db, "job-manual-1");
+    await seedAssignedPlannedVdo(db, { id: "pickup-authority_del-manual-zero-stage" });
+    await seedPickupToken(db, "pickup-authority_job-manual-1");
   });
   const dispatcherUid = await ensureAuthUser(
     DISPATCHER_TEST_EMAIL,
@@ -1101,8 +1101,8 @@ try {
   await seedDispatcherRole(dispatcherUid, { active: true });
 
   const zeroStageResult = await recordPickup({
-    deliveryOrderId: "del-manual-zero-stage",
-    jobId: "job-manual-1",
+    deliveryOrderId: "pickup-authority_del-manual-zero-stage",
+    jobId: "pickup-authority_job-manual-1",
     technicianName: "Tech Manual",
     itemsPickedSummary: "Manual closeout",
     clientOperationId: `op-manual-zero-${crypto.randomUUID()}`,
@@ -1122,7 +1122,7 @@ try {
   let zeroStagePickupEvent = null;
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const snap = await getDoc(
-      doc(ctx.firestore(), "deliveries", "del-manual-zero-stage"),
+      doc(ctx.firestore(), "deliveries", "pickup-authority_del-manual-zero-stage"),
     );
     const zeroData = snap.data() ?? {};
     if (zeroData.status !== "picked_up") {
@@ -1142,7 +1142,7 @@ try {
     const itemsSnap = await getDocs(
       query(
         collection(ctx.firestore(), "items"),
-        where("deliveryOrderId", "==", "del-manual-zero-stage"),
+        where("deliveryOrderId", "==", "pickup-authority_del-manual-zero-stage"),
       ),
     );
     const mutated = itemsSnap.docs.some((d) => (d.data()?.qtyReceived ?? 0) !== 0);
@@ -1154,7 +1154,7 @@ try {
     const events = await getDocs(collection(ctx.firestore(), "pickupEvents"));
     zeroStagePickupEvent = events.docs
       .map((d) => d.data())
-      .find((e) => e.deliveryOrderId === "del-manual-zero-stage");
+      .find((e) => e.deliveryOrderId === "pickup-authority_del-manual-zero-stage");
   });
   if (
     zeroStagePickupEvent?.manualPickup === true &&
@@ -1172,13 +1172,13 @@ try {
   // (b) Same incomplete VDO via pickupToken only (signed out) — still rejected
   await signOut(auth);
   await seed(async (db) => {
-    await seedAssignedPlannedVdo(db, { id: "del-manual-token-block" });
-    await seedPickupToken(db, "job-manual-1");
+    await seedAssignedPlannedVdo(db, { id: "pickup-authority_del-manual-token-block" });
+    await seedPickupToken(db, "pickup-authority_job-manual-1");
   });
   try {
     await recordPickup({
-      deliveryOrderId: "del-manual-token-block",
-      jobId: "job-manual-1",
+      deliveryOrderId: "pickup-authority_del-manual-token-block",
+      jobId: "pickup-authority_job-manual-1",
       technicianName: "Tech Token",
       itemsPickedSummary: "Should fail",
       clientOperationId: `op-manual-token-${crypto.randomUUID()}`,
@@ -1200,12 +1200,12 @@ try {
     });
   });
   await seed(async (db) => {
-    await seedAssignedPlannedVdo(db, { id: "del-manual-norole" });
+    await seedAssignedPlannedVdo(db, { id: "pickup-authority_del-manual-norole" });
   });
   try {
     await recordPickup({
-      deliveryOrderId: "del-manual-norole",
-      jobId: "job-manual-1",
+      deliveryOrderId: "pickup-authority_del-manual-norole",
+      jobId: "pickup-authority_job-manual-1",
       technicianName: "No Role",
       itemsPickedSummary: "Should fail",
       clientOperationId: `op-manual-norole-${crypto.randomUUID()}`,
@@ -1219,11 +1219,11 @@ try {
   await ensureAuthUser(DISPATCHER_TEST_EMAIL, DISPATCHER_TEST_PASSWORD);
   await seedDispatcherRole(auth.currentUser.uid, { active: true });
   await seed(async (db) => {
-    await seedAssignedPlannedVdo(db, { id: "del-manual-terminal" });
-    await setDoc(doc(db, "deliveries", "del-manual-terminal"), {
-      id: "del-manual-terminal",
+    await seedAssignedPlannedVdo(db, { id: "pickup-authority_del-manual-terminal" });
+    await setDoc(doc(db, "deliveries", "pickup-authority_del-manual-terminal"), {
+      id: "pickup-authority_del-manual-terminal",
       orderNumber: "ORD-del-manual-terminal",
-      jobId: "job-manual-1",
+      jobId: "pickup-authority_job-manual-1",
       vendorId: "vendor-1",
       purchaseOrderId: "po-del-manual-terminal",
       status: "picked_up",
@@ -1233,9 +1233,9 @@ try {
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     });
-    await setDoc(doc(db, "items", "del-manual-terminal-item-0"), {
-      id: "del-manual-terminal-item-0",
-      deliveryOrderId: "del-manual-terminal",
+    await setDoc(doc(db, "items", "pickup-authority_del-manual-terminal-item-0"), {
+      id: "pickup-authority_del-manual-terminal-item-0",
+      deliveryOrderId: "pickup-authority_del-manual-terminal",
       description: "Done",
       qtyOrdered: 1,
       qtyReceived: 1,
@@ -1246,8 +1246,8 @@ try {
     });
   });
   const terminal = await recordPickup({
-    deliveryOrderId: "del-manual-terminal",
-    jobId: "job-manual-1",
+    deliveryOrderId: "pickup-authority_del-manual-terminal",
+    jobId: "pickup-authority_job-manual-1",
     technicianName: "Tech Manual",
     itemsPickedSummary: "Already done",
     clientOperationId: `op-manual-term-${crypto.randomUUID()}`,
@@ -1267,14 +1267,14 @@ try {
   // (e) VDO with staging + incomplete items — pickup succeeds and staging clears
   await seed(async (db) => {
     await seedAssignedPlannedVdo(db, {
-      id: "del-manual-staged",
+      id: "pickup-authority_del-manual-staged",
       status: "arrived",
-      stagingLocationId: "loc-g12",
+      stagingLocationId: "pickup-authority_loc-g12",
       itemCount: 3,
       qtyReceived: 0,
     });
-    await setDoc(doc(db, "stagingLocations", "loc-g12"), {
-      id: "loc-g12",
+    await setDoc(doc(db, "stagingLocations", "pickup-authority_loc-g12"), {
+      id: "pickup-authority_loc-g12",
       code: "G12",
       status: "Active",
       createdAt: "2026-01-01T00:00:00Z",
@@ -1282,8 +1282,8 @@ try {
     });
   });
   const staged = await recordPickup({
-    deliveryOrderId: "del-manual-staged",
-    jobId: "job-manual-1",
+    deliveryOrderId: "pickup-authority_del-manual-staged",
+    jobId: "pickup-authority_job-manual-1",
     technicianName: "Tech Staged",
     itemsPickedSummary: "Staged incomplete closeout",
     clientOperationId: `op-manual-staged-${crypto.randomUUID()}`,
@@ -1298,7 +1298,7 @@ try {
   }
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const snap = await getDoc(
-      doc(ctx.firestore(), "deliveries", "del-manual-staged"),
+      doc(ctx.firestore(), "deliveries", "pickup-authority_del-manual-staged"),
     );
     const data = snap.data() ?? {};
     if (
@@ -1324,7 +1324,7 @@ try {
     const itemsSnap = await getDocs(
       query(
         collection(ctx.firestore(), "items"),
-        where("deliveryOrderId", "==", "del-manual-staged"),
+        where("deliveryOrderId", "==", "pickup-authority_del-manual-staged"),
       ),
     );
     const rewritten = itemsSnap.docs.some((d) => (d.data()?.qtyReceived ?? 0) !== 0);

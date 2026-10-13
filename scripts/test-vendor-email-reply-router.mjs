@@ -100,28 +100,28 @@ async function seedBase(dispatcherUid) {
       emailReplyIngestEnabled: true,
       emailReplyIngestSince: "2026-01-01T00:00:00Z",
     });
-    await setDoc(doc(adminDb, "vendors", "vendor-1"), {
-      id: "vendor-1",
+    await setDoc(doc(adminDb, "vendors", "vendor-email-reply-router_vendor-1"), {
+      id: "vendor-email-reply-router_vendor-1",
       name: "Johnstone",
       email: "rep@johnstone.com",
     });
-    await setDoc(doc(adminDb, "deliveries", "del-1"), {
-      id: "del-1",
+    await setDoc(doc(adminDb, "deliveries", "vendor-email-reply-router_del-1"), {
+      id: "vendor-email-reply-router_del-1",
       orderNumber: "ORD-1001",
-      vendorId: "vendor-1",
+      vendorId: "vendor-email-reply-router_vendor-1",
       jobId: "job-1",
       status: "arrived",
       updatedAt: "2026-07-06T00:00:00Z",
     });
-    await setDoc(doc(adminDb, "vendorEmailEvents", "vee-outbound-seed"), {
-      id: "vee-outbound-seed",
+    await setDoc(doc(adminDb, "vendorEmailEvents", "vendor-email-reply-router_vee-outbound-seed"), {
+      id: "vendor-email-reply-router_vee-outbound-seed",
       direction: "outbound",
       sourceMessageId: "gmail-out-seed",
       threadId: THREAD_ID,
       rfc822MessageId: "<out-seed@svbotmail>",
       trackingToken: TOKEN,
-      deliveryOrderId: "del-1",
-      vendorId: "vendor-1",
+      deliveryOrderId: "vendor-email-reply-router_del-1",
+      vendorId: "vendor-email-reply-router_vendor-1",
       subject: subjectWithTrackingTag("PO status", TOKEN),
       senderEmail: "svbotmail@gmail.com",
       recipientEmails: ["rep@johnstone.com"],
@@ -191,7 +191,7 @@ await signInWithEmailAndPassword(auth, NON_DISPATCHER_EMAIL, PASSWORD);
 const sendVendorEmail = httpsCallable(functions, "sendVendorEmail");
 try {
   await sendVendorEmail({
-    deliveryOrderId: "del-1",
+    deliveryOrderId: "vendor-email-reply-router_del-1",
     to: "rep@johnstone.com",
     subject: "Test",
     body: "Hello",
@@ -224,7 +224,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     } else {
       fail("event match fields", JSON.stringify(event));
     }
-    if (event?.deliveryOrderId === "del-1") {
+    if (event?.deliveryOrderId === "vendor-email-reply-router_del-1") {
       pass("linked to outbound delivery");
     } else {
       fail("delivery link missing");
@@ -234,7 +234,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     } else {
       fail("unexpected humanReviewRequired on clean thread match");
     }
-    const deliverySnap = await getDoc(doc(adminDb, "deliveries", "del-1"));
+    const deliverySnap = await getDoc(doc(adminDb, "deliveries", "vendor-email-reply-router_del-1"));
     if (deliverySnap.data()?.vendorOrderComplete !== true) {
       pass("delivery status not mutated");
     } else {
@@ -298,7 +298,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     } else {
       fail("missing spoof conflict reason", event?.applyConflictReason);
     }
-    const deliverySnap = await getDoc(doc(adminDb, "deliveries", "del-1"));
+    const deliverySnap = await getDoc(doc(adminDb, "deliveries", "vendor-email-reply-router_del-1"));
     if (deliverySnap.data()?.vendorOrderComplete !== true) {
       pass("spoof reply did not mutate delivery");
     } else {

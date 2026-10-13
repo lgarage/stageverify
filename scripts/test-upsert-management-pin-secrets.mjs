@@ -42,6 +42,9 @@ const {
   accessPinUniquenessDocId,
 } = require(resolve(root, "functions/lib/accessPinSecretsShared.js"));
 
+const OLD_PIN = "2468";
+const NEW_PIN = "1357";
+
 let passed = 0;
 let failed = 0;
 
@@ -63,8 +66,8 @@ async function clearFixture(pinId) {
   batch.delete(
     db.collection("accessPinSecrets").doc(accessPinSecretDocId("management", pinId)),
   );
-  const oldKey = pinLookupKeyForPin("1111");
-  const newKey = pinLookupKeyForPin("2222");
+  const oldKey = pinLookupKeyForPin(OLD_PIN);
+  const newKey = pinLookupKeyForPin(NEW_PIN);
   batch.delete(
     db
       .collection("accessPinUniqueness")
@@ -81,13 +84,11 @@ async function clearFixture(pinId) {
 try {
   console.log("\n=== upsertManagementPinDoc accessPinSecrets sync ===\n");
 
-  const pinId = "mpin-test-secrets-sync";
+  const pinId = "upsert-management-pin-secrets_mpin-test-secrets-sync";
   await clearFixture(pinId);
 
   const db = getFirestore();
   const now = new Date().toISOString();
-  const oldPin = "1111";
-  const newPin = "2222";
 
   await db.collection("managementPins").doc(pinId).set({
     id: pinId,
@@ -99,15 +100,15 @@ try {
     updatedAt: now,
   });
 
-  const oldLookupKey = pinLookupKeyForPin(oldPin);
+  const oldLookupKey = pinLookupKeyForPin(OLD_PIN);
   await db
     .collection("accessPinSecrets")
     .doc(accessPinSecretDocId("management", pinId))
     .set({
       targetType: "management",
       targetId: pinId,
-      pinHash: hashPinForStorage(oldPin),
-      pinEncrypted: encryptPinForStorage(oldPin),
+      pinHash: hashPinForStorage(OLD_PIN),
+      pinEncrypted: encryptPinForStorage(OLD_PIN),
       pinLookupKey: oldLookupKey,
       revealable: true,
       updatedAt: now,
@@ -121,23 +122,23 @@ try {
       updatedAt: now,
     });
 
-  const beforeOld = await resolveManagementPinMatch(oldPin);
+  const beforeOld = await resolveManagementPinMatch(OLD_PIN);
   assert.ok(beforeOld);
   assert.equal(beforeOld.id, pinId);
   pass("old PIN matches via accessPinSecrets before upsert");
 
   await upsertManagementPinDoc({
     id: pinId,
-    pin: newPin,
+    pin: NEW_PIN,
     label: "Test PIN",
     active: true,
   });
 
-  const afterOld = await resolveManagementPinMatch(oldPin);
+  const afterOld = await resolveManagementPinMatch(OLD_PIN);
   assert.equal(afterOld, null);
   pass("old PIN no longer matches after upsert with new pin");
 
-  const afterNew = await resolveManagementPinMatch(newPin);
+  const afterNew = await resolveManagementPinMatch(NEW_PIN);
   assert.ok(afterNew);
   assert.equal(afterNew.id, pinId);
   pass("new PIN matches via accessPinSecrets after upsert");
@@ -154,7 +155,7 @@ try {
     permissions: { catchAllCheckIn: false },
   });
 
-  const stillNew = await resolveManagementPinMatch(newPin);
+  const stillNew = await resolveManagementPinMatch(NEW_PIN);
   assert.ok(stillNew);
   assert.equal(stillNew.label, "Renamed only");
   assert.equal(stillNew.permissions.catchAllCheckIn, false);

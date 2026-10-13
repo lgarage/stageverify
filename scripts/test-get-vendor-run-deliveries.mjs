@@ -17,8 +17,8 @@ import {
 const PROJECT_ID = "stageverify-db";
 const RULES_PATH = resolve(process.cwd(), "firestore.rules");
 const STAGING_CODE = "G1";
-const STAGING_ID = "loc-g1";
-const SHARED_LOC_ID = "loc-shared-run";
+const STAGING_ID = "get-vendor-run-deliveries_loc-g1";
+const SHARED_LOC_ID = "get-vendor-run-deliveries_loc-shared-run";
 
 const testEnv = await initializeTestEnvironment({
   projectId: PROJECT_ID,
@@ -79,8 +79,8 @@ try {
     });
 
     // Vendor A — company-wide
-    await setDoc(doc(db, "vendors", "vendor-run-a"), {
-      id: "vendor-run-a",
+    await setDoc(doc(db, "vendors", "get-vendor-run-deliveries_vendor-run-a"), {
+      id: "get-vendor-run-deliveries_vendor-run-a",
       name: "Run Vendor A",
       active: true,
       companyWideSessionEnabled: true,
@@ -89,39 +89,39 @@ try {
     });
 
     // Vendor B — must not appear for vendor A session
-    await setDoc(doc(db, "vendors", "vendor-run-b"), {
-      id: "vendor-run-b",
+    await setDoc(doc(db, "vendors", "get-vendor-run-deliveries_vendor-run-b"), {
+      id: "get-vendor-run-deliveries_vendor-run-b",
       name: "Run Vendor B",
       active: true,
       companyWideSessionEnabled: true,
       pinCode: "9090",
     });
 
-    await setDoc(doc(db, "jobs", "job-run-alpha"), {
-      id: "job-run-alpha",
+    await setDoc(doc(db, "jobs", "get-vendor-run-deliveries_job-run-alpha"), {
+      id: "get-vendor-run-deliveries_job-run-alpha",
       jobName: "Alpha Job",
       pinCode: "111111",
     });
-    await setDoc(doc(db, "jobs", "job-run-beta"), {
-      id: "job-run-beta",
+    await setDoc(doc(db, "jobs", "get-vendor-run-deliveries_job-run-beta"), {
+      id: "get-vendor-run-deliveries_job-run-beta",
       jobName: "Beta Job",
       pinCode: "222222",
     });
 
-    await setDoc(doc(db, "purchaseOrders", "po-run-1"), {
-      id: "po-run-1",
+    await setDoc(doc(db, "purchaseOrders", "get-vendor-run-deliveries_po-run-1"), {
+      id: "get-vendor-run-deliveries_po-run-1",
       poNumber: "PO-RUN-1",
-      jobId: "job-run-alpha",
-      vendorId: "vendor-run-a",
+      jobId: "get-vendor-run-deliveries_job-run-alpha",
+      vendorId: "get-vendor-run-deliveries_vendor-run-a",
     });
 
     // Active delivery on job alpha — primary anchor
-    await setDoc(doc(db, "deliveries", "del-run-alpha"), {
-      id: "del-run-alpha",
-      vendorId: "vendor-run-a",
-      jobId: "job-run-alpha",
+    await setDoc(doc(db, "deliveries", "get-vendor-run-deliveries_del-run-alpha"), {
+      id: "get-vendor-run-deliveries_del-run-alpha",
+      vendorId: "get-vendor-run-deliveries_vendor-run-a",
+      jobId: "get-vendor-run-deliveries_job-run-alpha",
       orderNumber: "ORD-A1",
-      purchaseOrderId: "po-run-1",
+      purchaseOrderId: "get-vendor-run-deliveries_po-run-1",
       status: "shipped",
       stagingLocationId: STAGING_ID,
       plannedStagingLocationIds: [STAGING_ID, SHARED_LOC_ID],
@@ -129,10 +129,10 @@ try {
     });
 
     // Active delivery on job beta — shared staging location
-    await setDoc(doc(db, "deliveries", "del-run-beta"), {
-      id: "del-run-beta",
-      vendorId: "vendor-run-a",
-      jobId: "job-run-beta",
+    await setDoc(doc(db, "deliveries", "get-vendor-run-deliveries_del-run-beta"), {
+      id: "get-vendor-run-deliveries_del-run-beta",
+      vendorId: "get-vendor-run-deliveries_vendor-run-a",
+      jobId: "get-vendor-run-deliveries_job-run-beta",
       orderNumber: "ORD-B1",
       status: "arrived",
       stagingLocationId: SHARED_LOC_ID,
@@ -140,41 +140,41 @@ try {
     });
 
     // Blocked — ready_for_pickup (filtered by isActiveVendorDelivery)
-    await setDoc(doc(db, "deliveries", "del-run-blocked"), {
-      id: "del-run-blocked",
-      vendorId: "vendor-run-a",
-      jobId: "job-run-alpha",
+    await setDoc(doc(db, "deliveries", "get-vendor-run-deliveries_del-run-blocked"), {
+      id: "get-vendor-run-deliveries_del-run-blocked",
+      vendorId: "get-vendor-run-deliveries_vendor-run-a",
+      jobId: "get-vendor-run-deliveries_job-run-alpha",
       orderNumber: "ORD-BLOCKED",
       status: "ready_for_pickup",
     });
 
     // Vendor B delivery — must not appear
-    await setDoc(doc(db, "deliveries", "del-run-vendor-b"), {
-      id: "del-run-vendor-b",
-      vendorId: "vendor-run-b",
-      jobId: "job-run-beta",
+    await setDoc(doc(db, "deliveries", "get-vendor-run-deliveries_del-run-vendor-b"), {
+      id: "get-vendor-run-deliveries_del-run-vendor-b",
+      vendorId: "get-vendor-run-deliveries_vendor-run-b",
+      jobId: "get-vendor-run-deliveries_job-run-beta",
       orderNumber: "ORD-B-OTHER",
       status: "shipped",
     });
 
-    await setDoc(doc(db, "items", "item-run-a1"), {
-      id: "item-run-a1",
-      deliveryOrderId: "del-run-alpha",
+    await setDoc(doc(db, "items", "get-vendor-run-deliveries_item-run-a1"), {
+      id: "get-vendor-run-deliveries_item-run-a1",
+      deliveryOrderId: "get-vendor-run-deliveries_del-run-alpha",
       description: "Alpha Widget",
       qtyOrdered: 3,
       qtyReceived: 3,
       qtyBackordered: 0,
       status: "received",
     });
-    await setDoc(doc(db, "items", "item-run-a2"), {
-      id: "item-run-a2",
-      deliveryOrderId: "del-run-alpha",
+    await setDoc(doc(db, "items", "get-vendor-run-deliveries_item-run-a2"), {
+      id: "get-vendor-run-deliveries_item-run-a2",
+      deliveryOrderId: "get-vendor-run-deliveries_del-run-alpha",
       description: "Alpha Gasket",
       qtyOrdered: 1,
     });
-    await setDoc(doc(db, "items", "item-run-b1"), {
-      id: "item-run-b1",
-      deliveryOrderId: "del-run-beta",
+    await setDoc(doc(db, "items", "get-vendor-run-deliveries_item-run-b1"), {
+      id: "get-vendor-run-deliveries_item-run-b1",
+      deliveryOrderId: "get-vendor-run-deliveries_del-run-beta",
       description: "Beta Part",
       qtyOrdered: 2,
     });
@@ -192,7 +192,7 @@ try {
     if (
       data?.success !== true ||
       data.sessionScope !== "vendor" ||
-      data.vendorId !== "vendor-run-a" ||
+      data.vendorId !== "get-vendor-run-deliveries_vendor-run-a" ||
       typeof data.sessionToken !== "string"
     ) {
       throw new Error(JSON.stringify(data));
@@ -209,7 +209,7 @@ try {
   // Happy path — batched enrichment
   try {
     const { data } = await getRunDeliveries({ sessionToken });
-    if (data?.vendorId !== "vendor-run-a") {
+    if (data?.vendorId !== "get-vendor-run-deliveries_vendor-run-a") {
       throw new Error(`bad vendorId ${data?.vendorId}`);
     }
     if (!Array.isArray(data.deliveries)) {
@@ -226,8 +226,8 @@ try {
       throw new Error(`unexpected delivery ids ${ids.join(",")}`);
     }
 
-    const alpha = data.deliveries.find((d) => d.deliveryId === "del-run-alpha");
-    const beta = data.deliveries.find((d) => d.deliveryId === "del-run-beta");
+    const alpha = data.deliveries.find((d) => d.deliveryId === "get-vendor-run-deliveries_del-run-alpha");
+    const beta = data.deliveries.find((d) => d.deliveryId === "get-vendor-run-deliveries_del-run-beta");
 
     if (!alpha || !beta) throw new Error("missing expected delivery summaries");
 
@@ -273,8 +273,8 @@ try {
       throw new Error(`bad alpha delivery status ${alpha.status}`);
     }
 
-    const a1 = alpha.items.find((i) => i.id === "item-run-a1");
-    const a2 = alpha.items.find((i) => i.id === "item-run-a2");
+    const a1 = alpha.items.find((i) => i.id === "get-vendor-run-deliveries_item-run-a1");
+    const a2 = alpha.items.find((i) => i.id === "get-vendor-run-deliveries_item-run-a2");
     if (!a1 || !a2) throw new Error("missing alpha items for DTO assert");
 
     if (a1.qtyReceived !== 3) {

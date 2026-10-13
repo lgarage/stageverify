@@ -157,13 +157,13 @@ function createMemoryDb(seed = {}) {
 }
 
 function seedImportAndProposal(opts = {}) {
-  const importId = opts.importId ?? "imp-c2-1";
-  const messageId = opts.messageId ?? "msg-propose-1";
+  const importId = opts.importId ?? "invoice-field-correction_imp-c2-1";
+  const messageId = opts.messageId ?? "invoice-field-correction_msg-propose-1";
   const currentValue = opts.currentValue ?? "";
   const proposedValue = opts.proposedValue ?? "2205 EARLY";
   const field = opts.field ?? "customerPoOrReference";
   const reviewStatus = opts.reviewStatus ?? "pending_review";
-  const inboundId = "inbound-c2-1";
+  const inboundId = "invoice-field-correction_inbound-c2-1";
 
   const seed = {
     [`vendorInvoiceImports/${importId}`]: {
@@ -391,8 +391,8 @@ function ok(label) {
   ok("blank Customer PO → evidenced PO applies + audit + original snapshot");
 
   const { db: db2, importId: id2, messageId: m2 } = seedImportAndProposal({
-    importId: "imp-c2-wrong",
-    messageId: "msg-2",
+    importId: "invoice-field-correction_imp-c2-wrong",
+    messageId: "invoice-field-correction_msg-2",
     currentValue: "WRONG-PO",
   });
   const r2 = await applyMod.runApplyInvoiceReviewFieldCorrectionCore({
@@ -411,7 +411,7 @@ function ok(label) {
 // 3 — unsupported field rejected
 {
   const { db, importId, messageId } = seedImportAndProposal({
-    importId: "imp-bad-field",
+    importId: "invoice-field-correction_imp-bad-field",
     field: "customerPoOrReference",
   });
   // Tamper message to unsupported field after seed
@@ -455,7 +455,7 @@ function ok(label) {
 // 5 — value absent from document + not typed → refuse
 {
   const { db, importId, messageId } = seedImportAndProposal({
-    importId: "imp-no-ev",
+    importId: "invoice-field-correction_imp-no-ev",
     proposedValue: "GHOST-PO",
     extracted: EXTRACTED,
     dispatcherText: "Please fix the PO somehow.",
@@ -478,7 +478,7 @@ function ok(label) {
 {
   const fake = "ZZZX-PO-DOES-NOT-EXIST-99999";
   const { db, importId, messageId } = seedImportAndProposal({
-    importId: "imp-zzzx",
+    importId: "invoice-field-correction_imp-zzzx",
     proposedValue: fake,
     extracted: EXTRACTED,
     dispatcherText: `I see the PO and it is ${fake}. Check the invoice again.`,
@@ -513,7 +513,7 @@ function ok(label) {
 // 7 — stale expected current
 {
   const { db, importId, messageId } = seedImportAndProposal({
-    importId: "imp-stale",
+    importId: "invoice-field-correction_imp-stale",
     currentValue: "",
   });
   await db.collection("vendorInvoiceImports").doc(importId).update({
@@ -536,7 +536,7 @@ function ok(label) {
 // 8+9 — double apply idempotent; no duplicate audit
 {
   const { db, importId, messageId } = seedImportAndProposal({
-    importId: "imp-idem",
+    importId: "invoice-field-correction_imp-idem",
   });
   const a = await applyMod.runApplyInvoiceReviewFieldCorrectionCore({
     db,
@@ -565,7 +565,7 @@ function ok(label) {
 // 10–14 — only parsed import updates; approval/delivery/staging/training untouched
 {
   const { db, importId, messageId } = seedImportAndProposal({
-    importId: "imp-scope",
+    importId: "invoice-field-correction_imp-scope",
     extraSeed: {
       "deliveries/del-1": { status: "pending", po: "OLD" },
       "vendorTrainingPlaybook/v1": { lessons: ["x"] },
@@ -599,7 +599,7 @@ function ok(label) {
 // 15+16 — audit + chat linkage
 {
   const { db, importId, messageId } = seedImportAndProposal({
-    importId: "imp-audit",
+    importId: "invoice-field-correction_imp-audit",
   });
   const r = await applyMod.runApplyInvoiceReviewFieldCorrectionCore({
     db,
@@ -623,7 +623,7 @@ function ok(label) {
 // approved import blocked
 {
   const { db, importId, messageId } = seedImportAndProposal({
-    importId: "imp-approved",
+    importId: "invoice-field-correction_imp-approved",
     reviewStatus: "approved",
   });
   await assert.rejects(
@@ -755,7 +755,7 @@ function ok(label) {
 // Idempotent apply still returns reconciled parseWarnings for FE live merge
 {
   const { db, importId, messageId } = seedImportAndProposal({
-    importId: "imp-reconcile-idem",
+    importId: "invoice-field-correction_imp-reconcile-idem",
   });
   const first = await applyMod.runApplyInvoiceReviewFieldCorrectionCore({
     db,
@@ -781,7 +781,7 @@ function ok(label) {
 // CLEANUP Phase 1 — apply path with score 80 + clean CURRENT reaches suggested_import
 {
   const { db, importId, messageId } = seedImportAndProposal({
-    importId: "imp-phase1-score80",
+    importId: "invoice-field-correction_imp-phase1-score80",
     confidenceScore: 80,
     parseWarnings: ["missing customerPoOrReference"],
     reviewRequiredReasons: [
