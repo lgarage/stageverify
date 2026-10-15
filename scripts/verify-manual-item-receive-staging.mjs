@@ -5,7 +5,7 @@
  *   A — no refs → map without reassign; receive not written
  *   B — single planned spot → inline confirm; cancel leaves Not Delivered
  *   C — exit/cancel on map (no refs) → item stays Not Delivered
- *   D — single planned spot → inline confirm accept → Delivered + physical staging
+ *   D — single planned spot held by another order → confirm writes nothing
  *
  * Usage:
  *   npm run dev
@@ -33,6 +33,9 @@ import {
 
 const FIXTURE_DELIVERY_ID = "delivery-2";
 const FIXTURE_ITEM_ID = "item-3";
+/** Seed G1. Live delivery-demo-vendor-1 already holds this spot. */
+const PLANNED_SPOT_ID = "staging-1";
+const PLANNED_SPOT_CODE = "G1";
 
 const args = process.argv.slice(2);
 const baseUrlFlag = args.find((a) => a.startsWith("--base-url="));
@@ -114,7 +117,7 @@ async function prepareNoActual({ planned }) {
       updatedAt: new Date().toISOString(),
     };
     if (planned) {
-      patch.plannedStagingLocationIds = ["staging-1"];
+      patch.plannedStagingLocationIds = [PLANNED_SPOT_ID];
     } else {
       patch.plannedStagingLocationIds = deleteField();
     }
@@ -238,10 +241,12 @@ async function runInlineCase(browser, { name, accept, shot }) {
     page.once("dialog", async (dialog) => {
       clearTimeout(timer);
       const message = dialog.message();
-      if (!/was this delivered to g1\?/i.test(message)) {
+      const expected = `Was this delivered to ${PLANNED_SPOT_CODE}?`;
+      if (message !== expected) {
+        await dialog.dismiss().catch(() => {});
         reject(
           new Error(
-            `${name}: expected inline confirm for G1, got "${message}"`,
+            `${name}: expected inline confirm "${expected}", got "${message}"`,
           ),
         );
         return;
@@ -269,23 +274,28 @@ async function runInlineCase(browser, { name, accept, shot }) {
       throw new Error(`${name}: after cancel expected Not Delivered, got ${value}`);
     }
   } else {
-    let qty = 0;
-    for (let attempt = 0; attempt < 15; attempt += 1) {
-      await page.waitForTimeout(1000);
-      qty = await readItemQtyReceived();
-      if (qty >= 1) break;
+    if (page.url().includes("/zones")) {
+      throw new Error(`${name}: occupied confirm must not navigate to staging map`);
     }
-    if (qty < 1) {
-      throw new Error(`${name}: confirm must write qtyReceived, got ${qty}`);
+    const error = page.getByText(/already assigned/i);
+    await error.waitFor({ state: "visible", timeout: 25_000 });
+    const qty = await readItemQtyReceived();
+    if (qty !== 0) {
+      throw new Error(`${name}: occupied confirm wrote qtyReceived=${qty}`);
     }
     const stagingId = await withAuthedDb(async (db) => {
       const snap = await getDoc(doc(db, "deliveries", FIXTURE_DELIVERY_ID));
       return snap.data()?.stagingLocationId ?? "";
     });
-    if (stagingId !== "staging-1") {
+    if (stagingId) {
       throw new Error(
-        `${name}: confirm must set physical staging staging-1, got ${stagingId}`,
+        `${name}: occupied spot must not be written, got stagingLocationId=${stagingId}`,
       );
+    }
+    const select = page.getByTestId(`issue-summary-status-${FIXTURE_ITEM_ID}`);
+    const value = await select.inputValue();
+    if (value !== "Not Delivered") {
+      throw new Error(`${name}: after blocked confirm expected Not Delivered, got ${value}`);
     }
   }
 
@@ -312,7 +322,7 @@ async function main() {
       shot: "case-b-planned-cancel",
     });
     await runInlineCase(browser, {
-      name: "D planned-only confirm",
+      name: "D occupied spot confirm blocked",
       accept: true,
       shot: "case-d-planned-confirm",
     });
@@ -335,7 +345,11 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
