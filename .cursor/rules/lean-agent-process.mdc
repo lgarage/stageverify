@@ -29,6 +29,9 @@ One small job / one small PR per agent. Read only the files you need. PR body mu
 - `context-used:` peak token total Cursor shows for that reviewer run. Read it in the **Agents** window: click the **context ring** next to the prompt input; the tray lists token totals (system prompt, tools, rules, skills, MCP, subagents, summarized conversation, conversation). Record the **highest overall total** shown during the review. Use `n/a` only when that ring, or another Cursor usage readout for the same run, shows no number — do not guess. This cloud run-info API does not return token counts. CI does not check the value.
 - `sonnet-ran:` `required` | `no` only. Never `optional`.
 - `sonnet-unique-findings:` `Y` or `N` plus brief what
+- `confidence:` builder’s numeric confidence at handoff (integer percent, e.g. `97` — no rounding up)
+
+**Builder confidence (97% rule, Dan 2026-10-15; D-95):** Complements D-69 / `.cursor/rules/confidence-gate.mdc` (pre-edit ≥97% before repo writes; terminal **DONE** only when handoff confidence ≥97%). Every builder also states handoff `confidence:` in MODEL EVIDENCE. **Target ≥97%** before handoff. If under 97%, do **not** hand off as fully done: step up the coding ladder (§ Coding ladder) or tighten checks (re-run targeted tests, narrow scope, fix gaps), then re-state `confidence:`; if still under 97%, say so plainly in the PR body and the completion report (terminal **PARTIAL** or **BLOCKED** per `done-signal.mdc` — not **DONE**). **Merge (Spot):** Spot **may** merge without asking Dan only when **all** hold: MODEL EVIDENCE `confidence:` **≥97**; Grok **accuracy** review recorded **PASS** (no FAIL/HIGH findings; missing or NOT RUN → ask Dan); PR CI green; HIGH mechanical evidence (`security-gate-id:`, `model:`, `reviewed-commit:` when HIGH) already satisfied; and `sonnet-ran:` is **no** (when `sonnet-ran:` is **required**, or any Sonnet-backup path per `requiresSonnetBackup()` — rules, auth/PIN/roles, billing/money — Sonnet evidence **and Dan’s approval** are required before merge regardless of confidence). When `confidence:` is **under 97%**, Spot must ask Dan before merge. Deploy authorization unchanged (Dan approves every deploy).
 
 **Sonnet policy (Dan 2026-10-11):** Sonnet stays **required, no end date**, on the same paths as `requiresSonnetBackup()` in `gate-check.mjs`: `firestore.rules`; `src/` or `functions/` paths matching auth/PIN/roles heuristic; billing/money in product paths; plus ladder step 5, Grok FAIL/HIGH finding, or Dan asks. When the gate requires Sonnet, **run it without asking** — no optional Sonnet runs. Every Sonnet run records that run's `job-type:` and `sonnet-unique-findings:` (what Sonnet caught that Grok missed). CI/gate-config-only HIGH does **not** require Sonnet. Vendor-session-gated callables do **not** trigger Sonnet unless the **path** matches that heuristic (do not expand or shrink the heuristic).
 
@@ -90,15 +93,15 @@ CI on every PR must pass: `npm ci`, app build, functions build (committed `funct
 
 1. A **real recorded** HIGH review (`security-gate-id:` + `model:` + `reviewed-commit:` when HIGH).
 2. Tests and the build pass before merge.
-3. **Dan approves every merge and every deploy.** No auto-merge. No auto-deploy. Draft PRs are the default from cloud.
+3. **Merge:** No auto-merge except **D-95** Spot path (≥97% `confidence:`, Grok accuracy **PASS**, green CI, HIGH evidence when HIGH, `sonnet-ran:` **no**). Under 97% confidence, Spot asks Dan first. Sonnet-backup paths and `sonnet-ran:` **required** still need Sonnet + **Dan** before merge regardless of confidence. **Deploy:** Dan authorizes every deploy. No auto-deploy. Draft PRs are the default from cloud.
 4. A **rollback point** (commit hash / prior CF revision) before every deploy, and a **smoke test** after.
 5. **No gate bypass.** Do not use `GATE_SKIP`, `--no-verify`, or forged ids to skip HIGH review. Local `GATE_SKIP` / `--no-verify` only affect the optional pre-push hook — **CI `gate-check` always runs** and never honors `GATE_SKIP`.
-6. One small job / one small PR per agent; MODEL EVIDENCE + notes in the PR body including `ladder-step:` and `context-used:`.
+6. One small job / one small PR per agent; MODEL EVIDENCE + notes in the PR body including `ladder-step:`, `confidence:`, and `context-used:`.
 7. **256k context cap** — standard context only; stop and hand off before approaching the limit.
 
 ## Merge and deploy
 
-Branch + PR. Dan merges. Dan authorizes deploy (gh-pages, Cloud Functions, Firestore rules) separately. After deploy: smoke the path you changed; keep the rollback hash ready.
+Branch + PR. **Merge (D-95):** Spot may merge without asking Dan only when `confidence:` ≥97, Grok accuracy **PASS**, PR CI green, HIGH evidence when HIGH, and `sonnet-ran:` **no**; under 97%, ask Dan first; Sonnet-backup / `sonnet-ran:` **required** → Sonnet + Dan regardless of confidence. Dan authorizes deploy (gh-pages, Cloud Functions, Firestore rules) separately. After deploy: smoke the path you changed; keep the rollback hash ready.
 
 ## Minew / NDA
 
