@@ -355,45 +355,52 @@ export function DeliveryDetailDrawer({
     if (
       manualDeliveredRequiresPhysicalStagingGate(selectedDetails.delivery, status)
     ) {
-      const inlineTarget = stagingLocationsReady
-        ? resolveManualDeliveredInlineStagingConfirm(
-            selectedDetails.delivery,
-            stagingLocations,
-          )
-        : null;
+      const revertReceiptSelect = () => {
+        setSelectedDetails((current) =>
+          current ? { ...current, items: current.items.slice() } : current,
+        );
+      };
+
+      if (!stagingLocationsReady) {
+        setMutationError(
+          "Staging locations are still loading. Try Delivered again.",
+        );
+        revertReceiptSelect();
+        return;
+      }
+
+      const inlineTarget = resolveManualDeliveredInlineStagingConfirm(
+        selectedDetails.delivery,
+        stagingLocations,
+      );
 
       if (inlineTarget) {
         const confirmed = window.confirm(
           buildManualDeliveredInlineConfirmMessage(inlineTarget.locationCode),
         );
-        if (!confirmed) return;
+        if (!confirmed) {
+          revertReceiptSelect();
+          return;
+        }
 
         setMutationLoading(true);
         setMutationError(null);
         try {
-          const updated = await firestoreDataService.updateStagingLocation(
-            deliveryId,
-            inlineTarget.locationId,
-          );
+          const updated =
+            await firestoreDataService.commitManualItemDeliveredAtSpot(
+              deliveryId,
+              itemId,
+              inlineTarget.locationId,
+              qtyOrdered,
+              qtyReceived,
+              qtyMissing,
+            );
           if (!updated) {
             setMutationError("Failed to save staging location.");
             return;
           }
-          await firestoreDataService.updateItemQty(
-            deliveryId,
-            itemId,
-            qtyOrdered,
-            qtyReceived,
-            qtyMissing,
-          );
           clearPendingManualItemReceive();
-          const updatedDetails =
-            await firestoreDataService.getDeliveryDetails(deliveryId);
-          if (updatedDetails) await refreshAfter(updatedDetails);
-          else
-            setMutationError(
-              "Updated item qty but failed to reload delivery.",
-            );
+          await refreshAfter(updated);
         } catch (err) {
           setMutationError(
             err instanceof Error
