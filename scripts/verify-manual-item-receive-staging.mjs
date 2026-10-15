@@ -3,8 +3,9 @@
  *
  * Proves:
  *   A — no refs → map without reassign; receive not written
- *   B — planned only → map with reassign=1; receive not written
- *   C — exit/cancel → item stays Not Delivered
+ *   B — single planned spot → inline confirm; cancel leaves Not Delivered
+ *   C — exit/cancel on map (no refs) → item stays Not Delivered
+ *   D — single planned spot → inline confirm accept → Delivered + physical staging
  *
  * Usage:
  *   npm run dev
@@ -176,10 +177,10 @@ const BANNER_CONTRAST = {
   ],
 };
 
-async function runCase(browser, { name, planned, reassign, shot }) {
+async function runMapCase(browser, { name, reassign, shot }) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await ensureAuthenticated(page, appBase);
-  await prepareNoActual({ planned });
+  await prepareNoActual({ planned: false });
   await openDeliveryDrawerByDeepLink(page, appBase, FIXTURE_DELIVERY_ID);
   await page.screenshot({
     path: resolve(outDir, `before-${shot}.png`),
@@ -197,9 +198,6 @@ async function runCase(browser, { name, planned, reassign, shot }) {
   const noteText = (await note.innerText()).toLowerCase();
   if (!noteText.includes("physically placed")) {
     throw new Error(`${name}: banner must require physical placement; got "${noteText}"`);
-  }
-  if (planned && !noteText.includes("planned")) {
-    throw new Error(`${name}: planned-only banner should mention planned spots`);
   }
   await assertReadableTextContrast(page, BANNER_CONTRAST);
   await page.screenshot({
@@ -222,21 +220,106 @@ async function runCase(browser, { name, planned, reassign, shot }) {
   console.log(`PASS ${name}`);
 }
 
+async function runInlineCase(browser, { name, accept, shot }) {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  await ensureAuthenticated(page, appBase);
+  await prepareNoActual({ planned: true });
+  await openDeliveryDrawerByDeepLink(page, appBase, FIXTURE_DELIVERY_ID);
+  await page.screenshot({
+    path: resolve(outDir, `ps1-before-${shot}.png`),
+    fullPage: true,
+  });
+
+  const dialogPromise = new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${name}: timed out waiting for inline confirm`)),
+      12_000,
+    );
+    page.once("dialog", async (dialog) => {
+      clearTimeout(timer);
+      const message = dialog.message();
+      if (!/was this delivered to g1\?/i.test(message)) {
+        reject(
+          new Error(
+            `${name}: expected inline confirm for G1, got "${message}"`,
+          ),
+        );
+        return;
+      }
+      if (accept) await dialog.accept();
+      else await dialog.dismiss();
+      resolve();
+    });
+  });
+
+  await selectDelivered(page);
+  await dialogPromise;
+
+  if (!accept) {
+    if (page.url().includes("/zones")) {
+      throw new Error(`${name}: cancel must not navigate to staging map`);
+    }
+    const qty = await readItemQtyReceived();
+    if (qty !== 0) {
+      throw new Error(`${name}: cancel wrote qtyReceived=${qty}`);
+    }
+    const select = page.getByTestId(`issue-summary-status-${FIXTURE_ITEM_ID}`);
+    const value = await select.inputValue();
+    if (value !== "Not Delivered") {
+      throw new Error(`${name}: after cancel expected Not Delivered, got ${value}`);
+    }
+  } else {
+    let qty = 0;
+    for (let attempt = 0; attempt < 15; attempt += 1) {
+      await page.waitForTimeout(1000);
+      qty = await readItemQtyReceived();
+      if (qty >= 1) break;
+    }
+    if (qty < 1) {
+      throw new Error(`${name}: confirm must write qtyReceived, got ${qty}`);
+    }
+    const stagingId = await withAuthedDb(async (db) => {
+      const snap = await getDoc(doc(db, "deliveries", FIXTURE_DELIVERY_ID));
+      return snap.data()?.stagingLocationId ?? "";
+    });
+    if (stagingId !== "staging-1") {
+      throw new Error(
+        `${name}: confirm must set physical staging staging-1, got ${stagingId}`,
+      );
+    }
+  }
+
+  await page.screenshot({
+    path: resolve(outDir, `ps1-after-${shot}.png`),
+    fullPage: true,
+  });
+  await page.close();
+  console.log(`PASS ${name}`);
+}
+
 async function main() {
   const snapshot = await snapshotItemAndDelivery();
   const browser = await chromium.launch({ headless: true });
   try {
-    await runCase(browser, {
+    await runMapCase(browser, {
       name: "A no planned/actual",
-      planned: false,
       reassign: false,
       shot: "case-a-no-refs",
     });
-    await runCase(browser, {
-      name: "B planned-only",
-      planned: true,
-      reassign: true,
-      shot: "case-b-planned",
+    await runInlineCase(browser, {
+      name: "B planned-only cancel",
+      accept: false,
+      shot: "case-b-planned-cancel",
+    });
+    await runInlineCase(browser, {
+      name: "D planned-only confirm",
+      accept: true,
+      shot: "case-d-planned-confirm",
+    });
+    await runMapCase(browser, {
+      name: "C map exit cancel",
+      reassign: false,
+      shot: "case-c-map-exit",
     });
     console.log("verify-manual-item-receive-staging: ALL PASS");
   } finally {
@@ -249,7 +332,6 @@ async function main() {
       console.error("restore fixture failed:", err);
     });
     await browser.close();
-    process.exit(0);
   }
 }
 

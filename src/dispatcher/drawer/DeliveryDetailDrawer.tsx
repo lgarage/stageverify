@@ -15,10 +15,12 @@ import { ISSUE_RESOLUTION_TYPE_LABEL, type IssueResolutionType } from "../models
 import type { DeliveryDetails, DeliveryStatus, StagingLocation } from "../index";
 import { useDispatcherPortal } from "../DispatcherPortalContext";
 import {
+  buildManualDeliveredInlineConfirmMessage,
   buildManualReceiveStagingNavigateUrl,
   clearPendingManualItemReceive,
   deliveryHasAnyStagingRefs,
   manualDeliveredRequiresPhysicalStagingGate,
+  resolveManualDeliveredInlineStagingConfirm,
   writePendingManualItemReceive,
 } from "../manualItemReceiveStaging";
 import { DetailContent } from "./DeliveryDetailContent";
@@ -353,6 +355,58 @@ export function DeliveryDetailDrawer({
     if (
       manualDeliveredRequiresPhysicalStagingGate(selectedDetails.delivery, status)
     ) {
+      const inlineTarget = stagingLocationsReady
+        ? resolveManualDeliveredInlineStagingConfirm(
+            selectedDetails.delivery,
+            stagingLocations,
+          )
+        : null;
+
+      if (inlineTarget) {
+        const confirmed = window.confirm(
+          buildManualDeliveredInlineConfirmMessage(inlineTarget.locationCode),
+        );
+        if (!confirmed) return;
+
+        setMutationLoading(true);
+        setMutationError(null);
+        try {
+          const updated = await firestoreDataService.updateStagingLocation(
+            deliveryId,
+            inlineTarget.locationId,
+          );
+          if (!updated) {
+            setMutationError("Failed to save staging location.");
+            return;
+          }
+          await firestoreDataService.updateItemQty(
+            deliveryId,
+            itemId,
+            qtyOrdered,
+            qtyReceived,
+            qtyMissing,
+          );
+          clearPendingManualItemReceive();
+          const updatedDetails =
+            await firestoreDataService.getDeliveryDetails(deliveryId);
+          if (updatedDetails) await refreshAfter(updatedDetails);
+          else
+            setMutationError(
+              "Updated item qty but failed to reload delivery.",
+            );
+        } catch (err) {
+          setMutationError(
+            err instanceof Error
+              ? err.message
+              : "Failed to mark item delivered at the assigned spot.",
+          );
+          console.error(err);
+        } finally {
+          setMutationLoading(false);
+        }
+        return;
+      }
+
       writePendingManualItemReceive({
         deliveryId,
         itemId,

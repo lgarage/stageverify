@@ -158,6 +158,7 @@ import {
   StagingLocationOccupiedError,
   buildGloballyAssignedStagingLocationIds,
   deliveryUsesStagingLocation,
+  deliveryReferencesStagingLocation,
 } from "./stagingOccupancy";
 import {
   ShopStockLocationReservedError,
@@ -171,6 +172,7 @@ import {
 export {
   StagingLocationOccupiedError,
   deliveryUsesStagingLocation,
+  deliveryReferencesStagingLocation,
   isStagingLocationOccupiedError,
 } from "./stagingOccupancy";
 export {
@@ -862,7 +864,7 @@ export class FirestoreDataService implements DispatcherDataService {
       );
       const newLoc = stagingLocationFromSnap(newSnap);
       if (newLoc) newCode = newLoc.code;
-      if (!deliveryUsesStagingLocation(delivery, stagingLocationId)) {
+      if (!deliveryReferencesStagingLocation(delivery, stagingLocationId)) {
         await assertStagingLocationAvailable(stagingLocationId, deliveryId);
       }
     }

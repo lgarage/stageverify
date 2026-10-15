@@ -31,6 +31,17 @@ export function deliveryUsesStagingLocation(
   return getAllStagingLocationIds(delivery).includes(locationId);
 }
 
+/** Actual or planned staging ref on this delivery (inline confirm at assigned spot). */
+export function deliveryReferencesStagingLocation(
+  delivery: DeliveryOrder,
+  locationId: string,
+): boolean {
+  if (deliveryUsesStagingLocation(delivery, locationId)) return true;
+  return (delivery.plannedStagingLocationIds ?? []).some(
+    (id) => typeof id === "string" && id.trim() === locationId,
+  );
+}
+
 export function isStagingLocationOccupiedError(
   err: unknown,
 ): err is StagingLocationOccupiedError {

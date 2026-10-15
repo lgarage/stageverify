@@ -1,5 +1,6 @@
-import type { DeliveryOrder } from "./models";
+import type { DeliveryOrder, StagingLocation } from "./models";
 import { skipsShopStaging } from "./invoice/invoiceShellDisplayHelpers";
+import { formatStagingCodeCanonical } from "./stagingCode";
 
 /**
  * Authoritative physical shop staging on the delivery document.
@@ -90,6 +91,70 @@ export function clearPendingManualItemReceive(): void {
 }
 
 /** Staging Map assign flow — first physical via updateStagingLocation, or reassign CF when refs exist. */
+function resolveStagingLocationRef(
+  rawId: string,
+  locById: Map<string, StagingLocation>,
+  locByCodeKey: Map<string, StagingLocation>,
+): StagingLocation | undefined {
+  const id = rawId.trim();
+  if (!id) return undefined;
+  const byId = locById.get(id);
+  if (byId?.id) return byId;
+  return locByCodeKey.get(formatStagingCodeCanonical(id));
+}
+
+/**
+ * When physical staging is missing but the delivery has exactly one resolvable
+ * assigned spot, Order Summary Delivered can confirm in the drawer (PS-1).
+ */
+export function resolveManualDeliveredInlineStagingConfirm(
+  delivery: Pick<
+    DeliveryOrder,
+    | "stagingLocationId"
+    | "additionalStagingLocationIds"
+    | "plannedStagingLocationIds"
+  >,
+  stagingLocations: StagingLocation[],
+): { locationId: string; locationCode: string } | null {
+  if (deliveryHasActualPhysicalStaging(delivery)) return null;
+
+  const locById = new Map(stagingLocations.map((loc) => [loc.id, loc]));
+  const locByCodeKey = new Map<string, StagingLocation>();
+  for (const loc of stagingLocations) {
+    const key = formatStagingCodeCanonical(loc.code);
+    if (key) locByCodeKey.set(key, loc);
+  }
+
+  const rawRefs = [
+    ...(delivery.plannedStagingLocationIds ?? []),
+    ...(delivery.stagingLocationId?.trim()
+      ? [delivery.stagingLocationId.trim()]
+      : []),
+    ...(delivery.additionalStagingLocationIds ?? []),
+  ]
+    .map((ref) => (typeof ref === "string" ? ref.trim() : ""))
+    .filter(Boolean);
+
+  const uniqueLocations = new Map<string, StagingLocation>();
+  for (const raw of rawRefs) {
+    const loc = resolveStagingLocationRef(raw, locById, locByCodeKey);
+    if (loc?.id) uniqueLocations.set(loc.id, loc);
+  }
+
+  if (uniqueLocations.size !== 1) return null;
+
+  const loc = uniqueLocations.values().next().value as StagingLocation;
+  const code = formatStagingCodeCanonical(loc.code);
+  if (!code.trim()) return null;
+  return { locationId: loc.id, locationCode: code };
+}
+
+export function buildManualDeliveredInlineConfirmMessage(
+  locationCode: string,
+): string {
+  return `Was this delivered to ${locationCode}?`;
+}
+
 export function buildManualReceiveStagingNavigateUrl(
   deliveryId: string,
   itemId: string,
