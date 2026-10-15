@@ -1,15 +1,21 @@
 ---
-description: StageVerify Timekeeper — anti-thrash wall-clock + failure-class rules (D-72). Complements; never weakens safety gates.
-alwaysApply: true
+description: "DISABLED (Dan 2026-10-14) — D-72 Timekeeper; project hooks cleared; alwaysApply off."
+alwaysApply: false
 ---
 
-# StageVerify Timekeeper (D-72)
+# DISABLED — StageVerify Timekeeper (D-72) (Dan 2026-10-14)
+
+**Status:** Inactive in StageVerify runs. Project `.cursor/hooks.json` no longer invokes this plugin. Agents must **ignore** `TIMEKEEPER` blocks. Package kept for tests/history only.
+
+---
+
+# StageVerify Timekeeper (D-72) — archived rule text
 
 Harness tool. Optimizes for **correctness + reliability + wall-clock + model-cost**. Never weakens D-38, D-60, D-42, D-51, D-50/D-55, D-65, D-66, or D-69.
 
-## Auto machinery
+## Auto machinery (was active pre-2026-10-14)
 
-Project hooks (`.cursor/hooks.json` → plugin runner) observe tools/shell/subagents and inject a short `TIMEKEEPER` line **only on intervention**. Honor those blocks.
+Project hooks (`.cursor/hooks.json` → plugin runner) used to observe tools/shell/subagents and inject a short `TIMEKEEPER` line **only on intervention**.
 
 **Delivery:** checkpoints are `pending` until an agent-visible hook can carry them (`postToolUse` → `additional_context`; `preToolUse` / `beforeShellExecution` → `agent_message`; `stop` → `followup_message`). Unreliable channels (`afterShellExecution`, `afterFileEdit`, `postToolUseFailure`, subagent hooks) must not consume a checkpoint.
 

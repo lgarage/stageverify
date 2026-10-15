@@ -1,12 +1,20 @@
 ---
-description: StageVerify Timekeeper (D-72) anti-thrash checkpoints. Advise-only.
+description: "DISABLED (Dan 2026-10-14) — D-72 StageVerify Timekeeper; do not load for runs."
 alwaysApply: false
 ---
-# StageVerify Timekeeper (D-72) — project mirror
+# DISABLED — D-72 StageVerify Timekeeper (Dan 2026-10-14)
 
-Canonical detail: `plugins/stageverify-timekeeper/rules/timekeeper.mdc` + skill `stageverify-timekeeper`.
+**Status:** Timekeeper is **off** in this repo. Project `.cursor/hooks.json` no longer runs the plugin. **Ignore** any `TIMEKEEPER` blocks (including sticky ~35m re-nudges). Plugin package under `plugins/stageverify-timekeeper/` is retained for history/tests only.
 
-Hooks auto-run via `.cursor/hooks.json`. When a `TIMEKEEPER` block appears, follow its `decision`.
+Historical reference (not active): `plugins/stageverify-timekeeper/rules/timekeeper.mdc` + skill `stageverify-timekeeper`.
+
+---
+
+# StageVerify Timekeeper (D-72) — project mirror (archived)
+
+Canonical detail was: `plugins/stageverify-timekeeper/rules/timekeeper.mdc` + skill `stageverify-timekeeper`.
+
+Hooks previously auto-ran via `.cursor/hooks.json`. When a `TIMEKEEPER` block appeared, agents followed its `decision`.
 
 **Delivery:** pending until agent-visible hook (`postToolUse` / `preToolUse` / `beforeShellExecution` / `stop`). Do not treat silent best-effort channels as delivered.
 
