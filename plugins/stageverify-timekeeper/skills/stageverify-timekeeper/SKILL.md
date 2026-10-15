@@ -1,11 +1,15 @@
 ---
 name: stageverify-timekeeper
-description: Anti-thrash timekeeping for StageVerify harness runs. Use when stalled, repeating failed measurements, waiting on CI/deploy, or past ~10–35 minutes wall-clock.
+description: "DISABLED (Dan 2026-10-14) — D-72 Timekeeper off; ignore TIMEKEEPER blocks."
 ---
 
-# StageVerify Timekeeper skill
+# DISABLED — StageVerify Timekeeper skill (Dan 2026-10-14)
 
-## When to use
+D-72 Timekeeper is **turned off** (project hooks cleared). Do **not** invoke this skill or honor `TIMEKEEPER` hook output. Archived text below.
+
+# StageVerify Timekeeper skill (archived)
+
+## When to use (inactive)
 
 - Same verify/benchmark/command failed twice
 - Waiting on gh-pages / Firebase / CI
