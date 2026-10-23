@@ -3,9 +3,13 @@
  */
 import {
   collectDeliveryStagingCodes,
+  collectPickedUpStagingCodes,
   hasActiveShopStagingAssignment,
   hasUnresolvedStagingLocationRefs,
   isShopStagingAssignmentMissing,
+  pickedUpFromLabel,
+  siblingOccupiedStagingCodes,
+  stagingNeededBannerBody,
 } from "../src/dispatcher/drawer/DrawerStagingLocationChips.tsx";
 import {
   fulfillmentDisplayLabel,
@@ -171,6 +175,118 @@ assert(
     },
     locById,
   ) === false,
+);
+assert(
+  "picked_up + no live staging → not missing (no banner)",
+  isShopStagingAssignmentMissing(
+    {
+      status: "picked_up",
+      invoiceFulfillmentMethod: "delivery",
+      pickedUpStagingLocationIds: ["staging-1"],
+    },
+    locById,
+  ) === false,
+);
+assert(
+  "complete + no live staging → not missing",
+  isShopStagingAssignmentMissing(
+    {
+      status: "complete",
+      invoiceFulfillmentMethod: "delivery",
+    },
+    locById,
+  ) === false,
+);
+assert(
+  "picked_up leftover planned does not count as live chips",
+  collectDeliveryStagingCodes(
+    {
+      status: "picked_up",
+      plannedStagingLocationIds: ["staging-1"],
+      pickedUpStagingLocationIds: ["staging-2"],
+    },
+    locById,
+  ).length === 0,
+);
+assert(
+  "history codes resolve pickedUpStagingLocationIds",
+  collectPickedUpStagingCodes(
+    { pickedUpStagingLocationIds: ["staging-1"] },
+    locById,
+  ).join(",") === "G1",
+);
+assert(
+  "Picked up from G5 label",
+  pickedUpFromLabel(["G5"]) === "Picked up from G5",
+);
+assert(
+  "Picked up from multiple spots",
+  pickedUpFromLabel(["G5", "G11"]) === "Picked up from G5, G11",
+);
+assert(
+  "table action not required after pickup",
+  isDispatcherTableStagingActionRequired({
+    status: "picked_up",
+    invoiceFulfillmentMethod: "delivery",
+  }) === false,
+);
+
+const jobDeliveries = [
+  {
+    id: "d-need",
+    jobId: "job-6169474",
+    status: "arrived",
+    invoiceFulfillmentMethod: "delivery",
+  },
+  {
+    id: "d-sib",
+    jobId: "job-6169474",
+    status: "arrived",
+    invoiceFulfillmentMethod: "delivery",
+    stagingLocationId: "staging-g11",
+  },
+];
+const locByIdWithG11 = new Map([
+  ...locById,
+  [
+    "staging-g11",
+    { id: "staging-g11", code: "G11", label: "G11", type: "zone", status: "Active" },
+  ],
+]);
+assert(
+  "sibling occupied codes → G11",
+  siblingOccupiedStagingCodes(
+    jobDeliveries[0],
+    jobDeliveries,
+    locByIdWithG11,
+  ).join(",") === "G11",
+);
+assert(
+  "sibling G11 banner text",
+  stagingNeededBannerBody(["G11"]) ===
+    "Another delivery on this job is at G11.",
+);
+assert(
+  "default banner when no sibling",
+  stagingNeededBannerBody([]) ===
+    "Assign a location for receiving and pickup.",
+);
+assert(
+  "picked_up sibling does not name a freed spot",
+  siblingOccupiedStagingCodes(
+    { id: "d-need", jobId: "job-1", status: "arrived" },
+    [
+      { id: "d-need", jobId: "job-1", status: "arrived" },
+      {
+        id: "d-done",
+        jobId: "job-1",
+        status: "picked_up",
+        stagingLocationId: "staging-1",
+        pickedUpStagingLocationIds: ["staging-1"],
+      },
+    ],
+    locById,
+  ).length === 0,
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

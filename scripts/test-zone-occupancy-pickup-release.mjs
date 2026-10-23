@@ -172,4 +172,80 @@ const { resolveSpotColor } = await import(
   pass("sibling page pickup does not free unrelated sibling planned spot");
 }
 
+{
+  // 5) Partial pickup releases only the picked spot (r16 — G5 freed, leftover stays).
+  const partial = {
+    id: "delivery-partial-g5",
+    orderNumber: "6166261",
+    status: "ready_for_pickup",
+    updatedAt: now,
+    invoiceFulfillmentMethod: "delivery",
+    vendorInvoiceImportId: "vii-6166261",
+    vendorName: "Johnstone",
+    jobId: "job-r16",
+    stagingLocationId: "loc-g6",
+    additionalStagingLocationIds: ["loc-g12"],
+    plannedStagingLocationIds: ["loc-g6"],
+    pickedUpStagingLocationIds: ["loc-g6"],
+    readinessStatus: "ready_for_pickup",
+  };
+  const byCode = computeZoneOccupancyByCode(locations, [partial]);
+  assert.equal(byCode.G6, undefined);
+  assert.equal(byCode.G12?.deliveryId, "delivery-partial-g5");
+  assert.equal(resolveSpotColor("G6", byCode, {}), "green");
+  assert.equal(resolveSpotColor("G12", byCode, {}), "purple");
+  const blocked = buildGloballyAssignedStagingLocationIds([partial], "other");
+  assert.equal(blocked.has("loc-g6"), false);
+  assert.equal(blocked.has("loc-g12"), true);
+  pass("partial pickup releases G6 and keeps leftover G12 occupied");
+}
+
+{
+  // 6) Another active delivery keeps the spot after sibling pickup.
+  const picked = {
+    id: "delivery-picked-g6",
+    orderNumber: "P-1",
+    status: "picked_up",
+    updatedAt: now,
+    invoiceFulfillmentMethod: "delivery",
+    vendorInvoiceImportId: "vii-picked",
+    stagingLocationId: "",
+    plannedStagingLocationIds: [],
+    pickedUpStagingLocationIds: ["loc-g6"],
+  };
+  const other = {
+    id: "delivery-still-on-g6",
+    orderNumber: "P-2",
+    status: "arrived",
+    updatedAt: now,
+    invoiceFulfillmentMethod: "delivery",
+    vendorInvoiceImportId: "vii-other",
+    stagingLocationId: "loc-g6",
+    plannedStagingLocationIds: [],
+  };
+  const byCode = computeZoneOccupancyByCode(locations, [picked, other]);
+  assert.equal(byCode.G6?.deliveryId, "delivery-still-on-g6");
+  pass("spot stays occupied when another active delivery is in it");
+}
+
+{
+  // 7) WD-016 — held damaged item (issue, not pickup) still occupies.
+  const held = {
+    id: "delivery-held-damaged",
+    orderNumber: "DMG-1",
+    status: "issue",
+    updatedAt: now,
+    invoiceFulfillmentMethod: "delivery",
+    vendorInvoiceImportId: "vii-dmg",
+    stagingLocationId: "loc-g10",
+    plannedStagingLocationIds: ["loc-g10"],
+    issueSummary: "Damaged — held at shop",
+  };
+  const byCode = computeZoneOccupancyByCode(locations, [held]);
+  assert.equal(byCode.G10?.deliveryId, "delivery-held-damaged");
+  const blocked = buildGloballyAssignedStagingLocationIds([held], "other");
+  assert.equal(blocked.has("loc-g10"), true);
+  pass("WD-016 held damaged delivery still occupies its spot");
+}
+
 console.log(`\n${passed} passed`);

@@ -5,6 +5,7 @@ import {
   getAllStagingLocationIds,
 } from "./models";
 import { skipsShopStaging } from "./invoice/invoiceShellDisplayHelpers";
+import { liveStagingLocationIds } from "./stagingOccupancy";
 import { normalizeStagingCodeKey } from "./stagingCode";
 import { CATCH_ALL_ZONE_CODE } from "./shopMapLayout";
 import type { ZoneOccupancySummary } from "./firestoreService";
@@ -60,9 +61,7 @@ export type ZoneOccupancySummaryWithReadiness = ZoneOccupancySummary & {
 export type ZoneOccupancyMode = "board" | "authoritative";
 
 function locationIdsForMapColor(delivery: DeliveryOrder): string[] {
-  const actual = getAllStagingLocationIds(delivery);
-  const planned = delivery.plannedStagingLocationIds ?? [];
-  return [...new Set([...actual, ...planned])];
+  return liveStagingLocationIds(delivery);
 }
 
 /**
@@ -150,7 +149,16 @@ export function computeZoneOccupancyByCode(
     // Board paint hides Will-Call leftovers. Authoritative mode keeps them so
     // Confirm availability and map color cannot disagree with the CF guard.
     if (mode !== "authoritative" && skipsShopStaging(delivery)) continue;
-    const actualIds = new Set(getAllStagingLocationIds(delivery));
+    const pickedIds = new Set(
+      (delivery.pickedUpStagingLocationIds ?? [])
+        .map((id) => (typeof id === "string" ? id.trim() : ""))
+        .filter(Boolean),
+    );
+    const actualIds = new Set(
+      getAllStagingLocationIds(delivery).filter(
+        (id) => id && !pickedIds.has(id),
+      ),
+    );
     const readyForPickup =
       effectiveReadinessStatus(delivery) === "ready_for_pickup";
     const summaryBase = {

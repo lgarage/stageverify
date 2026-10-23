@@ -14,6 +14,7 @@ import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 import { skipsShopStaging } from "./invoice/invoiceShellDisplayHelpers";
 import type { InvoiceFulfillmentMethod } from "./invoice/types";
 import { assertPickupAccessForJob } from "./pickupAccessValidation";
+import { buildPickupLiveStagingPatch } from "./pickupStagingRelease";
 
 function getDb() {
   return admin.firestore();
@@ -374,13 +375,12 @@ export const recordPickupEvent = onCall(
           updatedAt: now,
           status: "picked_up",
           readinessStatus: "picked_up",
-          stagingLocationId: "",
-          additionalStagingLocationIds: [],
-          plannedStagingLocationIds: [],
-          combinationStagingGroupId: "",
-          combinationMemberLocationIds: [],
-          pickedUpStagingLocationIds: [],
           pickupCheckedItemIds: [],
+          ...buildPickupLiveStagingPatch(
+            delivery,
+            delivery.pickedUpStagingLocationIds ?? [],
+            true,
+          ),
         };
         // closed_picked_up is Will-Call invoice semantics only — not VDO manual.
         if (skipShopStagingPickup) {
@@ -432,12 +432,14 @@ export const recordPickupEvent = onCall(
           });
         }
 
+        const immediateHistory =
+          (deliveryPatch.pickedUpStagingLocationIds as string[]) ?? [];
         tx.set(idempotencyRef, {
           deliveryOrderId,
           jobId,
           pickupEventId,
           deliveryStatus: "picked_up",
-          pickedUpStagingLocationIds: [],
+          pickedUpStagingLocationIds: immediateHistory,
           createdAt: now,
         });
 
@@ -445,7 +447,7 @@ export const recordPickupEvent = onCall(
           duplicate: false,
           pickupEventId,
           deliveryStatus: "picked_up",
-          pickedUpStagingLocationIds: [],
+          pickedUpStagingLocationIds: immediateHistory,
           fullyPicked: true,
         };
       }
@@ -524,15 +526,10 @@ export const recordPickupEvent = onCall(
       const nextStatus = fullyPicked ? "picked_up" : delivery.status;
       const deliveryPatch: Record<string, unknown> = {
         updatedAt: now,
-        pickedUpStagingLocationIds: mergedPicked,
+        ...buildPickupLiveStagingPatch(delivery, mergedPicked, fullyPicked),
       };
       if (fullyPicked) {
         deliveryPatch.status = "picked_up";
-        deliveryPatch.stagingLocationId = "";
-        deliveryPatch.additionalStagingLocationIds = [];
-        deliveryPatch.plannedStagingLocationIds = [];
-        deliveryPatch.combinationStagingGroupId = "";
-        deliveryPatch.combinationMemberLocationIds = [];
         deliveryPatch.readinessStatus = "picked_up";
         deliveryPatch.pickupCheckedItemIds = [];
       }
