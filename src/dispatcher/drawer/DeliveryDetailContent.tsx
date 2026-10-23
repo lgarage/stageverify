@@ -50,6 +50,8 @@ import {
   hasActiveShopStagingAssignment,
   hasRawShopStagingRefs,
   isShopStagingAssignmentMissing,
+  siblingOccupiedStagingCodes,
+  stagingNeededBannerBody,
 } from "./DrawerStagingLocationChips";
 import { IssueSummaryPanel } from "./IssueSummaryPanel";
 import { useLiveZoneOccupancy } from "../useLiveZoneOccupancy";
@@ -563,6 +565,7 @@ export function DetailContent({
     !willCallNoShopStaging &&
     !skipsShopStaging(delivery) &&
     delivery.status !== "picked_up" &&
+    delivery.status !== "complete" &&
     delivery.status !== "installed" &&
     Boolean(onNavigateToChangeLocation);
   const staleWillCallStaging =
@@ -816,6 +819,13 @@ export function DetailContent({
                 <div ref={stagingNeededBannerRef}>
                   <StagingLocationBanner
                     font={font}
+                    body={stagingNeededBannerBody(
+                      siblingOccupiedStagingCodes(
+                        delivery,
+                        liveOccupancy.deliveries,
+                        drawerStagingLocById,
+                      ),
+                    )}
                     onAssignLocation={
                       onNavigateToAssignLocation
                         ? handleAssignLocationNavigate
@@ -2027,6 +2037,7 @@ function DeliveryStatusControls({
     !hasActiveStaging &&
     !skipsShopStaging(delivery) &&
     delivery.status !== "picked_up" &&
+    delivery.status !== "complete" &&
     delivery.status !== "installed";
   const stagedActionable =
     !stagedSelected &&

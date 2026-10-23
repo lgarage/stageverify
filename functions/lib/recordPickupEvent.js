@@ -7,6 +7,7 @@ const deliveryReadiness_1 = require("./deliveryReadiness");
 const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const invoiceShellDisplayHelpers_1 = require("./invoice/invoiceShellDisplayHelpers");
 const pickupAccessValidation_1 = require("./pickupAccessValidation");
+const pickupStagingRelease_1 = require("./pickupStagingRelease");
 function getDb() {
     return admin.firestore();
 }
@@ -232,13 +233,8 @@ exports.recordPickupEvent = (0, https_1.onCall)({
                 updatedAt: now,
                 status: "picked_up",
                 readinessStatus: "picked_up",
-                stagingLocationId: "",
-                additionalStagingLocationIds: [],
-                plannedStagingLocationIds: [],
-                combinationStagingGroupId: "",
-                combinationMemberLocationIds: [],
-                pickedUpStagingLocationIds: [],
                 pickupCheckedItemIds: [],
+                ...(0, pickupStagingRelease_1.buildPickupLiveStagingPatch)(delivery, delivery.pickedUpStagingLocationIds ?? [], true),
             };
             // closed_picked_up is Will-Call invoice semantics only — not VDO manual.
             if (skipShopStagingPickup) {
@@ -284,19 +280,20 @@ exports.recordPickupEvent = (0, https_1.onCall)({
                     updatedAt: now,
                 });
             }
+            const immediateHistory = deliveryPatch.pickedUpStagingLocationIds ?? [];
             tx.set(idempotencyRef, {
                 deliveryOrderId,
                 jobId,
                 pickupEventId,
                 deliveryStatus: "picked_up",
-                pickedUpStagingLocationIds: [],
+                pickedUpStagingLocationIds: immediateHistory,
                 createdAt: now,
             });
             return {
                 duplicate: false,
                 pickupEventId,
                 deliveryStatus: "picked_up",
-                pickedUpStagingLocationIds: [],
+                pickedUpStagingLocationIds: immediateHistory,
                 fullyPicked: true,
             };
         }
@@ -345,15 +342,10 @@ exports.recordPickupEvent = (0, https_1.onCall)({
         const nextStatus = fullyPicked ? "picked_up" : delivery.status;
         const deliveryPatch = {
             updatedAt: now,
-            pickedUpStagingLocationIds: mergedPicked,
+            ...(0, pickupStagingRelease_1.buildPickupLiveStagingPatch)(delivery, mergedPicked, fullyPicked),
         };
         if (fullyPicked) {
             deliveryPatch.status = "picked_up";
-            deliveryPatch.stagingLocationId = "";
-            deliveryPatch.additionalStagingLocationIds = [];
-            deliveryPatch.plannedStagingLocationIds = [];
-            deliveryPatch.combinationStagingGroupId = "";
-            deliveryPatch.combinationMemberLocationIds = [];
             deliveryPatch.readinessStatus = "picked_up";
             deliveryPatch.pickupCheckedItemIds = [];
         }

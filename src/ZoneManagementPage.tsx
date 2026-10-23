@@ -34,6 +34,8 @@ import {
   updateAppSettings,
   subscribeAppSettings,
   firestoreDataService,
+  ALREADY_PICKED_UP_STAGING_MESSAGE,
+  isStagingLocationOccupiedError,
   getVendorInvoiceImport,
   setInvoiceReviewDraftStagingLocations,
   approveVendorInvoiceImport,
@@ -1420,6 +1422,10 @@ export function ZoneManagementPage() {
       // Only the exact destination-race copy maps to "no longer available".
       // Other failed-precondition messages (Will-Call, empty staging, etc.) pass through.
       const unavailable = /no longer available/i.test(message);
+      const alreadyPickedUp =
+        /already picked up — spot not needed/i.test(message) ||
+        message.includes(ALREADY_PICKED_UP_STAGING_MESSAGE);
+      const occupied = isStagingLocationOccupiedError(err);
       const cleaned = message
         .replace(/^Firebase:\s*/i, "")
         .replace(/^Error:\s*/i, "")
@@ -1427,9 +1433,13 @@ export function ZoneManagementPage() {
       showAssignToast(
         unavailable
           ? "That location is no longer available."
-          : reassignMode
-            ? cleaned || "Failed to change location."
-            : "Failed to save planned location.",
+          : alreadyPickedUp
+            ? ALREADY_PICKED_UP_STAGING_MESSAGE
+            : occupied
+              ? cleaned
+              : reassignMode
+                ? cleaned || "Failed to change location."
+                : cleaned || "Failed to save planned location.",
         "error",
       );
       if (unavailable) {

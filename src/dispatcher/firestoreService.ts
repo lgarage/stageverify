@@ -156,6 +156,8 @@ import type {
 import { VALID_TRANSITIONS, VENDOR_REVERT_TARGETS, DISPATCHER_REVERT_TARGETS } from "./service";
 import {
   StagingLocationOccupiedError,
+  activeOccupancyLocationIds,
+  assertDeliveryAcceptsStagingAssignment,
   buildGloballyAssignedStagingLocationIds,
   deliveryUsesStagingLocation,
 } from "./stagingOccupancy";
@@ -169,7 +171,9 @@ import {
 } from "./zoneOccupancyCompute";
 
 export {
+  ALREADY_PICKED_UP_STAGING_MESSAGE,
   StagingLocationOccupiedError,
+  assertDeliveryAcceptsStagingAssignment,
   deliveryUsesStagingLocation,
   isStagingLocationOccupiedError,
 } from "./stagingOccupancy";
@@ -846,6 +850,7 @@ export class FirestoreDataService implements DispatcherDataService {
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) return null;
     const delivery = deliverySnap.data() as DeliveryOrder;
+    assertDeliveryAcceptsStagingAssignment(delivery);
 
     const prevId = delivery.stagingLocationId;
     let prevCode = "unassigned";
@@ -965,16 +970,61 @@ export class FirestoreDataService implements DispatcherDataService {
   ): Promise<DeliveryDetails | null> {
     const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
     if (!deliverySnap.exists()) return null;
+    const delivery = deliverySnap.data() as DeliveryOrder;
+    assertDeliveryAcceptsStagingAssignment(delivery);
+
+    const uniqueIds = [
+      ...new Set(
+        plannedStagingLocationIds
+          .map((id) => (typeof id === "string" ? id.trim() : ""))
+          .filter(Boolean),
+      ),
+    ];
+    for (const locId of uniqueIds) {
+      if (!deliveryUsesStagingLocation(delivery, locId)) {
+        await assertStagingLocationAvailable(locId, deliveryId);
+      }
+    }
 
     const now = new Date().toISOString();
-    await setDoc(
+    const eventId = `event-${crypto.randomUUID()}`;
+    const prevIds = delivery.plannedStagingLocationIds ?? [];
+    let prevCode = "unassigned";
+    if (prevIds[0]) {
+      const prevSnap = await getDoc(doc(db, "stagingLocations", prevIds[0]));
+      const prevLoc = stagingLocationFromSnap(prevSnap);
+      if (prevLoc) prevCode = prevLoc.code;
+    }
+    let newCode = "unassigned";
+    if (uniqueIds[0]) {
+      const newSnap = await getDoc(doc(db, "stagingLocations", uniqueIds[0]));
+      const newLoc = stagingLocationFromSnap(newSnap);
+      if (newLoc) newCode = newLoc.code;
+    }
+
+    const batch = writeBatch(db);
+    batch.set(
       doc(db, "deliveries", deliveryId),
       {
-        plannedStagingLocationIds,
+        plannedStagingLocationIds: uniqueIds,
         updatedAt: now,
       },
       { merge: true },
     );
+    if (getAuth().currentUser) {
+      batch.set(doc(db, "statusHistory", eventId), {
+        id: eventId,
+        entityType: "delivery_order",
+        entityId: deliveryId,
+        fromStatus: prevCode,
+        toStatus: newCode,
+        reason: "Planned staging location updated",
+        actorType: "dispatcher",
+        actorName: "Dispatcher",
+        createdAt: now,
+      });
+    }
+    await batch.commit();
     await invokeRecalculateDeliveryReadiness(deliveryId);
     return this.getDeliveryDetails(deliveryId);
   }
@@ -996,6 +1046,12 @@ export class FirestoreDataService implements DispatcherDataService {
     toLocationCode: string;
     plannedEntriesReleased: string[];
   }> {
+    const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
+    if (deliverySnap.exists()) {
+      assertDeliveryAcceptsStagingAssignment(
+        deliverySnap.data() as DeliveryOrder,
+      );
+    }
     const callable = httpsCallable(
       functions,
       "reassignDeliveryStagingLocation",
@@ -2235,9 +2291,8 @@ export async function mapOccupancyByLocationId(
 
   for (const delivery of deliveries) {
     if (excludeDeliveryId && delivery.id === excludeDeliveryId) continue;
-    if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
 
-    for (const locId of getAllStagingLocationIds(delivery)) {
+    for (const locId of activeOccupancyLocationIds(delivery)) {
       const location = locations.find((loc) => loc.id === locId);
       const occupant: StagingLocationOccupant = {
         deliveryId: delivery.id,

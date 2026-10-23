@@ -8,6 +8,63 @@ import {
 } from "./models";
 import { skipsShopStaging } from "./invoice/invoiceShellDisplayHelpers";
 
+/** Dispatcher / map assign refusal when the delivery is already finished. */
+export const ALREADY_PICKED_UP_STAGING_MESSAGE =
+  "Already picked up — spot not needed";
+
+export function assertDeliveryAcceptsStagingAssignment(
+  delivery: Pick<DeliveryOrder, "status">,
+): void {
+  if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) {
+    throw new Error(ALREADY_PICKED_UP_STAGING_MESSAGE);
+  }
+}
+
+/**
+ * Live shop staging ids (actual + planned) minus spots already picked up.
+ * Does not apply ZONE_CLEARED — callers that paint occupancy must also check status.
+ */
+export function liveStagingLocationIds(
+  delivery: Pick<
+    DeliveryOrder,
+    | "stagingLocationId"
+    | "additionalStagingLocationIds"
+    | "plannedStagingLocationIds"
+    | "pickedUpStagingLocationIds"
+  >,
+): string[] {
+  const picked = new Set(
+    (delivery.pickedUpStagingLocationIds ?? [])
+      .map((id) => (typeof id === "string" ? id.trim() : ""))
+      .filter(Boolean),
+  );
+  const ids: string[] = [];
+  for (const raw of [
+    ...getAllStagingLocationIds(delivery as DeliveryOrder),
+    ...(delivery.plannedStagingLocationIds ?? []),
+  ]) {
+    const id = typeof raw === "string" ? raw.trim() : "";
+    if (!id || picked.has(id) || ids.includes(id)) continue;
+    ids.push(id);
+  }
+  return ids;
+}
+
+/** Location ids that still count toward map paint and double-booking. */
+export function activeOccupancyLocationIds(
+  delivery: Pick<
+    DeliveryOrder,
+    | "status"
+    | "stagingLocationId"
+    | "additionalStagingLocationIds"
+    | "plannedStagingLocationIds"
+    | "pickedUpStagingLocationIds"
+  >,
+): string[] {
+  if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) return [];
+  return liveStagingLocationIds(delivery);
+}
+
 /** Thrown when assigning a staging zone already held by another active delivery. */
 export class StagingLocationOccupiedError extends Error {
   readonly code = "STAGING_LOCATION_OCCUPIED";
@@ -85,12 +142,8 @@ export function buildGloballyAssignedStagingLocationIds(
     if (delivery.id === excludeDeliveryId) continue;
     // Will-Call / no-shop-staging do not hold shop spots for assignment blocking.
     if (skipsShopStaging(delivery)) continue;
-    // Picked up / installed must not block assignment via stale planned refs.
-    if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
-    for (const locId of delivery.plannedStagingLocationIds ?? []) {
-      ids.add(locId);
-    }
-    for (const locId of getAllStagingLocationIds(delivery)) {
+    // Picked up / installed / already-released spots must not block assignment.
+    for (const locId of activeOccupancyLocationIds(delivery)) {
       ids.add(locId);
     }
   }

@@ -4,9 +4,13 @@ import type {
   ShopStockLocationMapping,
   StagingLocation,
 } from "../models";
-import { getAllStagingLocationIds } from "../models";
+import {
+  ZONE_CLEARED_DELIVERY_STATUSES,
+  getAllStagingLocationIds,
+} from "../models";
 import { skipsShopStaging } from "../invoice/invoiceShellDisplayHelpers";
 import { formatStagingCodeCanonical } from "../stagingCode";
+import { liveStagingLocationIds } from "../stagingOccupancy";
 import {
   resolveSpotColor,
   SPOT_MAP_COLORS,
@@ -49,27 +53,27 @@ export function isShopStagingAssignmentMissing(
   delivery: DeliveryOrder,
   locById: Map<string, StagingLocation>,
 ): boolean {
-  if (delivery.status === "installed") return false;
+  if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) return false;
   if (skipsShopStaging(delivery)) return false;
   return !hasActiveShopStagingAssignment(delivery, locById);
 }
 
-export function collectDeliveryStagingCodes(
-  delivery: DeliveryOrder,
+function locByCodeKeyIndex(
   locById: Map<string, StagingLocation>,
-): string[] {
-  const ids = [
-    ...new Set([
-      ...getAllStagingLocationIds(delivery),
-      ...(delivery.plannedStagingLocationIds ?? []),
-    ]),
-  ];
-  /** Reverse index — some legacy rows stored a spot code instead of Firestore doc id. */
+): Map<string, StagingLocation> {
   const locByCodeKey = new Map<string, StagingLocation>();
   for (const loc of locById.values()) {
     const key = formatStagingCodeCanonical(loc.code);
     if (key) locByCodeKey.set(key, loc);
   }
+  return locByCodeKey;
+}
+
+function resolveStagingIdsToCodes(
+  ids: string[],
+  locById: Map<string, StagingLocation>,
+): string[] {
+  const locByCodeKey = locByCodeKeyIndex(locById);
   const codes = ids
     .map((rawId) => {
       const id = typeof rawId === "string" ? rawId.trim() : "";
@@ -88,6 +92,35 @@ export function collectDeliveryStagingCodes(
   return [...new Set(codes)].sort((a, b) =>
     a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
   );
+}
+
+export function collectDeliveryStagingCodes(
+  delivery: DeliveryOrder,
+  locById: Map<string, StagingLocation>,
+): string[] {
+  if (
+    delivery.status &&
+    ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)
+  ) {
+    return [];
+  }
+  return resolveStagingIdsToCodes(liveStagingLocationIds(delivery), locById);
+}
+
+/** Historical spots captured at pickup — used for "Picked up from G5". */
+export function collectPickedUpStagingCodes(
+  delivery: Pick<DeliveryOrder, "pickedUpStagingLocationIds">,
+  locById: Map<string, StagingLocation>,
+): string[] {
+  return resolveStagingIdsToCodes(
+    delivery.pickedUpStagingLocationIds ?? [],
+    locById,
+  );
+}
+
+export function pickedUpFromLabel(codes: string[]): string {
+  if (codes.length === 0) return "Picked up";
+  return `Picked up from ${codes.join(", ")}`;
 }
 
 function stagingRefResolves(
@@ -130,6 +163,42 @@ export function hasUnresolvedStagingLocationRefs(
   // Only "missing" when nothing resolves — a valid active spot plus a stale
   // extra ref must not suppress Assign Location or force "Needs staging".
   return collectDeliveryStagingCodes(delivery, locById).length === 0;
+}
+
+const DEFAULT_STAGING_NEEDED_BODY =
+  "Assign a location for receiving and pickup.";
+
+/** Active shop codes held by other deliveries on the same job. */
+export function siblingOccupiedStagingCodes(
+  delivery: DeliveryOrder,
+  jobDeliveries: DeliveryOrder[],
+  locById: Map<string, StagingLocation>,
+): string[] {
+  const jobId = delivery.jobId?.trim();
+  const codes = new Set<string>();
+  for (const other of jobDeliveries) {
+    if (other.id === delivery.id) continue;
+    if (!jobId || other.jobId?.trim() !== jobId) continue;
+    if (ZONE_CLEARED_DELIVERY_STATUSES.has(other.status)) continue;
+    if (skipsShopStaging(other)) continue;
+    for (const code of collectDeliveryStagingCodes(other, locById)) {
+      codes.add(code);
+    }
+  }
+  return [...codes].sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+  );
+}
+
+/** Drawer "STAGING LOCATION NEEDED" body — names a sibling spot when one exists. */
+export function stagingNeededBannerBody(siblingCodes: string[]): string {
+  if (siblingCodes.length === 1) {
+    return `Another delivery on this job is at ${siblingCodes[0]}.`;
+  }
+  if (siblingCodes.length > 1) {
+    return `Another delivery on this job is at ${siblingCodes.join(", ")}.`;
+  }
+  return DEFAULT_STAGING_NEEDED_BODY;
 }
 
 export function stagingSpotChipStyle(
@@ -180,6 +249,21 @@ export function DrawerStagingLocationChips({
   onNavigateToStagingMap,
 }: Props) {
   const locById = new Map(stagingLocations.map((loc) => [loc.id, loc]));
+  if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) {
+    const historyCodes = collectPickedUpStagingCodes(delivery, locById);
+    return (
+      <span
+        data-testid="delivery-basics-picked-up-from"
+        style={{
+          color: "var(--admin-text-secondary)",
+          fontFamily: font,
+          fontWeight: 600,
+        }}
+      >
+        {pickedUpFromLabel(historyCodes)}
+      </span>
+    );
+  }
   const codes = collectDeliveryStagingCodes(delivery, locById);
   const unresolvedRefs = hasUnresolvedStagingLocationRefs(delivery, locById);
 

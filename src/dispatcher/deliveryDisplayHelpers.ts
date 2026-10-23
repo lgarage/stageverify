@@ -272,7 +272,13 @@ export function isDispatcherTableStagingActionRequired(
     | "createdFromInvoiceImport"
   >,
 ): boolean {
-  if (delivery.status === "installed") return false;
+  if (
+    delivery.status === "installed" ||
+    delivery.status === "picked_up" ||
+    delivery.status === "complete"
+  ) {
+    return false;
+  }
   if (skipsShopStaging(delivery)) return false;
   const hasActual =
     Boolean(delivery.stagingLocationId?.trim()) ||
