@@ -4,7 +4,7 @@ import type {
   ShopStockLocationMapping,
   StagingLocation,
 } from "../models";
-import { getAllStagingLocationIds } from "../models";
+import { getAllStagingLocationIds, isLocationActive } from "../models";
 import { skipsShopStaging } from "../invoice/invoiceShellDisplayHelpers";
 import { formatStagingCodeCanonical } from "../stagingCode";
 import {
@@ -13,6 +13,7 @@ import {
   SPOT_MAP_FG,
   type SpotMapColor,
 } from "../resolveSpotColor";
+import { deliveryCountsTowardZoneOccupancy } from "../stagingOccupancy";
 import type { ZoneOccupancySummaryWithReadiness } from "../zoneOccupancyCompute";
 
 /**
@@ -67,6 +68,7 @@ export function collectDeliveryStagingCodes(
   /** Reverse index — some legacy rows stored a spot code instead of Firestore doc id. */
   const locByCodeKey = new Map<string, StagingLocation>();
   for (const loc of locById.values()) {
+    if (!isLocationActive(loc)) continue;
     const key = formatStagingCodeCanonical(loc.code);
     if (key) locByCodeKey.set(key, loc);
   }
@@ -75,11 +77,11 @@ export function collectDeliveryStagingCodes(
       const id = typeof rawId === "string" ? rawId.trim() : "";
       if (!id) return undefined;
       const byId = locById.get(id);
-      if (byId?.code?.trim()) {
+      if (byId?.code?.trim() && isLocationActive(byId)) {
         return formatStagingCodeCanonical(byId.code);
       }
       const byCode = locByCodeKey.get(formatStagingCodeCanonical(id));
-      if (byCode?.code?.trim()) {
+      if (byCode?.code?.trim() && isLocationActive(byCode)) {
         return formatStagingCodeCanonical(byCode.code);
       }
       return undefined;
@@ -98,9 +100,9 @@ function stagingRefResolves(
   const id = rawId.trim();
   if (!id) return true;
   const byId = locById.get(id);
-  if (byId?.code?.trim()) return true;
+  if (byId?.code?.trim() && isLocationActive(byId)) return true;
   const byCode = locByCodeKey.get(formatStagingCodeCanonical(id));
-  return Boolean(byCode?.code?.trim());
+  return Boolean(byCode?.code?.trim() && isLocationActive(byCode));
 }
 
 /** True when delivery references staging ids/codes that do not resolve in locById. */
@@ -118,6 +120,7 @@ export function hasUnresolvedStagingLocationRefs(
 
   const locByCodeKey = new Map<string, StagingLocation>();
   for (const loc of locById.values()) {
+    if (!isLocationActive(loc)) continue;
     const key = formatStagingCodeCanonical(loc.code);
     if (key) locByCodeKey.set(key, loc);
   }
@@ -130,6 +133,41 @@ export function hasUnresolvedStagingLocationRefs(
   // Only "missing" when nothing resolves — a valid active spot plus a stale
   // extra ref must not suppress Assign Location or force "Needs staging".
   return collectDeliveryStagingCodes(delivery, locById).length === 0;
+}
+
+const DEFAULT_STAGING_NEEDED_BODY =
+  "Assign a location for receiving and pickup.";
+
+/** Active shop codes held by other deliveries on the same job. */
+export function siblingOccupiedStagingCodes(
+  delivery: DeliveryOrder,
+  jobDeliveries: DeliveryOrder[],
+  locById: Map<string, StagingLocation>,
+): string[] {
+  const jobId = delivery.jobId?.trim();
+  const codes = new Set<string>();
+  for (const other of jobDeliveries) {
+    if (other.id === delivery.id) continue;
+    if (!jobId || other.jobId?.trim() !== jobId) continue;
+    if (!deliveryCountsTowardZoneOccupancy(other, "authoritative")) continue;
+    for (const code of collectDeliveryStagingCodes(other, locById)) {
+      codes.add(code);
+    }
+  }
+  return [...codes].sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+  );
+}
+
+/** Drawer "STAGING LOCATION NEEDED" body — names a sibling spot when one exists. */
+export function stagingNeededBannerBody(siblingCodes: string[]): string {
+  if (siblingCodes.length === 1) {
+    return `Another delivery on this job is at ${siblingCodes[0]}.`;
+  }
+  if (siblingCodes.length > 1) {
+    return `Another delivery on this job is at ${siblingCodes.join(", ")}.`;
+  }
+  return DEFAULT_STAGING_NEEDED_BODY;
 }
 
 export function stagingSpotChipStyle(

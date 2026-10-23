@@ -1,13 +1,13 @@
 import type { DeliveryOrder, StagingLocation } from "./models";
 import {
-  ZONE_CLEARED_DELIVERY_STATUSES,
   effectiveReadinessStatus,
   getAllStagingLocationIds,
+  isLocationActive,
 } from "./models";
-import { skipsShopStaging } from "./invoice/invoiceShellDisplayHelpers";
 import { normalizeStagingCodeKey } from "./stagingCode";
 import { CATCH_ALL_ZONE_CODE } from "./shopMapLayout";
 import type { ZoneOccupancySummary } from "./firestoreService";
+import { deliveryCountsTowardZoneOccupancy } from "./stagingOccupancy";
 
 const CATCH_ALL_KEY = normalizeStagingCodeKey(CATCH_ALL_ZONE_CODE);
 
@@ -59,10 +59,17 @@ export type ZoneOccupancySummaryWithReadiness = ZoneOccupancySummary & {
  */
 export type ZoneOccupancyMode = "board" | "authoritative";
 
+export {
+  deliveryCountsTowardZoneOccupancy,
+  zoneClearedDeliveryStillOccupiesShop,
+} from "./stagingOccupancy";
+
 function locationIdsForMapColor(delivery: DeliveryOrder): string[] {
   const actual = getAllStagingLocationIds(delivery);
   const planned = delivery.plannedStagingLocationIds ?? [];
-  return [...new Set([...actual, ...planned])];
+  return [...new Set([...actual, ...planned])].filter(
+    (id) => typeof id === "string" && id.trim().length > 0,
+  );
 }
 
 /**
@@ -90,8 +97,7 @@ export function listCatchAllAssignedDeliveries(
 
   const assignedById = new Map<string, DeliveryOrder>();
   for (const delivery of filterDeliveriesForBoardStagingOccupancy(deliveries)) {
-    if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
-    if (skipsShopStaging(delivery)) continue;
+    if (!deliveryCountsTowardZoneOccupancy(delivery, "board")) continue;
     if (
       locationIdsForMapColor(delivery).some((locationId) =>
         catchAllLocationIds.has(locationId),
@@ -146,10 +152,11 @@ export function computeZoneOccupancyByCode(
   };
 
   for (const delivery of stagingDeliveries) {
-    if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
     // Board paint hides Will-Call leftovers. Authoritative mode keeps them so
     // Confirm availability and map color cannot disagree with the CF guard.
-    if (mode !== "authoritative" && skipsShopStaging(delivery)) continue;
+    // ZONE_CLEARED normally releases the spot; VDO + no shop receipt + a
+    // planned/actual id still occupies (drawer Assign Location on picked_up).
+    if (!deliveryCountsTowardZoneOccupancy(delivery, mode)) continue;
     const actualIds = new Set(getAllStagingLocationIds(delivery));
     const readyForPickup =
       effectiveReadinessStatus(delivery) === "ready_for_pickup";
@@ -164,7 +171,7 @@ export function computeZoneOccupancyByCode(
 
     for (const locId of locationIdsForMapColor(delivery)) {
       const location = locById.get(locId);
-      if (!location) continue;
+      if (!location || !isLocationActive(location)) continue;
       const codeKey = normalizeStagingCodeKey(location.code);
       // Catch-all must never dual-key onto G1–G12 via a stale mapLayoutSlot.
       const keys = new Set<string>();

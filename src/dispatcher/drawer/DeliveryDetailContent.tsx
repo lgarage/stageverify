@@ -50,6 +50,8 @@ import {
   hasActiveShopStagingAssignment,
   hasRawShopStagingRefs,
   isShopStagingAssignmentMissing,
+  siblingOccupiedStagingCodes,
+  stagingNeededBannerBody,
 } from "./DrawerStagingLocationChips";
 import { IssueSummaryPanel } from "./IssueSummaryPanel";
 import { useLiveZoneOccupancy } from "../useLiveZoneOccupancy";
@@ -816,6 +818,13 @@ export function DetailContent({
                 <div ref={stagingNeededBannerRef}>
                   <StagingLocationBanner
                     font={font}
+                    body={stagingNeededBannerBody(
+                      siblingOccupiedStagingCodes(
+                        delivery,
+                        liveOccupancy.deliveries,
+                        drawerStagingLocById,
+                      ),
+                    )}
                     onAssignLocation={
                       onNavigateToAssignLocation
                         ? handleAssignLocationNavigate

@@ -6,6 +6,8 @@ import {
   hasActiveShopStagingAssignment,
   hasUnresolvedStagingLocationRefs,
   isShopStagingAssignmentMissing,
+  siblingOccupiedStagingCodes,
+  stagingNeededBannerBody,
 } from "../src/dispatcher/drawer/DrawerStagingLocationChips.tsx";
 import {
   fulfillmentDisplayLabel,
@@ -28,6 +30,7 @@ function assert(label, cond, detail = "") {
 const locById = new Map([
   ["staging-1", { id: "staging-1", code: "G1", label: "G1", type: "zone", status: "Active" }],
   ["staging-2", { id: "staging-2", code: "G2", label: "G2", type: "zone", status: "Active" }],
+  ["zone-g11", { id: "zone-g11", code: "G11", label: "G11", type: "ground", status: "Active" }],
 ]);
 
 assert(
@@ -171,6 +174,98 @@ assert(
     },
     locById,
   ) === false,
+);
+
+const locByIdWithInactive = new Map([
+  ...locById,
+  [
+    "zone-s2f-inactive",
+    {
+      id: "zone-s2f-inactive",
+      code: "S2-F",
+      label: "Shelf 2 — F",
+      type: "shelf",
+      status: "Inactive",
+    },
+  ],
+  [
+    "zone-s2f-active",
+    {
+      id: "zone-s2f-active",
+      code: "S2-F",
+      label: "Shelf 2 — F",
+      type: "shelf",
+      status: "Active",
+    },
+  ],
+]);
+
+assert(
+  "inactive spot id does not resolve",
+  collectDeliveryStagingCodes(
+    { stagingLocationId: "zone-s2f-inactive" },
+    locByIdWithInactive,
+  ).length === 0,
+);
+assert(
+  "inactive + Active duplicate: only Active id resolves",
+  collectDeliveryStagingCodes(
+    { stagingLocationId: "zone-s2f-active" },
+    locByIdWithInactive,
+  ).join(",") === "S2-F",
+);
+assert(
+  "inactive-only assignment → staging missing",
+  isShopStagingAssignmentMissing(
+    {
+      status: "pending",
+      invoiceFulfillmentMethod: "delivery",
+      stagingLocationId: "zone-s2f-inactive",
+    },
+    locByIdWithInactive,
+  ) === true,
+);
+
+const early = {
+  id: "delivery-2205-early",
+  jobId: "job-6169474",
+  status: "pending",
+  invoiceFulfillmentMethod: "delivery",
+};
+const truck = {
+  id: "delivery-truck-stock",
+  jobId: "job-6169474",
+  status: "arrived",
+  invoiceFulfillmentMethod: "delivery",
+  plannedStagingLocationIds: ["zone-g11"],
+  updatedAt: "2026-10-23T22:16:47.060Z",
+};
+assert(
+  "sibling occupied codes name G11",
+  siblingOccupiedStagingCodes(early, [early, truck], locById).join(",") ===
+    "G11",
+);
+assert(
+  "banner names sibling spot",
+  stagingNeededBannerBody(
+    siblingOccupiedStagingCodes(early, [early, truck], locById),
+  ) === "Another delivery on this job is at G11.",
+);
+assert(
+  "banner default when no sibling spot",
+  stagingNeededBannerBody(
+    siblingOccupiedStagingCodes(early, [early], locById),
+  ) === "Assign a location for receiving and pickup.",
+);
+
+const otherJob = {
+  ...truck,
+  id: "delivery-other-job",
+  jobId: "job-other",
+};
+assert(
+  "sibling helper ignores other jobs",
+  siblingOccupiedStagingCodes(early, [early, otherJob], locById).length === 0,
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

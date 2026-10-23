@@ -172,4 +172,148 @@ const { resolveSpotColor } = await import(
   pass("sibling page pickup does not free unrelated sibling planned spot");
 }
 
+{
+  // 5) Prod 6169474 PO 2205 EARLY: picked_up VDO, no shop receipt, planned S1-E
+  const s1e = {
+    id: "zone-s1e",
+    code: "S1-E",
+    label: "Shelf 1 — E",
+    type: "shelf",
+    status: "Active",
+    mapLayoutSlot: "S1-E",
+  };
+  const g11 = {
+    id: "zone-g11",
+    code: "G11",
+    label: "G11",
+    type: "ground",
+    status: "Active",
+    mapLayoutSlot: "G11",
+  };
+  const early = {
+    id: "delivery-vii-2205-early",
+    orderNumber: "6169474",
+    status: "picked_up",
+    readinessStatus: "picked_up",
+    updatedAt: now,
+    invoiceFulfillmentMethod: "delivery",
+    invoiceImportStatus: "pending",
+    vendorInvoiceImportId: "vii-2205-early",
+    vendorName: "Johnstone Supply",
+    jobId: "job-6169474",
+    stagingLocationId: "",
+    additionalStagingLocationIds: [],
+    plannedStagingLocationIds: ["zone-s1e"],
+    physicalDropoffComplete: false,
+  };
+  const truck = {
+    id: "delivery-vii-truck-stock",
+    orderNumber: "6169474",
+    status: "arrived",
+    updatedAt: now,
+    invoiceFulfillmentMethod: "delivery",
+    invoiceImportStatus: "pending",
+    vendorInvoiceImportId: "vii-truck-stock",
+    vendorName: "Johnstone Supply",
+    jobId: "job-6169474",
+    stagingLocationId: "",
+    plannedStagingLocationIds: ["zone-g11"],
+    physicalDropoffComplete: false,
+  };
+  const painted = computeZoneOccupancyByCode(
+    [...locations, s1e, g11],
+    [early, truck],
+    "authoritative",
+  );
+  assert.equal(painted.S1E?.deliveryId, "delivery-vii-2205-early");
+  assert.equal(painted.S1E?.plannedOnly, true);
+  assert.equal(resolveSpotColor("S1-E", painted, {}), "orange");
+  assert.equal(painted.G11?.deliveryId, "delivery-vii-truck-stock");
+  assert.equal(resolveSpotColor("G11", painted, {}), "orange");
+  pass("two-delivery job: picked_up VDO no-receipt paints S1-E; sibling arrived paints G11");
+
+  const leftoverPickup = {
+    ...early,
+    physicalDropoffComplete: true,
+  };
+  const leftoverPaint = computeZoneOccupancyByCode(
+    [...locations, s1e, g11],
+    [leftoverPickup, truck],
+    "authoritative",
+  );
+  assert.equal(leftoverPaint.S1E, undefined);
+  assert.equal(resolveSpotColor("S1-E", leftoverPaint, {}), "green");
+  assert.equal(leftoverPaint.G11?.deliveryId, "delivery-vii-truck-stock");
+  pass("real shop pickup leftover (physicalDropoffComplete true) does not paint S1-E");
+}
+
+{
+  // 6) Inactive spot + duplicate code/mapLayoutSlot
+  const active = {
+    id: "zone-s1e-active",
+    code: "S1-E",
+    label: "Shelf 1 — E",
+    type: "shelf",
+    status: "Active",
+    mapLayoutSlot: "S1-E",
+  };
+  const inactive = {
+    id: "zone-s1e-inactive",
+    code: "S1-E",
+    label: "Shelf 1 — E (old)",
+    type: "shelf",
+    status: "Inactive",
+    mapLayoutSlot: "S1-E",
+  };
+  const onInactive = {
+    id: "delivery-inactive-ref",
+    orderNumber: "DUP-1",
+    status: "arrived",
+    updatedAt: now,
+    invoiceFulfillmentMethod: "delivery",
+    vendorInvoiceImportId: "vii-dup-1",
+    vendorName: "Vendor",
+    jobId: "job-dup",
+    stagingLocationId: "zone-s1e-inactive",
+    plannedStagingLocationIds: [],
+  };
+  const onActive = {
+    ...onInactive,
+    id: "delivery-active-ref",
+    stagingLocationId: "zone-s1e-active",
+  };
+  const inactivePaint = computeZoneOccupancyByCode(
+    [active, inactive],
+    [onInactive],
+    "authoritative",
+  );
+  assert.equal(inactivePaint.S1E, undefined);
+  pass("assignment to inactive duplicate S1-E does not paint the map tile");
+
+  const activePaint = computeZoneOccupancyByCode(
+    [active, inactive],
+    [onActive],
+    "authoritative",
+  );
+  assert.equal(activePaint.S1E?.deliveryId, "delivery-active-ref");
+  pass("assignment to Active S1-E paints despite inactive duplicate code/slot");
+}
+
+{
+  const early = {
+    id: "delivery-vii-2205-early",
+    orderNumber: "6169474",
+    status: "picked_up",
+    invoiceFulfillmentMethod: "delivery",
+    invoiceImportStatus: "pending",
+    vendorInvoiceImportId: "vii-2205-early",
+    stagingLocationId: "",
+    plannedStagingLocationIds: ["zone-s1e"],
+    physicalDropoffComplete: false,
+  };
+  const blocked = buildGloballyAssignedStagingLocationIds([early], "other");
+  assert.equal(blocked.has("zone-s1e"), true);
+  pass("double-book guard holds S1-E for picked_up VDO no-receipt assignment");
+}
+
 console.log(`\n${passed} passed`);

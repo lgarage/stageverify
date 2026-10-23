@@ -157,6 +157,7 @@ import { VALID_TRANSITIONS, VENDOR_REVERT_TARGETS, DISPATCHER_REVERT_TARGETS } f
 import {
   StagingLocationOccupiedError,
   buildGloballyAssignedStagingLocationIds,
+  deliveryCountsTowardZoneOccupancy,
   deliveryUsesStagingLocation,
 } from "./stagingOccupancy";
 import {
@@ -2235,7 +2236,7 @@ export async function mapOccupancyByLocationId(
 
   for (const delivery of deliveries) {
     if (excludeDeliveryId && delivery.id === excludeDeliveryId) continue;
-    if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
+    if (!deliveryCountsTowardZoneOccupancy(delivery, "authoritative")) continue;
 
     for (const locId of getAllStagingLocationIds(delivery)) {
       const location = locations.find((loc) => loc.id === locId);
