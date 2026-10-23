@@ -145,6 +145,10 @@ import {
   isWillCallPickupStagingListNa,
   resolveDeliveryPoNumber,
 } from "./invoice/invoiceShellDisplayHelpers";
+import {
+  buildManualDeliveredSpotCommit,
+  resolveManualDeliveredInlineStagingConfirm,
+} from "./manualItemReceiveStaging";
 import { formatVendorDisplayName } from "./vendorDisplayName";
 import type {
   DeliveryQuery,
@@ -160,6 +164,8 @@ import {
   assertDeliveryAcceptsStagingAssignment,
   buildGloballyAssignedStagingLocationIds,
   deliveryUsesStagingLocation,
+  findConflictingStagingHolder,
+  mustAssertStagingLocationAvailable,
 } from "./stagingOccupancy";
 import {
   ShopStockLocationReservedError,
@@ -175,7 +181,10 @@ export {
   StagingLocationOccupiedError,
   assertDeliveryAcceptsStagingAssignment,
   deliveryUsesStagingLocation,
+  deliveryReferencesStagingLocation,
+  findConflictingStagingHolder,
   isStagingLocationOccupiedError,
+  mustAssertStagingLocationAvailable,
 } from "./stagingOccupancy";
 export {
   ShopStockLocationReservedError,
@@ -867,7 +876,7 @@ export class FirestoreDataService implements DispatcherDataService {
       );
       const newLoc = stagingLocationFromSnap(newSnap);
       if (newLoc) newCode = newLoc.code;
-      if (!deliveryUsesStagingLocation(delivery, stagingLocationId)) {
+      if (mustAssertStagingLocationAvailable(delivery, stagingLocationId)) {
         await assertStagingLocationAvailable(stagingLocationId, deliveryId);
       }
     }
@@ -899,6 +908,121 @@ export class FirestoreDataService implements DispatcherDataService {
     return hydrateAfterVendorWrite(deliveryId, (id) =>
       this.getDeliveryDetails(id),
     );
+  }
+
+  /**
+   * Order Summary inline confirm: physical staging, planned-spot clear, and
+   * received qty in one batch. Availability still runs first — a planned ref
+   * on this delivery does not skip other occupants or shop-stock reservation.
+   */
+  async commitManualItemDeliveredAtSpot(
+    deliveryId: string,
+    itemId: string,
+    stagingLocationId: string,
+    qtyOrdered: number,
+    qtyReceived: number,
+    qtyMissing: number,
+  ): Promise<DeliveryDetails | null> {
+    if (!getAuth().currentUser) {
+      throw new Error("Sign in to mark this item delivered.");
+    }
+    const spotId = stagingLocationId.trim();
+    if (!spotId) {
+      throw new Error("Staging location is required.");
+    }
+
+    const deliverySnap = await getDoc(doc(db, "deliveries", deliveryId));
+    if (!deliverySnap.exists()) return null;
+    const delivery = {
+      ...(deliverySnap.data() as DeliveryOrder),
+      id: deliveryId,
+    };
+    const activeLocations = (await fetchAllStagingLocations()).filter((loc) =>
+      isLocationActive(loc),
+    );
+    const resolved = resolveManualDeliveredInlineStagingConfirm(
+      delivery,
+      activeLocations,
+    );
+    if (!resolved || resolved.locationId !== spotId) {
+      throw new Error(
+        "This delivery no longer has exactly one assigned spot. Refresh and try again.",
+      );
+    }
+
+    const deliveries = await fetchAll<DeliveryOrder>("deliveries");
+    const holder = findConflictingStagingHolder(deliveries, deliveryId, spotId);
+    if (holder) {
+      let code = spotId;
+      const heldSnap = await getDoc(doc(db, "stagingLocations", spotId));
+      const heldLoc = stagingLocationFromSnap(heldSnap);
+      if (heldLoc?.code?.trim()) code = heldLoc.code.trim();
+      throw new StagingLocationOccupiedError(
+        code,
+        holder.orderNumber?.trim() || "another order",
+      );
+    }
+    if (mustAssertStagingLocationAvailable(delivery, spotId)) {
+      await assertStagingLocationAvailable(spotId, deliveryId);
+    }
+
+    const prevId = delivery.stagingLocationId;
+    let prevCode = "unassigned";
+    if (prevId) {
+      const prevSnap = await getDoc(doc(db, "stagingLocations", prevId));
+      const prevLoc = stagingLocationFromSnap(prevSnap);
+      if (prevLoc) prevCode = prevLoc.code;
+    }
+    let newCode = "unassigned";
+    const newSnap = await getDoc(doc(db, "stagingLocations", spotId));
+    const newLoc = stagingLocationFromSnap(newSnap);
+    if (newLoc) newCode = newLoc.code;
+
+    const now = new Date().toISOString();
+    const commit = buildManualDeliveredSpotCommit({
+      stagingLocationId: spotId,
+      plannedStagingLocationIds: delivery.plannedStagingLocationIds,
+      qtyOrdered,
+      qtyReceived,
+      qtyMissing,
+      now,
+    });
+    const deliveryPatch: Record<string, unknown> = {
+      ...commit.deliveryFields,
+    };
+    if (commit.releasedPlannedIds.length > 0) {
+      deliveryPatch.plannedLocationReleases = arrayUnion(
+        ...commit.releasedPlannedIds.map((locationId) => ({
+          locationId,
+          releasedAt: now,
+          releasedBy: "Dispatcher",
+          reason: "dispatcher_change_location",
+        })),
+      );
+    }
+
+    const eventId = `event-${crypto.randomUUID()}`;
+    const batch = writeBatch(db);
+    batch.update(doc(db, "deliveries", deliveryId), deliveryPatch);
+    batch.update(doc(db, "items", itemId), commit.itemFields);
+    batch.set(doc(db, "statusHistory", eventId), {
+      id: eventId,
+      entityType: "delivery_order",
+      entityId: deliveryId,
+      fromStatus: prevCode,
+      toStatus: newCode,
+      reason: "Staging location updated",
+      actorType: "dispatcher",
+      actorName: "Dispatcher",
+      createdAt: now,
+    });
+    await batch.commit();
+    await invokeRecalculateDeliveryReadiness(deliveryId);
+    const details = await this.getDeliveryDetails(deliveryId);
+    if (!details) {
+      throw new Error("Saved the delivery but failed to reload it.");
+    }
+    return details;
   }
 
   async updateFulfillmentMethod(
