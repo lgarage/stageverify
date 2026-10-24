@@ -227,7 +227,7 @@ async function buildInvoiceDeliveryShellContext(db, importId, importDoc) {
     }
     const vendorInvoiceNumber = header.vendorInvoiceNumber;
     const vendorOrderNumber = header.vendorOrderNumber;
-    const customerPo = header.customerPoOrReference;
+    const customerPo = header.customerPoOrReference.trim();
     const evidenceNote = importDoc.parserFormatId === "first_supply"
         ? `Imported from First Supply invoice ${vendorInvoiceNumber || vendorOrderNumber} (Customer P/O: ${customerPo}). Invoice import shell — no shop receipt.`
         : `Imported from Johnstone invoice ${vendorInvoiceNumber || vendorOrderNumber} (Customer P/O: ${customerPo}). Invoice import shell — no shop receipt.`;

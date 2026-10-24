@@ -15,12 +15,34 @@ import {
   deliveryOrderIdFromKeyDoc,
 } from "./businessInvoiceIdentity";
 
+/** How approve/create_shell keys deliveries in vendorBusinessInvoiceKeys. */
+export type VendorDeliveryIndexMode =
+  | "invoice_only"
+  | "invoice_and_sales_order"
+  | "off";
+
+const PARSER_DELIVERY_INDEX_MODE: Record<string, VendorDeliveryIndexMode> = {
+  johnstone: "invoice_only",
+  first_supply: "invoice_and_sales_order",
+};
+
+export function deliveryIndexModeForParser(
+  parserFormatId?: string,
+): VendorDeliveryIndexMode {
+  if (!parserFormatId) return "off";
+  return PARSER_DELIVERY_INDEX_MODE[parserFormatId] ?? "off";
+}
+
+export function deliveryIndexActiveForParser(parserFormatId?: string): boolean {
+  return deliveryIndexModeForParser(parserFormatId) !== "off";
+}
+
 export function invoiceNumberIsBossForParser(parserFormatId?: string): boolean {
-  return parserFormatId === "johnstone";
+  return deliveryIndexModeForParser(parserFormatId) === "invoice_only";
 }
 
 /**
- * Non-Johnstone vendors keep separate deliveries when the sales order differs.
+ * Non-Johnstone indexed vendors keep separate deliveries when the sales order differs.
  * Johnstone ignores S/O (invoice number is the boss). Blank S/O does not split.
  */
 export function salesOrdersDisagreeForSeparateDeliveries(
@@ -29,6 +51,7 @@ export function salesOrdersDisagreeForSeparateDeliveries(
   deliveryVendorOrderNumber: string | undefined,
 ): boolean {
   if (invoiceNumberIsBossForParser(parserFormatId)) return false;
+  if (!deliveryIndexActiveForParser(parserFormatId)) return false;
   const want = normalizeBusinessInvoiceNumber(importVendorOrderNumber ?? "");
   const have = normalizeBusinessInvoiceNumber(deliveryVendorOrderNumber ?? "");
   if (!want || !have) return false;
@@ -48,7 +71,11 @@ export function businessInvoiceDeliveryIndexKeyDocId(
   parserFormatId: string | undefined,
   vendorOrderNumberRaw: string,
 ): string {
-  if (invoiceNumberIsBossForParser(parserFormatId)) {
+  const mode = deliveryIndexModeForParser(parserFormatId);
+  if (mode === "off") {
+    return identity.keyDocId;
+  }
+  if (mode === "invoice_only") {
     return identity.keyDocId;
   }
   const order = normalizeBusinessInvoiceNumber(vendorOrderNumberRaw);
@@ -86,6 +113,9 @@ export function tryBuildBusinessInvoiceIndexContext(
     parsedLines: importDoc.parsedLines ?? [],
   });
   if (!identity) return null;
+  if (!deliveryIndexActiveForParser(importDoc.parserFormatId)) {
+    return null;
+  }
   const indexKeyDocId = businessInvoiceDeliveryIndexKeyDocId(
     identity,
     importDoc.parserFormatId,

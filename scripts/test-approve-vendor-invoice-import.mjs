@@ -3284,6 +3284,907 @@ try {
   fail("First Supply different S/O approve failed", err?.message);
 }
 
+// Case 16 — First Supply same invoice, different S/O: create_shell must not merge
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  const inv = "15046467-00";
+  const canonImport = "approve-vendor-invoice-import_vii-fs-shell-so-a-page-1";
+  const otherImport = "approve-vendor-invoice-import_vii-fs-shell-so-b-page-1";
+  const canonDelivery = "approve-vendor-invoice-import_delivery-vii-vii-fs-shell-so-a-page-1";
+  await setDoc(doc(adminDb, "deliveries", canonDelivery), {
+    id: canonDelivery,
+    orderNumber: "3869488-00",
+    jobId: "approve-vendor-invoice-import_job-idx",
+    vendorId: "approve-vendor-invoice-import_vendor-first-supply",
+    vendorName: "First Supply LLC",
+    status: "pending",
+    createdFromInvoiceImport: true,
+    vendorInvoiceImportId: canonImport,
+    vendorInvoiceNumber: inv,
+    vendorOrderNumber: "3869488-00",
+    customerPoOrReference: "PO-FS-SHELL-A",
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:48:10Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", canonImport), {
+    id: canonImport,
+    gmailMessageId: "msg-fs-shell-so-a",
+    reviewStatus: "approved",
+    importStatus: "pending",
+    linkedDeliveryOrderId: canonDelivery,
+    detectedVendorId: "approve-vendor-invoice-import_vendor-first-supply",
+    detectedVendorName: "First Supply LLC",
+    parserFormatId: "first_supply",
+    parsedHeader: {
+      ...dropOffHeader,
+      vendorInvoiceNumber: inv,
+      vendorOrderNumber: "3869488-00",
+      customerPoOrReference: "PO-FS-SHELL-A",
+      vendorBranchName: "First Supply LLC - Oshkosh",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:50:00Z",
+  });
+  await setDoc(
+    doc(adminDb, "vendorBusinessInvoiceKeys", "key:first-supply__15046467-00"),
+    {
+      vendorScope: "key:first-supply",
+      vendorKey: "first-supply",
+      normalizedInvoiceNumber: inv,
+      canonicalImportId: canonImport,
+      canonicalGmailMessageId: "msg-fs-shell-so-a",
+      contentFingerprint: "fs-shell-a",
+      deliveryOrderId: canonDelivery,
+      createdAt: "2026-08-08T18:50:00Z",
+      updatedAt: "2026-08-08T18:50:00Z",
+    },
+  );
+  await setDoc(doc(adminDb, "vendorInvoiceImports", otherImport), {
+    id: otherImport,
+    gmailMessageId: "msg-fs-shell-so-b",
+    reviewStatus: "approved",
+    importStatus: "pending",
+    canonicalImportId: canonImport,
+    linkedDeliveryOrderId: canonDelivery,
+    detectedVendorId: "approve-vendor-invoice-import_vendor-first-supply",
+    detectedVendorName: "First Supply LLC",
+    parserFormatId: "first_supply",
+    parsedHeader: {
+      ...willCallHeader,
+      vendorInvoiceNumber: inv,
+      vendorOrderNumber: "7777777-00",
+      customerPoOrReference: "PO-FS-SHELL-B",
+      vendorBranchName: "First Supply LLC - Oshkosh",
+      fulfillmentMethod: "will_call_pickup",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    approvedAt: "2026-08-29T11:00:00Z",
+    createdAt: "2026-08-29T12:00:00Z",
+    updatedAt: "2026-08-29T12:00:00Z",
+  });
+});
+
+try {
+  const fsShellSplit = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-fs-shell-so-b-page-1",
+    action: "create_shell",
+  });
+  const fsShellData = fsShellSplit?.data ?? fsShellSplit;
+  const ownShell = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-fs-shell-so-b-page-1",
+  );
+  const original = await getDoc(
+    doc(db, "deliveries", "approve-vendor-invoice-import_delivery-vii-vii-fs-shell-so-a-page-1"),
+  );
+  const created = await getDoc(doc(db, "deliveries", ownShell));
+  if (
+    fsShellData?.deliveryOrderId === ownShell &&
+    fsShellData?.shellCreated !== false &&
+    created.exists() &&
+    original.data()?.vendorOrderNumber === "3869488-00" &&
+    original.data()?.customerPoOrReference === "PO-FS-SHELL-A" &&
+    created.data()?.vendorOrderNumber === "7777777-00" &&
+    created.data()?.vendorInvoiceImportId ===
+      "approve-vendor-invoice-import_vii-fs-shell-so-b-page-1"
+  ) {
+    pass("First Supply different S/O create_shell uses its own delivery");
+  } else {
+    fail("First Supply different S/O create_shell merged", {
+      response: fsShellData,
+      original: original.data(),
+      created: created.exists() ? created.data() : null,
+    });
+  }
+} catch (err) {
+  fail("First Supply different S/O create_shell failed", err?.message);
+}
+
+// Case 17 — Same customer PO, different invoice numbers: approve → separate deliveries
+const sharedJobPo = "PF-Wausau";
+const poSplitSpringHeader = {
+  ...willCallHeader,
+  customerPoOrReference: sharedJobPo,
+  vendorInvoiceNumber: "PO-SPLIT-9903-SPRING",
+  vendorOrderNumber: "PO-SPLIT-9903-SPRING",
+};
+const poSplitFallHeader = {
+  ...willCallHeader,
+  customerPoOrReference: sharedJobPo,
+  vendorInvoiceNumber: "PO-SPLIT-9903-FALL",
+  vendorOrderNumber: "PO-SPLIT-9903-FALL",
+};
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-po-split-spring"), {
+    id: "approve-vendor-invoice-import_vii-po-split-spring",
+    gmailMessageId: "msg-po-split-spring",
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: poSplitSpringHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:48:10Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-po-split-fall"), {
+    id: "approve-vendor-invoice-import_vii-po-split-fall",
+    gmailMessageId: "msg-po-split-fall",
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: poSplitFallHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-29T12:00:00Z",
+    updatedAt: "2026-08-29T12:00:00Z",
+  });
+});
+
+try {
+  const springApprove = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-po-split-spring",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+  });
+  const fallApprove = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-po-split-fall",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+  });
+  const springData = springApprove?.data ?? springApprove;
+  const fallData = fallApprove?.data ?? fallApprove;
+  const springShell = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-po-split-spring",
+  );
+  const fallShell = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-po-split-fall",
+  );
+  const springDel = await getDoc(doc(db, "deliveries", springShell));
+  const fallDel = await getDoc(doc(db, "deliveries", fallShell));
+  if (
+    springData?.deliveryOrderId === springShell &&
+    fallData?.deliveryOrderId === fallShell &&
+    springShell !== fallShell &&
+    springDel.exists() &&
+    fallDel.exists() &&
+    springDel.data()?.vendorInvoiceNumber === "PO-SPLIT-9903-SPRING" &&
+    fallDel.data()?.vendorInvoiceNumber === "PO-SPLIT-9903-FALL" &&
+    springDel.data()?.customerPoOrReference === sharedJobPo &&
+    fallDel.data()?.customerPoOrReference === sharedJobPo
+  ) {
+    pass("shared PO different invoice numbers approve to separate deliveries");
+  } else {
+    fail("shared PO invoices merged on approve", {
+      springData,
+      fallData,
+      springDel: springDel.exists() ? springDel.data() : null,
+      fallDel: fallDel.exists() ? fallDel.data() : null,
+    });
+  }
+} catch (err) {
+  fail("shared PO split approve failed", err?.message);
+}
+
+// Case 18 — Same customer PO, different invoice numbers: create_shell → separate deliveries
+const poShellSpringHeader = {
+  ...willCallHeader,
+  customerPoOrReference: sharedJobPo,
+  vendorInvoiceNumber: "PO-SPLIT-9904-SHELL-SPRING",
+  vendorOrderNumber: "PO-SPLIT-9904-SHELL-SPRING",
+};
+const poShellFallHeader = {
+  ...willCallHeader,
+  customerPoOrReference: sharedJobPo,
+  vendorInvoiceNumber: "PO-SPLIT-9904-SHELL-FALL",
+  vendorOrderNumber: "PO-SPLIT-9904-SHELL-FALL",
+};
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-po-shell-spring"), {
+    id: "approve-vendor-invoice-import_vii-po-shell-spring",
+    gmailMessageId: "msg-po-shell-spring",
+    reviewStatus: "approved",
+    importStatus: "pickup_at_vendor",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: poShellSpringHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    approvedAt: "2026-08-08T18:50:00Z",
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:50:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-po-shell-fall"), {
+    id: "approve-vendor-invoice-import_vii-po-shell-fall",
+    gmailMessageId: "msg-po-shell-fall",
+    reviewStatus: "approved",
+    importStatus: "pickup_at_vendor",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: poShellFallHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    approvedAt: "2026-08-29T11:00:00Z",
+    createdAt: "2026-08-29T12:00:00Z",
+    updatedAt: "2026-08-29T12:00:00Z",
+  });
+});
+
+try {
+  const springShellResult = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-po-shell-spring",
+    action: "create_shell",
+  });
+  const fallShellResult = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-po-shell-fall",
+    action: "create_shell",
+  });
+  const springShellData = springShellResult?.data ?? springShellResult;
+  const fallShellData = fallShellResult?.data ?? fallShellResult;
+  const springShellId = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-po-shell-spring",
+  );
+  const fallShellId = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-po-shell-fall",
+  );
+  const springShellDel = await getDoc(doc(db, "deliveries", springShellId));
+  const fallShellDel = await getDoc(doc(db, "deliveries", fallShellId));
+  if (
+    springShellData?.deliveryOrderId === springShellId &&
+    fallShellData?.deliveryOrderId === fallShellId &&
+    springShellId !== fallShellId &&
+    springShellDel.exists() &&
+    fallShellDel.exists() &&
+    springShellDel.data()?.vendorInvoiceNumber === "PO-SPLIT-9904-SHELL-SPRING" &&
+    fallShellDel.data()?.vendorInvoiceNumber === "PO-SPLIT-9904-SHELL-FALL"
+  ) {
+    pass("shared PO different invoice numbers create_shell to separate deliveries");
+  } else {
+    fail("shared PO invoices merged on create_shell", {
+      springShellData,
+      fallShellData,
+      springShellDel: springShellDel.exists() ? springShellDel.data() : null,
+      fallShellDel: fallShellDel.exists() ? fallShellDel.data() : null,
+    });
+  }
+} catch (err) {
+  fail("shared PO split create_shell failed", err?.message);
+}
+
+// Case 19 — Numeric customer PO (48213), different invoice numbers: approve
+const numericJobPo = "48213";
+const numPoSplitSpringHeader = {
+  ...willCallHeader,
+  customerPoOrReference: numericJobPo,
+  vendorInvoiceNumber: "48213-SPLIT-SPRING",
+  vendorOrderNumber: "48213-SPLIT-SPRING",
+};
+const numPoSplitFallHeader = {
+  ...willCallHeader,
+  customerPoOrReference: numericJobPo,
+  vendorInvoiceNumber: "48213-SPLIT-FALL",
+  vendorOrderNumber: "48213-SPLIT-FALL",
+};
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-num-po-split-spring"), {
+    id: "approve-vendor-invoice-import_vii-num-po-split-spring",
+    gmailMessageId: "msg-num-po-split-spring",
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: numPoSplitSpringHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:48:10Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-num-po-split-fall"), {
+    id: "approve-vendor-invoice-import_vii-num-po-split-fall",
+    gmailMessageId: "msg-num-po-split-fall",
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: numPoSplitFallHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-29T12:00:00Z",
+    updatedAt: "2026-08-29T12:00:00Z",
+  });
+});
+
+try {
+  const numSpringApprove = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-num-po-split-spring",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+  });
+  const numFallApprove = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-num-po-split-fall",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+  });
+  const numSpringData = numSpringApprove?.data ?? numSpringApprove;
+  const numFallData = numFallApprove?.data ?? numFallApprove;
+  const numSpringShell = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-num-po-split-spring",
+  );
+  const numFallShell = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-num-po-split-fall",
+  );
+  const numSpringDel = await getDoc(doc(db, "deliveries", numSpringShell));
+  const numFallDel = await getDoc(doc(db, "deliveries", numFallShell));
+  if (
+    numSpringData?.deliveryOrderId === numSpringShell &&
+    numFallData?.deliveryOrderId === numFallShell &&
+    numSpringShell !== numFallShell &&
+    numSpringDel.data()?.customerPoOrReference === numericJobPo &&
+    numFallDel.data()?.customerPoOrReference === numericJobPo
+  ) {
+    pass("numeric PO different invoice numbers approve to separate deliveries");
+  } else {
+    fail("numeric PO invoices merged on approve", {
+      numSpringData,
+      numFallData,
+      numSpringDel: numSpringDel.exists() ? numSpringDel.data() : null,
+      numFallDel: numFallDel.exists() ? numFallDel.data() : null,
+    });
+  }
+} catch (err) {
+  fail("numeric PO split approve failed", err?.message);
+}
+
+// Case 20 — Numeric customer PO (48213), different invoice numbers: create_shell
+const numPoShellSpringHeader = {
+  ...willCallHeader,
+  customerPoOrReference: numericJobPo,
+  vendorInvoiceNumber: "48213-SHELL-SPRING",
+  vendorOrderNumber: "48213-SHELL-SPRING",
+};
+const numPoShellFallHeader = {
+  ...willCallHeader,
+  customerPoOrReference: numericJobPo,
+  vendorInvoiceNumber: "48213-SHELL-FALL",
+  vendorOrderNumber: "48213-SHELL-FALL",
+};
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-num-po-shell-spring"), {
+    id: "approve-vendor-invoice-import_vii-num-po-shell-spring",
+    gmailMessageId: "msg-num-po-shell-spring",
+    reviewStatus: "approved",
+    importStatus: "pickup_at_vendor",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: numPoShellSpringHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    approvedAt: "2026-08-08T18:50:00Z",
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:50:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-num-po-shell-fall"), {
+    id: "approve-vendor-invoice-import_vii-num-po-shell-fall",
+    gmailMessageId: "msg-num-po-shell-fall",
+    reviewStatus: "approved",
+    importStatus: "pickup_at_vendor",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: numPoShellFallHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    approvedAt: "2026-08-29T11:00:00Z",
+    createdAt: "2026-08-29T12:00:00Z",
+    updatedAt: "2026-08-29T12:00:00Z",
+  });
+});
+
+try {
+  const numSpringShellResult = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-num-po-shell-spring",
+    action: "create_shell",
+  });
+  const numFallShellResult = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-num-po-shell-fall",
+    action: "create_shell",
+  });
+  const numSpringShellData = numSpringShellResult?.data ?? numSpringShellResult;
+  const numFallShellData = numFallShellResult?.data ?? numFallShellResult;
+  const numSpringShellId = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-num-po-shell-spring",
+  );
+  const numFallShellId = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-num-po-shell-fall",
+  );
+  const numSpringShellDel = await getDoc(doc(db, "deliveries", numSpringShellId));
+  const numFallShellDel = await getDoc(doc(db, "deliveries", numFallShellId));
+  if (
+    numSpringShellData?.deliveryOrderId === numSpringShellId &&
+    numFallShellData?.deliveryOrderId === numFallShellId &&
+    numSpringShellId !== numFallShellId &&
+    numSpringShellDel.data()?.customerPoOrReference === numericJobPo &&
+    numFallShellDel.data()?.customerPoOrReference === numericJobPo
+  ) {
+    pass("numeric PO different invoice numbers create_shell to separate deliveries");
+  } else {
+    fail("numeric PO invoices merged on create_shell", {
+      numSpringShellData,
+      numFallShellData,
+    });
+  }
+} catch (err) {
+  fail("numeric PO split create_shell failed", err?.message);
+}
+
+// Case 21 — Mixed alphanumeric PO (po-2533636), different invoice numbers: approve
+const mixedJobPo = "po-2533636";
+const mixedPoSplitSpringHeader = {
+  ...willCallHeader,
+  customerPoOrReference: `  ${mixedJobPo}  `,
+  vendorInvoiceNumber: "PO2533636-SPLIT-SPRING",
+  vendorOrderNumber: "PO2533636-SPLIT-SPRING",
+};
+const mixedPoSplitFallHeader = {
+  ...willCallHeader,
+  customerPoOrReference: mixedJobPo,
+  vendorInvoiceNumber: "PO2533636-SPLIT-FALL",
+  vendorOrderNumber: "PO2533636-SPLIT-FALL",
+};
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-mixed-po-split-spring"), {
+    id: "approve-vendor-invoice-import_vii-mixed-po-split-spring",
+    gmailMessageId: "msg-mixed-po-split-spring",
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: mixedPoSplitSpringHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:48:10Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-mixed-po-split-fall"), {
+    id: "approve-vendor-invoice-import_vii-mixed-po-split-fall",
+    gmailMessageId: "msg-mixed-po-split-fall",
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: mixedPoSplitFallHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-29T12:00:00Z",
+    updatedAt: "2026-08-29T12:00:00Z",
+  });
+});
+
+try {
+  const mixedSpringApprove = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-mixed-po-split-spring",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+  });
+  const mixedFallApprove = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-mixed-po-split-fall",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+  });
+  const mixedSpringData = mixedSpringApprove?.data ?? mixedSpringApprove;
+  const mixedFallData = mixedFallApprove?.data ?? mixedFallApprove;
+  const mixedSpringShell = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-mixed-po-split-spring",
+  );
+  const mixedFallShell = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-mixed-po-split-fall",
+  );
+  const mixedSpringDel = await getDoc(doc(db, "deliveries", mixedSpringShell));
+  const mixedFallDel = await getDoc(doc(db, "deliveries", mixedFallShell));
+  if (
+    mixedSpringData?.deliveryOrderId === mixedSpringShell &&
+    mixedFallData?.deliveryOrderId === mixedFallShell &&
+    mixedSpringShell !== mixedFallShell &&
+    mixedSpringDel.data()?.customerPoOrReference === mixedJobPo &&
+    mixedFallDel.data()?.customerPoOrReference === mixedJobPo
+  ) {
+    pass("mixed PO different invoice numbers approve to separate deliveries (PO stored trimmed)");
+  } else {
+    fail("mixed PO invoices merged on approve", {
+      mixedSpringData,
+      mixedFallData,
+      mixedSpringDel: mixedSpringDel.exists() ? mixedSpringDel.data() : null,
+      mixedFallDel: mixedFallDel.exists() ? mixedFallDel.data() : null,
+    });
+  }
+} catch (err) {
+  fail("mixed PO split approve failed", err?.message);
+}
+
+// Case 22 — Mixed alphanumeric PO (po-2533636), different invoice numbers: create_shell
+const mixedPoShellSpringHeader = {
+  ...willCallHeader,
+  customerPoOrReference: mixedJobPo,
+  vendorInvoiceNumber: "PO2533636-SHELL-SPRING",
+  vendorOrderNumber: "PO2533636-SHELL-SPRING",
+};
+const mixedPoShellFallHeader = {
+  ...willCallHeader,
+  customerPoOrReference: mixedJobPo,
+  vendorInvoiceNumber: "PO2533636-SHELL-FALL",
+  vendorOrderNumber: "PO2533636-SHELL-FALL",
+};
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-mixed-po-shell-spring"), {
+    id: "approve-vendor-invoice-import_vii-mixed-po-shell-spring",
+    gmailMessageId: "msg-mixed-po-shell-spring",
+    reviewStatus: "approved",
+    importStatus: "pickup_at_vendor",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: mixedPoShellSpringHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    approvedAt: "2026-08-08T18:50:00Z",
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:50:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-mixed-po-shell-fall"), {
+    id: "approve-vendor-invoice-import_vii-mixed-po-shell-fall",
+    gmailMessageId: "msg-mixed-po-shell-fall",
+    reviewStatus: "approved",
+    importStatus: "pickup_at_vendor",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: mixedPoShellFallHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    approvedAt: "2026-08-29T11:00:00Z",
+    createdAt: "2026-08-29T12:00:00Z",
+    updatedAt: "2026-08-29T12:00:00Z",
+  });
+});
+
+try {
+  const mixedSpringShellResult = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-mixed-po-shell-spring",
+    action: "create_shell",
+  });
+  const mixedFallShellResult = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-mixed-po-shell-fall",
+    action: "create_shell",
+  });
+  const mixedSpringShellData = mixedSpringShellResult?.data ?? mixedSpringShellResult;
+  const mixedFallShellData = mixedFallShellResult?.data ?? mixedFallShellResult;
+  const mixedSpringShellId = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-mixed-po-shell-spring",
+  );
+  const mixedFallShellId = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-mixed-po-shell-fall",
+  );
+  const mixedSpringShellDel = await getDoc(doc(db, "deliveries", mixedSpringShellId));
+  const mixedFallShellDel = await getDoc(doc(db, "deliveries", mixedFallShellId));
+  if (
+    mixedSpringShellData?.deliveryOrderId === mixedSpringShellId &&
+    mixedFallShellData?.deliveryOrderId === mixedFallShellId &&
+    mixedSpringShellId !== mixedFallShellId &&
+    mixedSpringShellDel.data()?.customerPoOrReference === mixedJobPo &&
+    mixedFallShellDel.data()?.customerPoOrReference === mixedJobPo
+  ) {
+    pass("mixed PO different invoice numbers create_shell to separate deliveries");
+  } else {
+    fail("mixed PO invoices merged on create_shell", {
+      mixedSpringShellData,
+      mixedFallShellData,
+      mixedSpringShellDel: mixedSpringShellDel.exists() ? mixedSpringShellDel.data() : null,
+      mixedFallShellDel: mixedFallShellDel.exists() ? mixedFallShellDel.data() : null,
+    });
+  }
+} catch (err) {
+  fail("mixed PO split create_shell failed", err?.message);
+}
+
+// Case 23 — Special-character PO, different invoice numbers: approve + create_shell
+const specialJobPo = "PF Wausau / Fall #2";
+const specialPoSplitSpringHeader = {
+  ...willCallHeader,
+  customerPoOrReference: specialJobPo,
+  vendorInvoiceNumber: "SPEC-PO-SPLIT-SPRING",
+  vendorOrderNumber: "SPEC-PO-SPLIT-SPRING",
+};
+const specialPoSplitFallHeader = {
+  ...willCallHeader,
+  customerPoOrReference: specialJobPo,
+  vendorInvoiceNumber: "SPEC-PO-SPLIT-FALL",
+  vendorOrderNumber: "SPEC-PO-SPLIT-FALL",
+};
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-spec-po-split-spring"), {
+    id: "approve-vendor-invoice-import_vii-spec-po-split-spring",
+    gmailMessageId: "msg-spec-po-split-spring",
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: specialPoSplitSpringHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:48:10Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-spec-po-split-fall"), {
+    id: "approve-vendor-invoice-import_vii-spec-po-split-fall",
+    gmailMessageId: "msg-spec-po-split-fall",
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: specialPoSplitFallHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-29T12:00:00Z",
+    updatedAt: "2026-08-29T12:00:00Z",
+  });
+});
+
+try {
+  const specSpringApprove = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-spec-po-split-spring",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+  });
+  const specFallApprove = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-spec-po-split-fall",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+  });
+  const specSpringShell = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-spec-po-split-spring",
+  );
+  const specFallShell = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-spec-po-split-fall",
+  );
+  const specSpringDel = await getDoc(doc(db, "deliveries", specSpringShell));
+  const specFallDel = await getDoc(doc(db, "deliveries", specFallShell));
+  if (
+    (specSpringApprove?.data ?? specSpringApprove)?.deliveryOrderId === specSpringShell &&
+    (specFallApprove?.data ?? specFallApprove)?.deliveryOrderId === specFallShell &&
+    specSpringShell !== specFallShell &&
+    specSpringDel.data()?.customerPoOrReference === specialJobPo &&
+    specFallDel.data()?.customerPoOrReference === specialJobPo
+  ) {
+    pass("special-char PO different invoice numbers approve to separate deliveries");
+  } else {
+    fail("special-char PO invoices merged on approve", {
+      specSpringDel: specSpringDel.exists() ? specSpringDel.data() : null,
+      specFallDel: specFallDel.exists() ? specFallDel.data() : null,
+    });
+  }
+} catch (err) {
+  fail("special-char PO split approve failed", err?.message);
+}
+
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-spec-po-shell-spring"), {
+    id: "approve-vendor-invoice-import_vii-spec-po-shell-spring",
+    reviewStatus: "approved",
+    importStatus: "pickup_at_vendor",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: {
+      ...specialPoSplitSpringHeader,
+      vendorInvoiceNumber: "SPEC-PO-SHELL-SPRING",
+      vendorOrderNumber: "SPEC-PO-SHELL-SPRING",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    approvedAt: "2026-08-08T18:50:00Z",
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:50:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-spec-po-shell-fall"), {
+    id: "approve-vendor-invoice-import_vii-spec-po-shell-fall",
+    reviewStatus: "approved",
+    importStatus: "pickup_at_vendor",
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: {
+      ...specialPoSplitFallHeader,
+      vendorInvoiceNumber: "SPEC-PO-SHELL-FALL",
+      vendorOrderNumber: "SPEC-PO-SHELL-FALL",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    approvedAt: "2026-08-29T11:00:00Z",
+    createdAt: "2026-08-29T12:00:00Z",
+    updatedAt: "2026-08-29T12:00:00Z",
+  });
+});
+
+try {
+  const specSpringShellResult = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-spec-po-shell-spring",
+    action: "create_shell",
+  });
+  const specFallShellResult = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-spec-po-shell-fall",
+    action: "create_shell",
+  });
+  const specSpringShellId = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-spec-po-shell-spring",
+  );
+  const specFallShellId = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-spec-po-shell-fall",
+  );
+  const specSpringShellDel = await getDoc(doc(db, "deliveries", specSpringShellId));
+  if (
+    (specSpringShellResult?.data ?? specSpringShellResult)?.deliveryOrderId === specSpringShellId &&
+    (specFallShellResult?.data ?? specFallShellResult)?.deliveryOrderId === specFallShellId &&
+    specSpringShellId !== specFallShellId &&
+    specSpringShellDel.data()?.customerPoOrReference === specialJobPo
+  ) {
+    pass("special-char PO different invoice numbers create_shell to separate deliveries");
+  } else {
+    fail("special-char PO invoices merged on create_shell");
+  }
+} catch (err) {
+  fail("special-char PO split create_shell failed", err?.message);
+}
+
+// Case 24 — Unknown parser: delivery index off; different invoices → separate deliveries
+const unknownSpringHeader = {
+  ...willCallHeader,
+  customerPoOrReference: "PF-Wausau",
+  vendorInvoiceNumber: "UNK-VENDOR-SPRING-01",
+  vendorOrderNumber: "UNK-SO-1",
+};
+const unknownFallHeader = {
+  ...willCallHeader,
+  customerPoOrReference: "PF-Wausau",
+  vendorInvoiceNumber: "UNK-VENDOR-FALL-01",
+  vendorOrderNumber: "UNK-SO-2",
+};
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendors", "approve-vendor-invoice-import_vendor-unknown"), {
+    id: "approve-vendor-invoice-import_vendor-unknown",
+    name: "Other Supply Co",
+    active: true,
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:48:10Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-unknown-split-spring"), {
+    id: "approve-vendor-invoice-import_vii-unknown-split-spring",
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    detectedVendorId: "approve-vendor-invoice-import_vendor-unknown",
+    detectedVendorName: "Other Supply Co",
+    parserFormatId: "unknown",
+    parsedHeader: unknownSpringHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:48:10Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-unknown-split-fall"), {
+    id: "approve-vendor-invoice-import_vii-unknown-split-fall",
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    detectedVendorId: "approve-vendor-invoice-import_vendor-unknown",
+    detectedVendorName: "Other Supply Co",
+    parserFormatId: "unknown",
+    parsedHeader: unknownFallHeader,
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-29T12:00:00Z",
+    updatedAt: "2026-08-29T12:00:00Z",
+  });
+});
+
+try {
+  const unkSpringApprove = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-unknown-split-spring",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+  });
+  const unkFallApprove = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-unknown-split-fall",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+  });
+  const unkSpringShell = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-unknown-split-spring",
+  );
+  const unkFallShell = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-unknown-split-fall",
+  );
+  if (
+    (unkSpringApprove?.data ?? unkSpringApprove)?.deliveryOrderId === unkSpringShell &&
+    (unkFallApprove?.data ?? unkFallApprove)?.deliveryOrderId === unkFallShell &&
+    unkSpringShell !== unkFallShell
+  ) {
+    pass("unknown parser vendor: different invoices approve to separate deliveries (index off)");
+  } else {
+    fail("unknown vendor invoices merged on approve", {
+      unkSpringApprove,
+      unkFallApprove,
+    });
+  }
+} catch (err) {
+  fail("unknown vendor split approve failed", err?.message);
+}
+
 await testEnv.cleanup();
 
 console.log(`\n--- Result: ${passed} passed, ${failed} failed ---`);

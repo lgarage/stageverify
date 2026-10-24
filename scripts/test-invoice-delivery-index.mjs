@@ -6,6 +6,8 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
   businessInvoiceDeliveryIndexKeyDocId,
+  deliveryIndexActiveForParser,
+  deliveryIndexModeForParser,
   invoiceNumberIsBossForParser,
   resolveDeliveryTargetFromIndexSnap,
   salesOrdersDisagreeForSeparateDeliveries,
@@ -16,8 +18,14 @@ import { tryBuildBusinessInvoiceIdentity } from "../functions/lib/invoice/busine
 import {
   buildInvoiceShellResendMetadataPatch,
   isTerminalPickupShellDelivery,
+  resolveInvoiceApproveDeliveryTarget,
+  shellDeliveryIdForImport,
 } from "../functions/lib/invoice/createDeliveryShellFromImport.js";
 import { planBusinessInvoiceDeliveryIndexBackfill } from "../functions/lib/invoice/backfillBusinessInvoiceDeliveryIndexPlan.js";
+import {
+  isEligibleMatchedDeliveryTarget,
+  matchInvoiceToRecords,
+} from "../functions/lib/invoice/matchInvoiceToRecords.js";
 
 let passed = 0;
 let failed = 0;
@@ -91,6 +99,26 @@ function sampleLines(poSku = "SKU-A") {
   );
   assert.notEqual(fsA, fsB);
   pass("index key johnstone invoice-boss vs first_supply S/O disambiguation");
+}
+
+{
+  assert.equal(deliveryIndexModeForParser("johnstone"), "invoice_only");
+  assert.equal(deliveryIndexModeForParser("first_supply"), "invoice_and_sales_order");
+  assert.equal(deliveryIndexModeForParser("unknown"), "off");
+  assert.equal(deliveryIndexModeForParser("generic"), "off");
+  assert.equal(deliveryIndexActiveForParser("johnstone"), true);
+  assert.equal(deliveryIndexActiveForParser("unknown"), false);
+  const unknownCtx = tryBuildBusinessInvoiceIndexContext({
+    parserFormatId: "unknown",
+    detectedVendorName: "Mystery Vendor",
+    parsedHeader: {
+      vendorInvoiceNumber: "UNK-1001",
+      vendorOrderNumber: "SO-9",
+    },
+    parsedLines: sampleLines(),
+  });
+  assert.equal(unknownCtx, null);
+  pass("per-vendor delivery index map + unknown disables index context");
 }
 
 // resolve index snap
@@ -237,6 +265,196 @@ function sampleLines(poSku = "SKU-A") {
   assert.equal(fsEntries.length, 2);
   assert.notEqual(fsEntries[0].indexKeyDocId, fsEntries[1].indexKeyDocId);
   pass("backfill plan duplicates + ambiguous S/O");
+}
+
+// Same customer PO, different invoice numbers — not duplicates (invoice # is the boss)
+{
+  const sharedPo = "PF-Wausau";
+  const plan = planBusinessInvoiceDeliveryIndexBackfill({
+    imports: [
+      {
+        id: "po-split-spring",
+        parserFormatId: "johnstone",
+        detectedVendorName: "Johnstone Supply",
+        reviewStatus: "approved",
+        linkedDeliveryOrderId: "delivery-vii-po-split-spring",
+        parsedHeader: {
+          vendorInvoiceNumber: "PO-SPLIT-9901-SPRING",
+          vendorOrderNumber: "PO-SPLIT-9901-SPRING",
+          customerPoOrReference: sharedPo,
+        },
+        parsedLines: sampleLines("SPRING-SKU"),
+      },
+      {
+        id: "po-split-fall",
+        parserFormatId: "johnstone",
+        detectedVendorName: "Johnstone Supply",
+        reviewStatus: "approved",
+        linkedDeliveryOrderId: "delivery-vii-po-split-fall",
+        parsedHeader: {
+          vendorInvoiceNumber: "PO-SPLIT-9901-FALL",
+          vendorOrderNumber: "PO-SPLIT-9901-FALL",
+          customerPoOrReference: sharedPo,
+        },
+        parsedLines: sampleLines("FALL-SKU"),
+      },
+    ],
+    deliveries: [
+      { id: "delivery-vii-po-split-spring", createdFromInvoiceImport: true },
+      { id: "delivery-vii-po-split-fall", createdFromInvoiceImport: true },
+    ],
+  });
+  assert.equal(plan.duplicates.length, 0);
+  assert.equal(
+    plan.entries.filter((e) => e.normalizedInvoiceNumber.startsWith("PO-SPLIT-9901")).length,
+    2,
+  );
+  const keys = plan.entries.map((e) => e.indexKeyDocId);
+  assert.notEqual(keys[0], keys[1]);
+  pass("backfill plan: shared name PO + different invoice numbers are not duplicates");
+}
+
+{
+  const numericPo = "48213";
+  const plan = planBusinessInvoiceDeliveryIndexBackfill({
+    imports: [
+      {
+        id: "num-po-spring",
+        parserFormatId: "johnstone",
+        detectedVendorName: "Johnstone Supply",
+        reviewStatus: "approved",
+        linkedDeliveryOrderId: "delivery-vii-num-po-spring",
+        parsedHeader: {
+          vendorInvoiceNumber: "48213-SPRING-01",
+          vendorOrderNumber: "48213-SPRING-01",
+          customerPoOrReference: numericPo,
+        },
+        parsedLines: sampleLines("NUM-SPRING"),
+      },
+      {
+        id: "num-po-fall",
+        parserFormatId: "johnstone",
+        detectedVendorName: "Johnstone Supply",
+        reviewStatus: "approved",
+        linkedDeliveryOrderId: "delivery-vii-num-po-fall",
+        parsedHeader: {
+          vendorInvoiceNumber: "48213-FALL-01",
+          vendorOrderNumber: "48213-FALL-01",
+          customerPoOrReference: numericPo,
+        },
+        parsedLines: sampleLines("NUM-FALL"),
+      },
+    ],
+    deliveries: [
+      { id: "delivery-vii-num-po-spring", createdFromInvoiceImport: true },
+      { id: "delivery-vii-num-po-fall", createdFromInvoiceImport: true },
+    ],
+  });
+  assert.equal(plan.duplicates.length, 0);
+  assert.equal(plan.entries.length, 2);
+  assert.notEqual(plan.entries[0].indexKeyDocId, plan.entries[1].indexKeyDocId);
+  pass("backfill plan: numeric PO + different invoice numbers are not duplicates");
+}
+
+{
+  const mixedPo = "po-2533636";
+  const plan = planBusinessInvoiceDeliveryIndexBackfill({
+    imports: [
+      {
+        id: "mix-po-spring",
+        parserFormatId: "johnstone",
+        detectedVendorName: "Johnstone Supply",
+        reviewStatus: "approved",
+        linkedDeliveryOrderId: "delivery-vii-mix-po-spring",
+        parsedHeader: {
+          vendorInvoiceNumber: "PO2533636-SPRING-01",
+          vendorOrderNumber: "PO2533636-SPRING-01",
+          customerPoOrReference: mixedPo,
+        },
+        parsedLines: sampleLines("MIX-SPRING"),
+      },
+      {
+        id: "mix-po-fall",
+        parserFormatId: "johnstone",
+        detectedVendorName: "Johnstone Supply",
+        reviewStatus: "approved",
+        linkedDeliveryOrderId: "delivery-vii-mix-po-fall",
+        parsedHeader: {
+          vendorInvoiceNumber: "PO2533636-FALL-01",
+          vendorOrderNumber: "PO2533636-FALL-01",
+          customerPoOrReference: mixedPo,
+        },
+        parsedLines: sampleLines("MIX-FALL"),
+      },
+    ],
+    deliveries: [
+      { id: "delivery-vii-mix-po-spring", createdFromInvoiceImport: true },
+      { id: "delivery-vii-mix-po-fall", createdFromInvoiceImport: true },
+    ],
+  });
+  assert.equal(plan.duplicates.length, 0);
+  assert.equal(plan.entries.length, 2);
+  pass("backfill plan: mixed PO + different invoice numbers are not duplicates");
+}
+
+// Approve target must not match a foreign-owned delivery on PO alone
+{
+  const sharedPo = "PF-Wausau";
+  const poHeader = {
+    customerAccountNumber: "0018114",
+    vendorOrderNumber: "PO-SPLIT-9902-FALL",
+    vendorInvoiceNumber: "PO-SPLIT-9902-FALL",
+    customerPoOrReference: sharedPo,
+    orderDate: "2026-06-23",
+    invoiceDate: "2026-06-23",
+    shipDate: "2026-06-23",
+    vendorBranchName: "Johnstone Supply",
+    soldToName: "SJS HEATING",
+    shipToName: "SJS HEATING",
+    fulfillmentMethod: "will_call_pickup",
+    shipCompletePolicy: "unknown",
+  };
+  const ctx = {
+    vendors: [{ id: "v-1", email: "a@b.com" }],
+    jobs: [{ id: "job-1", jobNumber: "26-100" }],
+    purchaseOrders: [
+      { id: "po-wausau", poNumber: sharedPo, jobId: "job-1", vendorId: "v-1" },
+    ],
+    deliveries: [
+      {
+        id: "delivery-spring-shell",
+        orderNumber: "PO-SPLIT-9902-SPRING",
+        jobId: "job-1",
+        vendorId: "v-1",
+        purchaseOrderId: "po-wausau",
+        vendorInvoiceImportId: "import-spring",
+        createdFromInvoiceImport: true,
+      },
+      {
+        id: "delivery-other-po-line",
+        orderNumber: "ORD-MISC",
+        jobId: "job-1",
+        vendorId: "v-1",
+        purchaseOrderId: "po-wausau",
+      },
+    ],
+  };
+  const match = matchInvoiceToRecords("import-fall", poHeader, ctx);
+  assert.equal(isEligibleMatchedDeliveryTarget(match, "import-fall", ctx.deliveries), false);
+  const resolved = resolveInvoiceApproveDeliveryTarget({
+    importId: "import-fall",
+    importDoc: {
+      parsedHeader: poHeader,
+      parsedLines: sampleLines(),
+      reviewStatus: "pending_review",
+      importStatus: "pending",
+    },
+    header: poHeader,
+    ctx,
+  });
+  assert.equal(resolved.matchedExisting, false);
+  assert.equal(resolved.targetDeliveryOrderId, shellDeliveryIdForImport("import-fall"));
+  pass("approve target: shared PO does not auto-merge onto sibling invoice delivery");
 }
 
 // mock tx stamp winner

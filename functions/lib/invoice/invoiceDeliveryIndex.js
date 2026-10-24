@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.businessInvoiceKeyDocId = exports.getBusinessInvoiceKeySnap = void 0;
+exports.deliveryIndexModeForParser = deliveryIndexModeForParser;
+exports.deliveryIndexActiveForParser = deliveryIndexActiveForParser;
 exports.invoiceNumberIsBossForParser = invoiceNumberIsBossForParser;
 exports.salesOrdersDisagreeForSeparateDeliveries = salesOrdersDisagreeForSeparateDeliveries;
 exports.businessInvoiceDeliveryIndexKeyDocId = businessInvoiceDeliveryIndexKeyDocId;
@@ -12,15 +14,29 @@ exports.stampDeliveryOrderIdOnBusinessInvoiceKeyInTx = stampDeliveryOrderIdOnBus
 const businessInvoiceIdentity_1 = require("./businessInvoiceIdentity");
 Object.defineProperty(exports, "businessInvoiceKeyDocId", { enumerable: true, get: function () { return businessInvoiceIdentity_1.businessInvoiceKeyDocId; } });
 Object.defineProperty(exports, "getBusinessInvoiceKeySnap", { enumerable: true, get: function () { return businessInvoiceIdentity_1.getBusinessInvoiceKeySnap; } });
+const PARSER_DELIVERY_INDEX_MODE = {
+    johnstone: "invoice_only",
+    first_supply: "invoice_and_sales_order",
+};
+function deliveryIndexModeForParser(parserFormatId) {
+    if (!parserFormatId)
+        return "off";
+    return PARSER_DELIVERY_INDEX_MODE[parserFormatId] ?? "off";
+}
+function deliveryIndexActiveForParser(parserFormatId) {
+    return deliveryIndexModeForParser(parserFormatId) !== "off";
+}
 function invoiceNumberIsBossForParser(parserFormatId) {
-    return parserFormatId === "johnstone";
+    return deliveryIndexModeForParser(parserFormatId) === "invoice_only";
 }
 /**
- * Non-Johnstone vendors keep separate deliveries when the sales order differs.
+ * Non-Johnstone indexed vendors keep separate deliveries when the sales order differs.
  * Johnstone ignores S/O (invoice number is the boss). Blank S/O does not split.
  */
 function salesOrdersDisagreeForSeparateDeliveries(parserFormatId, importVendorOrderNumber, deliveryVendorOrderNumber) {
     if (invoiceNumberIsBossForParser(parserFormatId))
+        return false;
+    if (!deliveryIndexActiveForParser(parserFormatId))
         return false;
     const want = (0, businessInvoiceIdentity_1.normalizeBusinessInvoiceNumber)(importVendorOrderNumber ?? "");
     const have = (0, businessInvoiceIdentity_1.normalizeBusinessInvoiceNumber)(deliveryVendorOrderNumber ?? "");
@@ -36,7 +52,11 @@ function sanitizeKeySegment(raw, max) {
 }
 /** Firestore doc id for delivery index — extends business-invoice key with S/O when required. */
 function businessInvoiceDeliveryIndexKeyDocId(identity, parserFormatId, vendorOrderNumberRaw) {
-    if (invoiceNumberIsBossForParser(parserFormatId)) {
+    const mode = deliveryIndexModeForParser(parserFormatId);
+    if (mode === "off") {
+        return identity.keyDocId;
+    }
+    if (mode === "invoice_only") {
         return identity.keyDocId;
     }
     const order = (0, businessInvoiceIdentity_1.normalizeBusinessInvoiceNumber)(vendorOrderNumberRaw);
@@ -60,6 +80,9 @@ function tryBuildBusinessInvoiceIndexContext(importDoc) {
     });
     if (!identity)
         return null;
+    if (!deliveryIndexActiveForParser(importDoc.parserFormatId)) {
+        return null;
+    }
     const indexKeyDocId = businessInvoiceDeliveryIndexKeyDocId(identity, importDoc.parserFormatId, String(header.vendorOrderNumber ?? ""));
     return { identity, indexKeyDocId };
 }
