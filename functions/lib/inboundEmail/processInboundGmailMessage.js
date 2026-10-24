@@ -20,6 +20,7 @@ const inferImportStatus_1 = require("../invoice/inferImportStatus");
 const parsedHeaderValidation_1 = require("../invoice/parsedHeaderValidation");
 const creditReturnSkip_1 = require("../invoice/creditReturnSkip");
 const businessInvoiceIdentity_1 = require("../invoice/businessInvoiceIdentity");
+const invoiceDeliveryIndex_1 = require("../invoice/invoiceDeliveryIndex");
 const vendorIgnoreRules_1 = require("../invoice/aiShadow/vendorIgnoreRules");
 const ignoreRuleAudit_1 = require("../invoice/aiShadow/ignoreRuleAudit");
 const strongInvoiceSignals_1 = require("../invoice/strongInvoiceSignals");
@@ -338,6 +339,20 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 parsedLines,
             })
             : null;
+        const businessIndexCtx = businessIdentity
+            ? (0, invoiceDeliveryIndex_1.tryBuildBusinessInvoiceIndexContext)({
+                detectedVendorId: existingData?.detectedVendorId,
+                detectedVendorName: proc.detectedVendorName,
+                parserFormatId: proc.parserFormatId,
+                parsedHeader: {
+                    vendorInvoiceNumber: vendorInvoiceNumberRaw,
+                    customerPoOrReference: String(headerForIdentity.customerPoOrReference ?? ""),
+                    vendorOrderNumber: String(headerForIdentity.vendorOrderNumber ?? ""),
+                    fulfillmentMethod: String(headerForIdentity.fulfillmentMethod ?? ""),
+                },
+                parsedLines,
+            })
+            : null;
         const buildReviewDoc = (input) => {
             const activeSkip = input.effectiveSkipFields ?? skipFields;
             return {
@@ -392,6 +407,9 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 ...(input.canonicalImportId
                     ? { canonicalImportId: input.canonicalImportId }
                     : {}),
+                ...(input.linkedDeliveryOrderId
+                    ? { linkedDeliveryOrderId: input.linkedDeliveryOrderId }
+                    : {}),
                 ...(input.possibleRevisionOfImportId
                     ? { possibleRevisionOfImportId: input.possibleRevisionOfImportId }
                     : {}),
@@ -413,8 +431,9 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);
         await db.runTransaction(async (tx) => {
             const freshSnap = await tx.get(reviewRef);
-            const keySnap = businessIdentity
-                ? await (0, businessInvoiceIdentity_1.getBusinessInvoiceKeySnap)(tx, db, businessIdentity.keyDocId)
+            const claimKeyId = businessIndexCtx?.indexKeyDocId ?? businessIdentity?.keyDocId ?? "";
+            const keySnap = businessIdentity && claimKeyId
+                ? await (0, businessInvoiceIdentity_1.getBusinessInvoiceKeySnap)(tx, db, claimKeyId)
                 : null;
             const freshData = freshSnap.exists
                 ? freshSnap.data()
@@ -441,6 +460,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                             identity: businessIdentity,
                             vendorInvoiceNumberRaw,
                             excludeReviewId: reviewId,
+                            indexKeyDocId: businessIndexCtx?.indexKeyDocId,
                         })
                         : { kind: "none" };
                     if (legacyLookup.kind === "saturated") {
@@ -463,11 +483,31 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 ? businessClaim.canonicalImportId
                 : undefined;
             const canonicalImportId = businessClaim?.kind === "exact_duplicate" ||
-                businessClaim?.kind === "possible_revision"
+                businessClaim?.kind === "possible_revision" ||
+                businessClaim?.kind === "same_message_multipage"
                 ? businessClaim.canonicalImportId
-                : businessClaim?.kind === "same_message_multipage"
-                    ? undefined
-                    : undefined;
+                : undefined;
+            let inheritedLinkedDeliveryOrderId;
+            // Index-off vendors (unknown/generic) may still claim an idempotency key.
+            // They must not inherit a delivery from that key or from the canonical row.
+            if (businessIndexCtx) {
+                if (keySnap?.exists) {
+                    const fromKey = (0, businessInvoiceIdentity_1.deliveryOrderIdFromKeyDoc)(keySnap.data());
+                    if (fromKey)
+                        inheritedLinkedDeliveryOrderId = fromKey;
+                }
+                if (!inheritedLinkedDeliveryOrderId &&
+                    canonicalImportId &&
+                    canonicalImportId !== reviewId) {
+                    const canonSnap = await tx.get(db.collection(REVIEW_COLLECTION).doc(canonicalImportId));
+                    if (canonSnap.exists) {
+                        const linked = String(canonSnap.data().linkedDeliveryOrderId ??
+                            "").trim();
+                        if (linked)
+                            inheritedLinkedDeliveryOrderId = linked;
+                    }
+                }
+            }
             // Recompute correction overrides from the fresh in-tx import snapshot so a
             // concurrent apply cannot be wiped by a stale pre-tx log read.
             const freshLog = Array.isArray(freshData?.fieldCorrectionLog)
@@ -546,6 +586,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 effectiveSkipFields: duplicateSkip ?? skipFields,
                 canonicalImportId,
                 possibleRevisionOfImportId: revisionOfId,
+                linkedDeliveryOrderId: inheritedLinkedDeliveryOrderId,
             });
             // User re-opened a system skip (pending, no skipReason) — do not re-auto-skip.
             if (freshSnap.exists &&

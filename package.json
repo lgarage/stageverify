@@ -240,6 +240,7 @@
     "test:match-invoice-records": "cd functions && npm run build && cd .. && node scripts/test-match-invoice-records.mjs",
     "test:approve-vendor-invoice-import": "cd functions && npm run build && cd .. && node scripts/test-approve-vendor-invoice-import.mjs",
     "test:business-invoice-idempotency": "cd functions && npm run build && cd .. && node scripts/test-business-invoice-idempotency.mjs",
+    "test:invoice-delivery-index": "cd functions && npm run build && cd .. && node scripts/test-invoice-delivery-index.mjs",
     "test:credit-return-delivery-block": "cd functions && npm run build && cd .. && node scripts/test-credit-return-delivery-block.mjs",
     "test:delivery-credit-reject-gate": "npx tsx scripts/test-delivery-credit-reject-gate.mjs",
     "test:recover-stranded-processing": "cd functions && npm run build && cd .. && node scripts/test-recover-stranded-processing.mjs",

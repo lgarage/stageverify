@@ -16,6 +16,10 @@ import { isArmableVendorKey } from "./aiShadow/vendorIgnoreRules";
 import { sanitizeVendorKey } from "./aiShadow/vendorTrainingMd";
 import { vendorKeyFromImportDoc } from "./aiShadow/adminConfig";
 import type { VendorInvoiceImportParsedLine } from "../inboundEmail/types";
+import {
+  businessInvoiceDeliveryIndexKeyDocId,
+  deliveryIndexActiveForParser,
+} from "./invoiceDeliveryIndex";
 
 export const BUSINESS_INVOICE_KEYS_COLLECTION = "vendorBusinessInvoiceKeys";
 
@@ -26,6 +30,8 @@ export type BusinessInvoiceKeyDoc = {
   canonicalImportId: string;
   canonicalGmailMessageId: string;
   contentFingerprint: string;
+  /** Authoritative delivery for this business invoice (Johnstone: invoice # is boss). */
+  deliveryOrderId?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -54,6 +60,14 @@ export type BusinessInvoiceClaimOutcome =
 
 export function normalizeBusinessInvoiceNumber(raw: string): string {
   return raw.trim().toUpperCase();
+}
+
+export function deliveryOrderIdFromKeyDoc(
+  data: BusinessInvoiceKeyDoc | undefined | null,
+): string {
+  const id =
+    typeof data?.deliveryOrderId === "string" ? data.deliveryOrderId.trim() : "";
+  return id;
 }
 
 /** Refuse weak / unknown vendor scopes (tenant-safe). */
@@ -240,6 +254,7 @@ export function selectLegacyBusinessInvoiceCanonical(
   rows: LegacyBusinessInvoiceImportRow[],
   identity: BusinessInvoiceIdentity,
   excludeReviewId: string,
+  indexKeyDocId?: string,
 ): LegacyBusinessInvoiceCanonicalHint | null {
   const exclude = excludeReviewId.trim();
   const matched: Array<{
@@ -263,6 +278,14 @@ export function selectLegacyBusinessInvoiceCanonical(
     });
     if (!candidateIdentity) continue;
     if (candidateIdentity.keyDocId !== identity.keyDocId) continue;
+    if (indexKeyDocId) {
+      const candidateIndex = businessInvoiceDeliveryIndexKeyDocId(
+        candidateIdentity,
+        row.parserFormatId,
+        String(header.vendorOrderNumber ?? ""),
+      );
+      if (candidateIndex !== indexKeyDocId) continue;
+    }
     matched.push({ row, candidateIdentity });
   }
 
@@ -372,6 +395,7 @@ function lookupResultFromRows(
   saturated: boolean,
   identity: BusinessInvoiceIdentity,
   excludeReviewId: string,
+  indexKeyDocId?: string,
 ): LegacyBusinessInvoiceLookupResult {
   // Any full page is an incomplete sample — never mint self-canonical from it.
   if (saturated) {
@@ -381,6 +405,7 @@ function lookupResultFromRows(
     rows,
     identity,
     excludeReviewId,
+    indexKeyDocId,
   );
   return hint ? { kind: "found", hint } : { kind: "none" };
 }
@@ -396,6 +421,8 @@ export async function findLegacyBusinessInvoiceCanonical(
     identity: BusinessInvoiceIdentity;
     vendorInvoiceNumberRaw: string;
     excludeReviewId: string;
+    /** When set, a different sales-order index key is not the same invoice. */
+    indexKeyDocId?: string;
   },
 ): Promise<LegacyBusinessInvoiceLookupResult> {
   const { rows, saturated } = await loadLegacyImportRowsByInvoiceNumber(
@@ -408,6 +435,7 @@ export async function findLegacyBusinessInvoiceCanonical(
     saturated,
     input.identity,
     input.excludeReviewId,
+    input.indexKeyDocId,
   );
 }
 
@@ -418,6 +446,7 @@ export async function findLegacyBusinessInvoiceCanonicalOutsideTx(
     identity: BusinessInvoiceIdentity;
     vendorInvoiceNumberRaw: string;
     excludeReviewId: string;
+    indexKeyDocId?: string;
   },
 ): Promise<LegacyBusinessInvoiceLookupResult> {
   const { rows, saturated } = await loadLegacyImportRowsByInvoiceNumber(
@@ -430,6 +459,7 @@ export async function findLegacyBusinessInvoiceCanonicalOutsideTx(
     saturated,
     input.identity,
     input.excludeReviewId,
+    input.indexKeyDocId,
   );
 }
 
@@ -621,6 +651,12 @@ export async function resolveApproveBusinessInvoiceRedirect(
   canonicalImportId: string;
   linkedDeliveryOrderId?: string;
 } | null> {
+  // Unknown/generic parsers are not in the delivery index. Do not reuse a
+  // delivery from the idempotency key or a legacy same-invoice row.
+  if (!deliveryIndexActiveForParser(importDoc.parserFormatId)) {
+    return null;
+  }
+
   const header = importDoc.parsedHeader ?? {};
   const vendorInvoiceNumber = String(header.vendorInvoiceNumber ?? "");
   const identity = tryBuildBusinessInvoiceIdentity({
@@ -635,15 +671,21 @@ export async function resolveApproveBusinessInvoiceRedirect(
   });
   if (!identity) return null;
 
+  const indexKeyDocId = businessInvoiceDeliveryIndexKeyDocId(
+    identity,
+    importDoc.parserFormatId,
+    String(header.vendorOrderNumber ?? ""),
+  );
   const keySnap = await db
     .collection(BUSINESS_INVOICE_KEYS_COLLECTION)
-    .doc(identity.keyDocId)
+    .doc(indexKeyDocId)
     .get();
   if (!keySnap.exists) {
     const legacyLookup = await findLegacyBusinessInvoiceCanonicalOutsideTx(db, {
       identity,
       vendorInvoiceNumberRaw: vendorInvoiceNumber,
       excludeReviewId: importId,
+      indexKeyDocId,
     });
     if (legacyLookup.kind === "saturated") {
       throw new Error(BUSINESS_INVOICE_LEGACY_LOOKUP_SATURATED);
@@ -666,9 +708,37 @@ export async function resolveApproveBusinessInvoiceRedirect(
       .doc(typedCanonical)
       .get();
     if (!canonSnap.exists) return { canonicalImportId: typedCanonical };
+    const canonData = canonSnap.data() as {
+      parserFormatId?: string;
+      detectedVendorId?: string;
+      detectedVendorName?: string;
+      parsedHeader?: Record<string, unknown>;
+      parsedLines?: VendorInvoiceImportParsedLine[];
+      linkedDeliveryOrderId?: string;
+    };
+    const canonHeader = canonData.parsedHeader ?? {};
+    const canonIdentity = tryBuildBusinessInvoiceIdentity({
+      detectedVendorId: canonData.detectedVendorId,
+      detectedVendorName: canonData.detectedVendorName,
+      parserFormatId: canonData.parserFormatId,
+      vendorInvoiceNumber: String(canonHeader.vendorInvoiceNumber ?? ""),
+      customerPoOrReference: String(canonHeader.customerPoOrReference ?? ""),
+      vendorOrderNumber: String(canonHeader.vendorOrderNumber ?? ""),
+      fulfillmentMethod: String(canonHeader.fulfillmentMethod ?? ""),
+      parsedLines: canonData.parsedLines ?? [],
+    });
+    if (canonIdentity) {
+      const canonIndex = businessInvoiceDeliveryIndexKeyDocId(
+        canonIdentity,
+        canonData.parserFormatId,
+        String(canonHeader.vendorOrderNumber ?? ""),
+      );
+      // Same invoice number, different S/O (First Supply) — do not redirect.
+      if (canonIndex !== indexKeyDocId) return null;
+    }
     const linked =
-      typeof canonSnap.data()?.linkedDeliveryOrderId === "string"
-        ? String(canonSnap.data()?.linkedDeliveryOrderId).trim()
+      typeof canonData.linkedDeliveryOrderId === "string"
+        ? canonData.linkedDeliveryOrderId.trim()
         : "";
     return {
       canonicalImportId: typedCanonical,
@@ -678,17 +748,25 @@ export async function resolveApproveBusinessInvoiceRedirect(
 
   const key = keySnap.data() as BusinessInvoiceKeyDoc;
   const canonicalImportId = String(key.canonicalImportId ?? "").trim();
-  if (!canonicalImportId || canonicalImportId === importId) return null;
+  if (!canonicalImportId || canonicalImportId === importId) {
+    const indexedOnly = deliveryOrderIdFromKeyDoc(key);
+    if (indexedOnly) {
+      return { canonicalImportId: importId, linkedDeliveryOrderId: indexedOnly };
+    }
+    return null;
+  }
 
   const canonSnap = await db
     .collection("vendorInvoiceImports")
     .doc(canonicalImportId)
     .get();
-  const linked =
+  const linkedFromCanon =
     canonSnap.exists &&
     typeof canonSnap.data()?.linkedDeliveryOrderId === "string"
       ? String(canonSnap.data()?.linkedDeliveryOrderId).trim()
       : "";
+  const indexed = deliveryOrderIdFromKeyDoc(key);
+  const linked = linkedFromCanon || indexed;
   return {
     canonicalImportId,
     ...(linked ? { linkedDeliveryOrderId: linked } : {}),

@@ -7,6 +7,7 @@ exports.jobIdFromInvoicePoSlug = jobIdFromInvoicePoSlug;
 exports.jobNumberFromInvoiceHeader = jobNumberFromInvoiceHeader;
 exports.buildInvoiceDeliveryShellContext = buildInvoiceDeliveryShellContext;
 exports.isTerminalPickupShellDelivery = isTerminalPickupShellDelivery;
+exports.buildInvoiceShellResendMetadataPatch = buildInvoiceShellResendMetadataPatch;
 exports.shouldPreserveExistingOperationalFulfillment = shouldPreserveExistingOperationalFulfillment;
 exports.resolveInvoiceApproveDeliveryTarget = resolveInvoiceApproveDeliveryTarget;
 exports.buildInvoiceMatchedDeliveryPatchDocument = buildInvoiceMatchedDeliveryPatchDocument;
@@ -226,7 +227,7 @@ async function buildInvoiceDeliveryShellContext(db, importId, importDoc) {
     }
     const vendorInvoiceNumber = header.vendorInvoiceNumber;
     const vendorOrderNumber = header.vendorOrderNumber;
-    const customerPo = header.customerPoOrReference;
+    const customerPo = header.customerPoOrReference.trim();
     const evidenceNote = importDoc.parserFormatId === "first_supply"
         ? `Imported from First Supply invoice ${vendorInvoiceNumber || vendorOrderNumber} (Customer P/O: ${customerPo}). Invoice import shell — no shop receipt.`
         : `Imported from Johnstone invoice ${vendorInvoiceNumber || vendorOrderNumber} (Customer P/O: ${customerPo}). Invoice import shell — no shop receipt.`;
@@ -265,6 +266,20 @@ function isTerminalPickupShellDelivery(delivery) {
     }
     return delivery.invoiceImportStatus === "closed_picked_up";
 }
+/** Resend-safe header fields from the reviewed import — never touches notes or terminal ops. */
+function buildInvoiceShellResendMetadataPatch(shell) {
+    const patch = {
+        orderNumber: shell.orderNumber,
+        deliveryDate: shell.deliveryDate,
+        vendorInvoiceNumber: shell.vendorInvoiceNumber,
+        vendorOrderNumber: shell.vendorOrderNumber,
+        customerPoOrReference: shell.customerPo,
+    };
+    if (shell.purchaseOrderId) {
+        patch.purchaseOrderId = shell.purchaseOrderId;
+    }
+    return patch;
+}
 /** Explicit dispatcher-set fulfillment values — "unknown" is a parser default, not an operational choice. */
 function isExplicitOperationalFulfillment(value) {
     return value === "delivery" || value === "will_call_pickup";
@@ -297,6 +312,14 @@ function resolveInvoiceApproveDeliveryTarget(input) {
             shellId,
         };
     }
+    const indexed = input.indexedDeliveryOrderId?.trim() ?? "";
+    if (indexed) {
+        return {
+            targetDeliveryOrderId: indexed,
+            matchedExisting: indexed !== shellId,
+            shellId,
+        };
+    }
     const match = (0, matchInvoiceToRecords_1.matchInvoiceToRecords)(input.importId, input.header, input.ctx, input.deliveryNotesById);
     if ((0, matchInvoiceToRecords_1.isEligibleMatchedDeliveryTarget)(match, input.importId, input.ctx.deliveries)) {
         return {
@@ -318,6 +341,7 @@ function resolveInvoiceApproveDeliveryTarget(input) {
 function buildInvoiceMatchedDeliveryPatchDocument(shell, importId, importDoc, now, existingDelivery, explicitApprovalOverride = false) {
     const preserveOps = shouldPreserveExistingOperationalFulfillment(existingDelivery, shell.invoiceFulfillmentMethod, explicitApprovalOverride);
     const patch = {
+        ...buildInvoiceShellResendMetadataPatch(shell),
         vendorInvoiceImportId: importId,
         updatedAt: now,
     };
@@ -339,6 +363,7 @@ function buildInvoiceMatchedDeliveryPatchDocument(shell, importId, importDoc, no
 function buildInvoiceShellPatchDocument(shell, importId, importDoc, now, existingDelivery, explicitApprovalOverride = false) {
     const preserveOps = shouldPreserveExistingOperationalFulfillment(existingDelivery, shell.invoiceFulfillmentMethod, explicitApprovalOverride);
     const patch = {
+        ...buildInvoiceShellResendMetadataPatch(shell),
         vendorInvoiceImportId: importId,
         updatedAt: now,
     };

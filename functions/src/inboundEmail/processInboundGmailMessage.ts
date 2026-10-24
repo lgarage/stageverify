@@ -40,6 +40,8 @@ import {
 } from "../invoice/creditReturnSkip";
 import {
   claimOrLinkBusinessInvoiceWithSnap,
+  deliveryOrderIdFromKeyDoc,
+  type BusinessInvoiceKeyDoc,
   findLegacyBusinessInvoiceCanonical,
   getBusinessInvoiceKeySnap,
   tryBuildBusinessInvoiceIdentity,
@@ -47,6 +49,7 @@ import {
   type BusinessInvoiceClaimOutcome,
   type BusinessInvoiceIdentity,
 } from "../invoice/businessInvoiceIdentity";
+import { tryBuildBusinessInvoiceIndexContext } from "../invoice/invoiceDeliveryIndex";
 import {
   fingerprintFromImport,
   incrementVendorIgnoreRuleMatch,
@@ -476,6 +479,22 @@ async function writeReviewRecords(
             parsedLines,
           })
         : null;
+    const businessIndexCtx = businessIdentity
+      ? tryBuildBusinessInvoiceIndexContext({
+          detectedVendorId: existingData?.detectedVendorId,
+          detectedVendorName: proc.detectedVendorName,
+          parserFormatId: proc.parserFormatId,
+          parsedHeader: {
+            vendorInvoiceNumber: vendorInvoiceNumberRaw,
+            customerPoOrReference: String(
+              headerForIdentity.customerPoOrReference ?? "",
+            ),
+            vendorOrderNumber: String(headerForIdentity.vendorOrderNumber ?? ""),
+            fulfillmentMethod: String(headerForIdentity.fulfillmentMethod ?? ""),
+          },
+          parsedLines,
+        })
+      : null;
 
     const buildReviewDoc = (input: {
       parsedHeader: Record<string, unknown>;
@@ -497,6 +516,7 @@ async function writeReviewRecords(
       >;
       canonicalImportId?: string;
       possibleRevisionOfImportId?: string;
+      linkedDeliveryOrderId?: string;
     }): VendorInvoiceImportDoc & {
       fieldCorrectionLog?: FieldCorrectionLogEntry[];
       originalParsedHeader?: Record<string, unknown>;
@@ -557,6 +577,9 @@ async function writeReviewRecords(
       ...(input.canonicalImportId
         ? { canonicalImportId: input.canonicalImportId }
         : {}),
+      ...(input.linkedDeliveryOrderId
+        ? { linkedDeliveryOrderId: input.linkedDeliveryOrderId }
+        : {}),
       ...(input.possibleRevisionOfImportId
         ? { possibleRevisionOfImportId: input.possibleRevisionOfImportId }
         : {}),
@@ -579,9 +602,12 @@ async function writeReviewRecords(
     const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);
     await db.runTransaction(async (tx) => {
       const freshSnap = await tx.get(reviewRef);
-      const keySnap = businessIdentity
-        ? await getBusinessInvoiceKeySnap(tx, db, businessIdentity.keyDocId)
-        : null;
+      const claimKeyId =
+        businessIndexCtx?.indexKeyDocId ?? businessIdentity?.keyDocId ?? "";
+      const keySnap =
+        businessIdentity && claimKeyId
+          ? await getBusinessInvoiceKeySnap(tx, db, claimKeyId)
+          : null;
       const freshData = freshSnap.exists
         ? (freshSnap.data() as VendorInvoiceImportDoc)
         : undefined;
@@ -610,6 +636,7 @@ async function writeReviewRecords(
                   identity: businessIdentity,
                   vendorInvoiceNumberRaw,
                   excludeReviewId: reviewId,
+                  indexKeyDocId: businessIndexCtx?.indexKeyDocId,
                 })
               : { kind: "none" as const };
           if (legacyLookup.kind === "saturated") {
@@ -637,11 +664,38 @@ async function writeReviewRecords(
           : undefined;
       const canonicalImportId =
         businessClaim?.kind === "exact_duplicate" ||
-        businessClaim?.kind === "possible_revision"
+        businessClaim?.kind === "possible_revision" ||
+        businessClaim?.kind === "same_message_multipage"
           ? businessClaim.canonicalImportId
-          : businessClaim?.kind === "same_message_multipage"
-            ? undefined
-            : undefined;
+          : undefined;
+
+      let inheritedLinkedDeliveryOrderId: string | undefined;
+      // Index-off vendors (unknown/generic) may still claim an idempotency key.
+      // They must not inherit a delivery from that key or from the canonical row.
+      if (businessIndexCtx) {
+        if (keySnap?.exists) {
+          const fromKey = deliveryOrderIdFromKeyDoc(
+            keySnap.data() as BusinessInvoiceKeyDoc,
+          );
+          if (fromKey) inheritedLinkedDeliveryOrderId = fromKey;
+        }
+        if (
+          !inheritedLinkedDeliveryOrderId &&
+          canonicalImportId &&
+          canonicalImportId !== reviewId
+        ) {
+          const canonSnap = await tx.get(
+            db.collection(REVIEW_COLLECTION).doc(canonicalImportId),
+          );
+          if (canonSnap.exists) {
+            const linked = String(
+              (canonSnap.data() as VendorInvoiceImportDoc).linkedDeliveryOrderId ??
+                "",
+            ).trim();
+            if (linked) inheritedLinkedDeliveryOrderId = linked;
+          }
+        }
+      }
 
       // Recompute correction overrides from the fresh in-tx import snapshot so a
       // concurrent apply cannot be wiped by a stale pre-tx log read.
@@ -731,6 +785,7 @@ async function writeReviewRecords(
         effectiveSkipFields: duplicateSkip ?? skipFields,
         canonicalImportId,
         possibleRevisionOfImportId: revisionOfId,
+        linkedDeliveryOrderId: inheritedLinkedDeliveryOrderId,
       });
 
       // User re-opened a system skip (pending, no skipReason) — do not re-auto-skip.

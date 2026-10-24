@@ -14,6 +14,7 @@ const buildExpectedItemsFromImport_1 = require("./invoice/buildExpectedItemsFrom
 const createDeliveryShellFromImport_1 = require("./invoice/createDeliveryShellFromImport");
 const matchInvoiceToRecords_1 = require("./invoice/matchInvoiceToRecords");
 const businessInvoiceIdentity_1 = require("./invoice/businessInvoiceIdentity");
+const invoiceDeliveryIndex_1 = require("./invoice/invoiceDeliveryIndex");
 const invoiceShellDisplayHelpers_1 = require("./invoice/invoiceShellDisplayHelpers");
 const parsedHeaderValidation_1 = require("./invoice/parsedHeaderValidation");
 const computeAutoImportEligibility_1 = require("./invoice/computeAutoImportEligibility");
@@ -64,6 +65,15 @@ function assertDeliveryAllowedForImport(doc) {
     if ((0, creditReturnSkip_1.creditReturnBlocksDeliveryCreation)(doc)) {
         throw new https_1.HttpsError("failed-precondition", creditReturnSkip_1.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
     }
+}
+async function linkedDeliveryIsDifferentSalesOrder(db, importDoc, deliveryOrderId) {
+    const header = importDoc.parsedHeader;
+    const snap = await db.collection("deliveries").doc(deliveryOrderId).get();
+    if (!snap.exists)
+        return false;
+    return (0, invoiceDeliveryIndex_1.salesOrdersDisagreeForSeparateDeliveries)(importDoc.parserFormatId, header?.vendorOrderNumber, typeof snap.data()?.vendorOrderNumber === "string"
+        ? snap.data()?.vendorOrderNumber
+        : undefined);
 }
 async function resolveApproveBusinessInvoiceRedirectSafe(db, importId, importDoc) {
     try {
@@ -454,25 +464,31 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         }
         if (shellRedirect?.linkedDeliveryOrderId &&
             !importDoc.linkedDeliveryOrderId?.trim()) {
-            await importRef.update({
-                linkedDeliveryOrderId: shellRedirect.linkedDeliveryOrderId,
-                canonicalImportId: importDoc.canonicalImportId ?? shellRedirect.canonicalImportId,
-                updatedAt: now,
-            });
-            return {
-                vendorInvoiceImportId: importId,
-                reviewStatus: importDoc.reviewStatus,
-                deliveryOrderId: shellRedirect.linkedDeliveryOrderId,
-                itemsApplied: 0,
-                shellCreated: false,
-                linkedExistingBusinessInvoice: true,
-            };
+            const crossSalesOrder = await linkedDeliveryIsDifferentSalesOrder(getDb(), importDoc, shellRedirect.linkedDeliveryOrderId);
+            if (!crossSalesOrder) {
+                await importRef.update({
+                    linkedDeliveryOrderId: shellRedirect.linkedDeliveryOrderId,
+                    canonicalImportId: importDoc.canonicalImportId ?? shellRedirect.canonicalImportId,
+                    updatedAt: now,
+                });
+                return {
+                    vendorInvoiceImportId: importId,
+                    reviewStatus: importDoc.reviewStatus,
+                    deliveryOrderId: shellRedirect.linkedDeliveryOrderId,
+                    itemsApplied: 0,
+                    shellCreated: false,
+                    linkedExistingBusinessInvoice: true,
+                };
+            }
         }
         if (importDoc.reviewStatus !== "approved") {
             throw new https_1.HttpsError("failed-precondition", "Only approved imports can create a dashboard record.");
         }
-        if (importDoc.linkedDeliveryOrderId?.trim()) {
-            const linkedId = importDoc.linkedDeliveryOrderId.trim();
+        const rawCreateShellLinked = importDoc.linkedDeliveryOrderId?.trim() ?? "";
+        const createShellLinkedDisagrees = rawCreateShellLinked !== "" &&
+            (await linkedDeliveryIsDifferentSalesOrder(getDb(), importDoc, rawCreateShellLinked));
+        if (rawCreateShellLinked && !createShellLinkedDisagrees) {
+            const linkedId = rawCreateShellLinked;
             const shell = await (0, createDeliveryShellFromImport_1.buildInvoiceDeliveryShellContext)(getDb(), importId, importDoc);
             const deliveryRef = getDb().collection("deliveries").doc(linkedId);
             const deliverySnap = await deliveryRef.get();
@@ -557,7 +573,15 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             throw new https_1.HttpsError("failed-precondition", "Cannot create dashboard record — import has parse issues.");
         }
         const shell = await (0, createDeliveryShellFromImport_1.buildInvoiceDeliveryShellContext)(getDb(), importId, importDoc);
-        const deliveryRef = getDb().collection("deliveries").doc(shell.deliveryOrderId);
+        const createShellIndexCtx = (0, invoiceDeliveryIndex_1.tryBuildBusinessInvoiceIndexContext)(importDoc);
+        let createShellTargetId = shell.deliveryOrderId;
+        if (createShellIndexCtx) {
+            const indexed = await (0, invoiceDeliveryIndex_1.readIndexedDeliveryOrderId)(getDb(), createShellIndexCtx.indexKeyDocId);
+            if (indexed)
+                createShellTargetId = indexed;
+        }
+        const deliveryRef = getDb().collection("deliveries").doc(createShellTargetId);
+        let returnedShellDeliveryId = createShellTargetId;
         await getDb().runTransaction(async (tx) => {
             const freshImport = await tx.get(importRef);
             if (!freshImport.exists) {
@@ -568,17 +592,60 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             if (fresh.reviewStatus !== "approved") {
                 throw new https_1.HttpsError("failed-precondition", "Only approved imports can create a dashboard record.");
             }
-            if (fresh.linkedDeliveryOrderId?.trim()) {
+            let freshLinked = fresh.linkedDeliveryOrderId?.trim() ?? "";
+            if (freshLinked) {
+                const linkedSnap = await tx.get(getDb().collection("deliveries").doc(freshLinked));
+                const linkedOrder = linkedSnap.exists &&
+                    typeof linkedSnap.data()?.vendorOrderNumber === "string"
+                    ? linkedSnap.data()?.vendorOrderNumber
+                    : undefined;
+                const freshOrder = String(fresh.parsedHeader
+                    ?.vendorOrderNumber ?? "");
+                if ((0, invoiceDeliveryIndex_1.salesOrdersDisagreeForSeparateDeliveries)(fresh.parserFormatId, freshOrder, linkedOrder)) {
+                    freshLinked = "";
+                }
+            }
+            if (freshLinked) {
+                returnedShellDeliveryId = freshLinked;
                 return;
             }
             if (fresh.importStatus === "issue") {
                 throw new https_1.HttpsError("failed-precondition", "Cannot create dashboard record — import has parse issues.");
             }
-            const existingDelivery = await tx.get(deliveryRef);
+            let effectiveShellTargetId = createShellTargetId;
+            let indexSnap = null;
+            const txIndexCtx = (0, invoiceDeliveryIndex_1.tryBuildBusinessInvoiceIndexContext)(fresh);
+            if (txIndexCtx) {
+                indexSnap = await (0, invoiceDeliveryIndex_1.getBusinessInvoiceDeliveryIndexSnap)(tx, getDb(), txIndexCtx.indexKeyDocId);
+                const reconciled = (0, invoiceDeliveryIndex_1.resolveDeliveryTargetFromIndexSnap)(indexSnap, shell.deliveryOrderId);
+                if (reconciled.indexedHit) {
+                    effectiveShellTargetId = reconciled.targetDeliveryOrderId;
+                }
+            }
+            const deliveryRefTx = getDb()
+                .collection("deliveries")
+                .doc(effectiveShellTargetId);
+            const shellForWrite = { ...shell, deliveryOrderId: effectiveShellTargetId };
+            const existingDelivery = await tx.get(deliveryRefTx);
+            let stampCanonicalId = fresh.canonicalImportId?.trim() || importId;
+            if (stampCanonicalId !== importId && txIndexCtx) {
+                const canonSnap = await tx.get(getDb().collection(REVIEW_COLLECTION).doc(stampCanonicalId));
+                if (canonSnap.exists) {
+                    const canonCtx = (0, invoiceDeliveryIndex_1.tryBuildBusinessInvoiceIndexContext)(canonSnap.data());
+                    if (!canonCtx || canonCtx.indexKeyDocId !== txIndexCtx.indexKeyDocId) {
+                        stampCanonicalId = importId;
+                    }
+                }
+            }
             if (!existingDelivery.exists) {
-                tx.set(deliveryRef, (0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shell, importId, fresh, now));
+                tx.set(deliveryRefTx, (0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shellForWrite, importId, fresh, now));
                 for (const item of shell.expectedItems) {
-                    tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
+                    const itemWrite = effectiveShellTargetId === shell.deliveryOrderId
+                        ? item
+                        : { ...item, deliveryOrderId: effectiveShellTargetId };
+                    tx.set(getDb().collection("items").doc(item.id), itemWrite, {
+                        merge: true,
+                    });
                 }
             }
             else {
@@ -586,24 +653,36 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
                 if (existingData.createdFromInvoiceImport === true) {
                     const existingRecord = existingDelivery.data() ??
                         {};
-                    const shellPatch = (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shell, importId, fresh, now, existingDelivery.data());
+                    const shellPatch = (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)(shellForWrite, importId, fresh, now, existingDelivery.data());
                     const stagingClear = activeStagingPatchForCurrentFulfillment(existingRecord, shellPatch, {}, { releasedBy: uid, releasedAt: now });
-                    tx.update(deliveryRef, {
+                    tx.update(deliveryRefTx, {
                         ...shellPatch,
                         ...stagingClear,
                     });
                 }
             }
+            if (txIndexCtx && indexSnap) {
+                (0, invoiceDeliveryIndex_1.stampDeliveryOrderIdOnBusinessInvoiceKeyInTx)(tx, indexSnap, {
+                    identity: txIndexCtx.identity,
+                    indexKeyDocId: txIndexCtx.indexKeyDocId,
+                    deliveryOrderId: effectiveShellTargetId,
+                    canonicalImportId: stampCanonicalId,
+                    canonicalGmailMessageId: fresh.gmailMessageId ?? "",
+                    contentFingerprint: txIndexCtx.identity.contentFingerprint,
+                    now,
+                });
+            }
+            returnedShellDeliveryId = effectiveShellTargetId;
             tx.update(importRef, {
-                linkedDeliveryOrderId: shell.deliveryOrderId,
+                linkedDeliveryOrderId: effectiveShellTargetId,
                 updatedAt: now,
-                importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("create_shell", uid, now, eligibilityFromDoc(fresh), shell.deliveryOrderId)),
+                importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("create_shell", uid, now, eligibilityFromDoc(fresh), effectiveShellTargetId)),
             });
         });
         return {
             vendorInvoiceImportId: importId,
             reviewStatus: "approved",
-            deliveryOrderId: shell.deliveryOrderId,
+            deliveryOrderId: returnedShellDeliveryId,
             itemsApplied: shell.expectedItems.length,
             shellCreated: true,
             jobCreated: shell.jobCreated,
@@ -613,24 +692,39 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     if ((0, creditReturnSkip_1.creditReturnBlocksDeliveryCreation)(importDoc)) {
         throw new https_1.HttpsError("failed-precondition", creditReturnSkip_1.CREDIT_RETURN_DELIVERY_BLOCKED_MESSAGE);
     }
-    const businessRedirect = await resolveApproveBusinessInvoiceRedirectSafe(getDb(), importId, importDoc);
+    let businessRedirect = await resolveApproveBusinessInvoiceRedirectSafe(getDb(), importId, importDoc);
     if (businessRedirect &&
         businessRedirect.canonicalImportId !== importId &&
         !businessRedirect.linkedDeliveryOrderId) {
         throw new https_1.HttpsError("failed-precondition", "This invoice is already tracked by another Invoice Review item — approve that original instead of creating a duplicate delivery.");
     }
-    const effectiveImportDoc = businessRedirect?.linkedDeliveryOrderId
+    const redirectLink = businessRedirect?.linkedDeliveryOrderId?.trim() ?? "";
+    const ownLink = importDoc.linkedDeliveryOrderId?.trim() ?? "";
+    const linkToVet = redirectLink || ownLink;
+    const crossSalesOrder = linkToVet !== "" &&
+        (await linkedDeliveryIsDifferentSalesOrder(getDb(), importDoc, linkToVet));
+    if (crossSalesOrder) {
+        businessRedirect = null;
+    }
+    const importForTarget = crossSalesOrder
         ? {
             ...importDoc,
+            linkedDeliveryOrderId: undefined,
+            canonicalImportId: undefined,
+        }
+        : importDoc;
+    const effectiveImportDoc = businessRedirect?.linkedDeliveryOrderId
+        ? {
+            ...importForTarget,
             linkedDeliveryOrderId: businessRedirect.linkedDeliveryOrderId,
-            canonicalImportId: importDoc.canonicalImportId ?? businessRedirect.canonicalImportId,
+            canonicalImportId: importForTarget.canonicalImportId ?? businessRedirect.canonicalImportId,
         }
         : businessRedirect?.canonicalImportId
             ? {
-                ...importDoc,
-                canonicalImportId: importDoc.canonicalImportId ?? businessRedirect.canonicalImportId,
+                ...importForTarget,
+                canonicalImportId: importForTarget.canonicalImportId ?? businessRedirect.canonicalImportId,
             }
-            : importDoc;
+            : importForTarget;
     const preserveCanonicalOwnerStamp = Boolean(businessRedirect?.linkedDeliveryOrderId &&
         businessRedirect.canonicalImportId &&
         businessRedirect.canonicalImportId !== importId);
@@ -647,17 +741,28 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     };
     const header = (0, parsedHeaderValidation_1.asParsedHeaderForImport)(effectiveImportDoc.parsedHeader);
     const matchCtx = await (0, loadMatchContext_1.loadEmailMatchContext)();
+    const businessIndexCtx = (0, invoiceDeliveryIndex_1.tryBuildBusinessInvoiceIndexContext)(effectiveImportDoc);
+    let indexedDeliveryOrderId = businessRedirect?.linkedDeliveryOrderId?.trim() ||
+        effectiveImportDoc.linkedDeliveryOrderId?.trim() ||
+        "";
+    if (!indexedDeliveryOrderId && businessIndexCtx) {
+        indexedDeliveryOrderId =
+            (await (0, invoiceDeliveryIndex_1.readIndexedDeliveryOrderId)(getDb(), businessIndexCtx.indexKeyDocId)) ?? "";
+    }
     const resolved = (0, createDeliveryShellFromImport_1.resolveInvoiceApproveDeliveryTarget)({
         importId,
         importDoc: effectiveImportDoc,
         header,
         ctx: matchCtx,
+        ...(indexedDeliveryOrderId
+            ? { indexedDeliveryOrderId }
+            : {}),
     });
     if (deliveryOrderId && deliveryOrderId !== resolved.targetDeliveryOrderId) {
         throw new https_1.HttpsError("invalid-argument", "deliveryOrderId does not match the server-resolved delivery target for this import.");
     }
-    const targetId = resolved.targetDeliveryOrderId;
-    const matchedExisting = resolved.matchedExisting;
+    let targetId = resolved.targetDeliveryOrderId;
+    let matchedExisting = resolved.matchedExisting;
     const shellId = resolved.shellId || (0, createDeliveryShellFromImport_1.shellDeliveryIdForImport)(importId);
     const businessCanonicalId = effectiveImportDoc.canonicalImportId?.trim() ||
         businessRedirect?.canonicalImportId?.trim() ||
@@ -669,6 +774,13 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             throw new https_1.HttpsError("failed-precondition", "Matched delivery no longer exists. Refresh and try again.");
         }
         matchedDeliveryData = matchedSnap.data();
+        if ((0, invoiceDeliveryIndex_1.salesOrdersDisagreeForSeparateDeliveries)(importDoc.parserFormatId, header.vendorOrderNumber, typeof matchedDeliveryData?.vendorOrderNumber === "string"
+            ? matchedDeliveryData.vendorOrderNumber
+            : undefined)) {
+            targetId = shellId;
+            matchedExisting = false;
+            matchedDeliveryData = undefined;
+        }
     }
     const targetJobId = matchedExisting
         ? String(matchedDeliveryData?.jobId ?? shell.jobId)
@@ -701,6 +813,8 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     };
     let idempotentReplayResult = null;
     let plannedStagingLocationCodes;
+    let committedTargetId = targetId;
+    let committedMatchedExisting = matchedExisting;
     await getDb().runTransaction(async (tx) => {
         const freshImport = await tx.get(importRef);
         if (!freshImport.exists) {
@@ -733,27 +847,83 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         if (fresh.importStatus === "issue") {
             throw new https_1.HttpsError("failed-precondition", "Cannot approve — import has parse issues. Reject or wait for a valid invoice.");
         }
-        const freshLinked = fresh.linkedDeliveryOrderId?.trim() ?? "";
+        let freshLinked = fresh.linkedDeliveryOrderId?.trim() ?? "";
+        if (freshLinked) {
+            const linkedSnap = await tx.get(getDb().collection("deliveries").doc(freshLinked));
+            const linkedOrder = linkedSnap.exists &&
+                typeof linkedSnap.data()?.vendorOrderNumber === "string"
+                ? linkedSnap.data()?.vendorOrderNumber
+                : undefined;
+            const freshOrder = String(fresh.parsedHeader
+                ?.vendorOrderNumber ?? "");
+            if ((0, invoiceDeliveryIndex_1.salesOrdersDisagreeForSeparateDeliveries)(fresh.parserFormatId, freshOrder, linkedOrder)) {
+                freshLinked = "";
+            }
+        }
         if (freshLinked && freshLinked !== targetId) {
             throw new https_1.HttpsError("failed-precondition", "Import was concurrently approved to a different delivery — reload and retry.");
         }
-        const existingDelivery = await tx.get(deliveryRef);
+        let effectiveTargetId = targetId;
+        let effectiveMatchedExisting = matchedExisting;
+        const txIndexCtx = (0, invoiceDeliveryIndex_1.tryBuildBusinessInvoiceIndexContext)(fresh);
+        let indexSnap = null;
+        if (txIndexCtx) {
+            indexSnap = await (0, invoiceDeliveryIndex_1.getBusinessInvoiceDeliveryIndexSnap)(tx, getDb(), txIndexCtx.indexKeyDocId);
+            const reconciled = (0, invoiceDeliveryIndex_1.resolveDeliveryTargetFromIndexSnap)(indexSnap, shellId);
+            if (reconciled.indexedHit) {
+                effectiveTargetId = reconciled.targetDeliveryOrderId;
+                effectiveMatchedExisting = effectiveTargetId !== shellId;
+            }
+        }
+        if (freshLinked && freshLinked !== effectiveTargetId) {
+            throw new https_1.HttpsError("failed-precondition", "Import was concurrently approved to a different delivery — reload and retry.");
+        }
+        const deliveryRefTx = getDb().collection("deliveries").doc(effectiveTargetId);
+        const existingDelivery = await tx.get(deliveryRefTx);
         if (!stagingSkipped && plannedStagingLocationIds.length > 0) {
             const codes = [];
             for (const locId of plannedStagingLocationIds) {
-                const { code } = await (0, stagingOccupancyGuard_1.assertStagingLocationAvailableInTransaction)(tx, getDb(), locId, targetId);
+                const { code } = await (0, stagingOccupancyGuard_1.assertStagingLocationAvailableInTransaction)(tx, getDb(), locId, effectiveTargetId);
                 codes.push(code);
             }
             plannedStagingLocationCodes = codes;
         }
-        if (matchedExisting) {
+        const liveForItems = existingDelivery.exists
+            ? (existingDelivery.data() ?? {})
+            : {};
+        const ownerImportId = typeof liveForItems.vendorInvoiceImportId === "string"
+            ? liveForItems.vendorInvoiceImportId.trim()
+            : "";
+        const reuseCanonicalItems = existingDelivery.exists &&
+            liveForItems.createdFromInvoiceImport === true &&
+            ownerImportId !== "" &&
+            ownerImportId !== importId;
+        const itemJobId = typeof liveForItems.jobId === "string" && liveForItems.jobId.trim()
+            ? liveForItems.jobId.trim()
+            : targetJobId;
+        const itemsToWrite = (0, buildExpectedItemsFromImport_1.buildExpectedItemsFromImport)(reuseCanonicalItems ? ownerImportId : importId, effectiveTargetId, itemJobId, fresh.parsedLines ?? []);
+        const itemSnaps = [];
+        for (const item of itemsToWrite) {
+            itemSnaps.push(await tx.get(getDb().collection("items").doc(item.id)));
+        }
+        let stampCanonicalId = businessCanonicalId || fresh.canonicalImportId?.trim() || importId;
+        if (stampCanonicalId !== importId && txIndexCtx) {
+            const canonSnap = await tx.get(getDb().collection(REVIEW_COLLECTION).doc(stampCanonicalId));
+            if (canonSnap.exists) {
+                const canonCtx = (0, invoiceDeliveryIndex_1.tryBuildBusinessInvoiceIndexContext)(canonSnap.data());
+                if (!canonCtx || canonCtx.indexKeyDocId !== txIndexCtx.indexKeyDocId) {
+                    stampCanonicalId = importId;
+                }
+            }
+        }
+        if (effectiveMatchedExisting) {
             if (!existingDelivery.exists) {
                 throw new https_1.HttpsError("failed-precondition", "Matched delivery no longer exists. Refresh and try again.");
             }
             // Re-check ownership at commit time (D-38) — pre-txn match snapshot can race.
             const liveDelivery = existingDelivery.data() ?? {};
             const owned = (0, matchInvoiceToRecords_1.isDeliveryOwnedByImportOrUnclaimed)(liveDelivery, importId) ||
-                (0, businessInvoiceIdentity_1.isDeliveryOwnedForBusinessInvoiceApprove)(liveDelivery, importId, businessCanonicalId || fresh.canonicalImportId);
+                (0, businessInvoiceIdentity_1.isDeliveryOwnedForBusinessInvoiceApprove)(liveDelivery, importId, stampCanonicalId);
             if (!owned) {
                 throw new https_1.HttpsError("failed-precondition", "Matched delivery is already linked to another invoice import. Reload and try again.");
             }
@@ -761,21 +931,24 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
             // Exact-resend / sibling approve must not steal D-67 ownership from canonical.
             if (preserveCanonicalOwnerStamp &&
                 String(liveDelivery.vendorInvoiceImportId ?? "").trim() ===
-                    (businessCanonicalId || fresh.canonicalImportId || "").trim()) {
+                    stampCanonicalId) {
                 delete matchedFulfillmentPatch.vendorInvoiceImportId;
             }
             const activeStagingPatch = activeStagingPatchForCurrentFulfillment(liveDelivery, matchedFulfillmentPatch, stagingPatch, willCallClearMeta);
-            tx.update(deliveryRef, {
+            tx.update(deliveryRefTx, {
                 ...matchedFulfillmentPatch,
                 ...activeStagingPatch,
             });
         }
         else if (!existingDelivery.exists) {
-            // Shell path: create delivery-vii-{importId}.
-            const shellForWrite = { ...effectiveShell, deliveryOrderId: shellId };
+            // Shell path: create delivery-vii-{importId} unless index already owns a delivery.
+            const shellForWrite = {
+                ...effectiveShell,
+                deliveryOrderId: effectiveTargetId,
+            };
             const shellDoc = (0, createDeliveryShellFromImport_1.buildDeliveryShellDocument)(shellForWrite, importId, fresh, now);
             const activeStagingPatch = activeStagingPatchForCurrentFulfillment({}, shellDoc, stagingPatch, willCallClearMeta);
-            tx.set(deliveryRef, {
+            tx.set(deliveryRefTx, {
                 ...shellDoc,
                 ...activeStagingPatch,
             });
@@ -783,30 +956,48 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
         else {
             const liveShellData = existingDelivery.data() ??
                 {};
-            const shellFulfillmentPatch = (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)({ ...effectiveShell, deliveryOrderId: shellId }, importId, fresh, now, existingDelivery.data(), explicitApprovalOverride);
+            const shellFulfillmentPatch = (0, createDeliveryShellFromImport_1.buildInvoiceShellPatchDocument)({ ...effectiveShell, deliveryOrderId: effectiveTargetId }, importId, fresh, now, existingDelivery.data(), explicitApprovalOverride);
             if (preserveCanonicalOwnerStamp &&
                 String(existingDelivery.data()
-                    ?.vendorInvoiceImportId ?? "").trim() === (businessCanonicalId || fresh.canonicalImportId || "").trim()) {
+                    ?.vendorInvoiceImportId ?? "").trim() === stampCanonicalId) {
                 delete shellFulfillmentPatch.vendorInvoiceImportId;
             }
             const activeStagingPatch = activeStagingPatchForCurrentFulfillment(liveShellData, shellFulfillmentPatch, stagingPatch, willCallClearMeta);
-            tx.update(deliveryRef, {
+            tx.update(deliveryRefTx, {
                 ...shellFulfillmentPatch,
                 ...activeStagingPatch,
             });
         }
-        for (const item of expectedItems) {
-            tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
+        for (let i = 0; i < itemsToWrite.length; i += 1) {
+            const item = itemsToWrite[i];
+            const snap = itemSnaps[i];
+            const existingItem = snap?.exists
+                ? snap.data()
+                : undefined;
+            tx.set(getDb().collection("items").doc(item.id), (0, buildExpectedItemsFromImport_1.itemWritePreservingReceiveProgress)(item, existingItem), { merge: true });
+        }
+        committedTargetId = effectiveTargetId;
+        committedMatchedExisting = effectiveMatchedExisting;
+        if (txIndexCtx && indexSnap) {
+            (0, invoiceDeliveryIndex_1.stampDeliveryOrderIdOnBusinessInvoiceKeyInTx)(tx, indexSnap, {
+                identity: txIndexCtx.identity,
+                indexKeyDocId: txIndexCtx.indexKeyDocId,
+                deliveryOrderId: effectiveTargetId,
+                canonicalImportId: stampCanonicalId,
+                canonicalGmailMessageId: fresh.gmailMessageId ?? "",
+                contentFingerprint: txIndexCtx.identity.contentFingerprint,
+                now,
+            });
         }
         tx.update(importRef, {
             reviewStatus: "approved",
-            linkedDeliveryOrderId: targetId,
+            linkedDeliveryOrderId: effectiveTargetId,
             approvedAt: now,
             approvedBy: uid,
             rejectedAt: firestore_1.FieldValue.delete(),
             rejectedBy: firestore_1.FieldValue.delete(),
             updatedAt: now,
-            importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("approve", uid, now, eligibilityFromDoc(fresh), targetId, fulfillmentDecision
+            importDecisionLog: appendDecisionLogUpdate(fresh, (0, computeAutoImportEligibility_1.buildImportDecisionLogEntry)("approve", uid, now, eligibilityFromDoc(fresh), effectiveTargetId, fulfillmentDecision
                 ? {
                     fulfillmentDecision,
                     plannedStagingLocationIds: stagingSkipped
@@ -848,10 +1039,10 @@ exports.approveVendorInvoiceImport = (0, https_1.onCall)({ region: "us-central1"
     return {
         vendorInvoiceImportId: importId,
         reviewStatus: "approved",
-        deliveryOrderId: targetId,
+        deliveryOrderId: committedTargetId,
         itemsApplied: expectedItems.length,
-        shellCreated: !matchedExisting,
-        deliveryMatched: matchedExisting,
+        shellCreated: !committedMatchedExisting,
+        deliveryMatched: committedMatchedExisting,
         jobCreated: matchedExisting ? false : shell.jobCreated,
         plannedStagingLocationIds: appliedPlanned,
         ...(plannedStagingLocationCodes
