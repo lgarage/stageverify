@@ -14,6 +14,8 @@ function planBusinessInvoiceDeliveryIndexBackfill(input) {
     const byInvoice = new Map();
     const byIndexKey = new Map();
     for (const row of input.imports) {
+        if (!(0, invoiceDeliveryIndex_1.deliveryIndexActiveForParser)(row.parserFormatId))
+            continue;
         const header = row.parsedHeader ?? {};
         const vendorInvoiceNumber = headerStr(header, "vendorInvoiceNumber");
         const identity = (0, businessInvoiceIdentity_1.tryBuildBusinessInvoiceIdentity)({

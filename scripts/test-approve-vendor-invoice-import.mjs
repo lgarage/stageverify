@@ -4185,8 +4185,101 @@ try {
   fail("unknown vendor split approve failed", err?.message);
 }
 
+// Case 25 — Unknown parser, SAME invoice number, different S/O: must not merge
+const unknownSamePo = "PF Wausau / Fall #2";
+const unknownSameInvoice = "UNK-SAME-4401";
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-unknown-same-a"), {
+    id: "approve-vendor-invoice-import_vii-unknown-same-a",
+    gmailMessageId: "msg-unknown-same-a",
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    detectedVendorId: "approve-vendor-invoice-import_vendor-unknown",
+    detectedVendorName: "Other Supply Co",
+    parserFormatId: "unknown",
+    parsedHeader: {
+      ...willCallHeader,
+      customerPoOrReference: `  ${unknownSamePo}  `,
+      vendorInvoiceNumber: unknownSameInvoice,
+      vendorOrderNumber: "SO-UNK-A",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:48:10Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", "approve-vendor-invoice-import_vii-unknown-same-b"), {
+    id: "approve-vendor-invoice-import_vii-unknown-same-b",
+    gmailMessageId: "msg-unknown-same-b",
+    reviewStatus: "pending_review",
+    importStatus: "pickup_at_vendor",
+    detectedVendorId: "approve-vendor-invoice-import_vendor-unknown",
+    detectedVendorName: "Other Supply Co",
+    parserFormatId: "unknown",
+    parsedHeader: {
+      ...willCallHeader,
+      customerPoOrReference: unknownSamePo,
+      vendorInvoiceNumber: unknownSameInvoice,
+      vendorOrderNumber: "SO-UNK-B",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-29T12:00:00Z",
+    updatedAt: "2026-08-29T12:00:00Z",
+  });
+});
+
+try {
+  const sameA = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-unknown-same-a",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+  });
+  const sameB = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-unknown-same-b",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+  });
+  const shellA = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-unknown-same-a",
+  );
+  const shellB = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-unknown-same-b",
+  );
+  const delA = await getDoc(doc(db, "deliveries", shellA));
+  const delB = await getDoc(doc(db, "deliveries", shellB));
+  if (
+    (sameA?.data ?? sameA)?.deliveryOrderId === shellA &&
+    (sameB?.data ?? sameB)?.deliveryOrderId === shellB &&
+    shellA !== shellB &&
+    delA.data()?.vendorOrderNumber === "SO-UNK-A" &&
+    delB.data()?.vendorOrderNumber === "SO-UNK-B" &&
+    delA.data()?.vendorInvoiceNumber === unknownSameInvoice &&
+    delB.data()?.vendorInvoiceNumber === unknownSameInvoice &&
+    delA.data()?.customerPoOrReference === unknownSamePo &&
+    delB.data()?.customerPoOrReference === unknownSamePo
+  ) {
+    pass("unknown parser same invoice number approves to separate deliveries (index off)");
+  } else {
+    fail("unknown parser same invoice merged on approve", {
+      sameA,
+      sameB,
+      delA: delA.exists() ? delA.data() : null,
+      delB: delB.exists() ? delB.data() : null,
+    });
+  }
+} catch (err) {
+  fail("unknown parser same invoice split approve failed", err?.message);
+}
+
 await testEnv.cleanup();
 
 console.log(`\n--- Result: ${passed} passed, ${failed} failed ---`);
 if (failed > 0) process.exit(1);
 console.log("test-approve-vendor-invoice-import: PASS");
+process.exit(0);

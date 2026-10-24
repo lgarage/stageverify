@@ -384,6 +384,11 @@ async function getBusinessInvoiceKeySnap(tx, db, keyDocId) {
  * delivery, reuse that delivery instead of create_shell.
  */
 async function resolveApproveBusinessInvoiceRedirect(db, importId, importDoc) {
+    // Unknown/generic parsers are not in the delivery index. Do not reuse a
+    // delivery from the idempotency key or a legacy same-invoice row.
+    if (!(0, invoiceDeliveryIndex_1.deliveryIndexActiveForParser)(importDoc.parserFormatId)) {
+        return null;
+    }
     const header = importDoc.parsedHeader ?? {};
     const vendorInvoiceNumber = String(header.vendorInvoiceNumber ?? "");
     const identity = tryBuildBusinessInvoiceIdentity({

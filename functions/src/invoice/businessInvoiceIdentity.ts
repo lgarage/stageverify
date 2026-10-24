@@ -16,7 +16,10 @@ import { isArmableVendorKey } from "./aiShadow/vendorIgnoreRules";
 import { sanitizeVendorKey } from "./aiShadow/vendorTrainingMd";
 import { vendorKeyFromImportDoc } from "./aiShadow/adminConfig";
 import type { VendorInvoiceImportParsedLine } from "../inboundEmail/types";
-import { businessInvoiceDeliveryIndexKeyDocId } from "./invoiceDeliveryIndex";
+import {
+  businessInvoiceDeliveryIndexKeyDocId,
+  deliveryIndexActiveForParser,
+} from "./invoiceDeliveryIndex";
 
 export const BUSINESS_INVOICE_KEYS_COLLECTION = "vendorBusinessInvoiceKeys";
 
@@ -648,6 +651,12 @@ export async function resolveApproveBusinessInvoiceRedirect(
   canonicalImportId: string;
   linkedDeliveryOrderId?: string;
 } | null> {
+  // Unknown/generic parsers are not in the delivery index. Do not reuse a
+  // delivery from the idempotency key or a legacy same-invoice row.
+  if (!deliveryIndexActiveForParser(importDoc.parserFormatId)) {
+    return null;
+  }
+
   const header = importDoc.parsedHeader ?? {};
   const vendorInvoiceNumber = String(header.vendorInvoiceNumber ?? "");
   const identity = tryBuildBusinessInvoiceIdentity({

@@ -8,6 +8,7 @@ import {
 } from "./businessInvoiceIdentity";
 import {
   businessInvoiceDeliveryIndexKeyDocId,
+  deliveryIndexActiveForParser,
   invoiceNumberIsBossForParser,
 } from "./invoiceDeliveryIndex";
 
@@ -80,6 +81,7 @@ export function planBusinessInvoiceDeliveryIndexBackfill(input: {
   >();
 
   for (const row of input.imports) {
+    if (!deliveryIndexActiveForParser(row.parserFormatId)) continue;
     const header = row.parsedHeader ?? {};
     const vendorInvoiceNumber = headerStr(header, "vendorInvoiceNumber");
     const identity = tryBuildBusinessInvoiceIdentity({

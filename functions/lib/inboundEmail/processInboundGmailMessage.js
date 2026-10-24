@@ -488,20 +488,24 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 ? businessClaim.canonicalImportId
                 : undefined;
             let inheritedLinkedDeliveryOrderId;
-            if (keySnap?.exists) {
-                const fromKey = (0, businessInvoiceIdentity_1.deliveryOrderIdFromKeyDoc)(keySnap.data());
-                if (fromKey)
-                    inheritedLinkedDeliveryOrderId = fromKey;
-            }
-            if (!inheritedLinkedDeliveryOrderId &&
-                canonicalImportId &&
-                canonicalImportId !== reviewId) {
-                const canonSnap = await tx.get(db.collection(REVIEW_COLLECTION).doc(canonicalImportId));
-                if (canonSnap.exists) {
-                    const linked = String(canonSnap.data().linkedDeliveryOrderId ??
-                        "").trim();
-                    if (linked)
-                        inheritedLinkedDeliveryOrderId = linked;
+            // Index-off vendors (unknown/generic) may still claim an idempotency key.
+            // They must not inherit a delivery from that key or from the canonical row.
+            if (businessIndexCtx) {
+                if (keySnap?.exists) {
+                    const fromKey = (0, businessInvoiceIdentity_1.deliveryOrderIdFromKeyDoc)(keySnap.data());
+                    if (fromKey)
+                        inheritedLinkedDeliveryOrderId = fromKey;
+                }
+                if (!inheritedLinkedDeliveryOrderId &&
+                    canonicalImportId &&
+                    canonicalImportId !== reviewId) {
+                    const canonSnap = await tx.get(db.collection(REVIEW_COLLECTION).doc(canonicalImportId));
+                    if (canonSnap.exists) {
+                        const linked = String(canonSnap.data().linkedDeliveryOrderId ??
+                            "").trim();
+                        if (linked)
+                            inheritedLinkedDeliveryOrderId = linked;
+                    }
                 }
             }
             // Recompute correction overrides from the fresh in-tx import snapshot so a

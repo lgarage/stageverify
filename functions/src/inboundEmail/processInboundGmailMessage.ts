@@ -670,26 +670,30 @@ async function writeReviewRecords(
           : undefined;
 
       let inheritedLinkedDeliveryOrderId: string | undefined;
-      if (keySnap?.exists) {
-        const fromKey = deliveryOrderIdFromKeyDoc(
-          keySnap.data() as BusinessInvoiceKeyDoc,
-        );
-        if (fromKey) inheritedLinkedDeliveryOrderId = fromKey;
-      }
-      if (
-        !inheritedLinkedDeliveryOrderId &&
-        canonicalImportId &&
-        canonicalImportId !== reviewId
-      ) {
-        const canonSnap = await tx.get(
-          db.collection(REVIEW_COLLECTION).doc(canonicalImportId),
-        );
-        if (canonSnap.exists) {
-          const linked = String(
-            (canonSnap.data() as VendorInvoiceImportDoc).linkedDeliveryOrderId ??
-              "",
-          ).trim();
-          if (linked) inheritedLinkedDeliveryOrderId = linked;
+      // Index-off vendors (unknown/generic) may still claim an idempotency key.
+      // They must not inherit a delivery from that key or from the canonical row.
+      if (businessIndexCtx) {
+        if (keySnap?.exists) {
+          const fromKey = deliveryOrderIdFromKeyDoc(
+            keySnap.data() as BusinessInvoiceKeyDoc,
+          );
+          if (fromKey) inheritedLinkedDeliveryOrderId = fromKey;
+        }
+        if (
+          !inheritedLinkedDeliveryOrderId &&
+          canonicalImportId &&
+          canonicalImportId !== reviewId
+        ) {
+          const canonSnap = await tx.get(
+            db.collection(REVIEW_COLLECTION).doc(canonicalImportId),
+          );
+          if (canonSnap.exists) {
+            const linked = String(
+              (canonSnap.data() as VendorInvoiceImportDoc).linkedDeliveryOrderId ??
+                "",
+            ).trim();
+            if (linked) inheritedLinkedDeliveryOrderId = linked;
+          }
         }
       }
 

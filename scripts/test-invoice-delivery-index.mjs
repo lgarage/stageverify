@@ -118,7 +118,55 @@ function sampleLines(poSku = "SKU-A") {
     parsedLines: sampleLines(),
   });
   assert.equal(unknownCtx, null);
+  assert.equal(
+    salesOrdersDisagreeForSeparateDeliveries("unknown", "SO-A", "SO-B"),
+    false,
+  );
+  assert.equal(
+    salesOrdersDisagreeForSeparateDeliveries("generic", "SO-A", "SO-B"),
+    false,
+  );
   pass("per-vendor delivery index map + unknown disables index context");
+}
+
+{
+  const plan = planBusinessInvoiceDeliveryIndexBackfill({
+    imports: [
+      {
+        id: "unk-1",
+        parserFormatId: "unknown",
+        detectedVendorId: "vendor-other",
+        detectedVendorName: "Other Supply Co",
+        reviewStatus: "approved",
+        linkedDeliveryOrderId: "delivery-unk-1",
+        parsedHeader: {
+          vendorInvoiceNumber: "UNK-SAME-01",
+          vendorOrderNumber: "SO-A",
+          customerPoOrReference: "PF-Wausau",
+        },
+        parsedLines: sampleLines(),
+      },
+      {
+        id: "unk-2",
+        parserFormatId: "generic",
+        detectedVendorId: "vendor-other",
+        detectedVendorName: "Other Supply Co",
+        reviewStatus: "approved",
+        linkedDeliveryOrderId: "delivery-unk-2",
+        parsedHeader: {
+          vendorInvoiceNumber: "UNK-SAME-01",
+          vendorOrderNumber: "SO-B",
+          customerPoOrReference: "PF-Wausau",
+        },
+        parsedLines: sampleLines(),
+      },
+    ],
+    deliveries: [{ id: "delivery-unk-1" }, { id: "delivery-unk-2" }],
+  });
+  assert.equal(plan.entries.length, 0);
+  assert.equal(plan.duplicates.length, 0);
+  assert.equal(plan.ambiguous.length, 0);
+  pass("backfill plan: unknown/generic parsers are not indexed");
 }
 
 // resolve index snap
