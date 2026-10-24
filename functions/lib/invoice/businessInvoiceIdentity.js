@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LEGACY_INVOICE_QUERY_LIMIT = exports.BUSINESS_INVOICE_LEGACY_LOOKUP_SATURATED = exports.BUSINESS_INVOICE_KEYS_COLLECTION = void 0;
 exports.normalizeBusinessInvoiceNumber = normalizeBusinessInvoiceNumber;
+exports.deliveryOrderIdFromKeyDoc = deliveryOrderIdFromKeyDoc;
 exports.resolveVendorScopeForBusinessIdentity = resolveVendorScopeForBusinessIdentity;
 exports.businessInvoiceKeyDocId = businessInvoiceKeyDocId;
 exports.businessInvoiceContentFingerprint = businessInvoiceContentFingerprint;
@@ -23,9 +24,14 @@ const firestore_1 = require("firebase-admin/firestore");
 const vendorIgnoreRules_1 = require("./aiShadow/vendorIgnoreRules");
 const vendorTrainingMd_1 = require("./aiShadow/vendorTrainingMd");
 const adminConfig_1 = require("./aiShadow/adminConfig");
+const invoiceDeliveryIndex_1 = require("./invoiceDeliveryIndex");
 exports.BUSINESS_INVOICE_KEYS_COLLECTION = "vendorBusinessInvoiceKeys";
 function normalizeBusinessInvoiceNumber(raw) {
     return raw.trim().toUpperCase();
+}
+function deliveryOrderIdFromKeyDoc(data) {
+    const id = typeof data?.deliveryOrderId === "string" ? data.deliveryOrderId.trim() : "";
+    return id;
 }
 /** Refuse weak / unknown vendor scopes (tenant-safe). */
 function resolveVendorScopeForBusinessIdentity(importDoc) {
@@ -387,9 +393,10 @@ async function resolveApproveBusinessInvoiceRedirect(db, importId, importDoc) {
     });
     if (!identity)
         return null;
+    const indexKeyDocId = (0, invoiceDeliveryIndex_1.businessInvoiceDeliveryIndexKeyDocId)(identity, importDoc.parserFormatId, String(header.vendorOrderNumber ?? ""));
     const keySnap = await db
         .collection(exports.BUSINESS_INVOICE_KEYS_COLLECTION)
-        .doc(identity.keyDocId)
+        .doc(indexKeyDocId)
         .get();
     if (!keySnap.exists) {
         const legacyLookup = await findLegacyBusinessInvoiceCanonicalOutsideTx(db, {
@@ -430,16 +437,23 @@ async function resolveApproveBusinessInvoiceRedirect(db, importId, importDoc) {
     }
     const key = keySnap.data();
     const canonicalImportId = String(key.canonicalImportId ?? "").trim();
-    if (!canonicalImportId || canonicalImportId === importId)
+    if (!canonicalImportId || canonicalImportId === importId) {
+        const indexedOnly = deliveryOrderIdFromKeyDoc(key);
+        if (indexedOnly) {
+            return { canonicalImportId: importId, linkedDeliveryOrderId: indexedOnly };
+        }
         return null;
+    }
     const canonSnap = await db
         .collection("vendorInvoiceImports")
         .doc(canonicalImportId)
         .get();
-    const linked = canonSnap.exists &&
+    const linkedFromCanon = canonSnap.exists &&
         typeof canonSnap.data()?.linkedDeliveryOrderId === "string"
         ? String(canonSnap.data()?.linkedDeliveryOrderId).trim()
         : "";
+    const indexed = deliveryOrderIdFromKeyDoc(key);
+    const linked = linkedFromCanon || indexed;
     return {
         canonicalImportId,
         ...(linked ? { linkedDeliveryOrderId: linked } : {}),

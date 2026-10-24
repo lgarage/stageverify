@@ -377,6 +377,31 @@ export function isTerminalPickupShellDelivery(
   return delivery.invoiceImportStatus === "closed_picked_up";
 }
 
+/** Resend-safe header fields from the reviewed import — never touches notes or terminal ops. */
+export function buildInvoiceShellResendMetadataPatch(
+  shell: Pick<
+    InvoiceShellContext,
+    | "orderNumber"
+    | "deliveryDate"
+    | "vendorInvoiceNumber"
+    | "vendorOrderNumber"
+    | "customerPo"
+    | "purchaseOrderId"
+  >,
+): Record<string, unknown> {
+  const patch: Record<string, unknown> = {
+    orderNumber: shell.orderNumber,
+    deliveryDate: shell.deliveryDate,
+    vendorInvoiceNumber: shell.vendorInvoiceNumber,
+    vendorOrderNumber: shell.vendorOrderNumber,
+    customerPoOrReference: shell.customerPo,
+  };
+  if (shell.purchaseOrderId) {
+    patch.purchaseOrderId = shell.purchaseOrderId;
+  }
+  return patch;
+}
+
 /** Explicit dispatcher-set fulfillment values — "unknown" is a parser default, not an operational choice. */
 function isExplicitOperationalFulfillment(
   value: string | undefined,
@@ -417,6 +442,8 @@ export function resolveInvoiceApproveDeliveryTarget(input: {
   header: ParsedInvoiceHeader;
   ctx: MatchContext;
   deliveryNotesById?: Map<string, string>;
+  /** Delivery index hit — same invoice # must not mint delivery-vii-{importId}. */
+  indexedDeliveryOrderId?: string;
 }): ResolveInvoiceApproveTargetResult {
   const shellId = shellDeliveryIdForImport(input.importId);
   const priorLinked = input.importDoc.linkedDeliveryOrderId?.trim() ?? "";
@@ -424,6 +451,15 @@ export function resolveInvoiceApproveDeliveryTarget(input: {
     return {
       targetDeliveryOrderId: priorLinked,
       matchedExisting: priorLinked !== shellId,
+      shellId,
+    };
+  }
+
+  const indexed = input.indexedDeliveryOrderId?.trim() ?? "";
+  if (indexed) {
+    return {
+      targetDeliveryOrderId: indexed,
+      matchedExisting: indexed !== shellId,
       shellId,
     };
   }
@@ -466,6 +502,7 @@ export function buildInvoiceMatchedDeliveryPatchDocument(
     explicitApprovalOverride,
   );
   const patch: Record<string, unknown> = {
+    ...buildInvoiceShellResendMetadataPatch(shell),
     vendorInvoiceImportId: importId,
     updatedAt: now,
   };
@@ -499,6 +536,7 @@ export function buildInvoiceShellPatchDocument(
     explicitApprovalOverride,
   );
   const patch: Record<string, unknown> = {
+    ...buildInvoiceShellResendMetadataPatch(shell),
     vendorInvoiceImportId: importId,
     updatedAt: now,
   };

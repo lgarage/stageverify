@@ -16,6 +16,7 @@ import { isArmableVendorKey } from "./aiShadow/vendorIgnoreRules";
 import { sanitizeVendorKey } from "./aiShadow/vendorTrainingMd";
 import { vendorKeyFromImportDoc } from "./aiShadow/adminConfig";
 import type { VendorInvoiceImportParsedLine } from "../inboundEmail/types";
+import { businessInvoiceDeliveryIndexKeyDocId } from "./invoiceDeliveryIndex";
 
 export const BUSINESS_INVOICE_KEYS_COLLECTION = "vendorBusinessInvoiceKeys";
 
@@ -26,6 +27,8 @@ export type BusinessInvoiceKeyDoc = {
   canonicalImportId: string;
   canonicalGmailMessageId: string;
   contentFingerprint: string;
+  /** Authoritative delivery for this business invoice (Johnstone: invoice # is boss). */
+  deliveryOrderId?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -54,6 +57,14 @@ export type BusinessInvoiceClaimOutcome =
 
 export function normalizeBusinessInvoiceNumber(raw: string): string {
   return raw.trim().toUpperCase();
+}
+
+export function deliveryOrderIdFromKeyDoc(
+  data: BusinessInvoiceKeyDoc | undefined | null,
+): string {
+  const id =
+    typeof data?.deliveryOrderId === "string" ? data.deliveryOrderId.trim() : "";
+  return id;
 }
 
 /** Refuse weak / unknown vendor scopes (tenant-safe). */
@@ -635,9 +646,14 @@ export async function resolveApproveBusinessInvoiceRedirect(
   });
   if (!identity) return null;
 
+  const indexKeyDocId = businessInvoiceDeliveryIndexKeyDocId(
+    identity,
+    importDoc.parserFormatId,
+    String(header.vendorOrderNumber ?? ""),
+  );
   const keySnap = await db
     .collection(BUSINESS_INVOICE_KEYS_COLLECTION)
-    .doc(identity.keyDocId)
+    .doc(indexKeyDocId)
     .get();
   if (!keySnap.exists) {
     const legacyLookup = await findLegacyBusinessInvoiceCanonicalOutsideTx(db, {
@@ -678,17 +694,25 @@ export async function resolveApproveBusinessInvoiceRedirect(
 
   const key = keySnap.data() as BusinessInvoiceKeyDoc;
   const canonicalImportId = String(key.canonicalImportId ?? "").trim();
-  if (!canonicalImportId || canonicalImportId === importId) return null;
+  if (!canonicalImportId || canonicalImportId === importId) {
+    const indexedOnly = deliveryOrderIdFromKeyDoc(key);
+    if (indexedOnly) {
+      return { canonicalImportId: importId, linkedDeliveryOrderId: indexedOnly };
+    }
+    return null;
+  }
 
   const canonSnap = await db
     .collection("vendorInvoiceImports")
     .doc(canonicalImportId)
     .get();
-  const linked =
+  const linkedFromCanon =
     canonSnap.exists &&
     typeof canonSnap.data()?.linkedDeliveryOrderId === "string"
       ? String(canonSnap.data()?.linkedDeliveryOrderId).trim()
       : "";
+  const indexed = deliveryOrderIdFromKeyDoc(key);
+  const linked = linkedFromCanon || indexed;
   return {
     canonicalImportId,
     ...(linked ? { linkedDeliveryOrderId: linked } : {}),

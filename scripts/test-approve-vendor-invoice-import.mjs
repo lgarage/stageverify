@@ -2811,6 +2811,322 @@ if (!nokeyDupShell.exists()) {
   fail("second shell created for no-key resend", nokeyDupShell.data());
 }
 
+// Case 12 — delivery index deliveryOrderId: second Gmail forward approves to same delivery
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  const inv = "IDX-INV-6169474";
+  const canonImport = "approve-vendor-invoice-import_vii-idx-canon-page-1";
+  const resendImport = "approve-vendor-invoice-import_vii-idx-resend-page-1";
+  const canonDelivery = "approve-vendor-invoice-import_delivery-vii-vii-idx-canon-page-1";
+  await setDoc(doc(adminDb, "vendors", "approve-vendor-invoice-import_vendor-1"), {
+    id: "approve-vendor-invoice-import_vendor-1",
+    name: "Johnstone Supply",
+    updatedAt: "2026-06-01T00:00:00Z",
+  });
+  await setDoc(doc(adminDb, "jobs", "approve-vendor-invoice-import_job-idx"), {
+    id: "approve-vendor-invoice-import_job-idx",
+    jobNumber: "26-IDX",
+    jobName: "Index Test",
+    status: "active",
+    createdAt: "2026-06-01T00:00:00Z",
+    updatedAt: "2026-06-01T00:00:00Z",
+  });
+  await setDoc(doc(adminDb, "deliveries", canonDelivery), {
+    id: canonDelivery,
+    orderNumber: inv,
+    jobId: "approve-vendor-invoice-import_job-idx",
+    vendorId: "approve-vendor-invoice-import_vendor-1",
+    vendorName: "Johnstone Supply",
+    status: "pending",
+    createdFromInvoiceImport: true,
+    vendorInvoiceImportId: canonImport,
+    vendorInvoiceNumber: inv,
+    customerPoOrReference: "PO-IDX-SAME",
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:48:10Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", canonImport), {
+    id: canonImport,
+    gmailMessageId: "msg-idx-canon",
+    reviewStatus: "approved",
+    importStatus: "pending",
+    linkedDeliveryOrderId: canonDelivery,
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: {
+      ...dropOffHeader,
+      vendorInvoiceNumber: inv,
+      vendorOrderNumber: inv,
+      customerPoOrReference: "PO-IDX-SAME",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:50:00Z",
+  });
+  await setDoc(
+    doc(adminDb, "vendorBusinessInvoiceKeys", "key:johnstone-supply__IDX-INV-6169474"),
+    {
+      vendorScope: "key:johnstone-supply",
+      vendorKey: "johnstone-supply",
+      normalizedInvoiceNumber: inv,
+      canonicalImportId: canonImport,
+      canonicalGmailMessageId: "msg-idx-canon",
+      contentFingerprint: "idx-test",
+      deliveryOrderId: canonDelivery,
+      createdAt: "2026-08-08T18:50:00Z",
+      updatedAt: "2026-08-08T18:50:00Z",
+    },
+  );
+  await setDoc(doc(adminDb, "vendorInvoiceImports", resendImport), {
+    id: resendImport,
+    gmailMessageId: "msg-idx-resend",
+    reviewStatus: "pending_review",
+    importStatus: "pending",
+    canonicalImportId: canonImport,
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: {
+      ...dropOffHeader,
+      vendorInvoiceNumber: inv,
+      vendorOrderNumber: inv,
+      customerPoOrReference: "PO-IDX-SAME",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-29T12:00:00Z",
+    updatedAt: "2026-08-29T12:00:00Z",
+  });
+});
+
+try {
+  const idxApprove = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-idx-resend-page-1",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+  });
+  const idxData = idxApprove?.data ?? idxApprove;
+  if (idxData?.deliveryOrderId === "approve-vendor-invoice-import_delivery-vii-vii-idx-canon-page-1") {
+    pass("delivery index: second forward approve reuses indexed delivery");
+  } else {
+    fail("delivery index resend should target indexed delivery", idxData);
+  }
+} catch (err) {
+  fail("delivery index resend approve failed", err?.message);
+}
+
+const idxDupShell = await getDoc(
+  doc(db, "deliveries", "approve-vendor-invoice-import_delivery-vii-vii-idx-resend-page-1"),
+);
+if (!idxDupShell.exists()) {
+  pass("delivery index: no second shell for resend import");
+} else {
+  fail("delivery index created duplicate shell", idxDupShell.data());
+}
+
+// Case 13 — different PO same invoice updates delivery metadata (one delivery)
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  const inv = "IDX-INV-6169414";
+  const canonImport = "approve-vendor-invoice-import_vii-idx-po-canon-page-1";
+  const revImport = "approve-vendor-invoice-import_vii-idx-po-rev-page-1";
+  const canonDelivery = "approve-vendor-invoice-import_delivery-vii-vii-idx-po-canon-page-1";
+  await setDoc(doc(adminDb, "deliveries", canonDelivery), {
+    id: canonDelivery,
+    orderNumber: inv,
+    jobId: "approve-vendor-invoice-import_job-idx",
+    vendorId: "approve-vendor-invoice-import_vendor-1",
+    vendorName: "Johnstone Supply",
+    status: "pending",
+    createdFromInvoiceImport: true,
+    vendorInvoiceImportId: canonImport,
+    vendorInvoiceNumber: inv,
+    customerPoOrReference: "PO-OLD",
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:48:10Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", canonImport), {
+    id: canonImport,
+    gmailMessageId: "msg-idx-po-canon",
+    reviewStatus: "approved",
+    importStatus: "pending",
+    linkedDeliveryOrderId: canonDelivery,
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: {
+      ...dropOffHeader,
+      vendorInvoiceNumber: inv,
+      vendorOrderNumber: inv,
+      customerPoOrReference: "PO-OLD",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:50:00Z",
+  });
+  await setDoc(
+    doc(adminDb, "vendorBusinessInvoiceKeys", "key:johnstone-supply__IDX-INV-6169414"),
+    {
+      vendorScope: "key:johnstone-supply",
+      vendorKey: "johnstone-supply",
+      normalizedInvoiceNumber: inv,
+      canonicalImportId: canonImport,
+      canonicalGmailMessageId: "msg-idx-po-canon",
+      contentFingerprint: "idx-po-old",
+      deliveryOrderId: canonDelivery,
+      createdAt: "2026-08-08T18:50:00Z",
+      updatedAt: "2026-08-08T18:50:00Z",
+    },
+  );
+  await setDoc(doc(adminDb, "vendorInvoiceImports", revImport), {
+    id: revImport,
+    gmailMessageId: "msg-idx-po-rev",
+    reviewStatus: "pending_review",
+    importStatus: "pending",
+    canonicalImportId: canonImport,
+    possibleRevisionOfImportId: canonImport,
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: {
+      ...dropOffHeader,
+      vendorInvoiceNumber: inv,
+      vendorOrderNumber: inv,
+      customerPoOrReference: "PO-NEW-REV",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-29T12:00:00Z",
+    updatedAt: "2026-08-29T12:00:00Z",
+  });
+});
+
+try {
+  const poRevApprove = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-idx-po-rev-page-1",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+  });
+  const poRevData = poRevApprove?.data ?? poRevApprove;
+  if (poRevData?.deliveryOrderId === "approve-vendor-invoice-import_delivery-vii-vii-idx-po-canon-page-1") {
+    pass("different PO resend approves to same indexed delivery");
+  } else {
+    fail("PO revision approve target", poRevData);
+  }
+} catch (err) {
+  fail("PO revision approve failed", err?.message);
+}
+
+const poDelivery = await getDoc(
+  doc(db, "deliveries", "approve-vendor-invoice-import_delivery-vii-vii-idx-po-canon-page-1"),
+);
+if (poDelivery.data()?.customerPoOrReference === "PO-NEW-REV") {
+  pass("different PO resend updates delivery customer PO");
+} else {
+  fail("delivery PO not updated on resend", poDelivery.data());
+}
+
+// Case 14 — picked_up delivery: resend approve does not downgrade status
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  const inv = "IDX-INV-PICKED";
+  const canonImport = "approve-vendor-invoice-import_vii-idx-pick-canon-page-1";
+  const resendImport = "approve-vendor-invoice-import_vii-idx-pick-resend-page-1";
+  const canonDelivery = "approve-vendor-invoice-import_delivery-vii-vii-idx-pick-canon-page-1";
+  await setDoc(doc(adminDb, "deliveries", canonDelivery), {
+    id: canonDelivery,
+    orderNumber: inv,
+    jobId: "approve-vendor-invoice-import_job-idx",
+    vendorId: "approve-vendor-invoice-import_vendor-1",
+    status: "picked_up",
+    invoiceImportStatus: "closed_picked_up",
+    createdFromInvoiceImport: true,
+    vendorInvoiceImportId: canonImport,
+    vendorInvoiceNumber: inv,
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-09T10:00:00Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", canonImport), {
+    id: canonImport,
+    reviewStatus: "approved",
+    importStatus: "closed_picked_up",
+    linkedDeliveryOrderId: canonDelivery,
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: {
+      ...dropOffHeader,
+      vendorInvoiceNumber: inv,
+      vendorOrderNumber: inv,
+      fulfillmentMethod: "will_call_pickup",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-09T10:00:00Z",
+  });
+  await setDoc(
+    doc(adminDb, "vendorBusinessInvoiceKeys", "key:johnstone-supply__IDX-INV-PICKED"),
+    {
+      vendorScope: "key:johnstone-supply",
+      vendorKey: "johnstone-supply",
+      normalizedInvoiceNumber: inv,
+      canonicalImportId: canonImport,
+      canonicalGmailMessageId: "msg-pick",
+      contentFingerprint: "pick",
+      deliveryOrderId: canonDelivery,
+      createdAt: "2026-08-08T18:50:00Z",
+      updatedAt: "2026-08-08T18:50:00Z",
+    },
+  );
+  await setDoc(doc(adminDb, "vendorInvoiceImports", resendImport), {
+    id: resendImport,
+    reviewStatus: "pending_review",
+    importStatus: "pending",
+    canonicalImportId: canonImport,
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    parsedHeader: {
+      ...willCallHeader,
+      vendorInvoiceNumber: inv,
+      vendorOrderNumber: inv,
+      fulfillmentMethod: "will_call_pickup",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-29T12:00:00Z",
+    updatedAt: "2026-08-29T12:00:00Z",
+  });
+});
+
+try {
+  await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-idx-pick-resend-page-1",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+  });
+  const pickedSnap = await getDoc(
+    doc(db, "deliveries", "approve-vendor-invoice-import_delivery-vii-vii-idx-pick-canon-page-1"),
+  );
+  if (pickedSnap.data()?.status === "picked_up") {
+    pass("resend after pickup does not downgrade delivery status");
+  } else {
+    fail("pickup status downgraded on resend", pickedSnap.data());
+  }
+} catch (err) {
+  fail("pickup resend approve failed", err?.message);
+}
+
 await testEnv.cleanup();
 
 console.log(`\n--- Result: ${passed} passed, ${failed} failed ---`);

@@ -392,6 +392,9 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 ...(input.canonicalImportId
                     ? { canonicalImportId: input.canonicalImportId }
                     : {}),
+                ...(input.linkedDeliveryOrderId
+                    ? { linkedDeliveryOrderId: input.linkedDeliveryOrderId }
+                    : {}),
                 ...(input.possibleRevisionOfImportId
                     ? { possibleRevisionOfImportId: input.possibleRevisionOfImportId }
                     : {}),
@@ -463,11 +466,27 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 ? businessClaim.canonicalImportId
                 : undefined;
             const canonicalImportId = businessClaim?.kind === "exact_duplicate" ||
-                businessClaim?.kind === "possible_revision"
+                businessClaim?.kind === "possible_revision" ||
+                businessClaim?.kind === "same_message_multipage"
                 ? businessClaim.canonicalImportId
-                : businessClaim?.kind === "same_message_multipage"
-                    ? undefined
-                    : undefined;
+                : undefined;
+            let inheritedLinkedDeliveryOrderId;
+            if (keySnap?.exists) {
+                const fromKey = (0, businessInvoiceIdentity_1.deliveryOrderIdFromKeyDoc)(keySnap.data());
+                if (fromKey)
+                    inheritedLinkedDeliveryOrderId = fromKey;
+            }
+            if (!inheritedLinkedDeliveryOrderId &&
+                canonicalImportId &&
+                canonicalImportId !== reviewId) {
+                const canonSnap = await tx.get(db.collection(REVIEW_COLLECTION).doc(canonicalImportId));
+                if (canonSnap.exists) {
+                    const linked = String(canonSnap.data().linkedDeliveryOrderId ??
+                        "").trim();
+                    if (linked)
+                        inheritedLinkedDeliveryOrderId = linked;
+                }
+            }
             // Recompute correction overrides from the fresh in-tx import snapshot so a
             // concurrent apply cannot be wiped by a stale pre-tx log read.
             const freshLog = Array.isArray(freshData?.fieldCorrectionLog)
@@ -546,6 +565,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 effectiveSkipFields: duplicateSkip ?? skipFields,
                 canonicalImportId,
                 possibleRevisionOfImportId: revisionOfId,
+                linkedDeliveryOrderId: inheritedLinkedDeliveryOrderId,
             });
             // User re-opened a system skip (pending, no skipReason) — do not re-auto-skip.
             if (freshSnap.exists &&

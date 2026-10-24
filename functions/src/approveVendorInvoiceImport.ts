@@ -4,7 +4,7 @@
  * or shell delivery-vii-{importId} (D-39 default). Client deliveryOrderId is confirm-only.
  */
 import * as admin from "firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, type DocumentSnapshot } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { loadEmailMatchContext } from "./email/loadMatchContext";
 import { buildExpectedItemsFromImport } from "./invoice/buildExpectedItemsFromImport";
@@ -22,6 +22,13 @@ import {
   isDeliveryOwnedForBusinessInvoiceApprove,
   resolveApproveBusinessInvoiceRedirect,
 } from "./invoice/businessInvoiceIdentity";
+import {
+  getBusinessInvoiceDeliveryIndexSnap,
+  readIndexedDeliveryOrderId,
+  resolveDeliveryTargetFromIndexSnap,
+  stampDeliveryOrderIdOnBusinessInvoiceKeyInTx,
+  tryBuildBusinessInvoiceIndexContext,
+} from "./invoice/invoiceDeliveryIndex";
 import {
   isInvoiceShellNoShopStaging,
   jobNameFromInvoiceContext,
@@ -795,8 +802,18 @@ export const approveVendorInvoiceImport = onCall(
       }
 
       const shell = await buildInvoiceDeliveryShellContext(getDb(), importId, importDoc);
-      const deliveryRef = getDb().collection("deliveries").doc(shell.deliveryOrderId);
+      const createShellIndexCtx = tryBuildBusinessInvoiceIndexContext(importDoc);
+      let createShellTargetId = shell.deliveryOrderId;
+      if (createShellIndexCtx) {
+        const indexed = await readIndexedDeliveryOrderId(
+          getDb(),
+          createShellIndexCtx.indexKeyDocId,
+        );
+        if (indexed) createShellTargetId = indexed;
+      }
+      const deliveryRef = getDb().collection("deliveries").doc(createShellTargetId);
 
+      let returnedShellDeliveryId = createShellTargetId;
       await getDb().runTransaction(async (tx) => {
         const freshImport = await tx.get(importRef);
         if (!freshImport.exists) {
@@ -811,6 +828,7 @@ export const approveVendorInvoiceImport = onCall(
           );
         }
         if (fresh.linkedDeliveryOrderId?.trim()) {
+          returnedShellDeliveryId = fresh.linkedDeliveryOrderId.trim();
           return;
         }
         if (fresh.importStatus === "issue") {
@@ -820,14 +838,41 @@ export const approveVendorInvoiceImport = onCall(
           );
         }
 
-        const existingDelivery = await tx.get(deliveryRef);
+        let effectiveShellTargetId = createShellTargetId;
+        let indexSnap: DocumentSnapshot | null = null;
+        const txIndexCtx = tryBuildBusinessInvoiceIndexContext(fresh);
+        if (txIndexCtx) {
+          indexSnap = await getBusinessInvoiceDeliveryIndexSnap(
+            tx,
+            getDb(),
+            txIndexCtx.indexKeyDocId,
+          );
+          const reconciled = resolveDeliveryTargetFromIndexSnap(
+            indexSnap,
+            shell.deliveryOrderId,
+          );
+          if (reconciled.indexedHit) {
+            effectiveShellTargetId = reconciled.targetDeliveryOrderId;
+          }
+        }
+        const deliveryRefTx = getDb()
+          .collection("deliveries")
+          .doc(effectiveShellTargetId);
+        const shellForWrite = { ...shell, deliveryOrderId: effectiveShellTargetId };
+        const existingDelivery = await tx.get(deliveryRefTx);
         if (!existingDelivery.exists) {
           tx.set(
-            deliveryRef,
-            buildDeliveryShellDocument(shell, importId, fresh, now),
+            deliveryRefTx,
+            buildDeliveryShellDocument(shellForWrite, importId, fresh, now),
           );
           for (const item of shell.expectedItems) {
-            tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
+            const itemWrite =
+              effectiveShellTargetId === shell.deliveryOrderId
+                ? item
+                : { ...item, deliveryOrderId: effectiveShellTargetId };
+            tx.set(getDb().collection("items").doc(item.id), itemWrite, {
+              merge: true,
+            });
           }
         } else {
           const existingData = existingDelivery.data() as {
@@ -838,7 +883,7 @@ export const approveVendorInvoiceImport = onCall(
               (existingDelivery.data() as Record<string, unknown> | undefined) ??
               {};
             const shellPatch = buildInvoiceShellPatchDocument(
-              shell,
+              shellForWrite,
               importId,
               fresh,
               now,
@@ -850,15 +895,29 @@ export const approveVendorInvoiceImport = onCall(
               {},
               { releasedBy: uid, releasedAt: now },
             );
-            tx.update(deliveryRef, {
+            tx.update(deliveryRefTx, {
               ...shellPatch,
               ...stagingClear,
             });
           }
         }
 
+        if (txIndexCtx && indexSnap) {
+          stampDeliveryOrderIdOnBusinessInvoiceKeyInTx(tx, indexSnap, {
+            identity: txIndexCtx.identity,
+            indexKeyDocId: txIndexCtx.indexKeyDocId,
+            deliveryOrderId: effectiveShellTargetId,
+            canonicalImportId:
+              fresh.canonicalImportId?.trim() || importId,
+            canonicalGmailMessageId: fresh.gmailMessageId ?? "",
+            contentFingerprint: txIndexCtx.identity.contentFingerprint,
+            now,
+          });
+        }
+
+        returnedShellDeliveryId = effectiveShellTargetId;
         tx.update(importRef, {
-          linkedDeliveryOrderId: shell.deliveryOrderId,
+          linkedDeliveryOrderId: effectiveShellTargetId,
           updatedAt: now,
           importDecisionLog: appendDecisionLogUpdate(
             fresh,
@@ -867,7 +926,7 @@ export const approveVendorInvoiceImport = onCall(
               uid,
               now,
               eligibilityFromDoc(fresh),
-              shell.deliveryOrderId,
+              effectiveShellTargetId,
             ),
           ),
         });
@@ -876,7 +935,7 @@ export const approveVendorInvoiceImport = onCall(
       return {
         vendorInvoiceImportId: importId,
         reviewStatus: "approved",
-        deliveryOrderId: shell.deliveryOrderId,
+        deliveryOrderId: returnedShellDeliveryId,
         itemsApplied: shell.expectedItems.length,
         shellCreated: true,
         jobCreated: shell.jobCreated,
@@ -946,11 +1005,26 @@ export const approveVendorInvoiceImport = onCall(
     };
     const header = asParsedHeaderForImport(effectiveImportDoc.parsedHeader);
     const matchCtx = await loadEmailMatchContext();
+    const businessIndexCtx = tryBuildBusinessInvoiceIndexContext(effectiveImportDoc);
+    let indexedDeliveryOrderId =
+      businessRedirect?.linkedDeliveryOrderId?.trim() ||
+      effectiveImportDoc.linkedDeliveryOrderId?.trim() ||
+      "";
+    if (!indexedDeliveryOrderId && businessIndexCtx) {
+      indexedDeliveryOrderId =
+        (await readIndexedDeliveryOrderId(
+          getDb(),
+          businessIndexCtx.indexKeyDocId,
+        )) ?? "";
+    }
     const resolved = resolveInvoiceApproveDeliveryTarget({
       importId,
       importDoc: effectiveImportDoc,
       header,
       ctx: matchCtx,
+      ...(indexedDeliveryOrderId
+        ? { indexedDeliveryOrderId }
+        : {}),
     });
     if (deliveryOrderId && deliveryOrderId !== resolved.targetDeliveryOrderId) {
       throw new HttpsError(
@@ -1081,7 +1155,31 @@ export const approveVendorInvoiceImport = onCall(
         );
       }
 
-      const existingDelivery = await tx.get(deliveryRef);
+      let effectiveTargetId = targetId;
+      let effectiveMatchedExisting = matchedExisting;
+      const txIndexCtx = tryBuildBusinessInvoiceIndexContext(fresh);
+      let indexSnap: DocumentSnapshot | null = null;
+      if (txIndexCtx) {
+        indexSnap = await getBusinessInvoiceDeliveryIndexSnap(
+          tx,
+          getDb(),
+          txIndexCtx.indexKeyDocId,
+        );
+        const reconciled = resolveDeliveryTargetFromIndexSnap(indexSnap, shellId);
+        if (reconciled.indexedHit) {
+          effectiveTargetId = reconciled.targetDeliveryOrderId;
+          effectiveMatchedExisting = effectiveTargetId !== shellId;
+        }
+      }
+      if (freshLinked && freshLinked !== effectiveTargetId) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Import was concurrently approved to a different delivery — reload and retry.",
+        );
+      }
+
+      const deliveryRefTx = getDb().collection("deliveries").doc(effectiveTargetId);
+      const existingDelivery = await tx.get(deliveryRefTx);
 
       if (!stagingSkipped && plannedStagingLocationIds.length > 0) {
         const codes: string[] = [];
@@ -1090,14 +1188,14 @@ export const approveVendorInvoiceImport = onCall(
             tx,
             getDb(),
             locId,
-            targetId,
+            effectiveTargetId,
           );
           codes.push(code);
         }
         plannedStagingLocationCodes = codes;
       }
 
-      if (matchedExisting) {
+      if (effectiveMatchedExisting) {
         if (!existingDelivery.exists) {
           throw new HttpsError(
             "failed-precondition",
@@ -1141,13 +1239,16 @@ export const approveVendorInvoiceImport = onCall(
           stagingPatch,
           willCallClearMeta,
         );
-        tx.update(deliveryRef, {
+        tx.update(deliveryRefTx, {
           ...matchedFulfillmentPatch,
           ...activeStagingPatch,
         });
       } else if (!existingDelivery.exists) {
-        // Shell path: create delivery-vii-{importId}.
-        const shellForWrite = { ...effectiveShell, deliveryOrderId: shellId };
+        // Shell path: create delivery-vii-{importId} unless index already owns a delivery.
+        const shellForWrite = {
+          ...effectiveShell,
+          deliveryOrderId: effectiveTargetId,
+        };
         const shellDoc = buildDeliveryShellDocument(
           shellForWrite,
           importId,
@@ -1160,7 +1261,7 @@ export const approveVendorInvoiceImport = onCall(
           stagingPatch,
           willCallClearMeta,
         );
-        tx.set(deliveryRef, {
+        tx.set(deliveryRefTx, {
           ...shellDoc,
           ...activeStagingPatch,
         });
@@ -1169,7 +1270,7 @@ export const approveVendorInvoiceImport = onCall(
           (existingDelivery.data() as Record<string, unknown> | undefined) ??
           {};
         const shellFulfillmentPatch = buildInvoiceShellPatchDocument(
-          { ...effectiveShell, deliveryOrderId: shellId },
+          { ...effectiveShell, deliveryOrderId: effectiveTargetId },
           importId,
           fresh,
           now,
@@ -1191,18 +1292,39 @@ export const approveVendorInvoiceImport = onCall(
           stagingPatch,
           willCallClearMeta,
         );
-        tx.update(deliveryRef, {
+        tx.update(deliveryRefTx, {
           ...shellFulfillmentPatch,
           ...activeStagingPatch,
         });
       }
       for (const item of expectedItems) {
-        tx.set(getDb().collection("items").doc(item.id), item, { merge: true });
+        const itemWrite =
+          effectiveTargetId === targetId
+            ? item
+            : { ...item, deliveryOrderId: effectiveTargetId };
+        tx.set(getDb().collection("items").doc(item.id), itemWrite, {
+          merge: true,
+        });
+      }
+
+      if (txIndexCtx && indexSnap) {
+        stampDeliveryOrderIdOnBusinessInvoiceKeyInTx(tx, indexSnap, {
+          identity: txIndexCtx.identity,
+          indexKeyDocId: txIndexCtx.indexKeyDocId,
+          deliveryOrderId: effectiveTargetId,
+          canonicalImportId:
+            businessCanonicalId ||
+            fresh.canonicalImportId?.trim() ||
+            importId,
+          canonicalGmailMessageId: fresh.gmailMessageId ?? "",
+          contentFingerprint: txIndexCtx.identity.contentFingerprint,
+          now,
+        });
       }
 
       tx.update(importRef, {
         reviewStatus: "approved",
-        linkedDeliveryOrderId: targetId,
+        linkedDeliveryOrderId: effectiveTargetId,
         approvedAt: now,
         approvedBy: uid,
         rejectedAt: FieldValue.delete(),
@@ -1215,7 +1337,7 @@ export const approveVendorInvoiceImport = onCall(
             uid,
             now,
             eligibilityFromDoc(fresh),
-            targetId,
+            effectiveTargetId,
             fulfillmentDecision
               ? {
                   fulfillmentDecision,

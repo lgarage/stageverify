@@ -40,6 +40,8 @@ import {
 } from "../invoice/creditReturnSkip";
 import {
   claimOrLinkBusinessInvoiceWithSnap,
+  deliveryOrderIdFromKeyDoc,
+  type BusinessInvoiceKeyDoc,
   findLegacyBusinessInvoiceCanonical,
   getBusinessInvoiceKeySnap,
   tryBuildBusinessInvoiceIdentity,
@@ -497,6 +499,7 @@ async function writeReviewRecords(
       >;
       canonicalImportId?: string;
       possibleRevisionOfImportId?: string;
+      linkedDeliveryOrderId?: string;
     }): VendorInvoiceImportDoc & {
       fieldCorrectionLog?: FieldCorrectionLogEntry[];
       originalParsedHeader?: Record<string, unknown>;
@@ -556,6 +559,9 @@ async function writeReviewRecords(
         : {}),
       ...(input.canonicalImportId
         ? { canonicalImportId: input.canonicalImportId }
+        : {}),
+      ...(input.linkedDeliveryOrderId
+        ? { linkedDeliveryOrderId: input.linkedDeliveryOrderId }
         : {}),
       ...(input.possibleRevisionOfImportId
         ? { possibleRevisionOfImportId: input.possibleRevisionOfImportId }
@@ -637,11 +643,34 @@ async function writeReviewRecords(
           : undefined;
       const canonicalImportId =
         businessClaim?.kind === "exact_duplicate" ||
-        businessClaim?.kind === "possible_revision"
+        businessClaim?.kind === "possible_revision" ||
+        businessClaim?.kind === "same_message_multipage"
           ? businessClaim.canonicalImportId
-          : businessClaim?.kind === "same_message_multipage"
-            ? undefined
-            : undefined;
+          : undefined;
+
+      let inheritedLinkedDeliveryOrderId: string | undefined;
+      if (keySnap?.exists) {
+        const fromKey = deliveryOrderIdFromKeyDoc(
+          keySnap.data() as BusinessInvoiceKeyDoc,
+        );
+        if (fromKey) inheritedLinkedDeliveryOrderId = fromKey;
+      }
+      if (
+        !inheritedLinkedDeliveryOrderId &&
+        canonicalImportId &&
+        canonicalImportId !== reviewId
+      ) {
+        const canonSnap = await tx.get(
+          db.collection(REVIEW_COLLECTION).doc(canonicalImportId),
+        );
+        if (canonSnap.exists) {
+          const linked = String(
+            (canonSnap.data() as VendorInvoiceImportDoc).linkedDeliveryOrderId ??
+              "",
+          ).trim();
+          if (linked) inheritedLinkedDeliveryOrderId = linked;
+        }
+      }
 
       // Recompute correction overrides from the fresh in-tx import snapshot so a
       // concurrent apply cannot be wiped by a stale pre-tx log read.
@@ -731,6 +760,7 @@ async function writeReviewRecords(
         effectiveSkipFields: duplicateSkip ?? skipFields,
         canonicalImportId,
         possibleRevisionOfImportId: revisionOfId,
+        linkedDeliveryOrderId: inheritedLinkedDeliveryOrderId,
       });
 
       // User re-opened a system skip (pending, no skipReason) — do not re-auto-skip.
