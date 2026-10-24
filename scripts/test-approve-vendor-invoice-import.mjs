@@ -2880,6 +2880,24 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
       updatedAt: "2026-08-08T18:50:00Z",
     },
   );
+  const resendLines = sampleLines.map((line) =>
+    line.lineNumber === 1
+      ? { ...line, quantityOrdered: 7, quantityShipped: 7 }
+      : line,
+  );
+  await setDoc(doc(adminDb, "items", `item-vii-${canonImport}-ln-1`), {
+    id: `item-vii-${canonImport}-ln-1`,
+    deliveryOrderId: canonDelivery,
+    jobId: "approve-vendor-invoice-import_job-idx",
+    sku: "L46-668",
+    description: "THERMOSTAT PROGRAMMABLE",
+    qtyOrdered: 1,
+    qtyReceived: 4,
+    qtyMissing: 0,
+    qtyDamaged: 0,
+    qtyBackordered: 0,
+    status: "partial",
+  });
   await setDoc(doc(adminDb, "vendorInvoiceImports", resendImport), {
     id: resendImport,
     gmailMessageId: "msg-idx-resend",
@@ -2894,8 +2912,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
       vendorOrderNumber: inv,
       customerPoOrReference: "PO-IDX-SAME",
     },
-    parsedLines: sampleLines,
-    parsedLineCount: sampleLines.length,
+    parsedLines: resendLines,
+    parsedLineCount: resendLines.length,
     parseWarnings: [],
     orderNotes: [],
     createdAt: "2026-08-29T12:00:00Z",
@@ -2926,6 +2944,26 @@ if (!idxDupShell.exists()) {
   pass("delivery index: no second shell for resend import");
 } else {
   fail("delivery index created duplicate shell", idxDupShell.data());
+}
+
+const keptLine = await getDoc(
+  doc(db, "items", "item-vii-approve-vendor-invoice-import_vii-idx-canon-page-1-ln-1"),
+);
+const dupLine = await getDoc(
+  doc(db, "items", "item-vii-approve-vendor-invoice-import_vii-idx-resend-page-1-ln-1"),
+);
+if (
+  keptLine.data()?.qtyReceived === 4 &&
+  keptLine.data()?.qtyOrdered === 7 &&
+  keptLine.data()?.status === "partial" &&
+  !dupLine.exists()
+) {
+  pass("resend updates canonical line without wiping receive progress or adding a second line");
+} else {
+  fail("resend line items", {
+    kept: keptLine.data(),
+    dupExists: dupLine.exists(),
+  });
 }
 
 // Case 13 — different PO same invoice updates delivery metadata (one delivery)
@@ -3125,6 +3163,125 @@ try {
   }
 } catch (err) {
   fail("pickup resend approve failed", err?.message);
+}
+
+// Case 15 — First Supply same invoice, different S/O must not merge
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const adminDb = ctx.firestore();
+  const inv = "15046467-00";
+  const canonImport = "approve-vendor-invoice-import_vii-fs-so-a-page-1";
+  const otherImport = "approve-vendor-invoice-import_vii-fs-so-b-page-1";
+  const canonDelivery = "approve-vendor-invoice-import_delivery-vii-vii-fs-so-a-page-1";
+  await setDoc(doc(adminDb, "deliveries", canonDelivery), {
+    id: canonDelivery,
+    orderNumber: "3869488-00",
+    jobId: "approve-vendor-invoice-import_job-idx",
+    vendorId: "approve-vendor-invoice-import_vendor-first-supply",
+    vendorName: "First Supply LLC",
+    status: "pending",
+    createdFromInvoiceImport: true,
+    vendorInvoiceImportId: canonImport,
+    vendorInvoiceNumber: inv,
+    vendorOrderNumber: "3869488-00",
+    customerPoOrReference: "PO-FS-A",
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:48:10Z",
+  });
+  await setDoc(doc(adminDb, "vendorInvoiceImports", canonImport), {
+    id: canonImport,
+    gmailMessageId: "msg-fs-so-a",
+    reviewStatus: "approved",
+    importStatus: "pending",
+    linkedDeliveryOrderId: canonDelivery,
+    detectedVendorId: "approve-vendor-invoice-import_vendor-first-supply",
+    detectedVendorName: "First Supply LLC",
+    parserFormatId: "first_supply",
+    parsedHeader: {
+      ...dropOffHeader,
+      vendorInvoiceNumber: inv,
+      vendorOrderNumber: "3869488-00",
+      customerPoOrReference: "PO-FS-A",
+      vendorBranchName: "First Supply LLC - Oshkosh",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-08T18:48:10Z",
+    updatedAt: "2026-08-08T18:50:00Z",
+  });
+  await setDoc(
+    doc(adminDb, "vendorBusinessInvoiceKeys", "key:first-supply__15046467-00"),
+    {
+      vendorScope: "key:first-supply",
+      vendorKey: "first-supply",
+      normalizedInvoiceNumber: inv,
+      canonicalImportId: canonImport,
+      canonicalGmailMessageId: "msg-fs-so-a",
+      contentFingerprint: "fs-a",
+      deliveryOrderId: canonDelivery,
+      createdAt: "2026-08-08T18:50:00Z",
+      updatedAt: "2026-08-08T18:50:00Z",
+    },
+  );
+  await setDoc(doc(adminDb, "vendorInvoiceImports", otherImport), {
+    id: otherImport,
+    gmailMessageId: "msg-fs-so-b",
+    reviewStatus: "pending_review",
+    importStatus: "pending",
+    canonicalImportId: canonImport,
+    linkedDeliveryOrderId: canonDelivery,
+    detectedVendorId: "approve-vendor-invoice-import_vendor-first-supply",
+    detectedVendorName: "First Supply LLC",
+    parserFormatId: "first_supply",
+    parsedHeader: {
+      ...willCallHeader,
+      vendorInvoiceNumber: inv,
+      vendorOrderNumber: "9999999-00",
+      customerPoOrReference: "PO-FS-B",
+      vendorBranchName: "First Supply LLC - Oshkosh",
+      fulfillmentMethod: "will_call_pickup",
+    },
+    parsedLines: sampleLines,
+    parsedLineCount: sampleLines.length,
+    parseWarnings: [],
+    orderNotes: [],
+    createdAt: "2026-08-29T12:00:00Z",
+    updatedAt: "2026-08-29T12:00:00Z",
+  });
+});
+
+try {
+  const fsSplit = await approveImport({
+    vendorInvoiceImportId: "approve-vendor-invoice-import_vii-fs-so-b-page-1",
+    action: "approve",
+    fulfillmentDecision: "will_call_pickup",
+  });
+  const fsData = fsSplit?.data ?? fsSplit;
+  const ownShell = shellDeliveryIdForImport(
+    "approve-vendor-invoice-import_vii-fs-so-b-page-1",
+  );
+  const original = await getDoc(
+    doc(db, "deliveries", "approve-vendor-invoice-import_delivery-vii-vii-fs-so-a-page-1"),
+  );
+  const created = await getDoc(doc(db, "deliveries", ownShell));
+  if (
+    fsData?.deliveryOrderId === ownShell &&
+    created.exists() &&
+    original.data()?.vendorOrderNumber === "3869488-00" &&
+    original.data()?.customerPoOrReference === "PO-FS-A" &&
+    created.data()?.vendorOrderNumber === "9999999-00"
+  ) {
+    pass("First Supply different S/O approves to its own delivery");
+  } else {
+    fail("First Supply different S/O merged", {
+      response: fsData,
+      original: original.data(),
+      created: created.exists() ? created.data() : null,
+    });
+  }
+} catch (err) {
+  fail("First Supply different S/O approve failed", err?.message);
 }
 
 await testEnv.cleanup();

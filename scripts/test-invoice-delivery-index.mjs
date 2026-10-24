@@ -8,6 +8,7 @@ import {
   businessInvoiceDeliveryIndexKeyDocId,
   invoiceNumberIsBossForParser,
   resolveDeliveryTargetFromIndexSnap,
+  salesOrdersDisagreeForSeparateDeliveries,
   stampDeliveryOrderIdOnBusinessInvoiceKeyInTx,
   tryBuildBusinessInvoiceIndexContext,
 } from "../functions/lib/invoice/invoiceDeliveryIndex.js";
@@ -58,6 +59,18 @@ function sampleLines(poSku = "SKU-A") {
   const jKey2 = businessInvoiceDeliveryIndexKeyDocId(identity, "johnstone", "SO-2");
   assert.equal(jKey, jKey2);
   assert.equal(invoiceNumberIsBossForParser("johnstone"), true);
+  assert.equal(
+    salesOrdersDisagreeForSeparateDeliveries("johnstone", "SO-1", "SO-2"),
+    false,
+  );
+  assert.equal(
+    salesOrdersDisagreeForSeparateDeliveries("first_supply", "3869488-00", "9999999-00"),
+    true,
+  );
+  assert.equal(
+    salesOrdersDisagreeForSeparateDeliveries("first_supply", "3869488-00", "3869488-00"),
+    false,
+  );
 
   const fsIdentity = tryBuildBusinessInvoiceIdentity({
     detectedVendorName: "First Supply",
@@ -142,6 +155,32 @@ function sampleLines(poSku = "SKU-A") {
         parsedLines: sampleLines(),
       },
       {
+        id: "vii-c",
+        parserFormatId: "johnstone",
+        detectedVendorName: "Johnstone",
+        reviewStatus: "approved",
+        linkedDeliveryOrderId: "delivery-vii-vii-c",
+        parsedHeader: {
+          vendorInvoiceNumber: "6169414",
+          vendorOrderNumber: "6169414",
+          customerPoOrReference: "PO-2",
+        },
+        parsedLines: sampleLines(),
+      },
+      {
+        id: "vii-d",
+        parserFormatId: "johnstone",
+        detectedVendorName: "Johnstone",
+        reviewStatus: "approved",
+        linkedDeliveryOrderId: "delivery-vii-vii-d",
+        parsedHeader: {
+          vendorInvoiceNumber: "6169414",
+          vendorOrderNumber: "6169414",
+          customerPoOrReference: "PO-2",
+        },
+        parsedLines: sampleLines(),
+      },
+      {
         id: "fs-1",
         parserFormatId: "first_supply",
         detectedVendorName: "First Supply",
@@ -169,15 +208,34 @@ function sampleLines(poSku = "SKU-A") {
     deliveries: [
       { id: "delivery-vii-vii-a", createdFromInvoiceImport: true },
       { id: "delivery-vii-vii-b", createdFromInvoiceImport: true },
+      { id: "delivery-vii-vii-c", createdFromInvoiceImport: true },
+      { id: "delivery-vii-vii-d", createdFromInvoiceImport: true },
       { id: "delivery-vii-fs-1", createdFromInvoiceImport: true },
       { id: "delivery-vii-fs-2", createdFromInvoiceImport: true },
     ],
   });
   assert.ok(plan.duplicates.some((d) => d.normalizedInvoiceNumber === "6169474"));
+  assert.ok(plan.duplicates.some((d) => d.normalizedInvoiceNumber === "6169414"));
+  assert.equal(
+    plan.duplicates.some((d) => d.normalizedInvoiceNumber === "15046467-00"),
+    false,
+  );
   assert.ok(
     plan.ambiguous.some((a) => a.normalizedInvoiceNumber === "15046467-00"),
   );
-  assert.equal(plan.entries.length >= 2, true);
+  assert.equal(
+    plan.entries.some((e) => e.normalizedInvoiceNumber === "6169474"),
+    false,
+  );
+  assert.equal(
+    plan.entries.some((e) => e.normalizedInvoiceNumber === "6169414"),
+    false,
+  );
+  const fsEntries = plan.entries.filter(
+    (e) => e.normalizedInvoiceNumber === "15046467-00",
+  );
+  assert.equal(fsEntries.length, 2);
+  assert.notEqual(fsEntries[0].indexKeyDocId, fsEntries[1].indexKeyDocId);
   pass("backfill plan duplicates + ambiguous S/O");
 }
 

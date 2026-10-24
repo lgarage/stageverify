@@ -20,6 +20,7 @@ const inferImportStatus_1 = require("../invoice/inferImportStatus");
 const parsedHeaderValidation_1 = require("../invoice/parsedHeaderValidation");
 const creditReturnSkip_1 = require("../invoice/creditReturnSkip");
 const businessInvoiceIdentity_1 = require("../invoice/businessInvoiceIdentity");
+const invoiceDeliveryIndex_1 = require("../invoice/invoiceDeliveryIndex");
 const vendorIgnoreRules_1 = require("../invoice/aiShadow/vendorIgnoreRules");
 const ignoreRuleAudit_1 = require("../invoice/aiShadow/ignoreRuleAudit");
 const strongInvoiceSignals_1 = require("../invoice/strongInvoiceSignals");
@@ -338,6 +339,20 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                 parsedLines,
             })
             : null;
+        const businessIndexCtx = businessIdentity
+            ? (0, invoiceDeliveryIndex_1.tryBuildBusinessInvoiceIndexContext)({
+                detectedVendorId: existingData?.detectedVendorId,
+                detectedVendorName: proc.detectedVendorName,
+                parserFormatId: proc.parserFormatId,
+                parsedHeader: {
+                    vendorInvoiceNumber: vendorInvoiceNumberRaw,
+                    customerPoOrReference: String(headerForIdentity.customerPoOrReference ?? ""),
+                    vendorOrderNumber: String(headerForIdentity.vendorOrderNumber ?? ""),
+                    fulfillmentMethod: String(headerForIdentity.fulfillmentMethod ?? ""),
+                },
+                parsedLines,
+            })
+            : null;
         const buildReviewDoc = (input) => {
             const activeSkip = input.effectiveSkipFields ?? skipFields;
             return {
@@ -416,8 +431,9 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
         const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);
         await db.runTransaction(async (tx) => {
             const freshSnap = await tx.get(reviewRef);
-            const keySnap = businessIdentity
-                ? await (0, businessInvoiceIdentity_1.getBusinessInvoiceKeySnap)(tx, db, businessIdentity.keyDocId)
+            const claimKeyId = businessIndexCtx?.indexKeyDocId ?? businessIdentity?.keyDocId ?? "";
+            const keySnap = businessIdentity && claimKeyId
+                ? await (0, businessInvoiceIdentity_1.getBusinessInvoiceKeySnap)(tx, db, claimKeyId)
                 : null;
             const freshData = freshSnap.exists
                 ? freshSnap.data()
@@ -444,6 +460,7 @@ async function writeReviewRecords(db, inboundDoc, batchResult) {
                             identity: businessIdentity,
                             vendorInvoiceNumberRaw,
                             excludeReviewId: reviewId,
+                            indexKeyDocId: businessIndexCtx?.indexKeyDocId,
                         })
                         : { kind: "none" };
                     if (legacyLookup.kind === "saturated") {

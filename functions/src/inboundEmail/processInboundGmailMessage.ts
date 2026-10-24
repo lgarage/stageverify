@@ -49,6 +49,7 @@ import {
   type BusinessInvoiceClaimOutcome,
   type BusinessInvoiceIdentity,
 } from "../invoice/businessInvoiceIdentity";
+import { tryBuildBusinessInvoiceIndexContext } from "../invoice/invoiceDeliveryIndex";
 import {
   fingerprintFromImport,
   incrementVendorIgnoreRuleMatch,
@@ -478,6 +479,22 @@ async function writeReviewRecords(
             parsedLines,
           })
         : null;
+    const businessIndexCtx = businessIdentity
+      ? tryBuildBusinessInvoiceIndexContext({
+          detectedVendorId: existingData?.detectedVendorId,
+          detectedVendorName: proc.detectedVendorName,
+          parserFormatId: proc.parserFormatId,
+          parsedHeader: {
+            vendorInvoiceNumber: vendorInvoiceNumberRaw,
+            customerPoOrReference: String(
+              headerForIdentity.customerPoOrReference ?? "",
+            ),
+            vendorOrderNumber: String(headerForIdentity.vendorOrderNumber ?? ""),
+            fulfillmentMethod: String(headerForIdentity.fulfillmentMethod ?? ""),
+          },
+          parsedLines,
+        })
+      : null;
 
     const buildReviewDoc = (input: {
       parsedHeader: Record<string, unknown>;
@@ -585,9 +602,12 @@ async function writeReviewRecords(
     const reviewRef = db.collection(REVIEW_COLLECTION).doc(reviewId);
     await db.runTransaction(async (tx) => {
       const freshSnap = await tx.get(reviewRef);
-      const keySnap = businessIdentity
-        ? await getBusinessInvoiceKeySnap(tx, db, businessIdentity.keyDocId)
-        : null;
+      const claimKeyId =
+        businessIndexCtx?.indexKeyDocId ?? businessIdentity?.keyDocId ?? "";
+      const keySnap =
+        businessIdentity && claimKeyId
+          ? await getBusinessInvoiceKeySnap(tx, db, claimKeyId)
+          : null;
       const freshData = freshSnap.exists
         ? (freshSnap.data() as VendorInvoiceImportDoc)
         : undefined;
@@ -616,6 +636,7 @@ async function writeReviewRecords(
                   identity: businessIdentity,
                   vendorInvoiceNumberRaw,
                   excludeReviewId: reviewId,
+                  indexKeyDocId: businessIndexCtx?.indexKeyDocId,
                 })
               : { kind: "none" as const };
           if (legacyLookup.kind === "saturated") {

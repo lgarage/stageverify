@@ -37,3 +37,28 @@ export function buildExpectedItemsFromImport(
       status: "pending" as const,
     }));
 }
+
+const RECEIVE_PROGRESS_FIELDS = [
+  "qtyReceived",
+  "qtyMissing",
+  "qtyDamaged",
+  "status",
+] as const;
+
+/**
+ * Resend line refresh must not zero receive or pickup progress already on the line.
+ * New lines still start at qtyReceived 0.
+ */
+export function itemWritePreservingReceiveProgress(
+  item: ExpectedItemWrite,
+  existing: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  if (!existing) return { ...item };
+  const write: Record<string, unknown> = { ...item };
+  for (const field of RECEIVE_PROGRESS_FIELDS) {
+    if (existing[field] !== undefined) {
+      delete write[field];
+    }
+  }
+  return write;
+}

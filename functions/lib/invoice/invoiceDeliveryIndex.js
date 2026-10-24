@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.businessInvoiceKeyDocId = exports.getBusinessInvoiceKeySnap = void 0;
 exports.invoiceNumberIsBossForParser = invoiceNumberIsBossForParser;
+exports.salesOrdersDisagreeForSeparateDeliveries = salesOrdersDisagreeForSeparateDeliveries;
 exports.businessInvoiceDeliveryIndexKeyDocId = businessInvoiceDeliveryIndexKeyDocId;
 exports.tryBuildBusinessInvoiceIndexContext = tryBuildBusinessInvoiceIndexContext;
 exports.getBusinessInvoiceDeliveryIndexSnap = getBusinessInvoiceDeliveryIndexSnap;
@@ -13,6 +14,19 @@ Object.defineProperty(exports, "businessInvoiceKeyDocId", { enumerable: true, ge
 Object.defineProperty(exports, "getBusinessInvoiceKeySnap", { enumerable: true, get: function () { return businessInvoiceIdentity_1.getBusinessInvoiceKeySnap; } });
 function invoiceNumberIsBossForParser(parserFormatId) {
     return parserFormatId === "johnstone";
+}
+/**
+ * Non-Johnstone vendors keep separate deliveries when the sales order differs.
+ * Johnstone ignores S/O (invoice number is the boss). Blank S/O does not split.
+ */
+function salesOrdersDisagreeForSeparateDeliveries(parserFormatId, importVendorOrderNumber, deliveryVendorOrderNumber) {
+    if (invoiceNumberIsBossForParser(parserFormatId))
+        return false;
+    const want = (0, businessInvoiceIdentity_1.normalizeBusinessInvoiceNumber)(importVendorOrderNumber ?? "");
+    const have = (0, businessInvoiceIdentity_1.normalizeBusinessInvoiceNumber)(deliveryVendorOrderNumber ?? "");
+    if (!want || !have)
+        return false;
+    return want !== have;
 }
 function sanitizeKeySegment(raw, max) {
     return raw

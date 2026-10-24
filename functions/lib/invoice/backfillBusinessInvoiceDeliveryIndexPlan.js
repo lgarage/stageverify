@@ -12,6 +12,7 @@ function planBusinessInvoiceDeliveryIndexBackfill(input) {
     const entries = [];
     const skippedNoDelivery = [];
     const byInvoice = new Map();
+    const byIndexKey = new Map();
     for (const row of input.imports) {
         const header = row.parsedHeader ?? {};
         const vendorInvoiceNumber = headerStr(header, "vendorInvoiceNumber");
@@ -56,17 +57,29 @@ function planBusinessInvoiceDeliveryIndexBackfill(input) {
         if (order)
             bucket.orders.add(order);
         byInvoice.set(inv, bucket);
+        const keyBucket = byIndexKey.get(indexKeyDocId) ?? {
+            deliveries: new Set(),
+            imports: new Set(),
+            invoice: inv,
+        };
+        keyBucket.deliveries.add(deliveryId);
+        keyBucket.imports.add(row.id);
+        byIndexKey.set(indexKeyDocId, keyBucket);
     }
     const duplicates = [];
     const ambiguous = [];
-    for (const [inv, bucket] of byInvoice) {
+    const contestedIndexKeys = new Set();
+    for (const [key, bucket] of byIndexKey) {
         if (bucket.deliveries.size > 1) {
+            contestedIndexKeys.add(key);
             duplicates.push({
-                normalizedInvoiceNumber: inv,
+                normalizedInvoiceNumber: bucket.invoice,
                 deliveryIds: [...bucket.deliveries],
                 importIds: [...bucket.imports],
             });
         }
+    }
+    for (const [inv, bucket] of byInvoice) {
         if (bucket.orders.size > 1) {
             ambiguous.push({
                 normalizedInvoiceNumber: inv,
@@ -76,9 +89,12 @@ function planBusinessInvoiceDeliveryIndexBackfill(input) {
             });
         }
     }
-    // De-dupe plan entries: first wins per index key.
+    // One pointer per index key. Contested keys (two deliveries, same invoice boss)
+    // are reported and not written — dry-run and --apply both leave them unmerged.
     const seenKeys = new Set();
     const dedupedEntries = entries.filter((e) => {
+        if (contestedIndexKeys.has(e.indexKeyDocId))
+            return false;
         if (seenKeys.has(e.indexKeyDocId))
             return false;
         seenKeys.add(e.indexKeyDocId);

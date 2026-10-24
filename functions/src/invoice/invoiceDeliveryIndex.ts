@@ -19,6 +19,22 @@ export function invoiceNumberIsBossForParser(parserFormatId?: string): boolean {
   return parserFormatId === "johnstone";
 }
 
+/**
+ * Non-Johnstone vendors keep separate deliveries when the sales order differs.
+ * Johnstone ignores S/O (invoice number is the boss). Blank S/O does not split.
+ */
+export function salesOrdersDisagreeForSeparateDeliveries(
+  parserFormatId: string | undefined,
+  importVendorOrderNumber: string | undefined,
+  deliveryVendorOrderNumber: string | undefined,
+): boolean {
+  if (invoiceNumberIsBossForParser(parserFormatId)) return false;
+  const want = normalizeBusinessInvoiceNumber(importVendorOrderNumber ?? "");
+  const have = normalizeBusinessInvoiceNumber(deliveryVendorOrderNumber ?? "");
+  if (!want || !have) return false;
+  return want !== have;
+}
+
 function sanitizeKeySegment(raw: string, max: number): string {
   return raw
     .replace(/[^a-zA-Z0-9:_-]+/g, "-")

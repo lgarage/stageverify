@@ -21,6 +21,7 @@ import {
   selectLegacyBusinessInvoiceCanonical,
   tryBuildBusinessInvoiceIdentity,
 } from "../functions/lib/invoice/businessInvoiceIdentity.js";
+import { businessInvoiceDeliveryIndexKeyDocId } from "../functions/lib/invoice/invoiceDeliveryIndex.js";
 import {
   DUPLICATE_BUSINESS_INVOICE_SKIP_REASON,
   duplicateBusinessInvoiceSkipFields,
@@ -296,6 +297,60 @@ function makeDb(store) {
   pass("2/5/9 claim: canonical + multipage + exact resend + revision");
 }
 
+// Changed customer PO is a possible_revision, not an exact resend.
+{
+  const store = new Map();
+  const db = makeDb(store);
+  const identity = tryBuildBusinessInvoiceIdentity({
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    vendorInvoiceNumber: "6169474",
+    customerPoOrReference: "PO-OLD",
+    parsedLines: sampleLines(),
+  });
+  const revised = tryBuildBusinessInvoiceIdentity({
+    detectedVendorName: "Johnstone Supply",
+    parserFormatId: "johnstone",
+    vendorInvoiceNumber: "6169474",
+    customerPoOrReference: "PO-NEW",
+    parsedLines: sampleLines(),
+  });
+  assert.ok(identity && revised);
+  assert.notEqual(revised.contentFingerprint, identity.contentFingerprint);
+  const keyPath = `vendorBusinessInvoiceKeys/${identity.keyDocId}`;
+  const keyRef = { path: keyPath, id: identity.keyDocId };
+  const tx1 = makeMockTx(store);
+  const first = claimOrLinkBusinessInvoiceWithSnap(
+    tx1,
+    db,
+    { exists: false, data: () => undefined, ref: keyRef },
+    {
+      identity,
+      reviewId: "vii-po-canon-page-1",
+      gmailMessageId: "msg-po-1",
+      inboundEmailProcessingId: "inbound-po-1",
+      now: "2026-08-28T03:00:00Z",
+    },
+  );
+  assert.equal(first.kind, "canonical");
+  const tx2 = makeMockTx(store);
+  const second = claimOrLinkBusinessInvoiceWithSnap(
+    tx2,
+    db,
+    { exists: true, data: () => store.get(keyPath), ref: keyRef },
+    {
+      identity: revised,
+      reviewId: "vii-po-rev-page-1",
+      gmailMessageId: "msg-po-2",
+      inboundEmailProcessingId: "inbound-po-2",
+      now: "2026-08-28T03:01:00Z",
+    },
+  );
+  assert.equal(second.kind, "possible_revision");
+  assert.equal(second.canonicalImportId, "vii-po-canon-page-1");
+  pass("changed PO flags possible_revision");
+}
+
 // Concurrent race: two txs see empty key — only first create sticks in our store model
 {
   const store = new Map();
@@ -478,7 +533,49 @@ function makeDb(store) {
   );
   assert.equal(excludeSelf, null);
 
+  const fsIdentity = tryBuildBusinessInvoiceIdentity({
+    detectedVendorName: "First Supply",
+    parserFormatId: "first_supply",
+    vendorInvoiceNumber: "15046467-00",
+    vendorOrderNumber: "3869488-00",
+    parsedLines: sampleLines(),
+  });
+  assert.ok(fsIdentity);
+  const fsIndex = businessInvoiceDeliveryIndexKeyDocId(
+    fsIdentity,
+    "first_supply",
+    "3869488-00",
+  );
+  const fsRow = (id, order) => ({
+    id,
+    gmailMessageId: `msg-${id}`,
+    createdAt: "2026-08-08T00:00:00Z",
+    linkedDeliveryOrderId: `delivery-${id}`,
+    detectedVendorName: "First Supply",
+    parserFormatId: "first_supply",
+    parsedHeader: {
+      vendorInvoiceNumber: "15046467-00",
+      vendorOrderNumber: order,
+    },
+    parsedLines: sampleLines(),
+  });
+  const differentSo = selectLegacyBusinessInvoiceCanonical(
+    [fsRow("vii-fs-other", "9999999-00")],
+    fsIdentity,
+    "vii-fs-new",
+    fsIndex,
+  );
+  assert.equal(differentSo, null);
+  const sameSo = selectLegacyBusinessInvoiceCanonical(
+    [fsRow("vii-fs-same", "3869488-00")],
+    fsIdentity,
+    "vii-fs-new",
+    fsIndex,
+  );
+  assert.equal(sameSo?.canonicalImportId, "vii-fs-same");
+
   pass("legacy select: prefer earliest linked; vendor isolate; exclude self");
+  pass("legacy select: First Supply different S/O does not match");
 }
 
 // --- Legacy hint claim (mock-tx, no query) ---

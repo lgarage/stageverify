@@ -135,7 +135,7 @@ function createdAtMs(raw) {
  * Pure selection: same vendorScope+invoice identity, exclude current review.
  * Prefer earliest among those with linkedDeliveryOrderId; else earliest createdAt.
  */
-function selectLegacyBusinessInvoiceCanonical(rows, identity, excludeReviewId) {
+function selectLegacyBusinessInvoiceCanonical(rows, identity, excludeReviewId, indexKeyDocId) {
     const exclude = excludeReviewId.trim();
     const matched = [];
     for (const row of rows) {
@@ -157,6 +157,11 @@ function selectLegacyBusinessInvoiceCanonical(rows, identity, excludeReviewId) {
             continue;
         if (candidateIdentity.keyDocId !== identity.keyDocId)
             continue;
+        if (indexKeyDocId) {
+            const candidateIndex = (0, invoiceDeliveryIndex_1.businessInvoiceDeliveryIndexKeyDocId)(candidateIdentity, row.parserFormatId, String(header.vendorOrderNumber ?? ""));
+            if (candidateIndex !== indexKeyDocId)
+                continue;
+        }
         matched.push({ row, candidateIdentity });
     }
     if (matched.length === 0)
@@ -242,12 +247,12 @@ async function loadLegacyImportRowsByInvoiceNumber(getter, db, vendorInvoiceNumb
     }
     return { rows: [...byId.values()], saturated };
 }
-function lookupResultFromRows(rows, saturated, identity, excludeReviewId) {
+function lookupResultFromRows(rows, saturated, identity, excludeReviewId, indexKeyDocId) {
     // Any full page is an incomplete sample — never mint self-canonical from it.
     if (saturated) {
         return { kind: "saturated" };
     }
-    const hint = selectLegacyBusinessInvoiceCanonical(rows, identity, excludeReviewId);
+    const hint = selectLegacyBusinessInvoiceCanonical(rows, identity, excludeReviewId, indexKeyDocId);
     return hint ? { kind: "found", hint } : { kind: "none" };
 }
 /**
@@ -256,12 +261,12 @@ function lookupResultFromRows(rows, saturated, identity, excludeReviewId) {
  */
 async function findLegacyBusinessInvoiceCanonical(tx, db, input) {
     const { rows, saturated } = await loadLegacyImportRowsByInvoiceNumber(tx, db, input.vendorInvoiceNumberRaw);
-    return lookupResultFromRows(rows, saturated, input.identity, input.excludeReviewId);
+    return lookupResultFromRows(rows, saturated, input.identity, input.excludeReviewId, input.indexKeyDocId);
 }
 /** Non-transactional legacy lookup for approve redirect. */
 async function findLegacyBusinessInvoiceCanonicalOutsideTx(db, input) {
     const { rows, saturated } = await loadLegacyImportRowsByInvoiceNumber(firestoreQueryGetter(db), db, input.vendorInvoiceNumberRaw);
-    return lookupResultFromRows(rows, saturated, input.identity, input.excludeReviewId);
+    return lookupResultFromRows(rows, saturated, input.identity, input.excludeReviewId, input.indexKeyDocId);
 }
 /** Pass keySnap from tx.get already performed (all reads before writes). */
 function claimOrLinkBusinessInvoiceWithSnap(tx, db, keySnap, input) {
@@ -403,6 +408,7 @@ async function resolveApproveBusinessInvoiceRedirect(db, importId, importDoc) {
             identity,
             vendorInvoiceNumberRaw: vendorInvoiceNumber,
             excludeReviewId: importId,
+            indexKeyDocId,
         });
         if (legacyLookup.kind === "saturated") {
             throw new Error(exports.BUSINESS_INVOICE_LEGACY_LOOKUP_SATURATED);
@@ -427,8 +433,26 @@ async function resolveApproveBusinessInvoiceRedirect(db, importId, importDoc) {
             .get();
         if (!canonSnap.exists)
             return { canonicalImportId: typedCanonical };
-        const linked = typeof canonSnap.data()?.linkedDeliveryOrderId === "string"
-            ? String(canonSnap.data()?.linkedDeliveryOrderId).trim()
+        const canonData = canonSnap.data();
+        const canonHeader = canonData.parsedHeader ?? {};
+        const canonIdentity = tryBuildBusinessInvoiceIdentity({
+            detectedVendorId: canonData.detectedVendorId,
+            detectedVendorName: canonData.detectedVendorName,
+            parserFormatId: canonData.parserFormatId,
+            vendorInvoiceNumber: String(canonHeader.vendorInvoiceNumber ?? ""),
+            customerPoOrReference: String(canonHeader.customerPoOrReference ?? ""),
+            vendorOrderNumber: String(canonHeader.vendorOrderNumber ?? ""),
+            fulfillmentMethod: String(canonHeader.fulfillmentMethod ?? ""),
+            parsedLines: canonData.parsedLines ?? [],
+        });
+        if (canonIdentity) {
+            const canonIndex = (0, invoiceDeliveryIndex_1.businessInvoiceDeliveryIndexKeyDocId)(canonIdentity, canonData.parserFormatId, String(canonHeader.vendorOrderNumber ?? ""));
+            // Same invoice number, different S/O (First Supply) — do not redirect.
+            if (canonIndex !== indexKeyDocId)
+                return null;
+        }
+        const linked = typeof canonData.linkedDeliveryOrderId === "string"
+            ? canonData.linkedDeliveryOrderId.trim()
             : "";
         return {
             canonicalImportId: typedCanonical,
