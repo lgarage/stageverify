@@ -71,6 +71,9 @@ function repeatedStringValue(expr) {
  * @param {string} id
  */
 function isExemptPair(collection, id) {
+  if (collection === "vendorBusinessInvoiceKeys" && id.startsWith("key:")) {
+    return true;
+  }
   return EXEMPT_IDS.has(`${collection}/${id}`);
 }
 

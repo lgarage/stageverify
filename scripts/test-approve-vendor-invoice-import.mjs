@@ -3168,7 +3168,7 @@ try {
 // Case 15 — First Supply same invoice, different S/O must not merge
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  const inv = "15046467-00";
+  const inv = "FS-SPLIT-9905-00";
   const canonImport = "approve-vendor-invoice-import_vii-fs-so-a-page-1";
   const otherImport = "approve-vendor-invoice-import_vii-fs-so-b-page-1";
   const canonDelivery = "approve-vendor-invoice-import_delivery-vii-vii-fs-so-a-page-1";
@@ -3211,7 +3211,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     updatedAt: "2026-08-08T18:50:00Z",
   });
   await setDoc(
-    doc(adminDb, "vendorBusinessInvoiceKeys", "key:first-supply__15046467-00"),
+    doc(adminDb, "vendorBusinessInvoiceKeys", "key:first-supply__FS-SPLIT-9905-00"),
     {
       vendorScope: "key:first-supply",
       vendorKey: "first-supply",
@@ -3287,7 +3287,7 @@ try {
 // Case 16 — First Supply same invoice, different S/O: create_shell must not merge
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const adminDb = ctx.firestore();
-  const inv = "15046467-00";
+  const inv = "FS-SHELL-9906-00";
   const canonImport = "approve-vendor-invoice-import_vii-fs-shell-so-a-page-1";
   const otherImport = "approve-vendor-invoice-import_vii-fs-shell-so-b-page-1";
   const canonDelivery = "approve-vendor-invoice-import_delivery-vii-vii-fs-shell-so-a-page-1";
@@ -3330,7 +3330,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     updatedAt: "2026-08-08T18:50:00Z",
   });
   await setDoc(
-    doc(adminDb, "vendorBusinessInvoiceKeys", "key:first-supply__15046467-00"),
+    doc(adminDb, "vendorBusinessInvoiceKeys", "key:first-supply__FS-SHELL-9906-00"),
     {
       vendorScope: "key:first-supply",
       vendorKey: "first-supply",

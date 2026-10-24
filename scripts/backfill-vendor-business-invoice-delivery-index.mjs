@@ -6,8 +6,11 @@
  *   node scripts/backfill-vendor-business-invoice-delivery-index.mjs
  *   node scripts/backfill-vendor-business-invoice-delivery-index.mjs --apply
  */
-import { initializeApp, cert, getApps } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { createRequire } from "node:module";
+
+const require = createRequire(new URL("../functions/package.json", import.meta.url));
+const { initializeApp, getApps } = require("firebase-admin/app");
+const { getFirestore } = require("firebase-admin/firestore");
 import {
   buildBackfillKeyDocument,
   planBusinessInvoiceDeliveryIndexBackfill,
