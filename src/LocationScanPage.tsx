@@ -862,6 +862,8 @@ function LocationScanPageInner() {
       expiresAt?: string;
       scannedStagingLocationCode?: string;
     }) => {
+      setVendorRunSearchQuery("");
+      setJobDeliverySearchQuery("");
       if (
         payload.sessionScope === "vendor_unplanned" ||
         payload.noExpectedDelivery
@@ -1250,6 +1252,8 @@ function LocationScanPageInner() {
       setLoading(true);
       setPinSubmitError(null);
       setVendorRunLoadError(null);
+      setVendorRunSearchQuery("");
+      setJobDeliverySearchQuery("");
       beginVendorPinLoading();
 
       const syncCache = readLastVendorRunDeliveriesCache();
@@ -1412,6 +1416,8 @@ function LocationScanPageInner() {
     setSessionScope(null);
     setOpeningVendorName(null);
     setVendorRunLoadError(null);
+    setVendorRunSearchQuery("");
+    setJobDeliverySearchQuery("");
     finishVendorPinLoading();
     goToHistoryView({ kind: "pin" }, { replace: true });
   }, [
@@ -1670,6 +1676,8 @@ function LocationScanPageInner() {
     setPinSubmitError(null);
     setOpeningVendorName(null);
     setVendorRunLoadError(null);
+    setVendorRunSearchQuery("");
+    setJobDeliverySearchQuery("");
     finishVendorPinLoading();
     goToHistoryView({ kind: "pin" }, { replace: true });
   };
@@ -2462,7 +2470,9 @@ function LocationScanPageInner() {
                   {vendorPinLoadingHeadline}
                 </p>
               </div>
-            ) : vendorRunSearchNoMatches ? (
+            ) : (
+              <>
+            {vendorRunSearchNoMatches ? (
               <div
                 className="vendor-deliveries-empty-card rounded-2xl border border-white/10 bg-bg-secondary px-5 py-7 text-center shadow-lg shadow-black/15"
                 data-testid="vendor-run-search-no-matches"
@@ -2532,6 +2542,8 @@ function LocationScanPageInner() {
                   </div>
                 )}
               </div>
+            )}
+              </>
             )}
           {!vendorRunLoadError && (vendorRunDeliveries.length === 0 ? (
             <div
