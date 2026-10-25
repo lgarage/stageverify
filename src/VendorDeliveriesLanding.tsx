@@ -6,6 +6,8 @@ interface VendorDeliveriesLandingProps {
   scannedContext: ReactNode;
   helper: ReactNode;
   helperTestId?: string;
+  /** Optional toolbar (e.g. search) above the delivery card list. */
+  listToolbar?: ReactNode;
   children: ReactNode;
   footer: ReactNode;
   overlay?: ReactNode;
@@ -25,6 +27,7 @@ export function VendorDeliveriesLanding({
   scannedContext,
   helper,
   helperTestId,
+  listToolbar,
   children,
   footer,
   overlay,
@@ -54,6 +57,11 @@ export function VendorDeliveriesLanding({
         </header>
 
         <main className="vendor-hub-scroll vendor-deliveries-scroll px-4 py-4">
+          {listToolbar ? (
+            <div className="vendor-deliveries-list-toolbar mb-4 shrink-0">
+              {listToolbar}
+            </div>
+          ) : null}
           <div className="vendor-deliveries-card-list flex flex-col gap-4">
             {children}
           </div>

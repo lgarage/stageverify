@@ -96,6 +96,7 @@ import { isVendorSessionError } from "./vendorSessionErrors";
 import { PublicNetworkErrorPanel } from "./PublicNetworkErrorPanel";
 import { isOutsideShopGeofence } from "./geofence";
 import { VendorDeliveriesLanding } from "./VendorDeliveriesLanding";
+import { VendorRunSearchField } from "./VendorRunSearchField";
 import { VendorCompactDeliveryCard } from "./VendorCompactDeliveryCard";
 import {
   deriveVendorItemLineStatus,
@@ -109,6 +110,7 @@ import {
   patchVendorRunCompleteRows,
   vendorRunCanComplete,
 } from "./dispatcher/vendorJobListOrder";
+import { filterVendorRunDeliveriesBySearch } from "./dispatcher/vendorRunListSearch";
 import { reduceVendorCompleteConfirm } from "./dispatcher/vendorCompleteConfirm";
 import {
   createVendorRunDetailsCache,
@@ -286,6 +288,8 @@ function LocationScanPageInner() {
   >(new Set());
   const [vendorRunCompletedExpanded, setVendorRunCompletedExpanded] =
     useState(false);
+  const [vendorRunSearchQuery, setVendorRunSearchQuery] = useState("");
+  const [jobDeliverySearchQuery, setJobDeliverySearchQuery] = useState("");
   const [technicianId, setTechnicianId] = useState<string | null>(null);
   const [technicianName, setTechnicianName] = useState<string | null>(null);
   const [releasedJobs, setReleasedJobs] = useState<TechnicianReleasedJobSummary[]>(
@@ -336,12 +340,23 @@ function LocationScanPageInner() {
   );
 
   const jobDeliveriesForList = useMemo(
-    () => orderVendorJobsDeliveredLast(deliveries),
-    [deliveries],
+    () =>
+      orderVendorJobsDeliveredLast(
+        filterVendorRunDeliveriesBySearch(deliveries, jobDeliverySearchQuery),
+      ),
+    [deliveries, jobDeliverySearchQuery],
+  );
+  const vendorRunSearchFiltered = useMemo(
+    () =>
+      filterVendorRunDeliveriesBySearch(
+        vendorRunDeliveries,
+        vendorRunSearchQuery,
+      ),
+    [vendorRunDeliveries, vendorRunSearchQuery],
   );
   const vendorRunListPartition = useMemo(
-    () => partitionVendorRunDeliveries(vendorRunDeliveries),
-    [vendorRunDeliveries],
+    () => partitionVendorRunDeliveries(vendorRunSearchFiltered),
+    [vendorRunSearchFiltered],
   );
 
   const historyViewKey =
@@ -2032,6 +2047,9 @@ function LocationScanPageInner() {
         : showListSkeleton
           ? "loading-deliveries"
           : "idle";
+    const vendorRunSearchTrimmed = vendorRunSearchQuery.trim();
+    const vendorRunSearchNoMatches =
+      vendorRunSearchTrimmed.length > 0 && vendorRunSearchFiltered.length === 0;
     const vendorPinLoadingHeadline =
       displayedVendorPinLoadingPhase === "checking-pin"
         ? "Checking PIN…"
@@ -2354,6 +2372,16 @@ function LocationScanPageInner() {
           )
         }
         helperTestId="vendor-run-helper"
+        listToolbar={
+          !showListSkeleton && vendorRunDeliveries.length > 0
+            ? (
+                <VendorRunSearchField
+                  value={vendorRunSearchQuery}
+                  onChange={setVendorRunSearchQuery}
+                />
+              )
+            : undefined
+        }
         footer={
           isPendingPinShell ? (
             <div data-testid="vendor-run-footer" aria-hidden="true" />
@@ -2432,6 +2460,20 @@ function LocationScanPageInner() {
                   data-testid="vendor-pin-loading-skeleton-status"
                 >
                   {vendorPinLoadingHeadline}
+                </p>
+              </div>
+            ) : vendorRunSearchNoMatches ? (
+              <div
+                className="vendor-deliveries-empty-card rounded-2xl border border-white/10 bg-bg-secondary px-5 py-7 text-center shadow-lg shadow-black/15"
+                data-testid="vendor-run-search-no-matches"
+                role="status"
+              >
+                <p className="text-base font-semibold text-text-primary">
+                  No matching deliveries
+                </p>
+                <p className="mt-2 text-sm leading-5 text-[#cbd5e1]">
+                  Nothing on your list matches &ldquo;{vendorRunSearchTrimmed}
+                  &rdquo;. Try invoice #, PO #, or job name.
                 </p>
               </div>
             ) : (
@@ -2616,6 +2658,11 @@ function LocationScanPageInner() {
     const jobSession = jobId ? getJobPinSession(jobId) : null;
     const headingVendorName =
       jobSession?.vendorName ?? deliveries[0]?.vendorName;
+    const jobDeliverySearchTrimmed = jobDeliverySearchQuery.trim();
+    const jobDeliverySearchNoMatches =
+      jobDeliverySearchTrimmed.length > 0 &&
+      jobDeliveriesForList.length === 0 &&
+      deliveries.length > 0;
     return (
       <VendorDeliveriesLanding
         rootTestId="vendor-job-deliveries"
@@ -2629,6 +2676,17 @@ function LocationScanPageInner() {
           </>
         }
         helper="Select an order to confirm delivery"
+        listToolbar={
+          deliveries.length > 0
+            ? (
+                <VendorRunSearchField
+                  id="vendor-job-delivery-search-input"
+                  value={jobDeliverySearchQuery}
+                  onChange={setJobDeliverySearchQuery}
+                />
+              )
+            : undefined
+        }
         footer={
           <button
             type="button"
@@ -2647,6 +2705,22 @@ function LocationScanPageInner() {
         }
       >
             <div className="vendor-deliveries-card-list-inner flex flex-col gap-4">
+              {jobDeliverySearchNoMatches ? (
+                <div
+                  className="vendor-deliveries-empty-card rounded-2xl border border-white/10 bg-bg-secondary px-5 py-7 text-center shadow-lg shadow-black/15"
+                  data-testid="vendor-run-search-no-matches"
+                  role="status"
+                >
+                  <p className="text-base font-semibold text-text-primary">
+                    No matching deliveries
+                  </p>
+                  <p className="mt-2 text-sm leading-5 text-[#cbd5e1]">
+                    Nothing on your list matches &ldquo;
+                    {jobDeliverySearchTrimmed}&rdquo;. Try invoice #, PO #, or
+                    job name.
+                  </p>
+                </div>
+              ) : null}
               {jobDeliveriesForList.map((row) => {
                 const fulfillmentTone = vendorFulfillmentTone(
                   deriveVendorOrderFulfillmentLabel({
