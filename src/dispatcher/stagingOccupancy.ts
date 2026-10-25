@@ -88,6 +88,54 @@ export function deliveryUsesStagingLocation(
   return getAllStagingLocationIds(delivery).includes(locationId);
 }
 
+/**
+ * Actual or planned staging ref on this delivery (exact location id).
+ * A planned ref must not skip availability checks: another order may
+ * already hold the spot, and shop-stock reservation still applies.
+ */
+export function deliveryReferencesStagingLocation(
+  delivery: DeliveryOrder,
+  locationId: string,
+): boolean {
+  const target = locationId.trim();
+  if (!target) return false;
+  if (deliveryUsesStagingLocation(delivery, target)) return true;
+  return (delivery.plannedStagingLocationIds ?? []).some(
+    (id) => typeof id === "string" && id.trim() === target,
+  );
+}
+
+/**
+ * updateStagingLocation skips the availability assert only when this
+ * delivery already has the spot as actual staging. Planned-only does not.
+ */
+export function mustAssertStagingLocationAvailable(
+  delivery: DeliveryOrder,
+  locationId: string,
+): boolean {
+  return !deliveryUsesStagingLocation(delivery, locationId.trim());
+}
+
+/**
+ * Another non-cleared delivery already has this location id as actual or
+ * planned staging. Matches the reassign CF occupant rule (includes will-call).
+ * Cleared deliveries and this delivery are ignored.
+ */
+export function findConflictingStagingHolder(
+  deliveries: DeliveryOrder[],
+  excludeDeliveryId: string,
+  locationId: string,
+): DeliveryOrder | undefined {
+  const target = locationId.trim();
+  if (!target) return undefined;
+  for (const delivery of deliveries) {
+    if (delivery.id === excludeDeliveryId) continue;
+    if (ZONE_CLEARED_DELIVERY_STATUSES.has(delivery.status)) continue;
+    if (deliveryReferencesStagingLocation(delivery, target)) return delivery;
+  }
+  return undefined;
+}
+
 export function isStagingLocationOccupiedError(
   err: unknown,
 ): err is StagingLocationOccupiedError {
