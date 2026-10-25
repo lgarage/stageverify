@@ -1161,6 +1161,7 @@ button:active {
   padding: 16px;
 }
 
+.vendor-deliveries-landing .vendor-deliveries-main-stack,
 .vendor-deliveries-landing .vendor-deliveries-card-list,
 .vendor-deliveries-landing .vendor-deliveries-card-list-inner,
 .vendor-deliveries-landing [data-testid="vendor-run-card-list"] {

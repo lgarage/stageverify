@@ -57,13 +57,15 @@ export function VendorDeliveriesLanding({
         </header>
 
         <main className="vendor-hub-scroll vendor-deliveries-scroll px-4 py-4">
-          {listToolbar ? (
-            <div className="vendor-deliveries-list-toolbar mb-4 shrink-0">
-              {listToolbar}
+          <div className="vendor-deliveries-main-stack flex min-h-0 flex-col">
+            {listToolbar ? (
+              <div className="vendor-deliveries-list-toolbar shrink-0">
+                {listToolbar}
+              </div>
+            ) : null}
+            <div className="vendor-deliveries-card-list flex min-h-0 flex-col gap-4">
+              {children}
             </div>
-          ) : null}
-          <div className="vendor-deliveries-card-list flex flex-col gap-4">
-            {children}
           </div>
         </main>
 

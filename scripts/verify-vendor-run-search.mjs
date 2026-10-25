@@ -32,6 +32,42 @@ function parseCallablePostData(route) {
   }
 }
 
+/** iPhone-sized viewport (automated): layout metrics for search vs delivery cards. */
+async function measureVendorRunSearchListSpacing(page) {
+  return page.evaluate(() => {
+    const search = document.querySelector('[data-testid="vendor-run-search"]');
+    const cards = Array.from(document.querySelectorAll(".vendor-compact-card"));
+    const cardList = document.querySelector(
+      '[data-testid="vendor-run-card-list"]',
+    );
+    if (!search || cards.length < 2 || !cardList) {
+      return null;
+    }
+    const searchBox = search.getBoundingClientRect();
+    const firstCard = cards[0].getBoundingClientRect();
+    const secondCard = cards[1].getBoundingClientRect();
+    const searchToFirstCard = firstCard.top - searchBox.bottom;
+    const cardToCard = secondCard.top - firstCard.bottom;
+    const cardListGap = parseFloat(getComputedStyle(cardList).gap) || 0;
+    const stack = document.querySelector(".vendor-deliveries-main-stack");
+    const stackGap = stack ? parseFloat(getComputedStyle(stack).gap) || 0 : null;
+    const ringWidth = parseFloat(getComputedStyle(search).outlineWidth) || 0;
+    const boxShadow = getComputedStyle(search).boxShadow;
+    const hasTealRing =
+      boxShadow.includes("110, 231, 183") ||
+      boxShadow.includes("110,231,183") ||
+      ringWidth >= 2;
+    return {
+      searchToFirstCard,
+      cardToCard,
+      cardListGap,
+      stackGap,
+      hasTealRing,
+      boxShadow,
+    };
+  });
+}
+
 const vendorRunRows = [
   {
     deliveryId: "verify-search-active-a",
@@ -291,6 +327,37 @@ async function installPinRoutes(page, { sessionExpiresAt } = {}) {
     record("company search input font-size >= 16px", fontSizePx >= 16, `${fontSizePx}px`);
 
     const search = page.getByTestId("vendor-run-search");
+    await search.blur();
+    const companySpacingUnfocused = await measureVendorRunSearchListSpacing(page);
+    record(
+      "iPhone-sized viewport (automated): company search-to-first-card gap equals card gap (unfocused)",
+      companySpacingUnfocused !== null &&
+        Math.abs(
+          companySpacingUnfocused.searchToFirstCard -
+            companySpacingUnfocused.cardToCard,
+        ) < 1,
+      companySpacingUnfocused
+        ? `search→card ${companySpacingUnfocused.searchToFirstCard}px, card→card ${companySpacingUnfocused.cardToCard}px, list gap ${companySpacingUnfocused.cardListGap}px`
+        : "missing layout nodes",
+    );
+    record(
+      "iPhone-sized viewport (automated): company search teal ring visible unfocused",
+      companySpacingUnfocused?.hasTealRing === true,
+      companySpacingUnfocused?.boxShadow ?? "no shadow",
+    );
+    await search.focus();
+    const companySpacingFocused = await measureVendorRunSearchListSpacing(page);
+    record(
+      "iPhone-sized viewport (automated): company search-to-first-card gap equals card gap (focused)",
+      companySpacingFocused !== null &&
+        Math.abs(
+          companySpacingFocused.searchToFirstCard -
+            companySpacingFocused.cardToCard,
+        ) < 1,
+      companySpacingFocused
+        ? `search→card ${companySpacingFocused.searchToFirstCard}px, card→card ${companySpacingFocused.cardToCard}px`
+        : "missing layout nodes",
+    );
     await search.fill("oak");
     record(
       "company filter shows matching row only",
@@ -400,6 +467,44 @@ async function installPinRoutes(page, { sessionExpiresAt } = {}) {
       parseFloat(window.getComputedStyle(el).fontSize),
     );
     record("job search input font-size >= 16px", jobFontPx >= 16, `${jobFontPx}px`);
+
+    await jobSearch.blur();
+    const jobSpacing = await page.evaluate(() => {
+      const search = document.querySelector('[data-testid="vendor-run-search"]');
+      const cards = Array.from(
+        document.querySelectorAll(
+          '[data-testid="vendor-job-deliveries"] .vendor-compact-card',
+        ),
+      );
+      const inner = document.querySelector(".vendor-deliveries-card-list-inner");
+      if (!search || cards.length < 2 || !inner) return null;
+      const searchBox = search.getBoundingClientRect();
+      const first = cards[0].getBoundingClientRect();
+      const second = cards[1].getBoundingClientRect();
+      const boxShadow = getComputedStyle(search).boxShadow;
+      return {
+        searchToFirstCard: first.top - searchBox.bottom,
+        cardToCard: second.top - first.bottom,
+        innerGap: parseFloat(getComputedStyle(inner).gap) || 0,
+        hasTealRing:
+          boxShadow.includes("110, 231, 183") ||
+          boxShadow.includes("110,231,183"),
+        boxShadow,
+      };
+    });
+    record(
+      "iPhone-sized viewport (automated): job search-to-first-card gap equals card gap",
+      jobSpacing !== null &&
+        Math.abs(jobSpacing.searchToFirstCard - jobSpacing.cardToCard) < 1,
+      jobSpacing
+        ? `search→card ${jobSpacing.searchToFirstCard}px, card→card ${jobSpacing.cardToCard}px, inner gap ${jobSpacing.innerGap}px`
+        : "missing layout nodes",
+    );
+    record(
+      "iPhone-sized viewport (automated): job search teal ring visible unfocused",
+      jobSpacing?.hasTealRing === true,
+      jobSpacing?.boxShadow ?? "no shadow",
+    );
 
     await jobSearch.fill("inv-job-200");
     record(

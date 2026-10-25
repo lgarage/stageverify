@@ -37,7 +37,7 @@ export function VendorRunSearchField({
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Invoice, PO, or job name"
-        className="vendor-run-search-input tap-target min-h-12 w-full rounded-xl border border-white/15 bg-bg-secondary py-3 pl-4 pr-12 text-base text-text-primary placeholder:text-[#94a3b8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6ee7b7]"
+        className="vendor-run-search-input tap-target min-h-12 w-full rounded-xl border border-white/15 bg-bg-secondary py-3 pl-4 pr-12 text-base text-text-primary placeholder:text-[#94a3b8] ring-2 ring-[#6ee7b7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6ee7b7]"
         style={{ fontSize: 16 }}
       />
       {value.length > 0 && (
