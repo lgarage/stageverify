@@ -121,6 +121,17 @@ export function isSystemIgnoreSkipReason(skipReason?: string): boolean {
   );
 }
 
+/** Exact duplicate resend — hidden from Invoice Review UI (audit doc only). */
+export function isHiddenExactDuplicateInvoiceImport(doc?: {
+  skipReason?: string;
+  rejectedBy?: string;
+}): boolean {
+  if (!doc) return false;
+  if (doc.skipReason === DUPLICATE_BUSINESS_INVOICE_SKIP_REASON) return true;
+  if (doc.rejectedBy === "system:duplicate_business_invoice") return true;
+  return false;
+}
+
 /** Keep in sync with functions/src/invoice/creditReturnSkip.ts SYSTEM_AUTO_REJECTED_BY. */
 const SYSTEM_AUTO_REJECTED_BY = [
   "system:credit_return_skip",
