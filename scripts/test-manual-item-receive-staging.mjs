@@ -5,7 +5,10 @@
 import {
   deliveryHasActualPhysicalStaging,
   deliveryHasAnyStagingRefs,
+  deliveryHasPlannedStagingOnly,
   manualDeliveredRequiresPhysicalStagingGate,
+  manualDeliveredUseInPlacePlannedConfirm,
+  primaryPlannedStagingLocationId,
   buildManualReceiveStagingNavigateUrl,
 } from "../src/dispatcher/manualItemReceiveStaging.ts";
 
@@ -125,19 +128,45 @@ assert(
   "case A nav URL must NOT include reassign=1",
 );
 
-// Case B — planned or existing refs: reassign CF path
-const urlPlanned = buildManualReceiveStagingNavigateUrl(
-  "delivery-1",
-  "item-abc",
-  { reassign: true },
+// Planned-only — in-drawer confirm (BUG-r2), not map reassign
+assert(
+  deliveryHasPlannedStagingOnly(
+    baseDelivery({ plannedStagingLocationIds: ["loc-g11"] }),
+  ) === true,
+  "planned-only deliveryHasPlannedStagingOnly true",
 );
 assert(
-  urlPlanned.includes("reassign=1"),
-  "case B nav URL must include reassign=1",
+  deliveryHasPlannedStagingOnly(baseDelivery({ stagingLocationId: "loc-g11" })) ===
+    false,
+  "actual staging → deliveryHasPlannedStagingOnly false",
 );
 assert(
-  urlPlanned.includes("pendingItemReceive=item-abc"),
-  "case B nav URL must carry pendingItemReceive",
+  primaryPlannedStagingLocationId(
+    baseDelivery({ plannedStagingLocationIds: ["loc-g11", "loc-g12"] }),
+  ) === "loc-g11",
+  "primaryPlannedStagingLocationId returns first planned id",
+);
+assert(
+  manualDeliveredUseInPlacePlannedConfirm(
+    baseDelivery({ plannedStagingLocationIds: ["loc-g11"] }),
+    "Delivered",
+  ) === true,
+  "Delivered + planned-only must use in-place confirm",
+);
+assert(
+  manualDeliveredUseInPlacePlannedConfirm(baseDelivery(), "Delivered") === false,
+  "Delivered + no planned must not use in-place confirm",
+);
+
+// Case B — map assign when no planned spot (no reassign flag)
+const urlMap = buildManualReceiveStagingNavigateUrl("delivery-1", "item-abc");
+assert(
+  !urlMap.includes("reassign=1"),
+  "no-planned map URL must NOT include reassign=1",
+);
+assert(
+  urlMap.includes("pendingItemReceive=item-abc"),
+  "map URL must carry pendingItemReceive",
 );
 
 if (failures.length > 0) {

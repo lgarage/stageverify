@@ -17,11 +17,13 @@ import { useDispatcherPortal } from "../DispatcherPortalContext";
 import {
   buildManualReceiveStagingNavigateUrl,
   clearPendingManualItemReceive,
-  deliveryHasAnyStagingRefs,
   manualDeliveredRequiresPhysicalStagingGate,
+  manualDeliveredUseInPlacePlannedConfirm,
+  primaryPlannedStagingLocationId,
   writePendingManualItemReceive,
 } from "../manualItemReceiveStaging";
 import { DetailContent } from "./DeliveryDetailContent";
+import { ManualItemDeliveredPlannedConfirmDialog } from "./ManualItemDeliveredPlannedConfirmDialog";
 import { ViewOriginalPdfButton } from "./ViewOriginalPdfButton";
 
 const NAVY = "#0a3161";
@@ -85,6 +87,14 @@ export function DeliveryDetailDrawer({
     [],
   );
   const [stagingLocationsReady, setStagingLocationsReady] = useState(false);
+  const [plannedDeliveredConfirm, setPlannedDeliveredConfirm] = useState<{
+    itemId: string;
+    stagingLocationId: string;
+    spotCode: string;
+    qtyOrdered: number;
+    qtyReceived: number;
+    qtyMissing: number;
+  } | null>(null);
   const pickupOperationIds = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
@@ -351,6 +361,29 @@ export function DeliveryDetailDrawer({
     }
 
     if (
+      manualDeliveredUseInPlacePlannedConfirm(selectedDetails.delivery, status)
+    ) {
+      const plannedId = primaryPlannedStagingLocationId(selectedDetails.delivery);
+      if (!plannedId) {
+        setMutationError("Planned staging location missing on this delivery.");
+        return;
+      }
+      const spot =
+        stagingLocations.find((loc) => loc.id === plannedId)?.code?.trim() ||
+        plannedId;
+      setPlannedDeliveredConfirm({
+        itemId,
+        stagingLocationId: plannedId,
+        spotCode: spot,
+        qtyOrdered,
+        qtyReceived,
+        qtyMissing,
+      });
+      setMutationError(null);
+      return;
+    }
+
+    if (
       manualDeliveredRequiresPhysicalStagingGate(selectedDetails.delivery, status)
     ) {
       writePendingManualItemReceive({
@@ -363,11 +396,7 @@ export function DeliveryDetailDrawer({
       });
       setMutationError(null);
       onClose();
-      navigate(
-        buildManualReceiveStagingNavigateUrl(deliveryId, itemId, {
-          reassign: deliveryHasAnyStagingRefs(selectedDetails.delivery),
-        }),
-      );
+      navigate(buildManualReceiveStagingNavigateUrl(deliveryId, itemId));
       return;
     }
 
@@ -433,6 +462,49 @@ export function DeliveryDetailDrawer({
     }
   };
 
+  const handleCancelPlannedDeliveredConfirm = useCallback(() => {
+    setPlannedDeliveredConfirm(null);
+    clearPendingManualItemReceive();
+  }, []);
+
+  const handleConfirmPlannedDelivered = useCallback(async () => {
+    if (!deliveryId || !plannedDeliveredConfirm) return;
+    setMutationLoading(true);
+    setMutationError(null);
+    try {
+      const stagingUpdated = await firestoreDataService.updateStagingLocation(
+        deliveryId,
+        plannedDeliveredConfirm.stagingLocationId,
+      );
+      if (!stagingUpdated) {
+        setMutationError("Failed to confirm staging location.");
+        return;
+      }
+      await firestoreDataService.updateItemQty(
+        deliveryId,
+        plannedDeliveredConfirm.itemId,
+        plannedDeliveredConfirm.qtyOrdered,
+        plannedDeliveredConfirm.qtyReceived,
+        plannedDeliveredConfirm.qtyMissing,
+      );
+      clearPendingManualItemReceive();
+      setPlannedDeliveredConfirm(null);
+      const updatedDetails =
+        await firestoreDataService.getDeliveryDetails(deliveryId);
+      if (updatedDetails) await refreshAfter(updatedDetails);
+      else setMutationError("Item updated but failed to reload delivery.");
+    } catch (err) {
+      setMutationError(
+        err instanceof Error
+          ? err.message
+          : "Failed to confirm delivery to planned spot.",
+      );
+      console.error(err);
+    } finally {
+      setMutationLoading(false);
+    }
+  }, [deliveryId, plannedDeliveredConfirm, refreshAfter]);
+
   const handleNavigateToAssignLocation = useCallback(
     (id: string) => {
       onClose();
@@ -462,6 +534,14 @@ export function DeliveryDetailDrawer({
   if (!deliveryId) return null;
 
   return (
+    <>
+    <ManualItemDeliveredPlannedConfirmDialog
+      open={plannedDeliveredConfirm !== null}
+      spotCode={plannedDeliveredConfirm?.spotCode ?? ""}
+      loading={mutationLoading}
+      onCancel={handleCancelPlannedDeliveredConfirm}
+      onConfirm={() => void handleConfirmPlannedDelivered()}
+    />
     <div
       data-testid="delivery-detail-drawer"
       data-delivery-id={deliveryId}
@@ -597,5 +677,6 @@ export function DeliveryDetailDrawer({
         </div>
       </div>
     </div>
+    </>
   );
 }

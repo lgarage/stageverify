@@ -45,6 +45,43 @@ export function manualDeliveredRequiresPhysicalStagingGate(
   return !deliveryHasActualPhysicalStaging(delivery);
 }
 
+/** Planned staging on file but no confirmed physical spot yet (PR #216 / BUG-r2). */
+export function deliveryHasPlannedStagingOnly(
+  delivery: Pick<
+    DeliveryOrder,
+    | "stagingLocationId"
+    | "additionalStagingLocationIds"
+    | "plannedStagingLocationIds"
+  >,
+): boolean {
+  if (deliveryHasActualPhysicalStaging(delivery)) return false;
+  return (delivery.plannedStagingLocationIds ?? []).some(
+    (id) => typeof id === "string" && id.trim().length > 0,
+  );
+}
+
+/** First non-empty planned staging location id for in-drawer confirm. */
+export function primaryPlannedStagingLocationId(
+  delivery: Pick<DeliveryOrder, "plannedStagingLocationIds">,
+): string | null {
+  for (const id of delivery.plannedStagingLocationIds ?? []) {
+    if (typeof id === "string" && id.trim().length > 0) return id.trim();
+  }
+  return null;
+}
+
+/**
+ * Order Summary Delivered → stay on drawer and confirm the planned spot
+ * instead of Staging Map “Confirm New Location”.
+ */
+export function manualDeliveredUseInPlacePlannedConfirm(
+  delivery: DeliveryOrder,
+  status: "Not Delivered" | "Delivered",
+): boolean {
+  if (!manualDeliveredRequiresPhysicalStagingGate(delivery, status)) return false;
+  return deliveryHasPlannedStagingOnly(delivery);
+}
+
 export interface PendingManualItemReceive {
   deliveryId: string;
   itemId: string;
