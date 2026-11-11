@@ -47,6 +47,9 @@ export function deliveryReadinessDisplayLabel(
   items: Item[] = [],
   materialIssues?: MaterialIssue[],
 ): string {
+  if (delivery.status === "cancelled") {
+    return DELIVERY_STATUS_LABEL.cancelled;
+  }
   if (
     delivery.status === "picked_up" ||
     delivery.status === "installed" ||

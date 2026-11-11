@@ -4,6 +4,7 @@ import { applyDeliveryReadinessTransaction } from "./applyDeliveryReadiness";
 import { createMaterialIssue } from "./createMaterialIssue";
 import { verifyVendorPin } from "./verifyVendorPin";
 import { recordPickupEvent } from "./recordPickupEvent";
+import { clearStagedDelivery } from "./clearStagedDelivery";
 import { recalculateDeliveryReadiness } from "./recalculateDeliveryReadiness";
 import { markVendorDelivered } from "./markVendorDelivered";
 import { processInboundVendorEmail } from "./processInboundVendorEmail";
@@ -234,6 +235,7 @@ export {
   getPickupTokenStatus,
   validatePickupToken,
   recordPickupEvent,
+  clearStagedDelivery,
   updatePickupChecklist,
   resolveMaterialIssue,
   recalculateDeliveryReadiness,

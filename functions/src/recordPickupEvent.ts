@@ -15,6 +15,10 @@ import { skipsShopStaging } from "./invoice/invoiceShellDisplayHelpers";
 import type { InvoiceFulfillmentMethod } from "./invoice/types";
 import { assertPickupAccessForJob } from "./pickupAccessValidation";
 import { buildPickupLiveStagingPatch } from "./pickupStagingRelease";
+import {
+  isCancelledStatus,
+  isJoblessUnplannedDelivery,
+} from "./unplannedWillCallEligibility";
 
 function getDb() {
   return admin.firestore();
@@ -56,8 +60,9 @@ interface ShopStockLineRecord {
 
 interface DeliveryRecord extends DeliveryDoc {
   id: string;
-  jobId: string;
+  jobId?: string;
   vendorId: string;
+  unplanned?: boolean;
   purchaseOrderId?: string;
   stagingLocationId?: string;
   additionalStagingLocationIds?: string[];
@@ -157,14 +162,13 @@ export const recordPickupEvent = onCall(
 
     if (
       !deliveryOrderId ||
-      !jobId ||
       !technicianName ||
       !itemsPickedSummary ||
       !clientOperationId
     ) {
       throw new HttpsError(
         "invalid-argument",
-        "deliveryOrderId, jobId, technicianName, itemsPickedSummary, and clientOperationId are required.",
+        "deliveryOrderId, technicianName, itemsPickedSummary, and clientOperationId are required.",
       );
     }
 
@@ -179,10 +183,17 @@ export const recordPickupEvent = onCall(
     const db = getDb();
     let technicianIdentityName = technicianName;
     let isDispatcherCall = false;
+    let dispatcherUid: string | null = null;
     if (request.auth) {
-      await requireDispatcherAuth(request);
+      dispatcherUid = await requireDispatcherAuth(request);
       isDispatcherCall = true;
     } else {
+      if (!jobId) {
+        throw new HttpsError(
+          "invalid-argument",
+          "deliveryOrderId, jobId, technicianName, itemsPickedSummary, and clientOperationId are required.",
+        );
+      }
       const access = await assertPickupAccessForJob(db, jobId, {
         pickupToken: data.pickupToken,
         technicianSessionToken: data.technicianSessionToken,
@@ -225,17 +236,40 @@ export const recordPickupEvent = onCall(
       }
 
       const delivery = deliverySnap.data() as DeliveryRecord;
-      if (delivery.jobId !== jobId) {
+      const joblessUnplanned = isJoblessUnplannedDelivery(delivery);
+
+      if (isCancelledStatus(delivery.status)) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Delivery was cancelled and cannot be picked up.",
+        );
+      }
+
+      if (joblessUnplanned) {
+        if (!isDispatcherCall) {
+          throw new HttpsError(
+            "permission-denied",
+            "Only a signed-in dispatcher can pick up an unplanned delivery without a job.",
+          );
+        }
+      } else if (!jobId) {
+        throw new HttpsError(
+          "invalid-argument",
+          "deliveryOrderId, jobId, technicianName, itemsPickedSummary, and clientOperationId are required.",
+        );
+      } else if (delivery.jobId !== jobId) {
         throw new HttpsError(
           "permission-denied",
           "Delivery does not belong to this job.",
         );
       }
 
+      const persistedJobId = joblessUnplanned ? "" : (jobId as string);
+
       if (delivery.status === "picked_up" || delivery.status === "installed") {
         tx.set(idempotencyRef, {
           deliveryOrderId,
-          jobId,
+          jobId: persistedJobId,
           pickupEventId: null,
           deliveryStatus: delivery.status,
           pickedUpStagingLocationIds: delivery.pickedUpStagingLocationIds ?? [],
@@ -247,6 +281,104 @@ export const recordPickupEvent = onCall(
           deliveryStatus: delivery.status,
           pickedUpStagingLocationIds: delivery.pickedUpStagingLocationIds ?? [],
         };
+      }
+
+      if (joblessUnplanned) {
+        const settingsSnap = await tx.get(
+          db.collection("appSettings").doc("config"),
+        );
+        const vendorDeliveryMode =
+          (settingsSnap.data()?.vendorDeliveryMode as
+            | "full_checkin"
+            | "exception_only"
+            | undefined) ?? "full_checkin";
+        const eligibility = isDispatcherPickupEligible(
+          delivery,
+          [],
+          vendorDeliveryMode,
+        );
+        if (!eligibility.eligible) {
+          throw new HttpsError(
+            "failed-precondition",
+            `Pickup not allowed: ${eligibility.reason ?? "ineligible"}.`,
+          );
+        }
+        const readinessAudit = pickupReadinessAuditFields(
+          true,
+          eligibility.readiness,
+        );
+        const now = new Date().toISOString();
+        const pickupEventId = crypto.randomUUID();
+        const historyId = `event-${pickupEventId}`;
+        const assignedForRelease = allStagingIds(delivery);
+        const deliveryPatch: Record<string, unknown> = {
+          updatedAt: now,
+          status: "picked_up",
+          readinessStatus: "picked_up",
+          pickupCheckedItemIds: [],
+          ...buildPickupLiveStagingPatch(
+            delivery,
+            [
+              ...(delivery.pickedUpStagingLocationIds ?? []),
+              ...assignedForRelease,
+            ],
+            true,
+          ),
+        };
+
+        tx.set(db.collection("pickupEvents").doc(pickupEventId), {
+          id: pickupEventId,
+          deliveryOrderId,
+          jobId: "",
+          technicianName: technicianIdentityName,
+          pickedUpAt: now,
+          itemsPickedSummary,
+          ...(notes ? { notes } : {}),
+          clientOperationId,
+          stagingLocationIds: assignedForRelease,
+          recordedByUid: dispatcherUid,
+          unplannedJoblessPickup: true,
+          ...readinessAudit,
+        });
+
+        tx.update(deliveryRef, deliveryPatch);
+
+        tx.set(db.collection("statusHistory").doc(historyId), {
+          id: historyId,
+          entityType: "delivery_order",
+          entityId: deliveryOrderId,
+          fromStatus: delivery.status,
+          toStatus: "picked_up",
+          actorType: "dispatcher",
+          actorName: technicianIdentityName,
+          createdAt: now,
+        });
+
+        const history =
+          (deliveryPatch.pickedUpStagingLocationIds as string[]) ?? [];
+        tx.set(idempotencyRef, {
+          deliveryOrderId,
+          jobId: "",
+          pickupEventId,
+          deliveryStatus: "picked_up",
+          pickedUpStagingLocationIds: history,
+          createdAt: now,
+        });
+
+        return {
+          duplicate: false,
+          pickupEventId,
+          deliveryStatus: "picked_up",
+          pickedUpStagingLocationIds: history,
+          fullyPicked: true,
+        };
+      }
+
+      if (!jobId) {
+        throw new HttpsError(
+          "invalid-argument",
+          "deliveryOrderId, jobId, technicianName, itemsPickedSummary, and clientOperationId are required.",
+        );
       }
 
       const assignedLocations = allStagingIds(delivery);

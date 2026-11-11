@@ -224,6 +224,15 @@ export function computeDeliveryReadiness(
   items: Item[],
   options?: ReadinessComputeOptions,
 ): DeliveryReadinessResult {
+  if (delivery.status === "cancelled") {
+    return {
+      readyForPickup: false,
+      readinessStatus: "not_ready",
+      deliveryStatus: "cancelled",
+      evidence: buildDeliveryReadinessEvidence(delivery, items, options),
+    };
+  }
+
   if (
     delivery.status === "picked_up" ||
     delivery.status === "installed" ||
@@ -369,6 +378,9 @@ export function isPickupEligible(
   if (delivery.status === "picked_up" || delivery.status === "installed") {
     return { eligible: false, reason: "already_picked_up" };
   }
+  if (delivery.status === "cancelled") {
+    return { eligible: false, reason: "delivery_cancelled" };
+  }
 
   const skipShopStagingPickup = skipsShopStaging(delivery);
   const allowedStatuses: DeliveryStatus[] = skipShopStagingPickup
@@ -415,6 +427,9 @@ export function isDispatcherPickupEligible(
   const readiness = computeDeliveryReadiness(delivery, items, options);
   if (delivery.status === "picked_up" || delivery.status === "installed") {
     return { eligible: false, reason: "already_picked_up", readiness };
+  }
+  if (delivery.status === "cancelled") {
+    return { eligible: false, reason: "delivery_cancelled", readiness };
   }
 
   const allowedStatuses: DeliveryStatus[] = [

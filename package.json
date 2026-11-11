@@ -191,6 +191,8 @@
     "test:get-vendor-run-deliveries": "cd functions && npm run build && cd .. && npx firebase-tools emulators:exec --only firestore,functions \"node scripts/test-get-vendor-run-deliveries.mjs\"",
     "test:access-pin-rules": "firebase emulators:exec --only firestore \"node scripts/test-access-pin-rules.mjs\"",
     "test:pickup-authority": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-pickup-authority.mjs\"",
+    "test:unplanned-willcall-eligibility": "npx tsx scripts/test-unplanned-willcall-eligibility.mjs",
+    "test:unplanned-willcall-pickup": "cd functions && npm run build && cd .. && firebase emulators:exec --only auth,firestore,functions \"node scripts/test-unplanned-willcall-pickup.mjs\"",
     "test:technician-job-open": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-technician-job-open.mjs\"",
     "test:pickup-client-op-id": "node scripts/test-pickup-client-op-id.mjs",
     "test:auto-submit-readiness": "cd functions && npm run build && cd .. && firebase emulators:exec --only firestore,functions \"node scripts/test-auto-submit-readiness.mjs\"",

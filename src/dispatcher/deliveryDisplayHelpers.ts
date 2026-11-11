@@ -275,7 +275,8 @@ export function isDispatcherTableStagingActionRequired(
   if (
     delivery.status === "installed" ||
     delivery.status === "picked_up" ||
-    delivery.status === "complete"
+    delivery.status === "complete" ||
+    delivery.status === "cancelled"
   ) {
     return false;
   }
@@ -1385,6 +1386,7 @@ const DELIVERY_ACTIVITY_HEADLINE: Partial<Record<DeliveryStatus, string>> = {
   issue: "Delivery flagged with an issue",
   picked_up: "Pickup completed",
   installed: "Delivery marked installed",
+  cancelled: "Delivery cancelled / cleared from staging",
 };
 
 export function formatActivityHistoryHeadline(event: StatusHistoryEvent): string {
@@ -1564,7 +1566,7 @@ export function buildPickupInformationClipboardText(
 /** Delivery Overview filter chip — workflow status (no installed / picked_up chips). */
 export type DeliveryOverviewFilterStatus = Exclude<
   DeliveryStatus,
-  "installed" | "picked_up"
+  "installed" | "picked_up" | "cancelled"
 >;
 
 /** Finished deliveries — complete status, site-confirmed, or picked up (Firestore picked_up unchanged). */
@@ -1628,9 +1630,13 @@ export function isWillCallOverviewRow(
 
 const {
   installed: _installedOverviewLabel,
+  picked_up: _pickedUpOverviewLabel,
+  cancelled: _cancelledOverviewLabel,
   ...deliveryOverviewStatusLabels
 } = DELIVERY_STATUS_LABEL;
 void _installedOverviewLabel;
+void _pickedUpOverviewLabel;
+void _cancelledOverviewLabel;
 
 export const DELIVERY_OVERVIEW_FILTER_LABEL: Record<
   DeliveryOverviewFilterStatus,

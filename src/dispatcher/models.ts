@@ -7,7 +7,8 @@ export type DeliveryStatus =
   | "complete"
   | "issue"
   | "picked_up"
-  | "installed";
+  | "installed"
+  | "cancelled";
 
 /** V2 business readiness — distinct from physical receipt (`availabilityStatus`) and location notes. */
 export type ReadinessStatus =
@@ -44,6 +45,8 @@ export function readinessStatusFromDeliveryStatus(
     case "picked_up":
     case "installed":
       return "picked_up";
+    case "cancelled":
+      return "not_ready";
   }
 }
 
@@ -264,6 +267,7 @@ export const DELIVERY_STATUS_LABEL: Record<DeliveryStatus, string> = {
   issue: "Issue",
   picked_up: "Picked Up",
   installed: "Installed",
+  cancelled: "Cancelled",
 };
 
 /** Deliveries in these statuses must not open on /receive (zone or id QR deep links). */
@@ -272,13 +276,15 @@ export const RECEIVE_BLOCKED_DELIVERY_STATUSES = new Set<DeliveryStatus>([
   "complete",
   "picked_up",
   "installed",
+  "cancelled",
 ]);
 
-/** Zone is vacant for ESL/QR once pickup is finished. */
+/** Zone is vacant for ESL/QR once pickup is finished or the delivery is cleared. */
 export const ZONE_CLEARED_DELIVERY_STATUSES = new Set<DeliveryStatus>([
   "complete",
   "picked_up",
   "installed",
+  "cancelled",
 ]);
 
 export function shouldRouteScanToPickup(status: DeliveryStatus): boolean {
@@ -1024,6 +1030,11 @@ export interface DeliveryOrder {
   unplannedPackageCount?: number;
   unplannedNeedMoreSpace?: boolean;
   unplannedSpaceTierRequested?: UnplannedSpaceTier;
+  /** Dispatcher clear/cancel of a jobless unplanned delivery — audit, not a pickup. */
+  clearedAt?: string;
+  clearedByUid?: string;
+  clearedByName?: string;
+  clearReason?: string;
   vendorUnplannedConfirmedAt?: string;
   vendorUnplannedConfirmedVia?: "vendor_pin_fallback";
   /** Partial pickup — staging zones already collected. */
@@ -1275,6 +1286,21 @@ export interface PickupEvent {
   issueIds?: string[];
   clientOperationId?: string;
   stagingLocationIds?: string[];
+  recordedByUid?: string;
+  unplannedJoblessPickup?: boolean;
+}
+
+export interface DeliveryClearEvent {
+  id: string;
+  deliveryOrderId: string;
+  reason: string;
+  clearedByUid: string;
+  clearedByName: string;
+  clearedAt: string;
+  clientOperationId?: string;
+  stagingLocationIdsReleased?: string[];
+  fromStatus?: string;
+  toStatus: "cancelled";
 }
 
 /** Public-safe issue snapshot on delivery — maintained by material-issue CFs for pickup readback. */
@@ -1326,7 +1352,7 @@ export interface CreateMaterialIssueInput {
 
 export interface RecordPickupEventInput {
   deliveryOrderId: string;
-  jobId: string;
+  jobId?: string;
   technicianName: string;
   itemsPickedSummary: string;
   notes?: string;

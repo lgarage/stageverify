@@ -23,6 +23,7 @@ const statusDotColor = (status: DeliveryStatus): string => {
     issue: "bg-accent-red",
     picked_up: "bg-text-secondary",
     installed: "bg-text-secondary/60",
+    cancelled: "bg-text-secondary",
   };
   return map[status] ?? "bg-text-secondary";
 };
@@ -38,6 +39,7 @@ const statusTextColor = (status: DeliveryStatus): string => {
     issue: "text-accent-red",
     picked_up: "text-text-secondary",
     installed: "text-text-secondary/70",
+    cancelled: "text-text-secondary",
   };
   return map[status] ?? "text-text-secondary";
 };

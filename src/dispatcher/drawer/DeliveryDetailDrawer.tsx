@@ -53,6 +53,32 @@ function showPickupCompletedToast(): void {
   window.setTimeout(() => el.remove(), 4000);
 }
 
+function showDeliveryClearedToast(): void {
+  const testId = "delivery-cleared-toast";
+  document.querySelector(`[data-testid="${testId}"]`)?.remove();
+  const el = document.createElement("div");
+  el.setAttribute("data-testid", testId);
+  Object.assign(el.style, {
+    position: "fixed",
+    bottom: "24px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    zIndex: "9999",
+    padding: "12px 20px",
+    borderRadius: "8px",
+    backgroundColor: "var(--admin-surface)",
+    color: "var(--admin-text)",
+    border: "1px solid var(--admin-border-strong, #64748b)",
+    fontSize: "14px",
+    fontWeight: "700",
+    fontFamily: FONT,
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+  });
+  el.textContent = "Delivery cleared from staging";
+  document.body.appendChild(el);
+  window.setTimeout(() => el.remove(), 4000);
+}
+
 type Props = {
   deliveryId: string | null;
   onClose: () => void;
@@ -86,6 +112,7 @@ export function DeliveryDetailDrawer({
   );
   const [stagingLocationsReady, setStagingLocationsReady] = useState(false);
   const pickupOperationIds = useRef<Map<string, string>>(new Map());
+  const clearOperationIds = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
     void firestoreDataService
@@ -201,12 +228,7 @@ export function DeliveryDetailDrawer({
         operationId = newPickupClientOperationId();
         pickupOperationIds.current.set(deliveryId, operationId);
       }
-      const jobId = selectedDetails?.delivery.jobId?.trim();
-      if (!jobId) {
-        throw new Error(
-          "This delivery is not linked to a job — cannot record pickup.",
-        );
-      }
+      const jobId = selectedDetails?.delivery.jobId?.trim() ?? "";
       await firestoreDataService.recordPickupEvent(
         deliveryId,
         jobId,
@@ -229,6 +251,43 @@ export function DeliveryDetailDrawer({
         await refreshAfter(updatedDetails);
         closeAfterSuccessfulStatusChange();
       } else setMutationError("Failed to record pickup.");
+    } catch (e) {
+      setMutationError(formatPickupError(e));
+      console.error(e);
+    } finally {
+      setMutationLoading(false);
+    }
+  };
+
+  const handleClearStagedDelivery = async (reason: string) => {
+    if (!deliveryId) return;
+    setMutationLoading(true);
+    setMutationError(null);
+    try {
+      let operationId = clearOperationIds.current.get(deliveryId);
+      if (!operationId) {
+        operationId = newPickupClientOperationId();
+        clearOperationIds.current.set(deliveryId, operationId);
+      }
+      await firestoreDataService.clearStagedDelivery(
+        deliveryId,
+        reason,
+        operationId,
+      );
+      clearOperationIds.current.delete(deliveryId);
+      const updatedDetails =
+        await firestoreDataService.getDeliveryDetails(deliveryId);
+      if (updatedDetails) {
+        if (updatedDetails.delivery.status !== "cancelled") {
+          setMutationError(
+            "Clear saved but status did not update — refresh and try again.",
+          );
+          return;
+        }
+        showDeliveryClearedToast();
+        await refreshAfter(updatedDetails);
+        closeAfterSuccessfulStatusChange();
+      } else setMutationError("Failed to clear delivery.");
     } catch (e) {
       setMutationError(formatPickupError(e));
       console.error(e);
@@ -580,6 +639,7 @@ export function DeliveryDetailDrawer({
             mutationError={mutationError}
             onUpdateStatus={handleUpdateStatus}
             onRecordPickup={handleRecordPickup}
+            onClearStagedDelivery={handleClearStagedDelivery}
             onUpdateFulfillmentMethod={handleUpdateFulfillmentMethod}
             onUpdateIssueSummary={handleUpdateIssueSummary}
             onSetDeliverToSiteConfirmed={handleSetDeliverToSiteConfirmed}

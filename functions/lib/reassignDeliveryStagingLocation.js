@@ -111,7 +111,9 @@ exports.reassignDeliveryStagingLocation = (0, https_1.onCall)({
         }
         const delivery = deliverySnap.data();
         const status = String(delivery.status ?? "");
-        if (status === "picked_up" || status === "installed") {
+        if (status === "picked_up" ||
+            status === "installed" ||
+            status === "cancelled") {
             throw new https_1.HttpsError("failed-precondition", "Delivery is no longer editable for staging.");
         }
         if ((0, invoiceShellDisplayHelpers_1.skipsShopStaging)({

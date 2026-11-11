@@ -22,6 +22,7 @@ export const VALID_TRANSITIONS: Record<DeliveryStatus, DeliveryStatus[]> = {
   issue: ["arrived", "partial", "ready_for_pickup"],
   picked_up: ["installed"],
   installed: [],
+  cancelled: [],
 };
 
 /** Vendor revert: only undo a check-in submission (goes back to arrived) */
@@ -107,6 +108,11 @@ export interface DispatcherDataService {
     stagingLocationIds?: string[],
     pickupToken?: string,
     technicianSessionToken?: string,
+  ): Promise<{ deliveryStatus: string; duplicate: boolean }>;
+  clearStagedDelivery(
+    deliveryId: string,
+    reason: string,
+    clientOperationId?: string,
   ): Promise<{ deliveryStatus: string; duplicate: boolean }>;
   updatePickupChecklist(
     deliveryId: string,

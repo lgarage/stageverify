@@ -8,6 +8,7 @@ const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const invoiceShellDisplayHelpers_1 = require("./invoice/invoiceShellDisplayHelpers");
 const pickupAccessValidation_1 = require("./pickupAccessValidation");
 const pickupStagingRelease_1 = require("./pickupStagingRelease");
+const unplannedWillCallEligibility_1 = require("./unplannedWillCallEligibility");
 function getDb() {
     return admin.firestore();
 }
@@ -92,11 +93,10 @@ exports.recordPickupEvent = (0, https_1.onCall)({
     const itemsPickedSummary = asNonEmptyString(data.itemsPickedSummary, MAX_SUMMARY_LEN);
     const clientOperationId = asClientOperationId(data.clientOperationId);
     if (!deliveryOrderId ||
-        !jobId ||
         !technicianName ||
         !itemsPickedSummary ||
         !clientOperationId) {
-        throw new https_1.HttpsError("invalid-argument", "deliveryOrderId, jobId, technicianName, itemsPickedSummary, and clientOperationId are required.");
+        throw new https_1.HttpsError("invalid-argument", "deliveryOrderId, technicianName, itemsPickedSummary, and clientOperationId are required.");
     }
     const notes = data.notes === undefined || data.notes === ""
         ? undefined
@@ -107,11 +107,15 @@ exports.recordPickupEvent = (0, https_1.onCall)({
     const db = getDb();
     let technicianIdentityName = technicianName;
     let isDispatcherCall = false;
+    let dispatcherUid = null;
     if (request.auth) {
-        await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+        dispatcherUid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
         isDispatcherCall = true;
     }
     else {
+        if (!jobId) {
+            throw new https_1.HttpsError("invalid-argument", "deliveryOrderId, jobId, technicianName, itemsPickedSummary, and clientOperationId are required.");
+        }
         const access = await (0, pickupAccessValidation_1.assertPickupAccessForJob)(db, jobId, {
             pickupToken: data.pickupToken,
             technicianSessionToken: data.technicianSessionToken,
@@ -145,13 +149,26 @@ exports.recordPickupEvent = (0, https_1.onCall)({
             throw new https_1.HttpsError("not-found", "Delivery not found.");
         }
         const delivery = deliverySnap.data();
-        if (delivery.jobId !== jobId) {
+        const joblessUnplanned = (0, unplannedWillCallEligibility_1.isJoblessUnplannedDelivery)(delivery);
+        if ((0, unplannedWillCallEligibility_1.isCancelledStatus)(delivery.status)) {
+            throw new https_1.HttpsError("failed-precondition", "Delivery was cancelled and cannot be picked up.");
+        }
+        if (joblessUnplanned) {
+            if (!isDispatcherCall) {
+                throw new https_1.HttpsError("permission-denied", "Only a signed-in dispatcher can pick up an unplanned delivery without a job.");
+            }
+        }
+        else if (!jobId) {
+            throw new https_1.HttpsError("invalid-argument", "deliveryOrderId, jobId, technicianName, itemsPickedSummary, and clientOperationId are required.");
+        }
+        else if (delivery.jobId !== jobId) {
             throw new https_1.HttpsError("permission-denied", "Delivery does not belong to this job.");
         }
+        const persistedJobId = joblessUnplanned ? "" : jobId;
         if (delivery.status === "picked_up" || delivery.status === "installed") {
             tx.set(idempotencyRef, {
                 deliveryOrderId,
-                jobId,
+                jobId: persistedJobId,
                 pickupEventId: null,
                 deliveryStatus: delivery.status,
                 pickedUpStagingLocationIds: delivery.pickedUpStagingLocationIds ?? [],
@@ -163,6 +180,73 @@ exports.recordPickupEvent = (0, https_1.onCall)({
                 deliveryStatus: delivery.status,
                 pickedUpStagingLocationIds: delivery.pickedUpStagingLocationIds ?? [],
             };
+        }
+        if (joblessUnplanned) {
+            const settingsSnap = await tx.get(db.collection("appSettings").doc("config"));
+            const vendorDeliveryMode = settingsSnap.data()?.vendorDeliveryMode ?? "full_checkin";
+            const eligibility = (0, deliveryReadiness_1.isDispatcherPickupEligible)(delivery, [], vendorDeliveryMode);
+            if (!eligibility.eligible) {
+                throw new https_1.HttpsError("failed-precondition", `Pickup not allowed: ${eligibility.reason ?? "ineligible"}.`);
+            }
+            const readinessAudit = pickupReadinessAuditFields(true, eligibility.readiness);
+            const now = new Date().toISOString();
+            const pickupEventId = crypto.randomUUID();
+            const historyId = `event-${pickupEventId}`;
+            const assignedForRelease = allStagingIds(delivery);
+            const deliveryPatch = {
+                updatedAt: now,
+                status: "picked_up",
+                readinessStatus: "picked_up",
+                pickupCheckedItemIds: [],
+                ...(0, pickupStagingRelease_1.buildPickupLiveStagingPatch)(delivery, [
+                    ...(delivery.pickedUpStagingLocationIds ?? []),
+                    ...assignedForRelease,
+                ], true),
+            };
+            tx.set(db.collection("pickupEvents").doc(pickupEventId), {
+                id: pickupEventId,
+                deliveryOrderId,
+                jobId: "",
+                technicianName: technicianIdentityName,
+                pickedUpAt: now,
+                itemsPickedSummary,
+                ...(notes ? { notes } : {}),
+                clientOperationId,
+                stagingLocationIds: assignedForRelease,
+                recordedByUid: dispatcherUid,
+                unplannedJoblessPickup: true,
+                ...readinessAudit,
+            });
+            tx.update(deliveryRef, deliveryPatch);
+            tx.set(db.collection("statusHistory").doc(historyId), {
+                id: historyId,
+                entityType: "delivery_order",
+                entityId: deliveryOrderId,
+                fromStatus: delivery.status,
+                toStatus: "picked_up",
+                actorType: "dispatcher",
+                actorName: technicianIdentityName,
+                createdAt: now,
+            });
+            const history = deliveryPatch.pickedUpStagingLocationIds ?? [];
+            tx.set(idempotencyRef, {
+                deliveryOrderId,
+                jobId: "",
+                pickupEventId,
+                deliveryStatus: "picked_up",
+                pickedUpStagingLocationIds: history,
+                createdAt: now,
+            });
+            return {
+                duplicate: false,
+                pickupEventId,
+                deliveryStatus: "picked_up",
+                pickedUpStagingLocationIds: history,
+                fullyPicked: true,
+            };
+        }
+        if (!jobId) {
+            throw new https_1.HttpsError("invalid-argument", "deliveryOrderId, jobId, technicianName, itemsPickedSummary, and clientOperationId are required.");
         }
         const assignedLocations = allStagingIds(delivery);
         const skipShopStagingPickup = (0, invoiceShellDisplayHelpers_1.skipsShopStaging)(delivery);

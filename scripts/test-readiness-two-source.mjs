@@ -1172,6 +1172,30 @@ assert(
   "6167419-shaped computeDeliveryDisplayState still Ready",
 );
 
+const cancelledUnplanned = {
+  ...baseDelivery,
+  id: "delivery-cancelled-unplanned",
+  jobId: "",
+  unplanned: true,
+  status: "cancelled",
+  stagingLocationId: "loc-stale",
+};
+const cancelledReadiness = computeDeliveryReadiness(cancelledUnplanned, []);
+assert(
+  cancelledReadiness.readyForPickup === false &&
+    cancelledReadiness.deliveryStatus === "cancelled",
+  "cancelled unplanned is not ready for pickup",
+);
+assert(
+  !isPickupEligible(cancelledUnplanned, []).eligible,
+  "cancelled unplanned is pickup ineligible",
+);
+assert(
+  computeDeliveryDisplayState(cancelledUnplanned, [], []).statusDisplayLabel ===
+    "Cancelled",
+  "cancelled unplanned display label is Cancelled not Unplanned",
+);
+
 if (failures.length) {
   console.error("FAIL readiness tests:");
   for (const f of failures) console.error(" -", f);

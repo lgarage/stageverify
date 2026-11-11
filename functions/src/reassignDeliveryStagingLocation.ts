@@ -140,7 +140,11 @@ export const reassignDeliveryStagingLocation = onCall(
       const delivery = deliverySnap.data() as admin.firestore.DocumentData;
       const status = String(delivery.status ?? "");
 
-      if (status === "picked_up" || status === "installed") {
+      if (
+        status === "picked_up" ||
+        status === "installed" ||
+        status === "cancelled"
+      ) {
         throw new HttpsError(
           "failed-precondition",
           "Delivery is no longer editable for staging.",

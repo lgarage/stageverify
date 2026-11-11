@@ -69,6 +69,11 @@ import {
 } from "../deliveryDisplayHelpers";
 import { isDispatcherPickupEligible } from "../readiness";
 import {
+  isCancelledStatus,
+  isJoblessUnplannedClearEligible,
+  isJoblessUnplannedDelivery,
+} from "../unplannedWillCallEligibility";
+import {
   fulfillmentDisplayLabel,
   resolveDeliveryPoNumber,
   skipsShopStaging,
@@ -240,6 +245,7 @@ export function DetailContent({
   mutationError,
   onUpdateStatus,
   onRecordPickup,
+  onClearStagedDelivery,
   onUpdateFulfillmentMethod,
   onUpdateIssueSummary,
   onSetDeliverToSiteConfirmed,
@@ -263,6 +269,7 @@ export function DetailContent({
   mutationError: string | null;
   onUpdateStatus: (toStatus: DeliveryStatus, reason?: string) => Promise<void>;
   onRecordPickup: (technicianName: string, itemsSummary: string) => Promise<void>;
+  onClearStagedDelivery: (reason: string) => Promise<void>;
   onUpdateFulfillmentMethod: (
     method: "delivery" | "will_call_pickup",
   ) => Promise<void>;
@@ -327,6 +334,9 @@ export function DetailContent({
   const [pendingStatusSelection, setPendingStatusSelection] =
     useState<DeliveryStatus | null>(null);
   const [pickupTechnicianName, setPickupTechnicianName] = useState("");
+  const [pickupMaterialsSummary, setPickupMaterialsSummary] = useState("");
+  const [showClearInput, setShowClearInput] = useState(false);
+  const [clearReason, setClearReason] = useState("");
   const { vendors: portalVendors } = useDispatcherPortal();
   const liveOccupancy = useLiveZoneOccupancy(Boolean(details));
 
@@ -338,6 +348,9 @@ export function DetailContent({
     setShowPickupInput(false);
     setPendingStatusSelection(null);
     setPickupTechnicianName("");
+    setPickupMaterialsSummary("");
+    setShowClearInput(false);
+    setClearReason("");
   }, [details?.delivery.id]);
 
   useEffect(() => {
@@ -567,6 +580,7 @@ export function DetailContent({
     delivery.status !== "picked_up" &&
     delivery.status !== "complete" &&
     delivery.status !== "installed" &&
+    delivery.status !== "cancelled" &&
     Boolean(onNavigateToChangeLocation);
   const staleWillCallStaging =
     willCallNoShopStaging && hasRawShopStagingRefs(delivery);
@@ -610,19 +624,41 @@ export function DetailContent({
     delivery,
     details.items,
   ).eligible;
+  const joblessUnplanned = isJoblessUnplannedDelivery(delivery);
   const showCompletePickupCta =
     !showPickupInput &&
+    !showClearInput &&
     delivery.status !== "picked_up" &&
     delivery.status !== "installed" &&
+    delivery.status !== "cancelled" &&
     pickupEligible;
-  const completePickupMissingJob = !delivery.jobId?.trim();
+  const completePickupMissingJob = !delivery.jobId?.trim() && !joblessUnplanned;
+  const showClearSpotCta =
+    !showPickupInput &&
+    !showClearInput &&
+    isJoblessUnplannedClearEligible(delivery);
 
   const openCompletePickupForm = () => {
+    setShowClearInput(false);
+    setClearReason("");
     setPendingStatusSelection("picked_up");
     setShowPickupInput(true);
     requestAnimationFrame(() => {
       document
         .querySelector('[data-testid="delivery-status-pickup-input"]')
+        ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  };
+
+  const openClearSpotForm = () => {
+    setShowPickupInput(false);
+    setPickupTechnicianName("");
+    setPickupMaterialsSummary("");
+    setPendingStatusSelection(null);
+    setShowClearInput(true);
+    requestAnimationFrame(() => {
+      document
+        .querySelector('[data-testid="delivery-clear-spot-form"]')
         ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
   };
@@ -813,6 +849,9 @@ export function DetailContent({
                   setPendingStatusSelection,
                   pickupTechnicianName,
                   setPickupTechnicianName,
+                  pickupMaterialsSummary,
+                  setPickupMaterialsSummary,
+                  joblessUnplanned,
                 }}
               />
               {showStagingLocationBanner ? (
@@ -1021,8 +1060,190 @@ export function DetailContent({
                     >
                       Link this delivery to a job before completing pickup.
                     </p>
+                  ) : joblessUnplanned ? (
+                    <p
+                      data-testid="delivery-basics-complete-pickup-hint"
+                      style={{
+                        margin: 0,
+                        fontSize: 11,
+                        color: "var(--admin-text-muted)",
+                        textAlign: "center",
+                      }}
+                    >
+                      Records who received the materials. This is a genuine pickup.
+                    </p>
                   ) : null}
                 </>
+              ) : null}
+              {showClearSpotCta ? (
+                <button
+                  type="button"
+                  data-testid="delivery-basics-clear-spot"
+                  disabled={mutationLoading}
+                  onClick={openClearSpotForm}
+                  style={{
+                    marginTop: 8,
+                    width: "100%",
+                    padding: "12px 16px",
+                    borderRadius: 8,
+                    border: "1.5px solid var(--admin-border-strong, #64748b)",
+                    backgroundColor: "var(--admin-surface)",
+                    color: "var(--admin-text)",
+                    fontSize: 15,
+                    fontWeight: 800,
+                    letterSpacing: "0.03em",
+                    cursor: mutationLoading ? "not-allowed" : "pointer",
+                    fontFamily: font,
+                  }}
+                >
+                  Cancel / Clear Spot
+                </button>
+              ) : null}
+              {showClearInput ? (
+                <div
+                  data-testid="delivery-clear-spot-form"
+                  style={{
+                    marginTop: 8,
+                    padding: "12px",
+                    borderRadius: 8,
+                    border: "1.5px solid var(--admin-border-strong, #64748b)",
+                    backgroundColor: "var(--admin-surface-2)",
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: "0 0 8px",
+                      fontSize: 14,
+                      fontWeight: 800,
+                      color: "var(--admin-text)",
+                      fontFamily: font,
+                    }}
+                  >
+                    Cancel / Clear Spot
+                  </p>
+                  <p
+                    style={{
+                      margin: "0 0 10px",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "var(--admin-text-data)",
+                      lineHeight: 1.4,
+                      fontFamily: font,
+                    }}
+                  >
+                    Removes this delivery from active staging without recording a
+                    pickup. The delivery record is kept for audit.
+                  </p>
+                  <label
+                    htmlFor="delivery-clear-spot-reason"
+                    style={{
+                      display: "block",
+                      marginBottom: 6,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "var(--admin-text-label, var(--admin-text))",
+                      fontFamily: font,
+                    }}
+                  >
+                    Reason (required)
+                  </label>
+                  <textarea
+                    id="delivery-clear-spot-reason"
+                    data-testid="delivery-clear-spot-reason"
+                    value={clearReason}
+                    onChange={(e) => setClearReason(e.target.value)}
+                    placeholder="Why is this being cleared from staging?"
+                    disabled={mutationLoading}
+                    rows={3}
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      padding: "8px 12px",
+                      border: "1.5px solid var(--admin-border)",
+                      borderRadius: 6,
+                      fontSize: 14,
+                      fontFamily: font,
+                      color: "var(--admin-text)",
+                      backgroundColor: "var(--admin-surface)",
+                      marginBottom: 8,
+                      resize: "vertical",
+                    }}
+                  />
+                  {mutationError && showClearInput ? (
+                    <p
+                      data-testid="delivery-clear-spot-error"
+                      role="alert"
+                      style={{
+                        margin: "0 0 8px",
+                        fontSize: 12,
+                        color: "var(--admin-danger-text)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {mutationError}
+                    </p>
+                  ) : null}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    <button
+                      type="button"
+                      data-testid="delivery-clear-spot-cancel"
+                      onClick={() => {
+                        setShowClearInput(false);
+                        setClearReason("");
+                      }}
+                      disabled={mutationLoading}
+                      style={{
+                        flex: "1 1 120px",
+                        minHeight: 44,
+                        backgroundColor: "var(--admin-surface)",
+                        color: "var(--admin-text)",
+                        border: "1.5px solid var(--admin-border)",
+                        borderRadius: 4,
+                        padding: "8px 12px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        fontFamily: font,
+                      }}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="delivery-clear-spot-submit"
+                      onClick={() => {
+                        const trimmed = clearReason.trim();
+                        if (!trimmed) return;
+                        void onClearStagedDelivery(trimmed);
+                      }}
+                      disabled={mutationLoading || !clearReason.trim()}
+                      style={{
+                        flex: "1 1 140px",
+                        minHeight: 44,
+                        backgroundColor:
+                          mutationLoading || !clearReason.trim()
+                            ? "var(--admin-surface-2)"
+                            : "var(--admin-text)",
+                        color:
+                          mutationLoading || !clearReason.trim()
+                            ? "var(--admin-text-muted)"
+                            : "var(--admin-surface)",
+                        border: "1.5px solid var(--admin-border-strong, #64748b)",
+                        borderRadius: 4,
+                        padding: "8px 12px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor:
+                          mutationLoading || !clearReason.trim()
+                            ? "not-allowed"
+                            : "pointer",
+                        fontFamily: font,
+                      }}
+                    >
+                      {mutationLoading ? "Saving…" : "Confirm clear"}
+                    </button>
+                  </div>
+                </div>
               ) : null}
             </div>
           </>,
@@ -1743,6 +1964,102 @@ export function DetailContent({
             </div>
           ) : null}
         </section>
+        {isCancelledStatus(details.delivery.status) ||
+        details.statusHistory.some((event) => event.toStatus === "cancelled") ||
+        details.delivery.clearReason ? (
+          renderDrawerSection(
+            "Cancellation / Clear History",
+            <div
+              data-testid="delivery-clear-history"
+              style={{
+                display: "flex",
+                flexDirection: "column" as const,
+                gap: 8,
+              }}
+            >
+              {details.delivery.clearReason || details.delivery.clearedAt ? (
+                <div
+                  data-testid="delivery-clear-history-latest"
+                  style={{
+                    border: "1px solid var(--admin-border)",
+                    borderRadius: 8,
+                    padding: "12px",
+                    backgroundColor: "var(--admin-surface)",
+                    boxShadow: "rgba(0,0,0,0.08) 0px 2px 6px 0px",
+                  }}
+                >
+                  <p style={{ margin: 0, fontWeight: 700, color: "var(--admin-text)" }}>
+                    {details.delivery.clearedByName?.trim() || "Dispatcher"}
+                  </p>
+                  <p
+                    style={{
+                      margin: "3px 0 8px",
+                      fontSize: 12,
+                      color: "var(--admin-text-muted)",
+                    }}
+                  >
+                    {details.delivery.clearedAt
+                      ? new Date(details.delivery.clearedAt).toLocaleString()
+                      : "Time not recorded"}
+                  </p>
+                  <p
+                    style={{
+                      margin: 0,
+                      backgroundColor: "var(--admin-surface-2)",
+                      padding: "8px 12px",
+                      borderRadius: 4,
+                      border: "1px solid var(--admin-border)",
+                      color: "var(--admin-text)",
+                    }}
+                  >
+                    {details.delivery.clearReason || "No reason recorded"}
+                  </p>
+                  <p
+                    style={{
+                      margin: "8px 0 0",
+                      fontSize: 12,
+                      color: "var(--admin-text-muted)",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    Cleared from staging — not a pickup.
+                  </p>
+                </div>
+              ) : (
+                details.statusHistory
+                  .filter((event) => event.toStatus === "cancelled")
+                  .map((event) => (
+                    <div
+                      key={event.id}
+                      data-testid={`delivery-clear-history-${event.id}`}
+                      style={{
+                        border: "1px solid var(--admin-border)",
+                        borderRadius: 8,
+                        padding: "12px",
+                        backgroundColor: "var(--admin-surface)",
+                      }}
+                    >
+                      <p style={{ margin: 0, fontWeight: 700, color: "var(--admin-text)" }}>
+                        {event.actorName || "Dispatcher"}
+                      </p>
+                      <p
+                        style={{
+                          margin: "3px 0 8px",
+                          fontSize: 12,
+                          color: "var(--admin-text-muted)",
+                        }}
+                      >
+                        {new Date(event.createdAt).toLocaleString()}
+                      </p>
+                      <p style={{ margin: 0, color: "var(--admin-text)" }}>
+                        {event.reason || "No reason recorded"}
+                      </p>
+                    </div>
+                  ))
+              )}
+            </div>,
+          )
+        ) : null}
         {renderDrawerSection(
           "Pickup Events",
           <div
@@ -1942,6 +2259,9 @@ type DeliveryPickupFormState = {
   setPendingStatusSelection: (value: DeliveryStatus | null) => void;
   pickupTechnicianName: string;
   setPickupTechnicianName: (value: string) => void;
+  pickupMaterialsSummary: string;
+  setPickupMaterialsSummary: (value: string) => void;
+  joblessUnplanned: boolean;
 };
 
 function drawerStatusOptionEnabled(
@@ -1958,7 +2278,9 @@ function drawerStatusOptionEnabled(
   }
   // Picked Up shares recordPickupEvent / isDispatcherPickupEligible with Complete Pickup.
   if (option === "picked_up") {
-    if (!delivery.jobId?.trim()) return false;
+    if (!delivery.jobId?.trim() && !isJoblessUnplannedDelivery(delivery)) {
+      return false;
+    }
     return isDispatcherPickupEligible(delivery, items).eligible;
   }
   const possibleNext = VALID_TRANSITIONS[current] ?? [];
@@ -2000,6 +2322,9 @@ function DeliveryStatusControls({
     setPendingStatusSelection,
     pickupTechnicianName,
     setPickupTechnicianName,
+    pickupMaterialsSummary,
+    setPickupMaterialsSummary,
+    joblessUnplanned,
   } = pickupForm;
   const pickupInputRef = useRef<HTMLInputElement>(null);
   const locById = useMemo(
@@ -2038,7 +2363,8 @@ function DeliveryStatusControls({
     !skipsShopStaging(delivery) &&
     delivery.status !== "picked_up" &&
     delivery.status !== "complete" &&
-    delivery.status !== "installed";
+    delivery.status !== "installed" &&
+    delivery.status !== "cancelled";
   const stagedActionable =
     !stagedSelected &&
     !loading &&
@@ -2048,14 +2374,16 @@ function DeliveryStatusControls({
   useEffect(() => {
     setShowPickupInput(false);
     setPickupTechnicianName("");
+    setPickupMaterialsSummary("");
     setPendingStatusSelection(null);
   }, [delivery.id]);
 
   useEffect(() => {
-    if (currentStatus === "picked_up") {
+    if (currentStatus === "picked_up" || currentStatus === "cancelled") {
       setShowPickupInput(false);
       setPendingStatusSelection(null);
       setPickupTechnicianName("");
+      setPickupMaterialsSummary("");
     }
   }, [currentStatus]);
 
@@ -2085,10 +2413,20 @@ function DeliveryStatusControls({
   const handleConfirmPickup = () => {
     const trimmedName = pickupTechnicianName.trim();
     if (!trimmedName) return;
+    const materials = pickupMaterialsSummary.trim();
+    if (joblessUnplanned && !materials) return;
     const itemCount = details.items.length;
-    const summary = itemCount === 1 ? "1 item" : `${itemCount} items`;
+    const summary = joblessUnplanned
+      ? materials
+      : itemCount === 1
+        ? "1 item"
+        : `${itemCount} items`;
     void onRecordPickup(trimmedName, summary);
   };
+  const pickupSubmitDisabled =
+    loading ||
+    !pickupTechnicianName.trim() ||
+    (joblessUnplanned && !pickupMaterialsSummary.trim());
 
   const unselectedCellStyle: CSSProperties = {
     ...FULFILLMENT_STATUS_CELL_BASE,
@@ -2279,7 +2617,9 @@ function DeliveryStatusControls({
                 lineHeight: 1.4,
               }}
             >
-              Complete pickup? This will move the delivery to Picked Up.
+              {joblessUnplanned
+              ? "Complete pickup? Record who is receiving these materials. This is a genuine pickup."
+              : "Complete pickup? This will move the delivery to Picked Up."}
             </p>
           ) : (
             <>
@@ -2370,7 +2710,7 @@ function DeliveryStatusControls({
               fontFamily: font,
             }}
           >
-            Who picked up?
+            {joblessUnplanned ? "Who is receiving the materials?" : "Who picked up?"}
           </label>
           <input
             ref={pickupInputRef}
@@ -2379,7 +2719,11 @@ function DeliveryStatusControls({
             type="text"
             value={pickupTechnicianName}
             onChange={(e) => setPickupTechnicianName(e.target.value)}
-            placeholder="Enter technician name"
+            placeholder={
+              joblessUnplanned
+                ? "Name of the person collecting"
+                : "Enter technician name"
+            }
             disabled={loading}
             aria-describedby={
               displayState.readiness.readyForPickup
@@ -2399,6 +2743,45 @@ function DeliveryStatusControls({
               marginBottom: 8,
             }}
           />
+          {joblessUnplanned ? (
+            <>
+              <label
+                htmlFor="delivery-status-pickup-materials"
+                style={{
+                  display: "block",
+                  marginBottom: 6,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "var(--admin-text-label, var(--admin-text))",
+                  fontFamily: font,
+                }}
+              >
+                Materials collected
+              </label>
+              <textarea
+                id="delivery-status-pickup-materials"
+                data-testid="delivery-status-pickup-materials"
+                value={pickupMaterialsSummary}
+                onChange={(e) => setPickupMaterialsSummary(e.target.value)}
+                placeholder="Brief description or quantity of collected materials"
+                disabled={loading}
+                rows={3}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "8px 12px",
+                  border: "1.5px solid var(--admin-border)",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  fontFamily: font,
+                  color: "var(--admin-text)",
+                  backgroundColor: "var(--admin-surface)",
+                  marginBottom: 8,
+                  resize: "vertical",
+                }}
+              />
+            </>
+          ) : null}
           {pickupError && showPickupInput ? (
             <p
               data-testid="delivery-status-pickup-error"
@@ -2426,6 +2809,7 @@ function DeliveryStatusControls({
               onClick={() => {
                 setShowPickupInput(false);
                 setPickupTechnicianName("");
+                setPickupMaterialsSummary("");
                 setPendingStatusSelection(null);
               }}
               disabled={loading}
@@ -2449,31 +2833,24 @@ function DeliveryStatusControls({
               type="button"
               data-testid="delivery-status-pickup-submit"
               onClick={handleConfirmPickup}
-              disabled={loading || !pickupTechnicianName.trim()}
+              disabled={pickupSubmitDisabled}
               style={{
                 flex: "1 1 140px",
                 minHeight: 44,
-                backgroundColor:
-                  loading || !pickupTechnicianName.trim()
-                    ? "var(--admin-surface-2)"
-                    : PICKUP_FORM_RED,
-                color:
-                  loading || !pickupTechnicianName.trim()
-                    ? "var(--admin-text-muted)"
-                    : "#fff",
+                backgroundColor: pickupSubmitDisabled
+                  ? "var(--admin-surface-2)"
+                  : PICKUP_FORM_RED,
+                color: pickupSubmitDisabled
+                  ? "var(--admin-text-muted)"
+                  : "#fff",
                 border: `1.5px solid ${
-                  loading || !pickupTechnicianName.trim()
-                    ? "var(--admin-border)"
-                    : PICKUP_FORM_RED
+                  pickupSubmitDisabled ? "var(--admin-border)" : PICKUP_FORM_RED
                 }`,
                 borderRadius: 4,
                 padding: "8px 12px",
                 fontSize: 12,
                 fontWeight: 700,
-                cursor:
-                  loading || !pickupTechnicianName.trim()
-                    ? "not-allowed"
-                    : "pointer",
+                cursor: pickupSubmitDisabled ? "not-allowed" : "pointer",
                 fontFamily: font,
               }}
             >

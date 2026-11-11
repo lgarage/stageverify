@@ -114,6 +114,17 @@ function computeDeliveryReadiness(delivery, items, now, vendorDeliveryMode) {
         stagingAssignmentComplete,
         readinessBlockReasons: blockReasons,
     };
+    if (delivery.status === "cancelled") {
+        return {
+            readyForPickup: false,
+            readinessStatus: "not_ready",
+            deliveryStatus: "cancelled",
+            evidence,
+            physicalDropoffComplete,
+            physicalDropoffCompleteAt,
+            stagingAssignmentComplete,
+        };
+    }
     if (delivery.status === "picked_up" || delivery.status === "installed") {
         return {
             readyForPickup: false,
@@ -186,6 +197,9 @@ function isPickupEligible(delivery, items, vendorDeliveryMode) {
     if (delivery.status === "picked_up" || delivery.status === "installed") {
         return { eligible: false, reason: "already_picked_up" };
     }
+    if (delivery.status === "cancelled") {
+        return { eligible: false, reason: "delivery_cancelled" };
+    }
     const skipShopStagingPickup = (0, invoiceShellDisplayHelpers_1.skipsShopStaging)(delivery);
     const allowedStatuses = skipShopStagingPickup
         ? [
@@ -219,6 +233,9 @@ function isDispatcherPickupEligible(delivery, items, vendorDeliveryMode) {
     const readiness = computeDeliveryReadiness(delivery, items, new Date().toISOString(), vendorDeliveryMode);
     if (delivery.status === "picked_up" || delivery.status === "installed") {
         return { eligible: false, reason: "already_picked_up", readiness };
+    }
+    if (delivery.status === "cancelled") {
+        return { eligible: false, reason: "delivery_cancelled", readiness };
     }
     const allowedStatuses = [
         "pending",

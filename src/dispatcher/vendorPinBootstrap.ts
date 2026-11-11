@@ -15,6 +15,7 @@ const DELIVERY_STATUSES = new Set<string>([
   "issue",
   "picked_up",
   "installed",
+  "cancelled",
 ]);
 
 function asStatus(value: string | undefined): DeliveryStatus {

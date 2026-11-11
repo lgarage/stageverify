@@ -745,6 +745,12 @@ export class FirestoreDataService implements DispatcherDataService {
       );
     }
 
+    if (toStatus === "cancelled") {
+      throw new Error(
+        "Use clearStagedDelivery — direct cancelled writes are not supported.",
+      );
+    }
+
     const now = new Date().toISOString();
     const eventId = `event-${crypto.randomUUID()}`;
     const batch = writeBatch(db);
@@ -1598,11 +1604,6 @@ export class FirestoreDataService implements DispatcherDataService {
     // delivery.jobId match + pickupToken / technicianSession + day-release.
     const operationId = resolvePickupClientOperationId(clientOperationId);
     const trimmedJobId = jobId.trim();
-    if (!trimmedJobId) {
-      throw new Error(
-        "This delivery is not linked to a job — cannot record pickup.",
-      );
-    }
     const trimmedTechnician = technicianName.trim();
     if (!trimmedTechnician) {
       throw new Error("Technician name is required for pickup.");
@@ -1615,7 +1616,7 @@ export class FirestoreDataService implements DispatcherDataService {
     const callable = httpsCallable(functions, "recordPickupEvent");
     const response = await callable({
       deliveryOrderId: deliveryId,
-      jobId: trimmedJobId,
+      ...(trimmedJobId ? { jobId: trimmedJobId } : {}),
       technicianName: trimmedTechnician,
       itemsPickedSummary: trimmedSummary,
       notes,
@@ -1632,6 +1633,35 @@ export class FirestoreDataService implements DispatcherDataService {
     if (deliveryStatus !== "picked_up") {
       throw new Error(
         `Pickup did not persist (status: ${deliveryStatus || "unknown"}). Try again.`,
+      );
+    }
+    return { deliveryStatus, duplicate: data.duplicate === true };
+  }
+
+  async clearStagedDelivery(
+    deliveryId: string,
+    reason: string,
+    clientOperationId?: string,
+  ): Promise<{ deliveryStatus: string; duplicate: boolean }> {
+    const trimmedReason = reason.trim();
+    if (!trimmedReason) {
+      throw new Error("A reason is required to cancel / clear this delivery.");
+    }
+    const operationId = resolvePickupClientOperationId(clientOperationId);
+    const callable = httpsCallable(functions, "clearStagedDelivery");
+    const response = await callable({
+      deliveryOrderId: deliveryId,
+      reason: trimmedReason,
+      clientOperationId: operationId,
+    });
+    const data = response.data as {
+      deliveryStatus?: string;
+      duplicate?: boolean;
+    };
+    const deliveryStatus = data.deliveryStatus?.trim() ?? "";
+    if (deliveryStatus !== "cancelled") {
+      throw new Error(
+        `Clear did not persist (status: ${deliveryStatus || "unknown"}). Try again.`,
       );
     }
     return { deliveryStatus, duplicate: data.duplicate === true };

@@ -26,7 +26,8 @@ type DeliveryStatus =
   | "complete"
   | "issue"
   | "picked_up"
-  | "installed";
+  | "installed"
+  | "cancelled";
 
 interface DeliveryDoc {
   jobId?: string;

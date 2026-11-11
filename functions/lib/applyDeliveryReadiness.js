@@ -31,7 +31,9 @@ async function applyDeliveryReadinessTransaction(db, deliveryOrderId, options) {
         const now = new Date().toISOString();
         const result = (0, deliveryReadiness_1.computeDeliveryReadiness)(delivery, items, now, vendorDeliveryMode);
         const fromStatus = delivery.status;
-        const lockedTerminal = fromStatus === "picked_up" || fromStatus === "installed";
+        const lockedTerminal = fromStatus === "picked_up" ||
+            fromStatus === "installed" ||
+            fromStatus === "cancelled";
         const closedPickedUp = delivery.invoiceImportStatus === "closed_picked_up";
         const deliveryPatch = {
             physicalDropoffComplete: result.physicalDropoffComplete,
@@ -74,7 +76,11 @@ async function applyDeliveryReadinessTransaction(db, deliveryOrderId, options) {
         return {
             deliveryOrderId,
             readyForPickup: lockedTerminal || closedPickedUp ? false : result.readyForPickup,
-            readinessStatus: lockedTerminal || closedPickedUp ? "picked_up" : result.readinessStatus,
+            readinessStatus: fromStatus === "cancelled"
+                ? "not_ready"
+                : lockedTerminal || closedPickedUp
+                    ? "picked_up"
+                    : result.readinessStatus,
             deliveryStatus: effectiveStatus,
             readinessBlockReasons: result.evidence.readinessBlockReasons,
             statusChanged,

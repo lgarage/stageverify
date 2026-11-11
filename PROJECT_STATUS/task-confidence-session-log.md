@@ -167,3 +167,4 @@ Running log per Dan standing preference (classify → cheapest model → conf �
 
 - 2026-08-28 gate-check-evidence-format T0 confStart=99 confAfter=99 PR#238 bare-UUID
 - 2026-10-23 cloud-functions-logic + ui-change (pickup release + Picked up from + drawer/save guards) HIGH Composer-build confStart=97 confAfter=98 draft PR r16/r36
+- 2026-11-11 backend-write-critical + dispatcher UI (jobless unplanned will-call pickup + clearStagedDelivery) HIGH Grok 4.6 implement; cheapest Composer 2.5 Fast + grok-4.7-high review confStart=97 confAfter=98 no merge/deploy

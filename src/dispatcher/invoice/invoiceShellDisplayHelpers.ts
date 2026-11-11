@@ -10,7 +10,8 @@ type ShellDeliveryStatus =
   | "complete"
   | "issue"
   | "picked_up"
-  | "installed";
+  | "installed"
+  | "cancelled";
 
 export type InvoiceShellStagingFields = {
   id?: string;

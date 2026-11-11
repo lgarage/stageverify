@@ -64,7 +64,9 @@ exports.assignVendorStagingLocation = (0, https_1.onCall)({
         }
         const delivery = deliverySnap.data();
         const status = delivery.status;
-        if (status === "picked_up" || status === "installed") {
+        if (status === "picked_up" ||
+            status === "installed" ||
+            status === "cancelled") {
             throw new https_1.HttpsError("failed-precondition", "Delivery is no longer active.");
         }
         const now = new Date().toISOString();

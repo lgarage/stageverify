@@ -69,7 +69,9 @@ export async function applyDeliveryReadinessTransaction(
     );
     const fromStatus = delivery.status as DeliveryStatus;
     const lockedTerminal =
-      fromStatus === "picked_up" || fromStatus === "installed";
+      fromStatus === "picked_up" ||
+      fromStatus === "installed" ||
+      fromStatus === "cancelled";
     const closedPickedUp = delivery.invoiceImportStatus === "closed_picked_up";
 
     const deliveryPatch: Record<string, unknown> = {
@@ -119,7 +121,11 @@ export async function applyDeliveryReadinessTransaction(
       deliveryOrderId,
       readyForPickup: lockedTerminal || closedPickedUp ? false : result.readyForPickup,
       readinessStatus:
-        lockedTerminal || closedPickedUp ? "picked_up" : result.readinessStatus,
+        fromStatus === "cancelled"
+          ? "not_ready"
+          : lockedTerminal || closedPickedUp
+            ? "picked_up"
+            : result.readinessStatus,
       deliveryStatus: effectiveStatus,
       readinessBlockReasons: result.evidence.readinessBlockReasons,
       statusChanged,

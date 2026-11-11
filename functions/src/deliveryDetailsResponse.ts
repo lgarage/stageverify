@@ -9,7 +9,8 @@ type DeliveryStatus =
   | "complete"
   | "issue"
   | "picked_up"
-  | "installed";
+  | "installed"
+  | "cancelled";
 
 export interface PublicDeliveryDetails {
   delivery: Record<string, unknown>;
@@ -229,12 +230,14 @@ export const RECEIVE_BLOCKED_DELIVERY_STATUSES = new Set<DeliveryStatus>([
   "complete",
   "picked_up",
   "installed",
+  "cancelled",
 ]);
 
 export const ZONE_CLEARED_DELIVERY_STATUSES = new Set<DeliveryStatus>([
   "complete",
   "picked_up",
   "installed",
+  "cancelled",
 ]);
 
 export function getAllStagingLocationIds(
