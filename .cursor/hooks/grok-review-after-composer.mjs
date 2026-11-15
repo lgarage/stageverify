@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Composer edits, then grok-4.7-high reviews. A FAIL verdict is handed back
-// to Composer. Composer updates the code. Grok reviews again until PASS.
+// Composer does the work, then grok-4.7-high reviews it. Code edits and
+// research about updating the program use the same loop: FAIL goes back to
+// Composer, Composer revises, Grok reviews again until PASS.
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -8,22 +9,53 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const MAX_ROUNDS = 6;
-
-const REVIEW_FOLLOWUP =
-  "Launch the composer-diff-review subagent now (model grok-4.7-high: Grok 4.7, effort High, Fast off, context 256k). Give it the git diff of the latest Composer edits. It is read-only. Wait for its full reply. Do not edit during the review. If the reply starts with VERDICT: PASS, stop. If it starts with VERDICT: FAIL, stop without editing so the fix list can be sent back to you.";
+const MARK = "GROK_REVIEW_LOOP";
 
 /**
- * @param {string} feedback
+ * @param {"" | "code" | "research" | "both"} subject
  */
-function fixFollowup(feedback) {
-  return (
-    "Grok 4.7 (grok-4.7-high, Fast off) is not satisfied. Update the code to fix every item below. Then stop so Grok can review the update. Do not launch another review until those edits are saved.\n\n" +
-    feedback
-  );
+function reviewFollowup(subject) {
+  const target =
+    subject === "both"
+      ? "the research answer and the git diff"
+      : subject === "research"
+        ? "the research answer in this conversation (there may be no file diff)"
+        : "the git diff of the latest Composer edits";
+  return `${MARK}\nLaunch the composer-diff-review subagent now (model grok-4.7-high: Grok 4.7, effort High, Fast off, context 256k). Give it ${target}. It is read-only. Wait for its full reply. Do not edit or revise during the review. If the reply starts with VERDICT: PASS, stop. If it starts with VERDICT: FAIL, stop without changing anything so the fix list can be sent back to you.`;
 }
 
-const CAP_FOLLOWUP =
-  "Grok 4.7 (grok-4.7-high, Fast off) reviewed this 6 times without a pass. Stop the loop and report the remaining defects. Do not launch another review.";
+/**
+ * @param {"" | "code" | "research" | "both"} subject
+ * @param {string} feedback
+ */
+function fixFollowup(subject, feedback) {
+  const action =
+    subject === "research"
+      ? "Revise the research answer to fix every item below."
+      : subject === "both"
+        ? "Revise the research and update the code to fix every item below."
+        : "Update the code to fix every item below.";
+  return `${MARK}\nGrok 4.7 (grok-4.7-high, Fast off) is not satisfied. ${action} Then stop so Grok can review the update. Do not launch another review until that update is done.\n\n${feedback}`;
+}
+
+const CAP_FOLLOWUP = `${MARK}\nGrok 4.7 (grok-4.7-high, Fast off) reviewed this 6 times without a pass. Stop the loop and report the remaining defects. Do not launch another review.`;
+
+/**
+ * Research about how to change the program. The hook's own follow-ups are marked and ignored.
+ * @param {string} text
+ */
+export function isResearchPrompt(text) {
+  const raw = String(text || "");
+  if (raw.includes(MARK)) return false;
+  const s = raw.toLowerCase();
+  if (!s.trim()) return false;
+  if (/\bresearch\b/.test(s)) return true;
+  if (/\b(investigate|recommendation)\b/.test(s)) return true;
+  if (/\brecommend\b/.test(s) && /\b(updat|chang|improv|fix|approach)/.test(s)) return true;
+  if (/\bhow\b/.test(s) && /\b(updat|chang|improv|fix)/.test(s)) return true;
+  if (/\b(what should|what can) we\b/.test(s) && /\b(updat|chang|improv|build|fix)/.test(s)) return true;
+  return false;
+}
 
 /**
  * @param {string} text
@@ -45,10 +77,38 @@ export function clipFeedback(text) {
 }
 
 /**
- * @returns {{ dirty: boolean, verdict: "" | "PASS" | "FAIL", feedback: string, rounds: number, capped: boolean }}
+ * @returns {{
+ *   needsReview: boolean,
+ *   subject: "" | "code" | "research" | "both",
+ *   awaitingRevision: boolean,
+ *   revisionReady: boolean,
+ *   verdict: "" | "PASS" | "FAIL",
+ *   feedback: string,
+ *   rounds: number,
+ *   capped: boolean
+ * }}
  */
 export function emptyState() {
-  return { dirty: false, verdict: "", feedback: "", rounds: 0, capped: false };
+  return {
+    needsReview: false,
+    subject: "",
+    awaitingRevision: false,
+    revisionReady: false,
+    verdict: "",
+    feedback: "",
+    rounds: 0,
+    capped: false,
+  };
+}
+
+/**
+ * @param {"code" | "research"} kind
+ * @param {"" | "code" | "research" | "both"} current
+ * @returns {"" | "code" | "research" | "both"}
+ */
+function addSubject(kind, current) {
+  if (!current || current === kind) return kind;
+  return "both";
 }
 
 /**
@@ -57,8 +117,14 @@ export function emptyState() {
  */
 export function decide(input, state) {
   const event = String(input.hook_event_name || "");
+  if (event === "beforeSubmitPrompt") {
+    return isResearchPrompt(String(input.prompt || "")) ? { action: "mark-research" } : { action: "noop" };
+  }
   if (event === "afterFileEdit") {
-    return isComposer(input) ? { action: "mark-dirty" } : { action: "noop" };
+    return isComposer(input) ? { action: "mark-code" } : { action: "noop" };
+  }
+  if (event === "afterAgentResponse") {
+    return state.awaitingRevision && isComposer(input) ? { action: "mark-revision" } : { action: "noop" };
   }
   if (event === "subagentStop") {
     if (!isGrokHighFastOff(input)) return { action: "noop" };
@@ -74,12 +140,16 @@ export function decide(input, state) {
   if (event === "stop") {
     const status = String(input.status || "");
     if (status !== "completed" || !isComposer(input) || state.capped) return { action: "noop" };
-    if (state.verdict === "PASS" && !state.dirty) return { action: "noop" };
-    if (state.rounds >= MAX_ROUNDS && state.verdict !== "PASS") {
+    if (state.verdict === "PASS" && !state.needsReview && !state.revisionReady) return { action: "noop" };
+    if (state.rounds >= MAX_ROUNDS && state.verdict !== "PASS" && (state.needsReview || state.revisionReady)) {
       return { action: "cap", followup_message: CAP_FOLLOWUP };
     }
-    if (state.dirty) return { action: "followup", followup_message: REVIEW_FOLLOWUP };
-    if (state.verdict === "FAIL") return { action: "followup", followup_message: fixFollowup(state.feedback) };
+    if (state.needsReview || state.revisionReady) {
+      return { action: "followup", kind: "review", followup_message: reviewFollowup(state.subject) };
+    }
+    if (state.verdict === "FAIL") {
+      return { action: "followup", kind: "fix", followup_message: fixFollowup(state.subject, state.feedback) };
+    }
   }
   return { action: "noop" };
 }
@@ -89,17 +159,47 @@ export function decide(input, state) {
  * @param {ReturnType<typeof decide>} decision
  */
 export function apply(state, decision) {
-  if (decision.action === "mark-dirty") {
-    return { ...state, dirty: true, verdict: state.verdict === "PASS" ? "" : state.verdict, capped: false };
+  if (decision.action === "mark-research") {
+    return {
+      ...state,
+      needsReview: true,
+      subject: addSubject("research", state.subject),
+      verdict: state.verdict === "PASS" ? "" : state.verdict,
+      capped: false,
+      awaitingRevision: false,
+      revisionReady: false,
+    };
+  }
+  if (decision.action === "mark-code") {
+    return {
+      ...state,
+      needsReview: true,
+      subject: addSubject("code", state.subject),
+      verdict: state.verdict === "PASS" ? "" : state.verdict,
+      capped: false,
+      awaitingRevision: false,
+      revisionReady: false,
+    };
+  }
+  if (decision.action === "mark-revision") {
+    return { ...state, revisionReady: true };
   }
   if (decision.action === "record-review") {
     return {
       ...state,
-      dirty: false,
+      needsReview: false,
+      revisionReady: false,
+      awaitingRevision: false,
       verdict: decision.verdict,
       feedback: decision.feedback,
       rounds: state.rounds + 1,
     };
+  }
+  if (decision.action === "followup" && decision.kind === "fix") {
+    return { ...state, awaitingRevision: true, needsReview: false, revisionReady: false };
+  }
+  if (decision.action === "followup" && decision.kind === "review") {
+    return { ...state, needsReview: true, revisionReady: false, awaitingRevision: false };
   }
   if (decision.action === "cap") return { ...state, capped: true };
   return state;
@@ -165,10 +265,28 @@ export function statePath(conversationId) {
 function readState(file) {
   try {
     const parsed = JSON.parse(readFileSync(file, "utf8"));
-    if (parsed.verdict !== undefined || parsed.dirty !== undefined || parsed.rounds !== undefined) {
+    const base = emptyState();
+    if (parsed.needsReview !== undefined || parsed.subject !== undefined || parsed.rounds !== undefined) {
+      const verdict = parsed.verdict === "PASS" || parsed.verdict === "FAIL" ? parsed.verdict : "";
+      const subject = parsed.subject === "code" || parsed.subject === "research" || parsed.subject === "both" ? parsed.subject : "";
+      return {
+        ...base,
+        needsReview: parsed.needsReview === true || parsed.dirty === true,
+        subject: subject || (parsed.dirty === true ? "code" : ""),
+        awaitingRevision: parsed.awaitingRevision === true,
+        revisionReady: parsed.revisionReady === true,
+        verdict,
+        feedback: typeof parsed.feedback === "string" ? parsed.feedback : "",
+        rounds: Number(parsed.rounds) || 0,
+        capped: parsed.capped === true,
+      };
+    }
+    if (parsed.dirty !== undefined || parsed.verdict !== undefined) {
       const verdict = parsed.verdict === "PASS" || parsed.verdict === "FAIL" ? parsed.verdict : "";
       return {
-        dirty: parsed.dirty === true,
+        ...base,
+        needsReview: parsed.dirty === true,
+        subject: parsed.dirty === true ? "code" : "",
         verdict,
         feedback: typeof parsed.feedback === "string" ? parsed.feedback : "",
         rounds: Number(parsed.rounds) || 0,
@@ -176,11 +294,11 @@ function readState(file) {
       };
     }
     return {
-      dirty: parsed.edited === true && parsed.reviewed !== true,
+      ...base,
+      needsReview: parsed.edited === true && parsed.reviewed !== true,
+      subject: parsed.edited === true ? "code" : "",
       verdict: parsed.reviewed === true ? "PASS" : "",
-      feedback: "",
       rounds: parsed.reviewed === true ? 1 : 0,
-      capped: false,
     };
   } catch {
     return emptyState();
@@ -191,7 +309,11 @@ function readState(file) {
  * @param {string} file
  * @param {ReturnType<typeof emptyState>} state
  */
-function writeState(file, state) {
+/**
+ * @param {string} file
+ * @param {ReturnType<typeof emptyState>} state
+ */
+function writeStateFile(file, state) {
   mkdirSync(join(file, ".."), { recursive: true });
   writeFileSync(file, JSON.stringify(state));
 }
@@ -212,8 +334,7 @@ function withReviewText(input) {
   let transcript = "";
   if (typeof input.agent_transcript_path === "string" && input.agent_transcript_path) {
     try {
-      const raw = readFileSync(input.agent_transcript_path, "utf8");
-      transcript = raw.slice(-20000);
+      transcript = readFileSync(input.agent_transcript_path, "utf8").slice(-20000);
     } catch {
       transcript = "";
     }
@@ -233,11 +354,13 @@ async function main() {
   const file = statePath(String(input.conversation_id || ""));
   const state = readState(file);
   const decision = decide(withReviewText(input), state);
-  if (decision.action === "mark-dirty" || decision.action === "record-review" || decision.action === "cap") {
-    writeState(file, apply(state, decision));
-  }
+  if (decision.action !== "noop") writeStateFile(file, apply(state, decision));
   if (decision.action === "followup" || decision.action === "cap") {
     process.stdout.write(JSON.stringify({ followup_message: decision.followup_message }) + "\n");
+    return;
+  }
+  if (String(input.hook_event_name || "") === "beforeSubmitPrompt") {
+    process.stdout.write(JSON.stringify({ continue: true }) + "\n");
     return;
   }
   process.stdout.write("{}\n");

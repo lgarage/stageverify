@@ -1,6 +1,12 @@
 {
   "version": 1,
   "hooks": {
+    "beforeSubmitPrompt": [
+      { "command": "node .cursor/hooks/grok-review-after-composer.mjs" }
+    ],
+    "afterAgentResponse": [
+      { "command": "node .cursor/hooks/grok-review-after-composer.mjs" }
+    ],
     "afterFileEdit": [
       { "command": "node .cursor/hooks/grok-review-after-composer.mjs" }
     ],
