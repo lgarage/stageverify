@@ -1,4 +1,23 @@
 {
   "version": 1,
-  "hooks": {}
+  "hooks": {
+    "beforeSubmitPrompt": [
+      { "command": "node .cursor/hooks/grok-review-after-composer.mjs" }
+    ],
+    "afterAgentResponse": [
+      { "command": "node .cursor/hooks/grok-review-after-composer.mjs" }
+    ],
+    "afterFileEdit": [
+      { "command": "node .cursor/hooks/grok-review-after-composer.mjs" }
+    ],
+    "subagentStop": [
+      { "command": "node .cursor/hooks/grok-review-after-composer.mjs" }
+    ],
+    "stop": [
+      {
+        "command": "node .cursor/hooks/grok-review-after-composer.mjs",
+        "loop_limit": 12
+      }
+    ]
+  }
 }
