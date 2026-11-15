@@ -1,35 +1,108 @@
 #!/usr/bin/env node
-// After Composer edits files, the stop hook submits one follow-up that
-// launches the composer-diff-review subagent (grok-4.7-high: effort High, Fast off).
+// Composer edits, then grok-4.7-high reviews. A FAIL verdict is handed back
+// to Composer. Composer updates the code. Grok reviews again until PASS.
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const FOLLOWUP =
-  "Composer edited files and grok-4.7-high has not reviewed them. Launch the composer-diff-review subagent now (model grok-4.7-high: Grok 4.7, effort High, Fast off, context 256k). Give it the git diff of this task. It is read-only. Wait for its verdict, put the verdict in your reply, then stop.";
+export const MAX_ROUNDS = 6;
+
+const REVIEW_FOLLOWUP =
+  "Launch the composer-diff-review subagent now (model grok-4.7-high: Grok 4.7, effort High, Fast off, context 256k). Give it the git diff of the latest Composer edits. It is read-only. Wait for its full reply. Do not edit during the review. If the reply starts with VERDICT: PASS, stop. If it starts with VERDICT: FAIL, stop without editing so the fix list can be sent back to you.";
+
+/**
+ * @param {string} feedback
+ */
+function fixFollowup(feedback) {
+  return (
+    "Grok 4.7 (grok-4.7-high, Fast off) is not satisfied. Update the code to fix every item below. Then stop so Grok can review the update. Do not launch another review until those edits are saved.\n\n" +
+    feedback
+  );
+}
+
+const CAP_FOLLOWUP =
+  "Grok 4.7 (grok-4.7-high, Fast off) reviewed this 6 times without a pass. Stop the loop and report the remaining defects. Do not launch another review.";
+
+/**
+ * @param {string} text
+ * @returns {"PASS" | "FAIL" | ""}
+ */
+export function extractVerdict(text) {
+  const matches = [...String(text || "").matchAll(/VERDICT:\s*(PASS|FAIL)/gi)];
+  if (matches.length === 0) return "";
+  return matches[matches.length - 1][1].toUpperCase() === "PASS" ? "PASS" : "FAIL";
+}
+
+/**
+ * @param {string} text
+ */
+export function clipFeedback(text) {
+  const trimmed = String(text || "").trim();
+  if (trimmed.length <= 1500) return trimmed;
+  return trimmed.slice(0, 1500);
+}
+
+/**
+ * @returns {{ dirty: boolean, verdict: "" | "PASS" | "FAIL", feedback: string, rounds: number, capped: boolean }}
+ */
+export function emptyState() {
+  return { dirty: false, verdict: "", feedback: "", rounds: 0, capped: false };
+}
 
 /**
  * @param {Record<string, unknown>} input
- * @param {{ edited: boolean, reviewed: boolean }} state
+ * @param {ReturnType<typeof emptyState>} state
  */
 export function decide(input, state) {
   const event = String(input.hook_event_name || "");
   if (event === "afterFileEdit") {
-    return isComposer(input) ? { action: "mark-edited" } : { action: "noop" };
+    return isComposer(input) ? { action: "mark-dirty" } : { action: "noop" };
   }
   if (event === "subagentStop") {
-    return isGrokHighFastOff(input) ? { action: "mark-reviewed" } : { action: "noop" };
+    if (!isGrokHighFastOff(input)) return { action: "noop" };
+    const text = `${input.summary || ""}\n${input.reviewFeedback || ""}`;
+    const parsed = String(input.reviewVerdict || extractVerdict(text) || "FAIL").toUpperCase();
+    const verdict = parsed === "PASS" ? "PASS" : "FAIL";
+    return {
+      action: "record-review",
+      verdict,
+      feedback: clipFeedback(String(input.reviewFeedback || input.summary || "")),
+    };
   }
   if (event === "stop") {
     const status = String(input.status || "");
-    const loopCount = Number(input.loop_count || 0);
-    if (status === "completed" && isComposer(input) && state.edited && !state.reviewed && loopCount === 0) {
-      return { action: "followup", followup_message: FOLLOWUP };
+    if (status !== "completed" || !isComposer(input) || state.capped) return { action: "noop" };
+    if (state.verdict === "PASS" && !state.dirty) return { action: "noop" };
+    if (state.rounds >= MAX_ROUNDS && state.verdict !== "PASS") {
+      return { action: "cap", followup_message: CAP_FOLLOWUP };
     }
+    if (state.dirty) return { action: "followup", followup_message: REVIEW_FOLLOWUP };
+    if (state.verdict === "FAIL") return { action: "followup", followup_message: fixFollowup(state.feedback) };
   }
   return { action: "noop" };
+}
+
+/**
+ * @param {ReturnType<typeof emptyState>} state
+ * @param {ReturnType<typeof decide>} decision
+ */
+export function apply(state, decision) {
+  if (decision.action === "mark-dirty") {
+    return { ...state, dirty: true, verdict: state.verdict === "PASS" ? "" : state.verdict, capped: false };
+  }
+  if (decision.action === "record-review") {
+    return {
+      ...state,
+      dirty: false,
+      verdict: decision.verdict,
+      feedback: decision.feedback,
+      rounds: state.rounds + 1,
+    };
+  }
+  if (decision.action === "cap") return { ...state, capped: true };
+  return state;
 }
 
 /**
@@ -92,15 +165,31 @@ export function statePath(conversationId) {
 function readState(file) {
   try {
     const parsed = JSON.parse(readFileSync(file, "utf8"));
-    return { edited: parsed.edited === true, reviewed: parsed.reviewed === true };
+    if (parsed.verdict !== undefined || parsed.dirty !== undefined || parsed.rounds !== undefined) {
+      const verdict = parsed.verdict === "PASS" || parsed.verdict === "FAIL" ? parsed.verdict : "";
+      return {
+        dirty: parsed.dirty === true,
+        verdict,
+        feedback: typeof parsed.feedback === "string" ? parsed.feedback : "",
+        rounds: Number(parsed.rounds) || 0,
+        capped: parsed.capped === true,
+      };
+    }
+    return {
+      dirty: parsed.edited === true && parsed.reviewed !== true,
+      verdict: parsed.reviewed === true ? "PASS" : "",
+      feedback: "",
+      rounds: parsed.reviewed === true ? 1 : 0,
+      capped: false,
+    };
   } catch {
-    return { edited: false, reviewed: false };
+    return emptyState();
   }
 }
 
 /**
  * @param {string} file
- * @param {{ edited: boolean, reviewed: boolean }} state
+ * @param {ReturnType<typeof emptyState>} state
  */
 function writeState(file, state) {
   mkdirSync(join(file, ".."), { recursive: true });
@@ -115,6 +204,24 @@ async function readStdin() {
   return JSON.parse(raw);
 }
 
+/**
+ * @param {Record<string, unknown>} input
+ */
+function withReviewText(input) {
+  if (String(input.hook_event_name || "") !== "subagentStop") return input;
+  let transcript = "";
+  if (typeof input.agent_transcript_path === "string" && input.agent_transcript_path) {
+    try {
+      const raw = readFileSync(input.agent_transcript_path, "utf8");
+      transcript = raw.slice(-20000);
+    } catch {
+      transcript = "";
+    }
+  }
+  const reviewFeedback = `${input.summary || ""}\n${transcript}`.trim();
+  return { ...input, reviewFeedback, reviewVerdict: extractVerdict(reviewFeedback) };
+}
+
 async function main() {
   let input = {};
   try {
@@ -125,10 +232,11 @@ async function main() {
   }
   const file = statePath(String(input.conversation_id || ""));
   const state = readState(file);
-  const decision = decide(input, state);
-  if (decision.action === "mark-edited") writeState(file, { ...state, edited: true });
-  if (decision.action === "mark-reviewed") writeState(file, { ...state, reviewed: true });
-  if (decision.action === "followup") {
+  const decision = decide(withReviewText(input), state);
+  if (decision.action === "mark-dirty" || decision.action === "record-review" || decision.action === "cap") {
+    writeState(file, apply(state, decision));
+  }
+  if (decision.action === "followup" || decision.action === "cap") {
     process.stdout.write(JSON.stringify({ followup_message: decision.followup_message }) + "\n");
     return;
   }

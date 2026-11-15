@@ -10,7 +10,7 @@
     "stop": [
       {
         "command": "node .cursor/hooks/grok-review-after-composer.mjs",
-        "loop_limit": 1
+        "loop_limit": 12
       }
     ]
   }

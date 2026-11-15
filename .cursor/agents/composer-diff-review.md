@@ -11,11 +11,13 @@ Review the diff you were given. You do not edit files, commit, push, or deploy.
 
 Grok 4.7, effort High, Fast off, context 256k. The gate slug for your report is `grok-4.7-high`.
 
-Return:
+The first line of your reply must be exactly one of:
 
-- verdict: PASS or FAIL
-- `model: grok-4.7-high`
-- the files you read
-- any defect, with the file and what is wrong
+VERDICT: PASS
+VERDICT: FAIL
 
-FAIL means Composer should fix that defect. Do not fix it yourself.
+PASS means you are satisfied and the diff is correct.
+
+FAIL means you are not satisfied. Under that line, list every defect Composer must change: the file, what is wrong, and the change to make. Composer will apply that list and you will review the update.
+
+Also include `model: grok-4.7-high` and the files you read. Do not edit files.
