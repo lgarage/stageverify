@@ -1,0 +1,17 @@
+{
+  // Desktop terminal allowlist. Prefix match, so a bare "npm" entry also allows
+  // `npm run deploy`. These three commands are the ones agents may run without
+  // a prompt. Deploy stays off this list.
+  // This key replaces the in-app terminal allowlist. Entries in
+  // ~/.cursor/permissions.json are added on top.
+  "terminalAllowlist": [
+    "npm run gate:tier",
+    "npm test",
+    "npm run build"
+  ],
+  "autoRun": {
+    "block_instructions": [
+      "Block npm run deploy, firebase deploy, and git push --no-verify. Those need a person to approve them."
+    ]
+  }
+}
