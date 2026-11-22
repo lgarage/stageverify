@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.processInboundVendorEmail = void 0;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
+const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
 const applyConflicts_1 = require("./email/applyConflicts");
 const loadMatchContext_1 = require("./email/loadMatchContext");
@@ -76,9 +77,7 @@ exports.processInboundVendorEmail = (0, https_1.onCall)({
         "https://lgarage.github.io",
     ],
 }, async (request) => {
-    if (!request.auth?.uid) {
-        throw new https_1.HttpsError("permission-denied", "Dispatcher sign-in required for email ingestion.");
-    }
+    await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const message = asInboundEmailMessage(request.data?.message);
     const fingerprint = (0, parseVendorEmail_1.contentFingerprint)(message);
     const now = new Date().toISOString();

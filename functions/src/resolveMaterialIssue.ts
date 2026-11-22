@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 import { applyDeliveryReadinessTransaction } from "./applyDeliveryReadiness";
 import {
   resolvePickupMaterialIssueReadback,
@@ -62,12 +63,8 @@ export const resolveMaterialIssue = onCall(
     ],
   },
   async (request) => {
-    if (!request.auth?.uid) {
-      throw new HttpsError(
-        "permission-denied",
-        "Sign in as a dispatcher to resolve issues.",
-      );
-    }
+    const dispatcherUid = await requireDispatcherAuth(request);
+    const auth = request.auth!;
 
     const data = (request.data ?? {}) as ResolveMaterialIssueRequest;
     const issueId = asNonEmptyString(data.issueId, 128);
@@ -101,9 +98,7 @@ export const resolveMaterialIssue = onCall(
     const deliveryRef = getDb().collection("deliveries").doc(deliveryOrderId);
     const now = new Date().toISOString();
     const resolvedBy =
-      request.auth.token.email?.trim() ||
-      request.auth.token.name?.trim() ||
-      request.auth.uid;
+      auth.token.email?.trim() || auth.token.name?.trim() || dispatcherUid;
     const blocking = issue.blocking === true;
 
     await getDb().runTransaction(async (tx) => {

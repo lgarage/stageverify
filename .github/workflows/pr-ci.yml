@@ -44,8 +44,6 @@ jobs:
       - name: Firestore emulator suites
         # Scripts hard-code projectId stageverify-db — pass the same --project.
         # One emulator boot for assign / reassign / vendor delivered / rules.
-        # Omitted: test:firestore-rules-app-settings (script does not exist);
-        # field-lesson rules tests; pickup-authority (auth-heavy / slower).
         run: >
           firebase emulators:exec
           --only auth,firestore,functions
@@ -57,3 +55,5 @@ jobs:
           && node scripts/test-mark-vendor-delivered.mjs
           && node scripts/test-delivery-status-transitions.mjs
           && node scripts/test-access-pin-rules.mjs"
+      - name: Firestore rules staff-data suite
+        run: npm run test:firestore-rules-staff-data

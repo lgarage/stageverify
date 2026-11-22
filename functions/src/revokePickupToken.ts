@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 import {
   asJobId,
   isPickupTokenActive,
@@ -20,9 +21,7 @@ export const revokePickupToken = onCall(
     ],
   },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Sign in required.");
-    }
+    await requireDispatcherAuth(request);
 
     const jobId = asJobId((request.data as { jobId?: string })?.jobId);
     if (!jobId) {

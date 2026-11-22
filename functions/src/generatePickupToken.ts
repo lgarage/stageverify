@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { randomBytes } from "crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 import {
   asJobId,
   DEFAULT_PICKUP_TOKEN_DAYS,
@@ -47,9 +48,8 @@ export const generatePickupToken = onCall(
     ],
   },
   async (request) => {
-    if (!request.auth) {
-      throw new HttpsError("unauthenticated", "Sign in required.");
-    }
+    const dispatcherUid = await requireDispatcherAuth(request);
+    const auth = request.auth!;
 
     const jobId = asJobId((request.data as { jobId?: string })?.jobId);
     if (!jobId) {
@@ -72,9 +72,7 @@ export const generatePickupToken = onCall(
     const token = randomBytes(32).toString("hex");
     const tokenHash = hashPickupToken(token);
     const createdBy =
-      request.auth.token.email ??
-      request.auth.token.name ??
-      request.auth.uid;
+      auth.token.email ?? auth.token.name ?? dispatcherUid;
 
     await getDb()
       .collection("pickupTokens")

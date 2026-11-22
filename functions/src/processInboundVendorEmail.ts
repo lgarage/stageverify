@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { requireDispatcherAuth } from "./inboundEmail/dispatcherAuth";
 import { applyDeliveryReadinessTransaction } from "./applyDeliveryReadiness";
 import type { ItemDoc } from "./deliveryReadiness";
 import { hasVendorOrderCompleteApplyConflict } from "./email/applyConflicts";
@@ -138,12 +139,7 @@ export const processInboundVendorEmail = onCall(
     ],
   },
   async (request) => {
-    if (!request.auth?.uid) {
-      throw new HttpsError(
-        "permission-denied",
-        "Dispatcher sign-in required for email ingestion.",
-      );
-    }
+    await requireDispatcherAuth(request);
 
     const message = asInboundEmailMessage(
       (request.data as { message?: unknown } | undefined)?.message,

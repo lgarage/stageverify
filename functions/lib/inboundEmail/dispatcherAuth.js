@@ -48,7 +48,9 @@ function managerFlagForRole(role) {
 async function hasDispatcherRole(uid) {
     const role = await readDispatcherRoleDoc(uid);
     if (role) {
-        return role.active !== false;
+        if (role.active === false || role.removed === true)
+            return false;
+        return true;
     }
     try {
         const user = await admin.auth().getUser(uid);
