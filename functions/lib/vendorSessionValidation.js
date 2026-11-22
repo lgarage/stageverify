@@ -5,6 +5,7 @@ exports.asDeliveryId = asDeliveryId;
 exports.assertVendorSessionValid = assertVendorSessionValid;
 exports.assertVendorSessionForDelivery = assertVendorSessionForDelivery;
 exports.assertVendorUnplannedSessionValid = assertVendorUnplannedSessionValid;
+exports.assertVendorSessionValidForJob = assertVendorSessionValidForJob;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
 function getDb() {
@@ -80,6 +81,10 @@ async function assertVendorSessionForDelivery(sessionToken, deliveryId) {
         if (deliveryJobId !== session.jobId) {
             throw new https_1.HttpsError("permission-denied", "Session is not valid for this delivery.");
         }
+        const deliveryVendorId = String(deliverySnap.data()?.vendorId ?? "");
+        if (deliveryVendorId !== session.vendorId) {
+            throw new https_1.HttpsError("permission-denied", "Session is not valid for this supplier delivery.");
+        }
         return session;
     }
     if (session.deliveryId !== deliveryId) {
@@ -110,5 +115,27 @@ async function assertVendorUnplannedSessionValid(sessionToken) {
         return session;
     }
     throw new https_1.HttpsError("permission-denied", "Session is not valid for unplanned delivery.");
+}
+/** Job-scoped vendor session — requires jobId and verified supplier identity. */
+async function assertVendorSessionValidForJob(sessionToken, jobId) {
+    const session = await loadSession(sessionToken);
+    if (!session) {
+        throw new https_1.HttpsError("permission-denied", "Session expired. Enter your PIN again.");
+    }
+    assertNotExpired(session);
+    if (session.jobId !== jobId) {
+        throw new https_1.HttpsError("permission-denied", "Session is not valid for this job.");
+    }
+    if (session.sessionScope !== "job" &&
+        !(session.sessionScope === "delivery" && session.deliveryId)) {
+        throw new https_1.HttpsError("permission-denied", "Session is not valid for this job.");
+    }
+    if (!session.vendorId?.trim()) {
+        throw new https_1.HttpsError("permission-denied", "Session is not valid for this supplier.");
+    }
+    if (session.sessionScope === "delivery" && session.deliveryId) {
+        await assertVendorSessionValid(sessionToken, session.deliveryId);
+    }
+    return session;
 }
 //# sourceMappingURL=vendorSessionValidation.js.map

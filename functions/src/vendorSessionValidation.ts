@@ -124,6 +124,13 @@ export async function assertVendorSessionForDelivery(
         "Session is not valid for this delivery.",
       );
     }
+    const deliveryVendorId = String(deliverySnap.data()?.vendorId ?? "");
+    if (deliveryVendorId !== session.vendorId) {
+      throw new HttpsError(
+        "permission-denied",
+        "Session is not valid for this supplier delivery.",
+      );
+    }
     return session;
   }
 
@@ -176,4 +183,49 @@ export async function assertVendorUnplannedSessionValid(
     "permission-denied",
     "Session is not valid for unplanned delivery.",
   );
+}
+
+/** Job-scoped vendor session — requires jobId and verified supplier identity. */
+export async function assertVendorSessionValidForJob(
+  sessionToken: string,
+  jobId: string,
+): Promise<VendorSessionDoc> {
+  const session = await loadSession(sessionToken);
+  if (!session) {
+    throw new HttpsError(
+      "permission-denied",
+      "Session expired. Enter your PIN again.",
+    );
+  }
+  assertNotExpired(session);
+
+  if (session.jobId !== jobId) {
+    throw new HttpsError(
+      "permission-denied",
+      "Session is not valid for this job.",
+    );
+  }
+
+  if (
+    session.sessionScope !== "job" &&
+    !(session.sessionScope === "delivery" && session.deliveryId)
+  ) {
+    throw new HttpsError(
+      "permission-denied",
+      "Session is not valid for this job.",
+    );
+  }
+
+  if (!session.vendorId?.trim()) {
+    throw new HttpsError(
+      "permission-denied",
+      "Session is not valid for this supplier.",
+    );
+  }
+
+  if (session.sessionScope === "delivery" && session.deliveryId) {
+    await assertVendorSessionValid(sessionToken, session.deliveryId);
+  }
+
+  return session;
 }

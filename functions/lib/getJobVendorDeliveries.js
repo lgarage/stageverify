@@ -55,7 +55,8 @@ exports.getJobVendorDeliveries = (0, https_1.onCall)({
     if (!jobId || !sessionToken) {
         throw new https_1.HttpsError("invalid-argument", "Invalid session.");
     }
-    const session = await assertVendorSessionValidForJob(sessionToken, jobId);
+    const session = await (0, vendorSessionValidation_1.assertVendorSessionValidForJob)(sessionToken, jobId);
+    const sessionVendorId = session.vendorId.trim();
     const db = getDb();
     const jobSnap = await db.collection("jobs").doc(jobId).get();
     const rawJobName = jobSnap.data()?.jobName;
@@ -70,6 +71,9 @@ exports.getJobVendorDeliveries = (0, https_1.onCall)({
     const summaries = [];
     for (const docSnap of deliveriesSnap.docs) {
         const delivery = docSnap.data();
+        if (String(delivery.vendorId ?? "") !== sessionVendorId) {
+            continue;
+        }
         const status = String(delivery.status ?? "");
         if (deliveryDetailsResponse_1.ZONE_CLEARED_DELIVERY_STATUSES.has(status))
             continue;
@@ -114,26 +118,4 @@ exports.getJobVendorDeliveries = (0, https_1.onCall)({
         deliveries: summaries,
     };
 });
-async function assertVendorSessionValidForJob(sessionToken, jobId) {
-    const snap = await getDb().collection("vendorSessions").doc(sessionToken).get();
-    if (!snap.exists) {
-        throw new https_1.HttpsError("permission-denied", "Session expired. Enter your PIN again.");
-    }
-    const session = snap.data();
-    if (session.jobId !== jobId) {
-        throw new https_1.HttpsError("permission-denied", "Session is not valid for this job.");
-    }
-    const expiresMs = Date.parse(String(session.expiresAt ?? ""));
-    if (!Number.isFinite(expiresMs) || Date.now() >= expiresMs) {
-        throw new https_1.HttpsError("permission-denied", "Session expired. Enter your PIN again.");
-    }
-    if (session.sessionScope === "delivery" && session.deliveryId) {
-        await (0, vendorSessionValidation_1.assertVendorSessionValid)(sessionToken, session.deliveryId);
-    }
-    return {
-        scannedStagingLocationCode: typeof session.scannedStagingLocationCode === "string"
-            ? session.scannedStagingLocationCode
-            : undefined,
-    };
-}
 //# sourceMappingURL=getJobVendorDeliveries.js.map
