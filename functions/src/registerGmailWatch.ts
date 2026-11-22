@@ -6,6 +6,7 @@ import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { gmailOAuthSecretsConfigured } from "./gmailInbound";
 import { gmailClientId, gmailClientSecret } from "./gmailApi";
+import { requireAdminAuth } from "./inboundEmail/dispatcherAuth";
 import {
   getGmailPubsubTopicName,
   gmailPubsubTopic,
@@ -22,9 +23,7 @@ export const registerGmailWatchCallable = onCall(
     secrets: [gmailClientId, gmailClientSecret, gmailPubsubTopic],
   },
   async (request) => {
-    if (!request.auth?.uid) {
-      throw new HttpsError("unauthenticated", "Sign in to register Gmail watch.");
-    }
+    await requireAdminAuth(request);
 
     if (!gmailOAuthSecretsConfigured()) {
       throw new HttpsError(

@@ -9,6 +9,7 @@ const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
 const gmailInbound_1 = require("./gmailInbound");
 const gmailApi_1 = require("./gmailApi");
+const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const gmailWatchShared_1 = require("./gmailWatchShared");
 function getDb() {
     return admin.firestore();
@@ -17,9 +18,7 @@ exports.registerGmailWatchCallable = (0, https_1.onCall)({
     region: "us-central1",
     secrets: [gmailApi_1.gmailClientId, gmailApi_1.gmailClientSecret, gmailWatchShared_1.gmailPubsubTopic],
 }, async (request) => {
-    if (!request.auth?.uid) {
-        throw new https_1.HttpsError("unauthenticated", "Sign in to register Gmail watch.");
-    }
+    await (0, dispatcherAuth_1.requireAdminAuth)(request);
     if (!(0, gmailInbound_1.gmailOAuthSecretsConfigured)()) {
         throw new https_1.HttpsError("failed-precondition", "Gmail OAuth is not configured.");
     }
