@@ -58,7 +58,8 @@ async function verifyLegacyDeliveryPin(deliveryId, pin) {
         const jobSnap = await getDb().collection("jobs").doc(jobId).get();
         if (jobSnap.exists) {
             const job = jobSnap.data();
-            if ((0, pinMatching_1.pinMatches)(job, pin)) {
+            const jobPinOk = (await (0, accessPinLookup_1.jobAccessPinSecretMatches)(jobId, pin)) || (0, pinMatching_1.pinMatches)(job, pin);
+            if (jobPinOk) {
                 const vendorSnap = await getDb()
                     .collection("vendors")
                     .doc(delivery.vendorId)
@@ -139,7 +140,9 @@ exports.verifyVendorPin = (0, https_1.onCall)({
                 if (!snap.exists)
                     return null;
                 const job = snap.data();
-                return (0, pinMatching_1.pinMatches)(job, pin) ? { id: snap.id, data: job } : null;
+                const ok = (await (0, accessPinLookup_1.jobAccessPinSecretMatches)(explicitJobId, pin)) ||
+                    (0, pinMatching_1.pinMatches)(job, pin);
+                return ok ? { id: snap.id, data: job } : null;
             })()
             : await (0, locationScanPinShared_1.findJobByPin)(pin);
         if (!jobMatch) {

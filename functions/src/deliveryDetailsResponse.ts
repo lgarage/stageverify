@@ -36,15 +36,139 @@ function publicVendorFromDelivery(
   };
 }
 
-/** Strip notes and vendorPinVerifier from public vendor receive payloads. */
+const PORTAL_DELIVERY_KEYS = new Set([
+  "id",
+  "orderNumber",
+  "vendorInvoiceNumber",
+  "status",
+  "readinessStatus",
+  "invoiceFulfillmentMethod",
+  "vendorId",
+  "vendorName",
+  "jobId",
+  "jobName",
+  "purchaseOrderId",
+  "poNumber",
+  "stagingLocationId",
+  "stagingLocationCode",
+  "plannedStagingLocationIds",
+  "additionalStagingLocationIds",
+  "vendorPhysicalDropoffConfirmed",
+  "vendorPhysicalDropoffConfirmedAt",
+  "itemCount",
+  "deliveryDate",
+  "openBlockingIssueCount",
+  "shopStockReady",
+  "createdAt",
+  "updatedAt",
+]);
+
+const PORTAL_JOB_KEYS = new Set([
+  "id",
+  "jobNumber",
+  "jobName",
+  "siteNumber",
+  "status",
+  "materialOwnerId",
+  "materialOwnerName",
+  "pickupScheduledAt",
+  "pickupScheduledBy",
+  "createdAt",
+  "updatedAt",
+]);
+
+const PORTAL_ITEM_KEYS = new Set([
+  "id",
+  "deliveryOrderId",
+  "description",
+  "sku",
+  "unit",
+  "qtyOrdered",
+  "qtyReceived",
+  "qtyMissing",
+  "qtyDamaged",
+  "qtyBackordered",
+  "status",
+  "pickupChecklist",
+  "installed",
+  "createdAt",
+  "updatedAt",
+]);
+
+const PORTAL_PO_KEYS = new Set([
+  "id",
+  "poNumber",
+  "jobId",
+  "vendorId",
+  "status",
+  "createdAt",
+  "updatedAt",
+]);
+
+const PORTAL_STAGING_LOCATION_KEYS = new Set([
+  "id",
+  "code",
+  "name",
+  "zone",
+  "createdAt",
+  "updatedAt",
+]);
+
+function pickAllowlisted(
+  data: admin.firestore.DocumentData,
+  id: string,
+  allowed: Set<string>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { id };
+  for (const key of allowed) {
+    if (key === "id") continue;
+    if (key in data) out[key] = data[key];
+  }
+  return out;
+}
+
+/** Explicit allowlist — omits notes, costs, PIN material, and unknown internal fields. */
 export function sanitizeDeliveryForPublic(
   deliveryId: string,
   data: admin.firestore.DocumentData,
 ): Record<string, unknown> {
-  const rest = { ...data };
-  delete rest.notes;
-  delete rest.vendorPinVerifier;
-  return { ...rest, id: String(data.id ?? deliveryId) };
+  return pickAllowlisted(
+    { ...data, id: String(data.id ?? deliveryId) },
+    String(data.id ?? deliveryId),
+    PORTAL_DELIVERY_KEYS,
+  );
+}
+
+export function sanitizeJobForPortal(
+  jobId: string,
+  data: admin.firestore.DocumentData,
+): Record<string, unknown> {
+  return pickAllowlisted(data, jobId, PORTAL_JOB_KEYS);
+}
+
+export function sanitizeItemForPortal(
+  itemId: string,
+  data: admin.firestore.DocumentData,
+): Record<string, unknown> {
+  return pickAllowlisted(
+    { ...data, id: itemId },
+    itemId,
+    PORTAL_ITEM_KEYS,
+  );
+}
+
+export function sanitizePurchaseOrderForPortal(
+  poId: string,
+  data: admin.firestore.DocumentData,
+): Record<string, unknown> {
+  return pickAllowlisted(data, poId, PORTAL_PO_KEYS);
+}
+
+export function sanitizeStagingLocationForPortal(
+  locationId: string,
+  data: admin.firestore.DocumentData,
+): Record<string, unknown> {
+  return pickAllowlisted(data, locationId, PORTAL_STAGING_LOCATION_KEYS);
 }
 
 /**
@@ -171,8 +295,10 @@ export async function hydratePublicDeliveryDetails(
   if (!deliverySnap.exists) return null;
   const deliveryData = deliverySnap.data() as admin.firestore.DocumentData;
 
+  const jobId =
+    typeof deliveryData.jobId === "string" ? deliveryData.jobId.trim() : "";
   const [jobSnap, poSnap, locSnap, itemsSnap] = await Promise.all([
-    db.collection("jobs").doc(String(deliveryData.jobId ?? "")).get(),
+    jobId ? db.collection("jobs").doc(jobId).get() : Promise.resolve(null),
     deliveryData.purchaseOrderId
       ? db
           .collection("purchaseOrders")
@@ -191,21 +317,32 @@ export async function hydratePublicDeliveryDetails(
       .get(),
   ]);
 
-  const items = itemsSnap.docs.map((docSnap) => ({
-    ...(docSnap.data() as admin.firestore.DocumentData),
-    id: docSnap.id,
-  }));
+  const items = itemsSnap.docs.map((docSnap) =>
+    sanitizeItemForPortal(
+      docSnap.id,
+      docSnap.data() as admin.firestore.DocumentData,
+    ),
+  );
 
   return {
     delivery: sanitizeDeliveryForPublic(deliveryId, deliveryData),
     vendor: publicVendorFromDelivery(deliveryData),
     items,
-    job: jobSnap?.exists ? { ...(jobSnap.data() as object), id: jobSnap.id } : undefined,
+    job:
+      jobSnap?.exists && jobId
+        ? sanitizeJobForPortal(jobId, jobSnap.data() as admin.firestore.DocumentData)
+        : undefined,
     purchaseOrder: poSnap?.exists
-      ? { ...(poSnap.data() as object), id: poSnap.id }
+      ? sanitizePurchaseOrderForPortal(
+          poSnap.id,
+          poSnap.data() as admin.firestore.DocumentData,
+        )
       : undefined,
     stagingLocation: locSnap?.exists
-      ? { ...(locSnap.data() as object), id: locSnap.id }
+      ? sanitizeStagingLocationForPortal(
+          locSnap.id,
+          locSnap.data() as admin.firestore.DocumentData,
+        )
       : undefined,
     statusHistory: [],
     pickupEvents: [],

@@ -1,7 +1,10 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { accessPinEncryptionKey } from "./accessPinCrypto";
-import { vendorAccessPinSecretMatches } from "./accessPinLookup";
+import {
+  jobAccessPinSecretMatches,
+  vendorAccessPinSecretMatches,
+} from "./accessPinLookup";
 import { asAccessPin, pinMatches } from "./pinMatching";
 import type { VendorSessionScope } from "./vendorSessionValidation";
 import { buildVendorPinBootstrap } from "./deliveryDetailsResponse";
@@ -102,7 +105,9 @@ async function verifyLegacyDeliveryPin(
     const jobSnap = await getDb().collection("jobs").doc(jobId).get();
     if (jobSnap.exists) {
       const job = jobSnap.data() as JobDoc;
-      if (pinMatches(job, pin)) {
+      const jobPinOk =
+        (await jobAccessPinSecretMatches(jobId, pin)) || pinMatches(job, pin);
+      if (jobPinOk) {
         const vendorSnap = await getDb()
           .collection("vendors")
           .doc(delivery.vendorId)
@@ -198,7 +203,10 @@ export const verifyVendorPin = onCall(
             const snap = await getDb().collection("jobs").doc(explicitJobId).get();
             if (!snap.exists) return null;
             const job = snap.data() as JobDoc;
-            return pinMatches(job, pin) ? { id: snap.id, data: job } : null;
+            const ok =
+              (await jobAccessPinSecretMatches(explicitJobId, pin)) ||
+              pinMatches(job, pin);
+            return ok ? { id: snap.id, data: job } : null;
           })()
         : await findJobByPin(pin);
 

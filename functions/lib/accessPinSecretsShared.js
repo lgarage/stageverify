@@ -53,7 +53,8 @@ function uniquenessBelongsToOtherTarget(existing, targetType, targetId) {
 function parseAccessPinTargetType(value) {
     if (value === "technician" ||
         value === "vendor" ||
-        value === "management") {
+        value === "management" ||
+        value === "job") {
         return value;
     }
     return null;

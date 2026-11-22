@@ -16,6 +16,7 @@ const ENTITY_COLLECTION: Record<
 > = {
   technician: "technicians",
   vendor: "vendors",
+  job: "jobs",
 };
 
 type LegacyPinFields = {

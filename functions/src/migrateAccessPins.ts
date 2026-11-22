@@ -49,6 +49,7 @@ const COLLECTIONS: Array<{
 }> = [
   { targetType: "technician", name: "technicians" },
   { targetType: "vendor", name: "vendors" },
+  { targetType: "job", name: "jobs" },
 ];
 
 async function migrateEntityCollection(
@@ -404,6 +405,14 @@ export const migrateAccessPins = onCall(
         plaintext: 0,
       },
       vendor: {
+        scanned: 0,
+        migrated: 0,
+        skippedAlreadyMigrated: 0,
+        skippedCollision: 0,
+        hashOnly: 0,
+        plaintext: 0,
+      },
+      job: {
         scanned: 0,
         migrated: 0,
         skippedAlreadyMigrated: 0,

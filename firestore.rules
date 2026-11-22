@@ -88,7 +88,12 @@ service cloud.firestore {
 
     match /jobs/{jobId} {
       allow read: if isActiveStaff();
-      allow create, update: if isActiveStaff();
+      allow create: if isActiveStaff()
+        && !('pinCode' in request.resource.data)
+        && !('pinHash' in request.resource.data);
+      allow update: if isActiveStaff()
+        && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['pinCode', 'pinHash']);
       allow delete: if false;
     }
 

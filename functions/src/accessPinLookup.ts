@@ -296,6 +296,22 @@ export async function findVendorByAccessPinSecrets(
  * Delivery-scoped vendor PIN match against accessPinSecrets for one vendor.
  * Does not require companyWideSessionEnabled (that gate is location-first only).
  */
+export async function jobAccessPinSecretMatches(
+  jobId: string,
+  pin: string,
+): Promise<boolean> {
+  const snap = await getDb()
+    .collection(ACCESS_PIN_SECRETS_COLLECTION)
+    .doc(accessPinSecretDocId("job", jobId))
+    .get();
+  if (!snap.exists) return false;
+  const secret = snap.data() as SecretFields;
+  if (typeof secret.pinHash !== "string" || !secret.pinHash.includes(":")) {
+    return false;
+  }
+  return pinMatches({ pinHash: secret.pinHash }, pin);
+}
+
 export async function vendorAccessPinSecretMatches(
   vendorId: string,
   pin: string,
