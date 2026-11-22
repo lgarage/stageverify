@@ -55,16 +55,14 @@ export const getVendorStagingOccupancy = onCall(
       throw new HttpsError("invalid-argument", "Invalid session.");
     }
 
-    await assertVendorSessionValid(sessionToken, deliveryId);
+    const session = await assertVendorSessionValid(sessionToken, deliveryId);
 
     const db = getDb();
-    const sessionDeliverySnap = await db
-      .collection("deliveries")
-      .doc(deliveryId)
-      .get();
-    const sessionJobId = sessionDeliverySnap.exists
-      ? String(sessionDeliverySnap.data()?.jobId ?? "")
-      : "";
+    const sessionJobId =
+      typeof session.jobId === "string" && session.jobId.trim()
+        ? session.jobId.trim()
+        : "";
+    const sessionVendorId = session.vendorId.trim();
 
     const [locationsSnap, deliveriesSnap] = await Promise.all([
       db.collection("stagingLocations").limit(500).get(),
@@ -86,12 +84,15 @@ export const getVendorStagingOccupancy = onCall(
 
       for (const locId of getAllStagingLocationIds(delivery)) {
         const location = locations.find((loc) => loc.id === locId);
-        const isOwnJob =
-          sessionJobId.length > 0 && String(delivery.jobId ?? "") === sessionJobId;
+        const isOwnSupplier =
+          sessionVendorId.length > 0 &&
+          String(delivery.vendorId ?? "") === sessionVendorId;
         const occupant: StagingLocationOccupant = {
-          deliveryId: docSnap.id,
-          orderNumber: isOwnJob ? String(delivery.orderNumber ?? "") : "Occupied",
-          vendorName: isOwnJob ? denormalizedVendorName(delivery) : "",
+          deliveryId: isOwnSupplier ? docSnap.id : "",
+          orderNumber: isOwnSupplier
+            ? String(delivery.orderNumber ?? "")
+            : "Occupied",
+          vendorName: isOwnSupplier ? denormalizedVendorName(delivery) : "",
           locationId: locId,
           locationCode: location?.code ?? locId,
         };

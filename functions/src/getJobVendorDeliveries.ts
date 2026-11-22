@@ -2,7 +2,7 @@ import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import {
   asSessionToken,
-  assertVendorSessionValid,
+  assertVendorSessionValidForJob,
 } from "./vendorSessionValidation";
 import {
   RECEIVE_BLOCKED_DELIVERY_STATUSES,
@@ -87,6 +87,7 @@ export const getJobVendorDeliveries = onCall(
     }
 
     const session = await assertVendorSessionValidForJob(sessionToken, jobId);
+    const sessionVendorId = session.vendorId.trim();
     const db = getDb();
     const jobSnap = await db.collection("jobs").doc(jobId).get();
     const rawJobName = jobSnap.data()?.jobName;
@@ -105,6 +106,9 @@ export const getJobVendorDeliveries = onCall(
 
     for (const docSnap of deliveriesSnap.docs) {
       const delivery = docSnap.data();
+      if (String(delivery.vendorId ?? "") !== sessionVendorId) {
+        continue;
+      }
       const status = String(delivery.status ?? "");
       if (ZONE_CLEARED_DELIVERY_STATUSES.has(status as never)) continue;
       if (RECEIVE_BLOCKED_DELIVERY_STATUSES.has(status as never)) continue;
@@ -155,51 +159,3 @@ export const getJobVendorDeliveries = onCall(
     };
   },
 );
-
-async function assertVendorSessionValidForJob(
-  sessionToken: string,
-  jobId: string,
-): Promise<{
-  scannedStagingLocationCode?: string;
-}> {
-  const snap = await getDb().collection("vendorSessions").doc(sessionToken).get();
-  if (!snap.exists) {
-    throw new HttpsError(
-      "permission-denied",
-      "Session expired. Enter your PIN again.",
-    );
-  }
-  const session = snap.data() as {
-    jobId?: string;
-    deliveryId?: string;
-    expiresAt?: string;
-    scannedStagingLocationCode?: string;
-    sessionScope?: string;
-  };
-
-  if (session.jobId !== jobId) {
-    throw new HttpsError(
-      "permission-denied",
-      "Session is not valid for this job.",
-    );
-  }
-
-  const expiresMs = Date.parse(String(session.expiresAt ?? ""));
-  if (!Number.isFinite(expiresMs) || Date.now() >= expiresMs) {
-    throw new HttpsError(
-      "permission-denied",
-      "Session expired. Enter your PIN again.",
-    );
-  }
-
-  if (session.sessionScope === "delivery" && session.deliveryId) {
-    await assertVendorSessionValid(sessionToken, session.deliveryId);
-  }
-
-  return {
-    scannedStagingLocationCode:
-      typeof session.scannedStagingLocationCode === "string"
-        ? session.scannedStagingLocationCode
-        : undefined,
-  };
-}

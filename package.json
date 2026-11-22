@@ -218,6 +218,7 @@
     "test:staff-callables": "npx firebase-tools emulators:exec --only auth,firestore,functions --project stageverify-db \"node scripts/test-staff-callables.mjs\"",
     "test:gmail-oauth-admin": "npx firebase-tools emulators:exec --only auth,firestore,functions --project stageverify-db \"node scripts/test-gmail-oauth-admin.mjs\"",
     "test:portal-response-contract": "npx firebase-tools emulators:exec --only firestore,functions --project stageverify-db \"node scripts/test-portal-response-contract.mjs\"",
+    "test:supplier-job-isolation": "npx firebase-tools emulators:exec --only firestore,functions --project stageverify-db \"node scripts/test-supplier-job-isolation.mjs\"",
     "test:invoice-fulfillment-override": "cd functions && npm run build && cd .. && node scripts/test-invoice-fulfillment-override.mjs",
     "test:will-call-staging-clear": "npx tsx scripts/test-will-call-staging-clear.mjs",
     "test:invoice-review-truth-state": "cd functions && npm run build && cd .. && node scripts/test-invoice-review-truth-state.mjs",
