@@ -16,6 +16,7 @@ const admin = require("firebase-admin");
 const crypto_1 = require("crypto");
 const params_1 = require("firebase-functions/params");
 const https_1 = require("firebase-functions/v2/https");
+const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const gmailWatchShared_1 = require("./gmailWatchShared");
 const gmailClientId = (0, params_1.defineSecret)("GMAIL_OAUTH_CLIENT_ID");
 const gmailClientSecret = (0, params_1.defineSecret)("GMAIL_OAUTH_CLIENT_SECRET");
@@ -159,9 +160,7 @@ exports.initiateGmailOAuth = (0, https_1.onCall)({
     region: "us-central1",
     secrets: [gmailClientId, gmailClientSecret, gmailRedirectUri],
 }, async (request) => {
-    if (!request.auth?.uid) {
-        throw new https_1.HttpsError("unauthenticated", "Sign in to connect Gmail.");
-    }
+    const adminUid = await (0, dispatcherAuth_1.requireAdminAuth)(request);
     if (!oauthSecretsConfigured()) {
         throw new https_1.HttpsError("failed-precondition", "Gmail OAuth is not configured. Set GMAIL_OAUTH_CLIENT_ID, GMAIL_OAUTH_CLIENT_SECRET, and GMAIL_OAUTH_REDIRECT_URI in Firebase Functions secrets.");
     }
@@ -176,7 +175,7 @@ exports.initiateGmailOAuth = (0, https_1.onCall)({
     const now = Date.now();
     const db = getDb();
     await db.collection("emailOAuthStates").doc(state).set({
-        uid: request.auth.uid,
+        uid: adminUid,
         returnUrl,
         createdAt: new Date(now).toISOString(),
         expiresAt: new Date(now + OAUTH_STATE_TTL_MS).toISOString(),
@@ -215,15 +214,30 @@ exports.completeGmailOAuth = (0, https_1.onRequest)({
             res.redirect(302, settingsReturnUrl(fallbackRedirect, "gmailOAuth=error&reason=missing_params"));
             return;
         }
-        const stateSnap = await db.collection("emailOAuthStates").doc(state).get();
-        if (!stateSnap.exists) {
+        const stateRef = db.collection("emailOAuthStates").doc(state);
+        const stateData = await db.runTransaction(async (tx) => {
+            const stateSnap = await tx.get(stateRef);
+            if (!stateSnap.exists) {
+                return null;
+            }
+            const data = stateSnap.data();
+            if (Date.now() > Date.parse(data.expiresAt)) {
+                tx.delete(stateRef);
+                return { ...data, consumed: "expired" };
+            }
+            tx.delete(stateRef);
+            return { ...data, consumed: "ok" };
+        });
+        if (!stateData) {
             res.redirect(302, settingsReturnUrl(fallbackRedirect, "gmailOAuth=error&reason=invalid_state"));
             return;
         }
-        const stateData = stateSnap.data();
-        if (Date.now() > Date.parse(stateData.expiresAt)) {
-            await stateSnap.ref.delete();
+        if (stateData.consumed === "expired") {
             res.redirect(302, settingsReturnUrl(stateData.returnUrl, "gmailOAuth=error&reason=state_expired"));
+            return;
+        }
+        if (!(await (0, dispatcherAuth_1.hasAdminRole)(stateData.uid))) {
+            res.redirect(302, settingsReturnUrl(stateData.returnUrl, "gmailOAuth=error&reason=admin_required"));
             return;
         }
         if (!oauthSecretsConfigured()) {
@@ -249,9 +263,10 @@ exports.completeGmailOAuth = (0, https_1.onRequest)({
             connectedAt: now,
             connectedByUid: stateData.uid,
             updatedAt: now,
-        });
+            disconnectedAt: admin.firestore.FieldValue.delete(),
+            disconnectedByUid: admin.firestore.FieldValue.delete(),
+        }, { merge: true });
         await writeAuditEvent(db, "connected", stateData.uid, accountEmail);
-        await stateSnap.ref.delete();
         const topicName = (0, gmailWatchShared_1.getGmailPubsubTopicName)();
         if (topicName) {
             try {
@@ -277,9 +292,7 @@ exports.completeGmailOAuth = (0, https_1.onRequest)({
 exports.disconnectGmailOAuth = (0, https_1.onCall)({
     region: "us-central1",
 }, async (request) => {
-    if (!request.auth?.uid) {
-        throw new https_1.HttpsError("unauthenticated", "Sign in to disconnect Gmail.");
-    }
+    const adminUid = await (0, dispatcherAuth_1.requireAdminAuth)(request);
     const db = getDb();
     const secretSnap = await secretsRef(db).get();
     if (secretSnap.exists) {
@@ -289,8 +302,16 @@ exports.disconnectGmailOAuth = (0, https_1.onCall)({
         }
         await secretSnap.ref.delete();
     }
-    await connectionRef(db).set(defaultConnection());
-    await writeAuditEvent(db, "disconnected", request.auth.uid);
+    const now = new Date().toISOString();
+    await connectionRef(db).set({
+        ...defaultConnection(),
+        disconnectedAt: now,
+        disconnectedByUid: adminUid,
+        connectedAccountEmail: admin.firestore.FieldValue.delete(),
+        connectedAt: admin.firestore.FieldValue.delete(),
+        connectedByUid: admin.firestore.FieldValue.delete(),
+    });
+    await writeAuditEvent(db, "disconnected", adminUid);
     return { ok: true };
 });
 //# sourceMappingURL=gmailOAuth.js.map
