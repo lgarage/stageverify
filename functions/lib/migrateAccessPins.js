@@ -11,6 +11,7 @@ const pinHashing_1 = require("./pinHashing");
 const COLLECTIONS = [
     { targetType: "technician", name: "technicians" },
     { targetType: "vendor", name: "vendors" },
+    { targetType: "job", name: "jobs" },
 ];
 async function migrateEntityCollection(targetType, collectionName, dryRun, remainingLimit) {
     const db = (0, accessPinSecretsShared_1.getDb)();
@@ -289,6 +290,14 @@ exports.migrateAccessPins = (0, https_1.onCall)({
             plaintext: 0,
         },
         vendor: {
+            scanned: 0,
+            migrated: 0,
+            skippedAlreadyMigrated: 0,
+            skippedCollision: 0,
+            hashOnly: 0,
+            plaintext: 0,
+        },
+        job: {
             scanned: 0,
             migrated: 0,
             skippedAlreadyMigrated: 0,

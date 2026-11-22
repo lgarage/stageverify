@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DEFAULT_MANAGEMENT_PIN_ID = void 0;
 exports.findTechnicianByAccessPinSecrets = findTechnicianByAccessPinSecrets;
 exports.findVendorByAccessPinSecrets = findVendorByAccessPinSecrets;
+exports.jobAccessPinSecretMatches = jobAccessPinSecretMatches;
 exports.vendorAccessPinSecretMatches = vendorAccessPinSecretMatches;
 exports.findManagementPinByAccessPinSecrets = findManagementPinByAccessPinSecrets;
 const admin = require("firebase-admin");
@@ -189,6 +190,19 @@ async function findVendorByAccessPinSecrets(pin) {
  * Delivery-scoped vendor PIN match against accessPinSecrets for one vendor.
  * Does not require companyWideSessionEnabled (that gate is location-first only).
  */
+async function jobAccessPinSecretMatches(jobId, pin) {
+    const snap = await (0, accessPinSecretsShared_1.getDb)()
+        .collection(accessPinSecretsShared_1.ACCESS_PIN_SECRETS_COLLECTION)
+        .doc((0, accessPinSecretsShared_1.accessPinSecretDocId)("job", jobId))
+        .get();
+    if (!snap.exists)
+        return false;
+    const secret = snap.data();
+    if (typeof secret.pinHash !== "string" || !secret.pinHash.includes(":")) {
+        return false;
+    }
+    return (0, pinMatching_1.pinMatches)({ pinHash: secret.pinHash }, pin);
+}
 async function vendorAccessPinSecretMatches(vendorId, pin) {
     const snap = await (0, accessPinSecretsShared_1.getDb)()
         .collection(accessPinSecretsShared_1.ACCESS_PIN_SECRETS_COLLECTION)

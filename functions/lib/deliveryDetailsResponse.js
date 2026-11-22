@@ -2,6 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ZONE_CLEARED_DELIVERY_STATUSES = exports.RECEIVE_BLOCKED_DELIVERY_STATUSES = exports.PICKUP_PORTAL_NOT_READY_DETAIL_STATUSES = exports.PICKUP_PORTAL_DELIVERY_STATUSES = void 0;
 exports.sanitizeDeliveryForPublic = sanitizeDeliveryForPublic;
+exports.sanitizeJobForPortal = sanitizeJobForPortal;
+exports.sanitizeItemForPortal = sanitizeItemForPortal;
+exports.sanitizePurchaseOrderForPortal = sanitizePurchaseOrderForPortal;
+exports.sanitizeStagingLocationForPortal = sanitizeStagingLocationForPortal;
 exports.buildVendorPinBootstrap = buildVendorPinBootstrap;
 exports.hydratePublicDeliveryDetails = hydratePublicDeliveryDetails;
 exports.getAllStagingLocationIds = getAllStagingLocationIds;
@@ -14,12 +18,104 @@ function publicVendorFromDelivery(delivery) {
         createdAt: String(delivery.createdAt ?? ""),
     };
 }
-/** Strip notes and vendorPinVerifier from public vendor receive payloads. */
+const PORTAL_DELIVERY_KEYS = new Set([
+    "id",
+    "orderNumber",
+    "vendorInvoiceNumber",
+    "status",
+    "readinessStatus",
+    "invoiceFulfillmentMethod",
+    "vendorId",
+    "vendorName",
+    "jobId",
+    "jobName",
+    "purchaseOrderId",
+    "poNumber",
+    "stagingLocationId",
+    "stagingLocationCode",
+    "plannedStagingLocationIds",
+    "additionalStagingLocationIds",
+    "vendorPhysicalDropoffConfirmed",
+    "vendorPhysicalDropoffConfirmedAt",
+    "itemCount",
+    "deliveryDate",
+    "openBlockingIssueCount",
+    "shopStockReady",
+    "createdAt",
+    "updatedAt",
+]);
+const PORTAL_JOB_KEYS = new Set([
+    "id",
+    "jobNumber",
+    "jobName",
+    "siteNumber",
+    "status",
+    "materialOwnerId",
+    "materialOwnerName",
+    "pickupScheduledAt",
+    "pickupScheduledBy",
+    "createdAt",
+    "updatedAt",
+]);
+const PORTAL_ITEM_KEYS = new Set([
+    "id",
+    "deliveryOrderId",
+    "description",
+    "sku",
+    "unit",
+    "qtyOrdered",
+    "qtyReceived",
+    "qtyMissing",
+    "qtyDamaged",
+    "qtyBackordered",
+    "status",
+    "pickupChecklist",
+    "installed",
+    "createdAt",
+    "updatedAt",
+]);
+const PORTAL_PO_KEYS = new Set([
+    "id",
+    "poNumber",
+    "jobId",
+    "vendorId",
+    "status",
+    "createdAt",
+    "updatedAt",
+]);
+const PORTAL_STAGING_LOCATION_KEYS = new Set([
+    "id",
+    "code",
+    "name",
+    "zone",
+    "createdAt",
+    "updatedAt",
+]);
+function pickAllowlisted(data, id, allowed) {
+    const out = { id };
+    for (const key of allowed) {
+        if (key === "id")
+            continue;
+        if (key in data)
+            out[key] = data[key];
+    }
+    return out;
+}
+/** Explicit allowlist — omits notes, costs, PIN material, and unknown internal fields. */
 function sanitizeDeliveryForPublic(deliveryId, data) {
-    const rest = { ...data };
-    delete rest.notes;
-    delete rest.vendorPinVerifier;
-    return { ...rest, id: String(data.id ?? deliveryId) };
+    return pickAllowlisted({ ...data, id: String(data.id ?? deliveryId) }, String(data.id ?? deliveryId), PORTAL_DELIVERY_KEYS);
+}
+function sanitizeJobForPortal(jobId, data) {
+    return pickAllowlisted(data, jobId, PORTAL_JOB_KEYS);
+}
+function sanitizeItemForPortal(itemId, data) {
+    return pickAllowlisted({ ...data, id: itemId }, itemId, PORTAL_ITEM_KEYS);
+}
+function sanitizePurchaseOrderForPortal(poId, data) {
+    return pickAllowlisted(data, poId, PORTAL_PO_KEYS);
+}
+function sanitizeStagingLocationForPortal(locationId, data) {
+    return pickAllowlisted(data, locationId, PORTAL_STAGING_LOCATION_KEYS);
 }
 function asOptionalString(value) {
     if (typeof value !== "string")
@@ -99,8 +195,9 @@ async function hydratePublicDeliveryDetails(db, deliveryId) {
     if (!deliverySnap.exists)
         return null;
     const deliveryData = deliverySnap.data();
+    const jobId = typeof deliveryData.jobId === "string" ? deliveryData.jobId.trim() : "";
     const [jobSnap, poSnap, locSnap, itemsSnap] = await Promise.all([
-        db.collection("jobs").doc(String(deliveryData.jobId ?? "")).get(),
+        jobId ? db.collection("jobs").doc(jobId).get() : Promise.resolve(null),
         deliveryData.purchaseOrderId
             ? db
                 .collection("purchaseOrders")
@@ -118,20 +215,19 @@ async function hydratePublicDeliveryDetails(db, deliveryId) {
             .where("deliveryOrderId", "==", deliveryId)
             .get(),
     ]);
-    const items = itemsSnap.docs.map((docSnap) => ({
-        ...docSnap.data(),
-        id: docSnap.id,
-    }));
+    const items = itemsSnap.docs.map((docSnap) => sanitizeItemForPortal(docSnap.id, docSnap.data()));
     return {
         delivery: sanitizeDeliveryForPublic(deliveryId, deliveryData),
         vendor: publicVendorFromDelivery(deliveryData),
         items,
-        job: jobSnap?.exists ? { ...jobSnap.data(), id: jobSnap.id } : undefined,
+        job: jobSnap?.exists && jobId
+            ? sanitizeJobForPortal(jobId, jobSnap.data())
+            : undefined,
         purchaseOrder: poSnap?.exists
-            ? { ...poSnap.data(), id: poSnap.id }
+            ? sanitizePurchaseOrderForPortal(poSnap.id, poSnap.data())
             : undefined,
         stagingLocation: locSnap?.exists
-            ? { ...locSnap.data(), id: locSnap.id }
+            ? sanitizeStagingLocationForPortal(locSnap.id, locSnap.data())
             : undefined,
         statusHistory: [],
         pickupEvents: [],

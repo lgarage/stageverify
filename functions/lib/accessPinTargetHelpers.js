@@ -10,6 +10,7 @@ const managementPinRegistry_1 = require("./managementPinRegistry");
 const ENTITY_COLLECTION = {
     technician: "technicians",
     vendor: "vendors",
+    job: "jobs",
 };
 async function assertAccessPinTargetExists(targetType, targetId) {
     if (targetType === "management") {

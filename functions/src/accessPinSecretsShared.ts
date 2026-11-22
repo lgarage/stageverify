@@ -8,7 +8,7 @@ export const ACCESS_PIN_REVEAL_ATTEMPTS_COLLECTION = "accessPinRevealAttempts";
 export const ACCESS_PIN_SET_ATTEMPTS_COLLECTION = "accessPinSetAttempts";
 export const ADMIN_ACCESS_SESSIONS_COLLECTION = "adminAccessSessions";
 
-export type AccessPinTargetType = "technician" | "vendor" | "management";
+export type AccessPinTargetType = "technician" | "vendor" | "management" | "job";
 
 /** Audit target may include Auth dispatcher identities (not PIN secret targets). */
 export type PinAccessAuditTargetType = AccessPinTargetType | "dispatcher";
@@ -113,7 +113,8 @@ export function parseAccessPinTargetType(
   if (
     value === "technician" ||
     value === "vendor" ||
-    value === "management"
+    value === "management" ||
+    value === "job"
   ) {
     return value;
   }
