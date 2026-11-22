@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.revokePickupToken = void 0;
 const admin = require("firebase-admin");
 const https_1 = require("firebase-functions/v2/https");
+const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const pickupTokenValidation_1 = require("./pickupTokenValidation");
 function getDb() {
     return admin.firestore();
@@ -15,9 +16,7 @@ exports.revokePickupToken = (0, https_1.onCall)({
         "https://lgarage.github.io",
     ],
 }, async (request) => {
-    if (!request.auth) {
-        throw new https_1.HttpsError("unauthenticated", "Sign in required.");
-    }
+    await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
     const jobId = (0, pickupTokenValidation_1.asJobId)(request.data?.jobId);
     if (!jobId) {
         throw new https_1.HttpsError("invalid-argument", "Invalid job.");

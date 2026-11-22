@@ -4,6 +4,7 @@ exports.generatePickupToken = void 0;
 const admin = require("firebase-admin");
 const crypto_1 = require("crypto");
 const https_1 = require("firebase-functions/v2/https");
+const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const pickupTokenValidation_1 = require("./pickupTokenValidation");
 function getDb() {
     return admin.firestore();
@@ -34,9 +35,8 @@ exports.generatePickupToken = (0, https_1.onCall)({
         "https://lgarage.github.io",
     ],
 }, async (request) => {
-    if (!request.auth) {
-        throw new https_1.HttpsError("unauthenticated", "Sign in required.");
-    }
+    const dispatcherUid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+    const auth = request.auth;
     const jobId = (0, pickupTokenValidation_1.asJobId)(request.data?.jobId);
     if (!jobId) {
         throw new https_1.HttpsError("invalid-argument", "Invalid job.");
@@ -51,9 +51,7 @@ exports.generatePickupToken = (0, https_1.onCall)({
     await revokeActiveTokensForJob(jobId, nowIso);
     const token = (0, crypto_1.randomBytes)(32).toString("hex");
     const tokenHash = (0, pickupTokenValidation_1.hashPickupToken)(token);
-    const createdBy = request.auth.token.email ??
-        request.auth.token.name ??
-        request.auth.uid;
+    const createdBy = auth.token.email ?? auth.token.name ?? dispatcherUid;
     await getDb()
         .collection("pickupTokens")
         .doc(tokenHash)

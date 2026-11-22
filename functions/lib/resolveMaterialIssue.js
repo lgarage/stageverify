@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.resolveMaterialIssue = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const dispatcherAuth_1 = require("./inboundEmail/dispatcherAuth");
 const applyDeliveryReadiness_1 = require("./applyDeliveryReadiness");
 const pickupMaterialIssueReadback_1 = require("./pickupMaterialIssueReadback");
 function getDb() {
@@ -48,9 +49,8 @@ exports.resolveMaterialIssue = (0, https_1.onCall)({
         "https://lgarage.github.io",
     ],
 }, async (request) => {
-    if (!request.auth?.uid) {
-        throw new https_1.HttpsError("permission-denied", "Sign in as a dispatcher to resolve issues.");
-    }
+    const dispatcherUid = await (0, dispatcherAuth_1.requireDispatcherAuth)(request);
+    const auth = request.auth;
     const data = (request.data ?? {});
     const issueId = asNonEmptyString(data.issueId, 128);
     const resolutionType = asResolutionType(data.resolutionType);
@@ -70,9 +70,7 @@ exports.resolveMaterialIssue = (0, https_1.onCall)({
     const deliveryOrderId = issue.deliveryOrderId;
     const deliveryRef = getDb().collection("deliveries").doc(deliveryOrderId);
     const now = new Date().toISOString();
-    const resolvedBy = request.auth.token.email?.trim() ||
-        request.auth.token.name?.trim() ||
-        request.auth.uid;
+    const resolvedBy = auth.token.email?.trim() || auth.token.name?.trim() || dispatcherUid;
     const blocking = issue.blocking === true;
     await getDb().runTransaction(async (tx) => {
         const liveIssue = await tx.get(issueRef);

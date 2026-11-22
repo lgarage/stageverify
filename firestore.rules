@@ -8,8 +8,8 @@ rules_version = '2';
 //   - Location/branding for pre-PIN receive and pickup location labels only.
 //   - Sensitive delivery/item/job/PO data is CF-mediated (vendor session or pickup token).
 //
-// AUTH REQUIRED READ: deliveries, items, jobs, purchaseOrders, statusHistory, pickupEvents
-//   - Dispatcher/settings UI and audit views require Firebase Auth.
+// STAFF READ/WRITE: deliveries, items, jobs, purchaseOrders, statusHistory, pickupEvents
+//   - Active dispatcher/manager/admin (dispatcherRoles or legacy custom claim).
 //
 // UNAUTHENTICATED WRITES: none on deliveries/items/statusHistory
 //   - Vendor writes via session-gated Cloud Functions (Admin SDK).
@@ -32,10 +32,20 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isDispatcher() {
+    // Active staff — mirrors functions/src/inboundEmail/dispatcherAuth.ts requireDispatcherAuth.
+    // Legacy Firebase Auth custom claim `dispatcher: true` when no dispatcherRoles doc exists.
+    function isActiveStaff() {
       return isAuthenticated()
-        && exists(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid))
-        && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.active != false;
+        && (
+          (exists(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid))
+            && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('active', true) != false
+            && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('removed', false) != true)
+          || ('dispatcher' in request.auth.token && request.auth.token.dispatcher == true)
+        );
+    }
+
+    function isDispatcher() {
+      return isActiveStaff();
     }
 
     function isValidDeliveryStatus(status) {
@@ -65,31 +75,31 @@ service cloud.firestore {
     }
 
     match /deliveries/{deliveryId} {
-      allow read: if isAuthenticated();
-      allow create, delete: if isAuthenticated();
-      allow update: if isAuthenticated();
+      allow read: if isActiveStaff();
+      allow create, delete: if isActiveStaff();
+      allow update: if isActiveStaff();
     }
 
     match /items/{itemId} {
-      allow read: if isAuthenticated();
-      allow create, delete: if isAuthenticated();
-      allow update: if isAuthenticated();
+      allow read: if isActiveStaff();
+      allow create, delete: if isActiveStaff();
+      allow update: if isActiveStaff();
     }
 
     match /jobs/{jobId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
+      allow read: if isActiveStaff();
+      allow create, update: if isActiveStaff();
       allow delete: if false;
     }
 
     match /vendors/{vendorId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated()
+      allow read: if isActiveStaff();
+      allow create: if isActiveStaff()
         && !('pinCode' in request.resource.data)
         && !('pinHash' in request.resource.data)
         && !('pinEncrypted' in request.resource.data)
         && !('pinConfigured' in request.resource.data);
-      allow update: if isAuthenticated()
+      allow update: if isActiveStaff()
         && !request.resource.data.diff(resource.data).affectedKeys()
           .hasAny(['pinCode', 'pinHash', 'pinEncrypted', 'pinConfigured']);
       allow delete: if false;
@@ -189,47 +199,47 @@ service cloud.firestore {
     }
 
     match /pinVerificationEvents/{eventId} {
-      allow read: if isAuthenticated();
+      allow read: if isActiveStaff();
       allow create, update, delete: if false;
     }
 
     match /stagingLocations/{locationId} {
       allow read: if true;
-      allow create, update, delete: if isAuthenticated();
+      allow create, update, delete: if isActiveStaff();
     }
 
     match /purchaseOrders/{poId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
+      allow read: if isActiveStaff();
+      allow create, update: if isActiveStaff();
       allow delete: if false;
     }
 
     match /statusHistory/{eventId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow read: if isActiveStaff();
+      allow create: if isActiveStaff();
       allow update, delete: if false;
     }
 
     match /pickupEvents/{eventId} {
-      allow read: if isAuthenticated();
+      allow read: if isActiveStaff();
       allow create: if false;
       allow update, delete: if false;
     }
 
     // Phase 3: MaterialIssue — auth read only; writes via Admin SDK (createMaterialIssue CF).
     match /materialIssues/{issueId} {
-      allow read: if isAuthenticated();
+      allow read: if isActiveStaff();
       allow create, update, delete: if false;
     }
 
     match /vendorEmailEvents/{eventId} {
-      allow read: if isAuthenticated();
+      allow read: if isActiveStaff();
       allow create, update, delete: if false;
     }
 
-    // Phase 6: Gmail OAuth connection metadata — auth read; tokens CF-only.
+    // Phase 6: Gmail OAuth connection metadata — staff read; tokens CF-only.
     match /emailProviderConnections/{providerId} {
-      allow read: if isAuthenticated();
+      allow read: if isActiveStaff();
       allow create, update, delete: if false;
     }
 
@@ -309,7 +319,7 @@ service cloud.firestore {
     }
 
     match /emailProviderAuditEvents/{eventId} {
-      allow read: if isAuthenticated();
+      allow read: if isActiveStaff();
       allow create, update, delete: if false;
     }
 
@@ -353,19 +363,7 @@ service cloud.firestore {
       // Gmail/integration + AI/billing fields are admin-only; CF-owned
       // fields are denied to every client (Admin SDK bypasses rules).
       // Inlined helpers (not top-level) per parallel-edit constraint.
-      // role/active/removed semantics mirror
-      // functions/src/inboundEmail/dispatcherAuth.ts hasAdminRole() /
-      // hasManagerRole(): dispatcherRoles/{uid} doc exists, active != false,
-      // removed != true; admin additionally requires role == 'admin'.
-      // Legacy { manager: true, no role } and legacy { active: true, no
-      // role } are STAFF, not admin — matches hasAdminRole()/isDispatcher().
-      function isActiveStaff() {
-        return isAuthenticated()
-          && exists(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid))
-          && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('active', true) != false
-          && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('removed', false) != true;
-      }
-
+      // Admin writes use top-level isActiveStaff() plus role == 'admin'.
       function isActiveAdmin() {
         return isActiveStaff()
           && get(/databases/$(database)/documents/dispatcherRoles/$(request.auth.uid)).data.get('role', '') == 'admin';
@@ -426,7 +424,7 @@ service cloud.firestore {
     // Phase 3: permanent shop-stock location directory — public read for pickup location labels.
     match /shopStockLocationMappings/{mappingId} {
       allow read: if true;
-      allow create, update, delete: if isAuthenticated();
+      allow create, update, delete: if isActiveStaff();
     }
   }
 }
